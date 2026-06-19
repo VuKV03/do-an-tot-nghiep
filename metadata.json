@@ -1,0 +1,6 @@
+{
+  "name": "SmartTest Admin Dashboard",
+  "description": "An advanced, beautifully designed exam management dashboard mimicking SmartTest.vn admin list, featuring rich filters, statistics, search, exam wizard, and dark/light system presets in Vietnamese.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

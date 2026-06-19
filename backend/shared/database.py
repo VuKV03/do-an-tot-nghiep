@@ -1,0 +1,74 @@
+"""
+Shared async database engine and session factory.
+Used by Exam Service, Analytics Service, and Auth Service.
+"""
+import asyncio
+# pyrefly: ignore [missing-import]
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+# pyrefly: ignore [missing-import]
+from sqlalchemy.orm import DeclarativeBase
+# pyrefly: ignore [missing-import]
+from sqlalchemy import text
+
+from .config import db_config
+
+
+class Base(DeclarativeBase):
+    """Base class for all ORM models."""
+    pass
+
+
+# Async engine (connection pool)
+engine = create_async_engine(
+    db_config.url,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,
+    pool_pre_ping=True,
+)
+
+# Session factory
+async_session = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def get_db():
+    """FastAPI dependency — yields an async DB session."""
+    async with async_session() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+async def ensure_database_exists():
+    """Create the database if it doesn't exist yet (runs before ORM init)."""
+    # pyrefly: ignore [missing-import]
+    import aiomysql
+    conn = await aiomysql.connect(
+        host=db_config.HOST,
+        port=db_config.PORT,
+        user=db_config.USER,
+        password=db_config.PASSWORD,
+    )
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{db_config.NAME}` "
+                f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            )
+        await conn.commit()
+        print(f"[Database] Database '{db_config.NAME}' sẵn sàng.")
+    finally:
+        conn.close()
+
+
+async def init_tables():
+    """Create all ORM tables."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("[Database] Cấu trúc bảng đã được tạo thành công.")
