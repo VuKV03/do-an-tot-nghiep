@@ -9,6 +9,7 @@ from google.genai import types
 from backend.shared.config import gemini_config
 
 
+
 def get_gemini_client() -> genai.Client:
     """Get a configured Gemini client."""
     if not gemini_config.API_KEY:

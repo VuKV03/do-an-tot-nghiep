@@ -1,6 +1,7 @@
 """
 Pydantic schemas for the AI Service.
 """
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 from typing import Optional, List
 

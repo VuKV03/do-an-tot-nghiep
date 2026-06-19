@@ -1,10 +1,9 @@
-# SmartTest - Hệ thống Quản lý & Sinh đề thi bằng AI (V2)
+# Hệ thống Quản lý & Sinh đề thi bằng AI (V2)
 
-<div align="center">
-  <img width="1200" height="400" style="border-radius: 8px; object-fit: cover;" alt="SmartTest Banner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
 </div>
 
 ## 📌 Giới thiệu dự án
+
 **SmartTest v2** là hệ thống quản lý ngân hàng câu hỏi, cấu hình ma trận đề thi và sinh đề kiểm tra tự động tích hợp Trí tuệ Nhân tạo (**Google Gemini AI**). Hệ thống được phát triển theo kiến trúc **Microservices** hiện đại, kết hợp giao diện tối giản, trực quan và các tương tác mượt mà, giúp giáo viên và nhà quản lý giáo dục tối ưu hóa quy trình ra đề thi chuẩn hóa chỉ trong vài giây.
 
 ---
@@ -25,14 +24,18 @@
 Dự án hỗ trợ chạy ở hai chế độ linh hoạt để tối ưu hóa quá trình phát triển lẫn vận hành thực tế:
 
 ### Chế độ 1: Virtual Microservices (Express Mode - Phát triển nhanh)
+
 Một máy chủ Node.js chạy Express tích hợp sẵn Vite middleware để phục vụ giao diện và đóng vai trò như một API Gateway ảo. Máy chủ này chứa các Router giả lập luồng gọi của 4 microservice:
+
 - **API Gateway (Port 3000)**: Quản lý định tuyến và lưu vết cuộc gọi hệ thống.
 - **Exam Service**: Xử lý dữ liệu CRUD Đề thi, Câu hỏi và Gói đề trực tiếp xuống database MySQL.
 - **AI Service**: Gọi API SDK Google Gemini trực tiếp từ Node backend.
 - **Analytics Service**: Tính toán trực tiếp phổ điểm và thống kê đề thi trực tiếp từ cơ sở dữ liệu.
 
 ### Chế độ 2: Real Python Microservices (FastAPI Production Mode)
+
 Hệ thống microservices thực tế chạy bằng Python 3.11+ kết hợp FastAPI kết nối trực tiếp cơ sở dữ liệu MySQL và trao đổi thông tin qua Gateway trung tâm.
+
 - **API Gateway** (Port 8000): Trung tâm định tuyến, xử lý CORS và lưu vết cuộc gọi qua Middleware logging.
 - **Exam Service** (Port 8001): CRUD Đề thi, gói đề, cơ sở dữ liệu MySQL thông qua SQLAlchemy (Asyncio).
 - **AI Service** (Port 8002): Sinh đề thi thông qua Google Gemini Client SDK (`google-genai`).
@@ -93,9 +96,11 @@ DB_NAME="quan_ly_sinh_de_ai_v2"
 ## 🚀 Hướng dẫn cài đặt và vận hành
 
 ### Bước 1: Khởi tạo MySQL Database
+
 Đảm bảo máy tính của bạn đã cài đặt MySQL Server và đang chạy dịch vụ. Hệ thống Express sẽ tự động tạo cơ sở dữ liệu `quan_ly_sinh_de_ai_v2`, các bảng liên quan và nạp dữ liệu mẫu khi khởi chạy lần đầu tiên.
 
 ### Bước 2: Khởi động chế độ Virtual Microservices (Express & Vite)
+
 1. Cài đặt các gói thư viện Node.js:
    ```bash
    npm install
@@ -107,11 +112,12 @@ DB_NAME="quan_ly_sinh_de_ai_v2"
 3. Mở trình duyệt và truy cập: `http://localhost:3000`
 
 ### Bước 3: Vận hành hệ thống Python Microservices thực tế
+
 1. Truy cập vào thư mục backend, tạo môi trường ảo Python 3.11+:
    ```bash
    # Tạo môi trường ảo
    python -m venv venv
-   
+
    # Kích hoạt trên Windows:
    .\venv\Scripts\activate
    ```
@@ -131,4 +137,3 @@ DB_NAME="quan_ly_sinh_de_ai_v2"
    - **Analytics Service**: `http://localhost:8003/docs`
 
 ---
-*Chúc bạn có trải nghiệm tuyệt vời cùng hệ thống SmartTest v2!*

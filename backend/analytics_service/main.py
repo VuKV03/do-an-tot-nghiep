@@ -49,5 +49,7 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run("backend.analytics_service.main:app", host="0.0.0.0", port=8003, reload=True)
+    

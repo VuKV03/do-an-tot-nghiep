@@ -3,7 +3,9 @@ AI Service — FastAPI Microservice (Port 8002)
 Handles AI-powered question generation and exam info suggestions via Google Gemini.
 """
 from contextlib import asynccontextmanager
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ai_service.routes.generate import router as generate_router
@@ -43,5 +45,6 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run("backend.ai_service.main:app", host="0.0.0.0", port=8002, reload=True)
