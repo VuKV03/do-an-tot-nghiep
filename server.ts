@@ -8,6 +8,7 @@ import { initDatabase } from "./server/db";
 import examService from "./server/services/examService";
 import aiService from "./server/services/aiService";
 import analyticsService from "./server/services/analyticsService";
+import matrixService from "./server/services/matrixService";
 
 dotenv.config();
 
@@ -145,6 +146,9 @@ app.post("/api/suggest-exam-info", async (req, res, next) => {
 
 // 3. ANALYTICS ROUTER
 app.use("/api/analytics", analyticsService);
+
+// 4. MATRIX CONFIG ROUTER
+app.use("/api/matrix-configs", matrixService);
 
 // 4. MICROSERVICES CONTROL AND STATUS ROUTE
 app.get("/api/microservices/status", (req, res) => {
