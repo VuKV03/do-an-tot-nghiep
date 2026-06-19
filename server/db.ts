@@ -7,8 +7,8 @@ const {
   DB_HOST = 'localhost',
   DB_PORT = '3306',
   DB_USER = 'root',
-  DB_PASSWORD = '',
-  DB_NAME = 'quan_ly_sinh_de_ai_v2'
+  DB_PASSWORD = '123456',
+  DB_NAME = 'do-an'
 } = process.env;
 
 let pool: mysql.Pool;
@@ -109,7 +109,22 @@ async function createTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    console.log('[Database] Cấu trúc các bảng exams, questions, packages đã sẵn sàng.');
+    // 4. Bảng matrix_configs (Ma trận đề)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS matrix_configs (
+        id VARCHAR(255) PRIMARY KEY,
+        code VARCHAR(100) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        totalScore DECIMAL(10,2) DEFAULT 10.00,
+        totalQuestions INT DEFAULT 0,
+        duration INT DEFAULT 120,
+        status VARCHAR(50) DEFAULT 'new',
+        createdAt VARCHAR(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    console.log('[Database] Cấu trúc các bảng exams, questions, packages, matrix_configs đã sẵn sàng.');
   } finally {
     connection.release();
   }
@@ -316,5 +331,30 @@ async function seedDemoData() {
       );
     }
     console.log('[Database] Đã nạp gói đề thi mẫu thành công.');
+  }
+
+  // Seed matrix_configs
+  const [matrixRows] = await pool.query('SELECT COUNT(*) as count FROM matrix_configs');
+  const matrixCount = (matrixRows as any)[0].count;
+
+  if (matrixCount === 0) {
+    console.log('[Database] Bảng matrix_configs trống. Đang nạp dữ liệu ma trận mẫu...');
+
+    const demoMatrices = [
+      { id: 'mtx-1', code: 'T240001', name: 'Ma trận đề 01', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'approved', createdAt: '2024-03-15T08:00:00Z' },
+      { id: 'mtx-2', code: 'T240002', name: 'Ma trận đề 02', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'rejected', createdAt: '2024-03-20T09:30:00Z' },
+      { id: 'mtx-3', code: 'T240003', name: 'Ma trận đề 03', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'approved', createdAt: '2024-04-01T10:00:00Z' },
+      { id: 'mtx-4', code: 'V240001', name: 'Ma trận đề 04', subject: 'Ngữ văn', totalScore: 10.00, totalQuestions: 50, duration: 180, status: 'approved', createdAt: '2024-04-10T14:00:00Z' },
+      { id: 'mtx-5', code: 'V240002', name: 'Ma trận đề 05', subject: 'Ngữ văn', totalScore: 10.00, totalQuestions: 50, duration: 180, status: 'new', createdAt: '2024-05-05T11:00:00Z' },
+    ];
+
+    for (const m of demoMatrices) {
+      await pool.query(
+        `INSERT INTO matrix_configs (id, code, name, subject, totalScore, totalQuestions, duration, status, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [m.id, m.code, m.name, m.subject, m.totalScore, m.totalQuestions, m.duration, m.status, m.createdAt]
+      );
+    }
+    console.log('[Database] Đã nạp dữ liệu ma trận mẫu thành công.');
   }
 }

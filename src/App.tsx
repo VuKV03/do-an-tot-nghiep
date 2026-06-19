@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  Layout, 
-  Menu, 
-  Button, 
-  Dropdown, 
-  Avatar, 
-  message, 
-  Breadcrumb, 
-  Modal, 
+import {
+  Layout,
+  Menu,
+  Button,
+  Dropdown,
+  Avatar,
+  message,
+  Breadcrumb,
+  Modal,
   Badge,
   Input,
   Tooltip
@@ -35,7 +35,7 @@ import { Question, MatrixConfig, AuditLog } from './types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
 import DashboardOverview from './components/DashboardOverview';
 import QuestionBankModule from './components/QuestionBankModule';
-import MatrixConfigModule from './components/MatrixConfigModule';
+import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
 import QuestionTopicsModule from './components/QuestionTopicsModule';
 import QuestionStatsModule from './components/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
@@ -275,8 +275,8 @@ export default function App() {
     switch (activeMenuKey) {
       case 'dashboard':
         return (
-          <DashboardOverview 
-            questions={questions} 
+          <DashboardOverview
+            questions={questions}
             matrices={matrices}
             auditLogs={auditLogs}
             onNavigate={handleDashboardNavigate}
@@ -284,7 +284,7 @@ export default function App() {
         );
       case 'ngan-hang-cau-hoi':
         return (
-          <QuestionBankModule 
+          <QuestionBankModule
             questions={questions}
             onAddQuestion={handleAddQuestion}
             onUpdateQuestion={handleUpdateQuestion}
@@ -294,28 +294,23 @@ export default function App() {
         );
       case 'quan-ly-ma-tran-de':
         return (
-          <MatrixConfigModule 
-            matrices={matrices}
-            onSaveMatrix={handleSaveMatrix}
-            onDeleteMatrix={handleDeleteMatrix}
-            questions={questions}
-          />
+          <MatrixConfigModule />
         );
       case 'chu-de-cau-hoi':
         return (
-          <QuestionTopicsModule 
+          <QuestionTopicsModule
             questions={questions}
           />
         );
       case 'thong-ke-nhch':
         return (
-          <QuestionStatsModule 
+          <QuestionStatsModule
             questions={questions}
           />
         );
       case 'quan-ly-de-thi-goi-de':
         return (
-          <ExamPackageModule 
+          <ExamPackageModule
             onNavigateTab={(key) => setActiveMenuKey(key)}
           />
         );
@@ -323,7 +318,7 @@ export default function App() {
       case 'quan-ly-nhom-nguoi-dung':
       case 'chinh-sach-bao-mat':
         return (
-          <SystemAdminModule 
+          <SystemAdminModule
             currentTabKey={activeMenuKey}
             onNavigateTab={(key) => setActiveMenuKey(key)}
             auditLogs={auditLogs}
@@ -354,7 +349,7 @@ export default function App() {
               </p>
             </div>
             <div className="pt-2">
-              <Button 
+              <Button
                 type="primary"
                 className="bg-[#0f172a] border-transparent text-white rounded-lg text-xs font-black cursor-pointer"
                 onClick={() => setActiveMenuKey('dashboard')}
@@ -370,7 +365,7 @@ export default function App() {
   const getBreadcrumbTitle = () => {
     switch (activeMenuKey) {
       case 'dashboard': return 'Bảng tổng quan điều khiển';
-      case 'quan-ly-ma-tran-de': return 'Xây dựng đề / Quản lý ma trận đề';
+      case 'quan-ly-ma-tran-de': return 'Xây dựng đề thi/ Quản lý ma trận đề';
       case 'ngan-hang-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Ngân hàng câu hỏi';
       case 'chu-de-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Chủ đề câu hỏi';
       case 'thong-ke-nhch': return 'Quản lý ngân hàng câu hỏi / Thống kê NHCH';
@@ -388,10 +383,10 @@ export default function App() {
   return (
     <Layout className="min-h-screen bg-[#f5f7fa] font-sans" id="app-root-layout">
       {/* Sider collapsible sidebar */}
-      <Sider 
+      <Sider
         id="app-left-navigation-sider"
-        trigger={null} 
-        collapsible 
+        trigger={null}
+        collapsible
         collapsed={collapsed}
         width={275}
         collapsedWidth={80}
@@ -439,9 +434,9 @@ export default function App() {
       </Sider>
 
       <Layout className="flex flex-col h-screen overflow-y-auto" id="app-viewport-wrapper">
-        
+
         {/* Top Header */}
-        <Header 
+        <Header
           id="app-top-main-header"
           className="px-5 border-b border-slate-800 flex items-center justify-between sticky top-0 z-50 h-16 shadow-lg shrink-0 transition-colors duration-300"
           style={{ backgroundColor: '#0f172a' }}
@@ -460,9 +455,9 @@ export default function App() {
           {/* Right Actions container */}
           <div className="flex items-center gap-4">
             <Badge count={2} size="small" id="notification-bell-badge">
-              <Button 
-                type="text" 
-                shape="circle" 
+              <Button
+                type="text"
+                shape="circle"
                 id="btn-notif"
                 className="bg-slate-800 hover:bg-slate-700 border-none flex items-center justify-center text-slate-300 cursor-pointer"
                 onClick={() => message.info('Bạn đang có 2 thông báo thẩm định mới đang chờ phê duyệt chuyên môn.')}
@@ -473,8 +468,8 @@ export default function App() {
             {/* Drodown logged-in user details */}
             <Dropdown menu={userMenuItems} trigger={['click']} placement="bottomRight" id="header-user-dropdown">
               <div className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-800 rounded-xl transition-all">
-                <Avatar 
-                  style={{ backgroundColor: '#1e293b', verticalAlign: 'middle' }} 
+                <Avatar
+                  style={{ backgroundColor: '#1e293b', verticalAlign: 'middle' }}
                   size="small"
                   className="font-black font-sans shrink-0 border border-slate-700"
                 >
@@ -491,16 +486,14 @@ export default function App() {
 
         {/* Dynamic viewport container */}
         <Content className="p-6 overflow-y-auto flex-1 flex flex-col space-y-4" id="app-viewport-container">
-          
+
           {/* Custom functional breadcrumbs */}
           <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
-            <Breadcrumb 
+            <Breadcrumb
               className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
-              items={[
-                { title: <span className="flex items-center gap-1.5"><HomeOutlined /> Trang chủ</span> },
-                { title: 'Quản trị' },
-                ...getBreadcrumbTitle().split(' / ').map(title => ({ title }))
-              ]}
+              items={
+                getBreadcrumbTitle().split(/\s*\/\s*/).map(title => ({ title }))
+              }
             />
 
             <span className="text-[10px] bg-sky-100/70 border border-sky-200 text-[#0f172a] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider block">
@@ -516,7 +509,7 @@ export default function App() {
       </Layout>
 
       {/* Global Module 1: Questions & Exam Review / Validation modal */}
-      <ReviewModal 
+      <ReviewModal
         visible={isReviewOpen}
         onClose={() => {
           setIsReviewOpen(false);
