@@ -1,11 +1,13 @@
-# 🤖 SmartTest AI Service (Port 8002)
+# 🤖  AI Service (Port 8002)
 
 ## 📌 Giới thiệu
+
 **AI Service** chịu trách nhiệm tương tác trực tiếp với mô hình ngôn ngữ lớn **Google Gemini 3.5 Flash** (thông qua SDK Python chính thức `google-genai`). Dịch vụ này hỗ trợ giáo viên tự động hóa các tác vụ biên soạn học thuật và cấu hình tham số đề kiểm tra bằng cách phân tích chuyên đề và sinh câu hỏi trắc nghiệm thông minh.
 
 ---
 
 ## ⚙️ Các tính năng cốt lõi
+
 1. **Đề xuất cấu hình kiểm tra (`/suggest`)**: Dựa trên môn học, khối lớp và từ khóa chuyên đề người dùng nhập vào, AI sẽ phân tích và đưa ra gợi ý:
    - Tiêu đề kiểm tra chuẩn hóa (ví dụ: *"Khảo sát Đại số & Giải tích 12 - Chuyên đề Nguyên hàm"*).
    - Thời gian làm bài tối ưu (15, 45, 60, 90 phút).
@@ -16,6 +18,7 @@
 ---
 
 ## 🛣️ Các điểm cuối API chính (Port 8002)
+
 * **`POST /suggest`**: Gợi ý cấu hình đề thi.
   - *Tham số đầu vào*:
     ```json
@@ -53,9 +56,12 @@
 ---
 
 ## 🚀 Khởi chạy độc lập
+
 Yêu cầu đã cấu hình biến môi trường `GEMINI_API_KEY` trong file `.env` ở thư mục gốc. Chạy lệnh sau:
+
 ```bash
 python -m backend.ai_service.main
 ```
+
 Dịch vụ sẽ khởi động tại: `http://localhost:8002`
 Tài liệu hướng dẫn API trực quan (Swagger UI): `http://localhost:8002/docs`
