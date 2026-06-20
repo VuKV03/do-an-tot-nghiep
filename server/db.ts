@@ -9,7 +9,8 @@ const {
   DB_PORT = '3306',
   DB_USER = 'root',
   DB_PASSWORD = '',
-  DB_NAME = 'quan_ly_sinh_de_ai_v2'
+  DB_NAME = 'quan_ly_sinh_de_ai_v2',
+  DB_SSL = 'false'
 } = process.env;
 
 let pool: mysql.Pool;
@@ -22,6 +23,7 @@ export async function initDatabase() {
       port: parseInt(DB_PORT, 10),
       user: DB_USER,
       password: DB_PASSWORD,
+      ...(DB_SSL === 'true' && { ssl: { rejectUnauthorized: true } })
     });
 
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
@@ -35,7 +37,8 @@ export async function initDatabase() {
       database: DB_NAME,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      ...(DB_SSL === 'true' && { ssl: { rejectUnauthorized: true } })
     });
 
     console.log(`[Database] Đã kết nối thành công tới database MySQL: ${DB_NAME}`);
@@ -59,6 +62,20 @@ export function getPool() {
 async function createTables() {
   const connection = await pool.getConnection();
   try {
+    // 0. Bảng users
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        fullName VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        status VARCHAR(50) DEFAULT 'active',
+        createdAt VARCHAR(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     // 1. Bảng exams
     await connection.query(`
       CREATE TABLE IF NOT EXISTS exams (
