@@ -8,6 +8,7 @@ import { initDatabase } from "./server/db";
 import examService from "./server/services/examService";
 import aiService from "./server/services/aiService";
 import analyticsService from "./server/services/analyticsService";
+import authService from "./server/services/authService";
 
 dotenv.config();
 
@@ -21,13 +22,14 @@ let replicas = {
   gateway: 1,
   exam: 2,
   ai: 2,
-  analytics: 1
+  analytics: 1,
+  auth: 1
 };
 
 interface MicroserviceLog {
   id: string;
   timestamp: string;
-  service: "gateway" | "exam" | "ai" | "analytics";
+  service: "gateway" | "exam" | "ai" | "analytics" | "auth";
   method: string;
   path: string;
   status: number;
@@ -74,7 +76,7 @@ let gatewayLogs: MicroserviceLog[] = [
   }
 ];
 
-const addLog = (service: "gateway" | "exam" | "ai" | "analytics", method: string, path: string, status: number, message: string) => {
+const addLog = (service: "gateway" | "exam" | "ai" | "analytics" | "auth", method: string, path: string, status: number, message: string) => {
   const newLog: MicroserviceLog = {
     id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     timestamp: new Date().toISOString(),
@@ -97,7 +99,7 @@ app.use((req, res, next) => {
   // Intercept response finish
   res.on("finish", () => {
     const duration = Date.now() - start;
-    let service: "gateway" | "exam" | "ai" | "analytics" = "gateway";
+    let service: "gateway" | "exam" | "ai" | "analytics" | "auth" = "gateway";
     
     if (req.originalUrl.startsWith("/api/v1/exams") || req.originalUrl.startsWith("/api/exams")) {
       service = "exam";
@@ -105,6 +107,8 @@ app.use((req, res, next) => {
       service = "ai";
     } else if (req.originalUrl.startsWith("/api/analytics")) {
       service = "analytics";
+    } else if (req.originalUrl.startsWith("/api/auth")) {
+      service = "auth";
     }
     
     let msg = `Yêu cầu được chuyển hướng. Phản hồi trong ${duration}ms`;
@@ -146,7 +150,10 @@ app.post("/api/suggest-exam-info", async (req, res, next) => {
 // 3. ANALYTICS ROUTER
 app.use("/api/analytics", analyticsService);
 
-// 4. MICROSERVICES CONTROL AND STATUS ROUTE
+// 4. AUTH ROUTER
+app.use("/api/auth", authService);
+
+// 5. MICROSERVICES CONTROL AND STATUS ROUTE
 app.get("/api/microservices/status", (req, res) => {
   // Read memory levels
   const mem = process.memoryUsage();
@@ -203,6 +210,18 @@ app.get("/api/microservices/status", (req, res) => {
           latency: `${Math.floor(40 + Math.random() * 30)}ms`,
           dbType: "Calculated Real-time Streams",
           desc: "Tổng hợp phổ điểm, tỉ lệ độ khó ma trận đề và xuất excel tự động."
+        },
+        {
+          id: "auth",
+          name: "Auth Service (Xác thực)",
+          status: "healthy",
+          port: 3004,
+          replicas: replicas.auth,
+          cpu: `${(0.5 * replicas.auth).toFixed(1)}%`,
+          memory: `${25 * replicas.auth} MB`,
+          latency: `${Math.floor(5 + Math.random() * 10)}ms`,
+          dbType: "MySQL users Table",
+          desc: "Xác thực danh tính người dùng, cấp phát JWT token bảo mật cho phiên làm việc."
         }
       ],
       overallHealth: "healthy",
@@ -232,7 +251,8 @@ app.post("/api/microservices/scale", (req, res) => {
   const servNames: { [key: string]: string } = {
     exam: "Exam Service",
     ai: "AI Generation Service",
-    analytics: "Analytics Service"
+    analytics: "Analytics Service",
+    auth: "Auth Service"
   };
   
   const servName = servNames[serviceId] || serviceId;

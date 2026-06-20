@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -109,7 +110,21 @@ async function createTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    console.log('[Database] Cấu trúc các bảng exams, questions, packages đã sẵn sàng.');
+    // 4. Bảng users
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        fullName VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'teacher',
+        status VARCHAR(50) DEFAULT 'active',
+        createdAt VARCHAR(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    console.log('[Database] Cấu trúc các bảng exams, questions, packages, users đã sẵn sàng.');
   } finally {
     connection.release();
   }
@@ -317,4 +332,88 @@ async function seedDemoData() {
     }
     console.log('[Database] Đã nạp gói đề thi mẫu thành công.');
   }
+
+  // Seed users
+  console.log('[Database] Đang kiểm tra và nạp tài khoản mẫu...');
+  const now = new Date().toISOString();
+  
+  const demoUsers = [
+    {
+      id: 'u-admin',
+      username: 'admin',
+      email: 'admin@smarttest.edu.vn',
+      fullName: 'Quản trị viên hệ thống',
+      password: 'admin123',
+      role: 'admin',
+      status: 'active'
+    },
+    {
+      id: 'u-teacher01',
+      username: 'teacher01',
+      email: 'teacher01@smarttest.edu.vn',
+      fullName: 'Nguyễn Văn Dũng',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
+    },
+    {
+      id: 'u-dungnt',
+      username: 'dungnt',
+      email: 'dungnt@school.edu.vn',
+      fullName: 'Nguyễn Tiến Dũng',
+      password: 'admin123',
+      role: 'admin',
+      status: 'active'
+    },
+    {
+      id: 'u-hai_lh',
+      username: 'hai_lh',
+      email: 'hai.lh@school.edu.vn',
+      fullName: 'Lê Hoàng Hải',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
+    },
+    {
+      id: 'u-trangpt',
+      username: 'trangpt',
+      email: 'trangpt@school.edu.vn',
+      fullName: 'Phan Thu Trang',
+      password: 'admin123',
+      role: 'reviewer',
+      status: 'active'
+    },
+    {
+      id: 'u-tuyetbt',
+      username: 'tuyetbt',
+      email: 'tuyetbt@school.edu.vn',
+      fullName: 'Bùi Thị Tuyết',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
+    }
+  ];
+
+  for (const user of demoUsers) {
+    const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [user.username]);
+    if ((existing as any[]).length === 0) {
+      const passwordHash = bcrypt.hashSync(user.password, 10);
+      await pool.query(
+        `INSERT INTO users (id, username, email, fullName, password_hash, role, status, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          user.id,
+          user.username,
+          user.email,
+          user.fullName,
+          passwordHash,
+          user.role,
+          user.status,
+          now
+        ]
+      );
+      console.log(`[Database] Đã nạp tài khoản mẫu: ${user.username}`);
+    }
+  }
+  console.log('[Database] Kiểm tra và nạp tài khoản hoàn tất.');
 }
