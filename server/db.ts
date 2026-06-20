@@ -8,8 +8,8 @@ const {
   DB_HOST = 'localhost',
   DB_PORT = '3306',
   DB_USER = 'root',
-  DB_PASSWORD = '',
-  DB_NAME = 'quan_ly_sinh_de_ai_v2'
+  DB_PASSWORD = '123456',
+  DB_NAME = 'do-an'
 } = process.env;
 
 let pool: mysql.Pool;
@@ -109,22 +109,23 @@ async function createTables() {
         description TEXT
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
-
-    // 4. Bảng users
+    // 4. Bảng matrix_configs (Ma trận đề)
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS matrix_configs (
         id VARCHAR(255) PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        fullName VARCHAR(255) NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'teacher',
-        status VARCHAR(50) DEFAULT 'active',
+        code VARCHAR(100) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        totalScore DECIMAL(10,2) DEFAULT 10.00,
+        totalQuestions INT DEFAULT 0,
+        duration INT DEFAULT 120,
+        status VARCHAR(50) DEFAULT 'new',
         createdAt VARCHAR(100) NOT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    console.log('[Database] Cấu trúc các bảng exams, questions, packages, users đã sẵn sàng.');
+    console.log('[Database] Cấu trúc các bảng exams, questions, packages, matrix_configs đã sẵn sàng.');
+
   } finally {
     connection.release();
   }
@@ -336,7 +337,7 @@ async function seedDemoData() {
   // Seed users
   console.log('[Database] Đang kiểm tra và nạp tài khoản mẫu...');
   const now = new Date().toISOString();
-  
+
   const demoUsers = [
     {
       id: 'u-admin',

@@ -9,6 +9,7 @@ import examService from "./server/services/examService";
 import aiService from "./server/services/aiService";
 import analyticsService from "./server/services/analyticsService";
 import authService from "./server/services/authService";
+import matrixService from "./server/services/matrixService";
 
 dotenv.config();
 
@@ -95,12 +96,12 @@ const addLog = (service: "gateway" | "exam" | "ai" | "analytics" | "auth", metho
 // Middleware to capture and log Gateway traffic flows through to routers
 app.use((req, res, next) => {
   const start = Date.now();
-  
+
   // Intercept response finish
   res.on("finish", () => {
     const duration = Date.now() - start;
     let service: "gateway" | "exam" | "ai" | "analytics" | "auth" = "gateway";
-    
+
     if (req.originalUrl.startsWith("/api/v1/exams") || req.originalUrl.startsWith("/api/exams")) {
       service = "exam";
     } else if (req.originalUrl.startsWith("/api/generate-questions") || req.originalUrl.startsWith("/api/suggest-exam-info") || req.originalUrl.includes("/ai/")) {
@@ -110,18 +111,18 @@ app.use((req, res, next) => {
     } else if (req.originalUrl.startsWith("/api/auth")) {
       service = "auth";
     }
-    
+
     let msg = `Yêu cầu được chuyển hướng. Phản hồi trong ${duration}ms`;
     if (res.statusCode >= 400) {
       msg = `Gặp lỗi xử lý dịch vụ. Mã lỗi ${res.statusCode}`;
     }
-    
+
     // Only log API routes to terminal list
     if (req.originalUrl.startsWith("/api/")) {
       addLog(service, req.method, req.originalUrl, res.statusCode, msg);
     }
   });
-  
+
   next();
 });
 
@@ -152,13 +153,14 @@ app.use("/api/analytics", analyticsService);
 
 // 4. AUTH ROUTER
 app.use("/api/auth", authService);
-
+app.use("/api/matrix-configs", matrixService);
 // 5. MICROSERVICES CONTROL AND STATUS ROUTE
+
 app.get("/api/microservices/status", (req, res) => {
   // Read memory levels
   const mem = process.memoryUsage();
   const memoryMB = Math.round(mem.rss / 1024 / 1024);
-  
+
   res.json({
     success: true,
     data: {
@@ -232,35 +234,35 @@ app.get("/api/microservices/status", (req, res) => {
 
 app.post("/api/microservices/scale", (req, res) => {
   const { serviceId, newCount } = req.body;
-  
+
   if (!serviceId || typeof newCount !== "number") {
     return res.status(400).json({ success: false, error: "Tham số yêu cầu bị rỗng" });
   }
-  
+
   if (serviceId === "gateway") {
     return res.status(403).json({ success: false, error: "Không được phép thay đổi số replica của Cổng Gateway trung tâm!" });
   }
-  
+
   if (newCount < 1 || newCount > 8) {
     return res.status(400).json({ success: false, error: "Số lượng replica tối thiểu là 1 và tối đa là 8" });
   }
-  
+
   const oldVal = (replicas as any)[serviceId];
   (replicas as any)[serviceId] = newCount;
-  
+
   const servNames: { [key: string]: string } = {
     exam: "Exam Service",
     ai: "AI Generation Service",
     analytics: "Analytics Service",
     auth: "Auth Service"
   };
-  
+
   const servName = servNames[serviceId] || serviceId;
   const msg = `Lệnh điều dối dịch vụ thành công: Thay đổi số lượng container instances từ ${oldVal} lên ${newCount} replicas.`;
-  
+
   addLog(serviceId as any, "SCALE", `/scale/${serviceId}`, 200, msg);
   console.log(`[Gateway API] Scale ${serviceId} up: ${oldVal} -> ${newCount}`);
-  
+
   res.json({
     success: true,
     replicas,
