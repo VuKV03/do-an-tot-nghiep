@@ -7,8 +7,8 @@ const {
   DB_HOST = 'localhost',
   DB_PORT = '3306',
   DB_USER = 'root',
-  DB_PASSWORD = '123456',
-  DB_NAME = 'do-an'
+  DB_PASSWORD = '',
+  DB_NAME = 'quan_ly_sinh_de_ai_v2'
 } = process.env;
 
 let pool: mysql.Pool;
