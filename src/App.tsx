@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layout,
   Menu,
@@ -31,7 +31,7 @@ import {
   GlobalOutlined,
   ProfileOutlined
 } from '@ant-design/icons';
-import { Question, MatrixConfig, AuditLog } from './types';
+import { Question, MatrixConfig, AuditLog, SystemUser } from './types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
 import DashboardOverview from './components/DashboardOverview';
 import QuestionBankModule from './components/QuestionBankModule';
@@ -42,12 +42,28 @@ import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
+import Login from './components/Login';
 
 const { Header, Sider, Content } = Layout;
 
 export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenuKey, setActiveMenuKey] = useState<string>('dashboard');
+
+  const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
+
+  useEffect(() => {
+    const cachedUser = localStorage.getItem('user_info');
+    const token = localStorage.getItem('auth_token');
+    if (cachedUser && token) {
+      try {
+        setCurrentUser(JSON.parse(cachedUser));
+      } catch (e) {
+        localStorage.removeItem('user_info');
+        localStorage.removeItem('auth_token');
+      }
+    }
+  }, []);
 
   // Core Global States
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
@@ -212,7 +228,13 @@ export default function App() {
         key: 'logout',
         label: <span className="text-red-600 font-bold">Đăng xuất hệ thống</span>,
         icon: <LogoutOutlined className="text-red-600" />,
-        onClick: () => message.success('Bạn đã đăng xuất tài khoản một cách an toàn!')
+        onClick: () => {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user_info');
+          setCurrentUser(null);
+          message.success('Bạn đã đăng xuất tài khoản một cách an toàn!');
+        }
       }
     ]
   };
@@ -380,6 +402,26 @@ export default function App() {
     }
   };
 
+  const getUserInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case 'admin': return 'Quản trị viên';
+      case 'teacher': return 'Giáo viên bộ môn';
+      case 'reviewer': return 'Chuyên gia giám định';
+      default: return 'Người dùng hệ thống';
+    }
+  };
+
+  if (!currentUser) {
+    return <Login onLoginSuccess={setCurrentUser} />;
+  }
+
   return (
     <Layout className="min-h-screen bg-[#f5f7fa] font-sans" id="app-root-layout">
       {/* Sider collapsible sidebar */}
@@ -473,11 +515,15 @@ export default function App() {
                   size="small"
                   className="font-black font-sans shrink-0 border border-slate-700"
                 >
-                  TT
+                  {getUserInitials(currentUser?.fullName || currentUser?.username || 'User')}
                 </Avatar>
                 <div className="hidden sm:flex flex-col text-left text-ellipsis overflow-hidden">
-                  <span className="text-xs font-extrabold text-slate-100 leading-tight">ThS. Phan Thu Trang</span>
-                  <span className="text-[10px] text-slate-400 font-bold block leading-none">Chuyên gia giám định</span>
+                  <span className="text-xs font-extrabold text-slate-100 leading-tight">
+                    {currentUser?.fullName || currentUser?.username}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold block leading-none">
+                    {getRoleLabel(currentUser?.role)}
+                  </span>
                 </div>
               </div>
             </Dropdown>

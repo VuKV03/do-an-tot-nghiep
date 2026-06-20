@@ -8,6 +8,7 @@ import { initDatabase } from "./server/db";
 import examService from "./server/services/examService";
 import aiService from "./server/services/aiService";
 import analyticsService from "./server/services/analyticsService";
+import authService from "./server/services/authService";
 import matrixService from "./server/services/matrixService";
 
 dotenv.config();
@@ -22,13 +23,14 @@ let replicas = {
   gateway: 1,
   exam: 2,
   ai: 2,
-  analytics: 1
+  analytics: 1,
+  auth: 1
 };
 
 interface MicroserviceLog {
   id: string;
   timestamp: string;
-  service: "gateway" | "exam" | "ai" | "analytics";
+  service: "gateway" | "exam" | "ai" | "analytics" | "auth";
   method: string;
   path: string;
   status: number;
@@ -75,7 +77,7 @@ let gatewayLogs: MicroserviceLog[] = [
   }
 ];
 
-const addLog = (service: "gateway" | "exam" | "ai" | "analytics", method: string, path: string, status: number, message: string) => {
+const addLog = (service: "gateway" | "exam" | "ai" | "analytics" | "auth", method: string, path: string, status: number, message: string) => {
   const newLog: MicroserviceLog = {
     id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     timestamp: new Date().toISOString(),
@@ -94,31 +96,33 @@ const addLog = (service: "gateway" | "exam" | "ai" | "analytics", method: string
 // Middleware to capture and log Gateway traffic flows through to routers
 app.use((req, res, next) => {
   const start = Date.now();
-  
+
   // Intercept response finish
   res.on("finish", () => {
     const duration = Date.now() - start;
-    let service: "gateway" | "exam" | "ai" | "analytics" = "gateway";
-    
+    let service: "gateway" | "exam" | "ai" | "analytics" | "auth" = "gateway";
+
     if (req.originalUrl.startsWith("/api/v1/exams") || req.originalUrl.startsWith("/api/exams")) {
       service = "exam";
     } else if (req.originalUrl.startsWith("/api/generate-questions") || req.originalUrl.startsWith("/api/suggest-exam-info") || req.originalUrl.includes("/ai/")) {
       service = "ai";
     } else if (req.originalUrl.startsWith("/api/analytics")) {
       service = "analytics";
+    } else if (req.originalUrl.startsWith("/api/auth")) {
+      service = "auth";
     }
-    
+
     let msg = `Yêu cầu được chuyển hướng. Phản hồi trong ${duration}ms`;
     if (res.statusCode >= 400) {
       msg = `Gặp lỗi xử lý dịch vụ. Mã lỗi ${res.statusCode}`;
     }
-    
+
     // Only log API routes to terminal list
     if (req.originalUrl.startsWith("/api/")) {
       addLog(service, req.method, req.originalUrl, res.statusCode, msg);
     }
   });
-  
+
   next();
 });
 
@@ -147,15 +151,16 @@ app.post("/api/suggest-exam-info", async (req, res, next) => {
 // 3. ANALYTICS ROUTER
 app.use("/api/analytics", analyticsService);
 
-// 4. MATRIX CONFIG ROUTER
+// 4. AUTH ROUTER
+app.use("/api/auth", authService);
 app.use("/api/matrix-configs", matrixService);
+// 5. MICROSERVICES CONTROL AND STATUS ROUTE
 
-// 4. MICROSERVICES CONTROL AND STATUS ROUTE
 app.get("/api/microservices/status", (req, res) => {
   // Read memory levels
   const mem = process.memoryUsage();
   const memoryMB = Math.round(mem.rss / 1024 / 1024);
-  
+
   res.json({
     success: true,
     data: {
@@ -207,6 +212,18 @@ app.get("/api/microservices/status", (req, res) => {
           latency: `${Math.floor(40 + Math.random() * 30)}ms`,
           dbType: "Calculated Real-time Streams",
           desc: "Tổng hợp phổ điểm, tỉ lệ độ khó ma trận đề và xuất excel tự động."
+        },
+        {
+          id: "auth",
+          name: "Auth Service (Xác thực)",
+          status: "healthy",
+          port: 3004,
+          replicas: replicas.auth,
+          cpu: `${(0.5 * replicas.auth).toFixed(1)}%`,
+          memory: `${25 * replicas.auth} MB`,
+          latency: `${Math.floor(5 + Math.random() * 10)}ms`,
+          dbType: "MySQL users Table",
+          desc: "Xác thực danh tính người dùng, cấp phát JWT token bảo mật cho phiên làm việc."
         }
       ],
       overallHealth: "healthy",
@@ -217,34 +234,35 @@ app.get("/api/microservices/status", (req, res) => {
 
 app.post("/api/microservices/scale", (req, res) => {
   const { serviceId, newCount } = req.body;
-  
+
   if (!serviceId || typeof newCount !== "number") {
     return res.status(400).json({ success: false, error: "Tham số yêu cầu bị rỗng" });
   }
-  
+
   if (serviceId === "gateway") {
     return res.status(403).json({ success: false, error: "Không được phép thay đổi số replica của Cổng Gateway trung tâm!" });
   }
-  
+
   if (newCount < 1 || newCount > 8) {
     return res.status(400).json({ success: false, error: "Số lượng replica tối thiểu là 1 và tối đa là 8" });
   }
-  
+
   const oldVal = (replicas as any)[serviceId];
   (replicas as any)[serviceId] = newCount;
-  
+
   const servNames: { [key: string]: string } = {
     exam: "Exam Service",
     ai: "AI Generation Service",
-    analytics: "Analytics Service"
+    analytics: "Analytics Service",
+    auth: "Auth Service"
   };
-  
+
   const servName = servNames[serviceId] || serviceId;
   const msg = `Lệnh điều dối dịch vụ thành công: Thay đổi số lượng container instances từ ${oldVal} lên ${newCount} replicas.`;
-  
+
   addLog(serviceId as any, "SCALE", `/scale/${serviceId}`, 200, msg);
   console.log(`[Gateway API] Scale ${serviceId} up: ${oldVal} -> ${newCount}`);
-  
+
   res.json({
     success: true,
     replicas,
