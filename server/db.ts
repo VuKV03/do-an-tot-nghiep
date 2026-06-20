@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -108,7 +109,6 @@ async function createTables() {
         description TEXT
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
-
     // 4. Bảng matrix_configs (Ma trận đề)
     await connection.query(`
       CREATE TABLE IF NOT EXISTS matrix_configs (
@@ -125,6 +125,7 @@ async function createTables() {
     `);
 
     console.log('[Database] Cấu trúc các bảng exams, questions, packages, matrix_configs đã sẵn sàng.');
+
   } finally {
     connection.release();
   }
@@ -333,28 +334,87 @@ async function seedDemoData() {
     console.log('[Database] Đã nạp gói đề thi mẫu thành công.');
   }
 
-  // Seed matrix_configs
-  const [matrixRows] = await pool.query('SELECT COUNT(*) as count FROM matrix_configs');
-  const matrixCount = (matrixRows as any)[0].count;
+  // Seed users
+  console.log('[Database] Đang kiểm tra và nạp tài khoản mẫu...');
+  const now = new Date().toISOString();
 
-  if (matrixCount === 0) {
-    console.log('[Database] Bảng matrix_configs trống. Đang nạp dữ liệu ma trận mẫu...');
-
-    const demoMatrices = [
-      { id: 'mtx-1', code: 'T240001', name: 'Ma trận đề 01', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'approved', createdAt: '2024-03-15T08:00:00Z' },
-      { id: 'mtx-2', code: 'T240002', name: 'Ma trận đề 02', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'rejected', createdAt: '2024-03-20T09:30:00Z' },
-      { id: 'mtx-3', code: 'T240003', name: 'Ma trận đề 03', subject: 'Toán', totalScore: 10.00, totalQuestions: 50, duration: 120, status: 'approved', createdAt: '2024-04-01T10:00:00Z' },
-      { id: 'mtx-4', code: 'V240001', name: 'Ma trận đề 04', subject: 'Ngữ văn', totalScore: 10.00, totalQuestions: 50, duration: 180, status: 'approved', createdAt: '2024-04-10T14:00:00Z' },
-      { id: 'mtx-5', code: 'V240002', name: 'Ma trận đề 05', subject: 'Ngữ văn', totalScore: 10.00, totalQuestions: 50, duration: 180, status: 'new', createdAt: '2024-05-05T11:00:00Z' },
-    ];
-
-    for (const m of demoMatrices) {
-      await pool.query(
-        `INSERT INTO matrix_configs (id, code, name, subject, totalScore, totalQuestions, duration, status, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [m.id, m.code, m.name, m.subject, m.totalScore, m.totalQuestions, m.duration, m.status, m.createdAt]
-      );
+  const demoUsers = [
+    {
+      id: 'u-admin',
+      username: 'admin',
+      email: 'admin@smarttest.edu.vn',
+      fullName: 'Quản trị viên hệ thống',
+      password: 'admin123',
+      role: 'admin',
+      status: 'active'
+    },
+    {
+      id: 'u-teacher01',
+      username: 'teacher01',
+      email: 'teacher01@smarttest.edu.vn',
+      fullName: 'Nguyễn Văn Dũng',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
+    },
+    {
+      id: 'u-dungnt',
+      username: 'dungnt',
+      email: 'dungnt@school.edu.vn',
+      fullName: 'Nguyễn Tiến Dũng',
+      password: 'admin123',
+      role: 'admin',
+      status: 'active'
+    },
+    {
+      id: 'u-hai_lh',
+      username: 'hai_lh',
+      email: 'hai.lh@school.edu.vn',
+      fullName: 'Lê Hoàng Hải',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
+    },
+    {
+      id: 'u-trangpt',
+      username: 'trangpt',
+      email: 'trangpt@school.edu.vn',
+      fullName: 'Phan Thu Trang',
+      password: 'admin123',
+      role: 'reviewer',
+      status: 'active'
+    },
+    {
+      id: 'u-tuyetbt',
+      username: 'tuyetbt',
+      email: 'tuyetbt@school.edu.vn',
+      fullName: 'Bùi Thị Tuyết',
+      password: 'teacher123',
+      role: 'teacher',
+      status: 'active'
     }
-    console.log('[Database] Đã nạp dữ liệu ma trận mẫu thành công.');
+  ];
+
+  for (const user of demoUsers) {
+    const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [user.username]);
+    if ((existing as any[]).length === 0) {
+      const passwordHash = bcrypt.hashSync(user.password, 10);
+      await pool.query(
+        `INSERT INTO users (id, username, email, fullName, password_hash, role, status, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          user.id,
+          user.username,
+          user.email,
+          user.fullName,
+          passwordHash,
+          user.role,
+          user.status,
+          now
+        ]
+      );
+      console.log(`[Database] Đã nạp tài khoản mẫu: ${user.username}`);
+    }
   }
+  console.log('[Database] Kiểm tra và nạp tài khoản hoàn tất.');
 }

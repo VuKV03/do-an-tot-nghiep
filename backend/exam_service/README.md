@@ -1,11 +1,13 @@
-# 📝 SmartTest Exam Service (Port 8001)
+# 📝  Exam Service (Port 8001)
 
 ## 📌 Giới thiệu
+
 **Exam Service** là dịch vụ lõi quản lý dữ liệu trong hệ thống SmartTest. Dịch vụ này xử lý toàn bộ các tác vụ CRUD (Thêm, Đọc, Sửa, Xóa) liên quan đến ngân hàng câu hỏi, ma trận cấu hình đề thi và xuất bản gói đề. Dịch vụ kết nối trực tiếp với cơ sở dữ liệu **MySQL** thông qua thư viện ORM **SQLAlchemy (AsyncIO)**.
 
 ---
 
 ## ⚙️ Các tính năng cốt lõi
+
 1. **Quản lý Đề thi (Exams)**: Lưu trữ mã đề, tên đề, môn học, khối lớp, thời gian làm bài, số lượng câu hỏi và điểm số trung bình.
 2. **Quản lý Câu hỏi (Questions)**: Lưu trữ các câu hỏi trắc nghiệm liên kết với từng đề thi, bao gồm nội dung câu hỏi, độ khó (easy, medium, hard), danh sách 4 lựa chọn và đáp án đúng.
 3. **Quản lý Gói đề (Packages)**: Nhóm các đề thi thành đợt khảo sát, quản lý lượt tải xuống, phân loại quyền truy cập (free, premium) và mô tả chuyên đề.
@@ -14,7 +16,9 @@
 ---
 
 ## 💾 Cấu trúc thực thể cơ sở dữ liệu (Models)
+
 * **`Exam` (Bảng `exams`)**:
+
   - `id`: Mã định danh đề (String, Khóa chính)
   - `code`: Mã đề thi (String, Unique)
   - `name`: Tên đề thi (String)
@@ -24,16 +28,16 @@
   - `avgScore`: Điểm số trung bình
   - `attempts`: Lượt thi
   - `source`: Nguồn tạo (`manual`, `matrix`, `ai`)
-
 * **`Question` (Bảng `questions`)**:
+
   - `id`: Khóa chính
   - `examId`: Khóa ngoại liên kết bảng `exams`
   - `text`: Nội dung câu hỏi
   - `options`: Mảng JSON chứa 4 lựa chọn đáp án
   - `correctAnswer`: Ký tự đáp án đúng (`A`, `B`, `C`, `D`)
   - `level`: Độ khó (`easy`, `medium`, `hard`)
-
 * **`Package` (Bảng `packages`)**:
+
   - `id`: Khóa chính
   - `code`, `name`, `subject`, `grade`, `status`, `description`
   - `examsCount`: Số đề trong gói
@@ -44,6 +48,7 @@
 ---
 
 ## 🛣️ Các điểm cuối API chính (Port 8001)
+
 * **Quản lý Đề thi**:
   - `GET /exams/`: Lấy toàn bộ danh sách đề thi.
   - `GET /exams/{id}`: Xem chi tiết một đề thi cùng danh sách câu hỏi.
@@ -62,9 +67,12 @@
 ---
 
 ## 🚀 Khởi chạy độc lập
+
 Chạy lệnh sau tại thư mục gốc của dự án:
+
 ```bash
 python -m backend.exam_service.main
 ```
+
 Dịch vụ sẽ khởi động tại: `http://localhost:8001`
 Tài liệu hướng dẫn API trực quan (Swagger UI): `http://localhost:8001/docs`

@@ -1,6 +1,6 @@
 # ============================================
 # Python Microservices Dependencies
-# SmartTest - Hệ thống Quản lý Sinh đề AI v2
+# Hệ thống Quản lý Sinh đề AI v2
 # ============================================
 
 # Web Framework
