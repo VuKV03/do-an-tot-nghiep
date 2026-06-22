@@ -35,6 +35,10 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
+import DanhMucKhoiLop from './quan-ly-danh-muc/danh-muc-khoi-lop';
+import DanhMucMonThi from './quan-ly-danh-muc/danh-muc-mon-thi';
+
+
 
 interface CategoryAdminModuleProps {
   currentTabKey: string; // 'danh-muc-mon-thi' | 'danh-muc-khoi-lop' | 'cap-do-tu-duy' | 'loai-hinh-cau-hoi'
@@ -418,157 +422,8 @@ export default function CategoryAdminModule({
       {/* VIEW PANEL 1: SUBJECTS MANAGEMENT                          */}
       {/* ========================================================== */}
       {currentTabKey === 'danh-muc-mon-thi' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          
-          {/* Quick Stats overview panel */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4" id="subj-stats-grid">
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xxs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block">Tổng môn thi hành chính</span>
-              <strong className="text-xl text-slate-800">{subjects.length} Môn học</strong>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xxs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block">Môn tự nhiên & STEM</span>
-              <strong className="text-xl text-emerald-700">{subjects.filter(s => s.department === 'Tự nhiên').length} Khóa môn</strong>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xxs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block">Tổ học ngữ giáo & xã hội</span>
-              <strong className="text-xl text-[#002147]">{subjects.filter(s => s.department === 'Xã hội' || s.department === 'Ngoại ngữ').length} Nhóm học</strong>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xxs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block">Trạng thái khóa biên sổ</span>
-              <strong className="text-xl text-amber-600">{subjects.filter(s => s.status === 'inactive').length} Tạm đình chỉ</strong>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-1 flex-col md:flex-row gap-3 w-full">
-              <div className="relative flex-1">
-                <Input
-                  placeholder="Tra cứu nhanh Môn thi theo tên, mã môn hoặc miêu tả..."
-                  prefix={<SearchOutlined className="text-slate-400" />}
-                  className="rounded-xl border-slate-200 text-xs font-semibold py-1.5"
-                  value={subjectSearch}
-                  onChange={e => setSubjectSearch(e.target.value)}
-                  allowClear
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0">Phân ban:</span>
-                <Select
-                  value={subjectDeptFilter}
-                  onChange={setSubjectDeptFilter}
-                  className="w-40 text-xs font-semibold"
-                  options={[
-                    { value: 'all', label: 'Tất cả phân ban' },
-                    { value: 'Tự nhiên', label: 'Tự nhiên (STEM)' },
-                    { value: 'Xã hội', label: 'Khoa học Xã hội' },
-                    { value: 'Ngoại ngữ', label: 'Nhóm Ngoại ngữ' }
-                  ]}
-                />
-              </div>
-            </div>
-
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreate}
-              className="bg-[#002147] border-transparent text-white font-black text-xs rounded-xl hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-            >
-              Khai báo môn học mới
-            </Button>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
-                  <th className="py-3 px-4 text-left">Mã định danh môn</th>
-                  <th className="py-3 px-4 text-left">Tên môn thi chính thức</th>
-                  <th className="py-3 px-4 text-left">Khoa ban phân nhiệm</th>
-                  <th className="py-3 px-4 text-center">Tải lượng ngân hàng</th>
-                  <th className="py-3 px-4 text-center">Trực trạng vận hành</th>
-                  <th className="py-3 px-4 text-right">Thao tác xử lý</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredSubjects.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <Empty description="Không tìm thấy danh mục môn thi nào phù hợp." />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubjects.map(s => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded text-[11px] border">
-                          {s.code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{s.name}</strong>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium max-w-sm truncate">{s.description}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {s.department === 'Tự nhiên' && <Tag color="geekblue" className="rounded-md font-bold text-[9px] uppercase m-0">📐 TỰ NHIÊN</Tag>}
-                        {s.department === 'Xã hội' && <Tag color="volcano" className="rounded-md font-bold text-[9px] uppercase m-0">✒️ XÃ HỘI</Tag>}
-                        {s.department === 'Ngoại ngữ' && <Tag color="purple" className="rounded-md font-bold text-[9px] uppercase m-0">🌐 NGOẠI NGỮ</Tag>}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="text-[11px] font-black text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-                          {s.questionCount} câu hỏi
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span onClick={() => handleToggleStatus(s)} className="cursor-pointer select-none">
-                          {s.status === 'active' ? (
-                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded-md font-extrabold text-[9px]">
-                              🟢 ĐANG HOẠT ĐỘNG
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded-md font-extrabold text-[9px]">
-                              🔴 ĐANG KHÓA SỔ
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={6}>
-                          <Tooltip title="Chỉnh sửa chi tiết">
-                            <Button 
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenEdit(s)}
-                              className="bg-slate-50 border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-100 cursor-pointer"
-                            />
-                          </Tooltip>
-
-                          <Popconfirm
-                            title={`Bạn chắc chắn muốn loại bỏ môn thi "${s.name}"?`}
-                            onConfirm={() => handleDelete(s.id, s.name)}
-                            okText="Đồng ý xóa"
-                            cancelText="Xem xét lại"
-                            centered
-                          >
-                            <Button 
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              className="bg-red-50 border-red-150 text-red-600 rounded-lg text-xs hover:bg-red-100 cursor-pointer"
-                            />
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
+        <div className="animate-in fade-in duration-300">
+          <DanhMucMonThi />
         </div>
       )}
 
@@ -576,103 +431,8 @@ export default function CategoryAdminModule({
       {/* VIEW PANEL 2: GRADES MANAGEMENT                            */}
       {/* ========================================================== */}
       {currentTabKey === 'danh-muc-khoi-lop' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 w-full">
-              <Input
-                placeholder="Tra cứu thông tin khối theo tên khối, mã ký hiệu hoặc ghi đè đào tạo..."
-                prefix={<SearchOutlined className="text-slate-400" />}
-                className="rounded-xl border-slate-200 text-xs font-semibold py-1.5"
-                value={gradeSearch}
-                onChange={e => setGradeSearch(e.target.value)}
-                allowClear
-              />
-            </div>
-
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreate}
-              className="bg-[#002147] border-transparent text-white font-black text-xs rounded-xl hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-            >
-              Đăng ký cấp khối mới
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5" id="grade-list-card-wrapper">
-            {filteredGrades.length === 0 ? (
-              <div className="col-span-3 bg-white border border-slate-200 rounded-2xl p-12 text-center">
-                <Empty description="Không tìm thấy danh mục khối lớp học nào phù hợp bối cảnh." />
-              </div>
-            ) : (
-              filteredGrades.map((g, index) => (
-                <div key={g.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-xs transition-shadow flex flex-col space-y-4">
-                  <div className="flex items-center justify-between border-b border-dashed pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded bg-blue-50 border text-[#002147] font-black text-[10px] flex items-center justify-center font-sans tracking-wide">
-                        {g.displayOrder}
-                      </span>
-                      <strong className="text-slate-800 text-[13px]">{g.name}</strong>
-                    </div>
-                    <span className="font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded text-[10px] border">
-                      {g.code}
-                    </span>
-                  </div>
-
-                  <p className="text-slate-500 text-xs leading-relaxed min-h-[40px] font-medium">
-                    {g.description}
-                  </p>
-
-                  <div className="flex items-center justify-between bg-slate-50 border rounded-xl p-3">
-                    <span className="text-[10px] uppercase font-black text-slate-400 block tracking-widest select-none">Trạng thái khối</span>
-                    <span onClick={() => handleToggleStatus(g)} className="cursor-pointer select-none">
-                      {g.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded-md font-extrabold text-[9px]">
-                          🟢 ĐANG ĐÀO TẠO
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded-md font-extrabold text-[9px]">
-                          🔴 KHÓA CHI TIÊU
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  <Divider className="my-1.5 border-dashed" />
-
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      size="small"
-                      icon={<EditOutlined style={{ fontSize: '10px' }} />}
-                      onClick={() => handleOpenEdit(g)}
-                      className="bg-slate-50 border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-100 cursor-pointer"
-                    >
-                      Bảo trì
-                    </Button>
-
-                    <Popconfirm
-                      title={`Bạn chắc chắn muốn gỡ bỏ hoàn toàn cấu hình "${g.name}" khỏi cơ sở đào tạo?`}
-                      onConfirm={() => handleDelete(g.id, g.name)}
-                      okText="Đồng ý xóa"
-                      cancelText="Xem xét lại"
-                      centered
-                    >
-                      <Button 
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined style={{ fontSize: '10px' }} />}
-                        className="bg-red-50 border-red-150 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-100 cursor-pointer"
-                      >
-                        Huỷ bỏ
-                      </Button>
-                    </Popconfirm>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
+        <div className="animate-in fade-in duration-300">
+          <DanhMucKhoiLop />
         </div>
       )}
 

@@ -9,7 +9,7 @@ const {
   DB_PORT = '3306',
   DB_USER = 'root',
   DB_PASSWORD = '',
-  DB_NAME = 'quan_ly_sinh_de_ai_v2',
+  DB_NAME = 'quan-ly-sinh-de-ai',
   DB_SSL = 'false'
 } = process.env;
 
