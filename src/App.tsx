@@ -282,12 +282,14 @@ export default function App() {
     {
       key: 'quan-tri-danh-muc',
       icon: <FolderOutlined />,
-      label: 'Quản trị danh mục dán nhãn',
+      label: 'Quản trị danh mục',
       children: [
         { key: 'danh-muc-mon-thi', label: 'Danh mục môn thi' },
         { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
         { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
-        { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' }
+        { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
+        { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
+        { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
       ]
     }
   ];
@@ -351,6 +353,8 @@ export default function App() {
       case 'danh-muc-khoi-lop':
       case 'cap-do-tu-duy':
       case 'loai-hinh-cau-hoi':
+      case 'thanh-phan-nang-luc':
+      case 'danh-muc-dot-thi':
         return (
           <CategoryAdminModule
             currentTabKey={activeMenuKey}
@@ -394,10 +398,12 @@ export default function App() {
       case 'quan-ly-nguoi-dung': return 'Quản trị hệ thống / Quản lý người dùng';
       case 'quan-ly-nhom-nguoi-dung': return 'Quản trị hệ thống / Quản lý nhóm người dùng';
       case 'chinh-sach-bao-mat': return 'Quản trị hệ thống / Chính sách bảo mật';
-      case 'danh-muc-mon-thi': return 'Quản trị danh mục dán nhãn / Danh mục môn thi';
-      case 'danh-muc-khoi-lop': return 'Quản trị danh mục dán nhãn / Danh mục khối lớp';
-      case 'cap-do-tu-duy': return 'Quản trị danh mục dán nhãn / Cấp độ tư duy';
-      case 'loai-hinh-cau-hoi': return 'Quản trị danh mục dán nhãn / Loại hình câu hỏi';
+      case 'danh-muc-mon-thi': return 'Quản trị danh mục / Danh mục môn thi';
+      case 'danh-muc-khoi-lop': return 'Quản trị danh mục / Danh mục khối lớp';
+      case 'cap-do-tu-duy': return 'Quản trị danh mục / Cấp độ tư duy';
+      case 'loai-hinh-cau-hoi': return 'Quản trị danh mục / Loại hình câu hỏi';
+      case 'thanh-phan-nang-luc': return 'Quản trị danh mục / Thành phần năng lực';
+      case 'danh-muc-dot-thi': return 'Quản trị danh mục / Danh mục đợt thi';
       default: return `Phân hệ / ${activeMenuKey.replace(/-/g, ' ')}`;
     }
   };

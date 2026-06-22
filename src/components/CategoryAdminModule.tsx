@@ -37,6 +37,10 @@ import {
 } from '@ant-design/icons';
 import DanhMucKhoiLop from './quan-ly-danh-muc/danh-muc-khoi-lop';
 import DanhMucMonThi from './quan-ly-danh-muc/danh-muc-mon-thi';
+import DanhMucCapDoTuDuy from './quan-ly-danh-muc/cap-do-tu-duy';
+import DanhMucLoaiHinhCauHoi from './quan-ly-danh-muc/loai-hinh-cau-hoi';
+import DanhMucThanhPhanNangLuc from './quan-ly-danh-muc/thanh-phan-nang-luc';
+import DanhMucDotThi from './quan-ly-danh-muc/danh-muc-dot-thi';
 
 
 
@@ -342,7 +346,7 @@ export default function CategoryAdminModule({
       case 'danh-muc-khoi-lop': return 'Danh mục khối lớp';
       case 'cap-do-tu-duy': return 'Cấp độ tư duy đào tạo';
       case 'loai-hinh-cau-hoi': return 'Loại hình thiết kế câu hỏi';
-      default: return 'Quản trị danh mục dán nhãn';
+      default: return 'Quản trị danh mục';
     }
   };
 
@@ -358,65 +362,6 @@ export default function CategoryAdminModule({
 
   return (
     <div className="space-y-6" id="label-category-administrative-module">
-      
-      {/* Dynamic Header container */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs shrink-0 select-none">
-        <div className="space-y-1">
-          <h2 className="text-slate-900 font-extrabold text-sm uppercase tracking-wider flex items-center gap-2">
-            <TagsOutlined className="text-[#002147] animate-pulse" />
-            AN NINH DANH MỤC & DÁN NHÃN LÕI
-          </h2>
-          <p className="text-xs text-slate-400 font-medium">{getTabDescription()}</p>
-        </div>
-        
-        {/* Responsive sub-links/tab controller */}
-        <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 gap-0.5">
-          <Button
-            type={currentTabKey === 'danh-muc-mon-thi' ? 'primary' : 'text'}
-            size="small"
-            icon={<BookOutlined />}
-            onClick={() => onNavigateTab('danh-muc-mon-thi')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'danh-muc-mon-thi' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Môn thi
-          </Button>
-          <Button
-            type={currentTabKey === 'danh-muc-khoi-lop' ? 'primary' : 'text'}
-            size="small"
-            icon={<ClusterOutlined />}
-            onClick={() => onNavigateTab('danh-muc-khoi-lop')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'danh-muc-khoi-lop' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Khối lớp
-          </Button>
-          <Button
-            type={currentTabKey === 'cap-do-tu-duy' ? 'primary' : 'text'}
-            size="small"
-            icon={<ExperimentOutlined />}
-            onClick={() => onNavigateTab('cap-do-tu-duy')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'cap-do-tu-duy' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Cấp độ tư duy
-          </Button>
-          <Button
-            type={currentTabKey === 'loai-hinh-cau-hoi' ? 'primary' : 'text'}
-            size="small"
-            icon={<AppstoreOutlined />}
-            onClick={() => onNavigateTab('loai-hinh-cau-hoi')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'loai-hinh-cau-hoi' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Loại câu hỏi
-          </Button>
-        </div>
-      </div>
 
       {/* ========================================================== */}
       {/* VIEW PANEL 1: SUBJECTS MANAGEMENT                          */}
@@ -440,120 +385,8 @@ export default function CategoryAdminModule({
       {/* VIEW PANEL 3: COGNITIVE LEVELS MANAGEMENT                   */}
       {/* ========================================================== */}
       {currentTabKey === 'cap-do-tu-duy' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 w-full">
-              <Input
-                placeholder="Tra cứu phân mức đo lường theo tên, hoặc hệ số ma trận..."
-                prefix={<SearchOutlined className="text-slate-400" />}
-                className="rounded-xl border-slate-200 text-xs font-semibold py-1.5"
-                value={levelSearch}
-                onChange={e => setLevelSearch(e.target.value)}
-                allowClear
-              />
-            </div>
-
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreate}
-              className="bg-[#002147] border-transparent text-white font-black text-xs rounded-xl hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-            >
-              Thêm chuẩn Bloom mới
-            </Button>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
-                  <th className="py-3 px-4 text-left">Mã Bloom</th>
-                  <th className="py-3 px-4 text-left">Tiêu đề cấp độ tư suy</th>
-                  <th className="py-3 px-4 text-left">Nhãn đồ họa / Preview</th>
-                  <th className="py-3 px-4 text-center">Chỉ số nhân hệ số ma trận</th>
-                  <th className="py-3 px-4 text-center">Trạng thái dán nhãn</th>
-                  <th className="py-3 px-4 text-right">Chi tiết thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredLevels.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <Empty description="Không tìm thấy tiêu chuẩn tư duy nào khả dụng." />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredLevels.map(l => (
-                    <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded text-[11px] border">
-                          {l.code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{l.name}</strong>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium max-w-sm whitespace-pre-wrap">{l.description}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Tag color={l.color} className="rounded-md font-bold text-[9px] uppercase py-0.5 px-2.5 m-0">
-                          {l.name}
-                        </Tag>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded">
-                          x{l.pointMultiplier.toFixed(1)} Điểm số
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span onClick={() => handleToggleStatus(l)} className="cursor-pointer select-none">
-                          {l.status === 'active' ? (
-                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded-md font-extrabold text-[9px]">
-                              🟢 ĐANG DUYỆT
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded-md font-extrabold text-[9px]">
-                              🔴 ĐANG KHÓA SỐ
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={6}>
-                          <Tooltip title="Chỉnh sửa cấu hình">
-                            <Button 
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenEdit(l)}
-                              className="bg-slate-50 border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-100 cursor-pointer"
-                            />
-                          </Tooltip>
-
-                          <Popconfirm
-                            title={`Bạn chắc chắn muốn xóa đi phân mức tiêu chuẩn tư duy "${l.name}"?`}
-                            onConfirm={() => handleDelete(l.id, l.name)}
-                            okText="Đồng ý xóa"
-                            cancelText="Xem xét lại"
-                            centered
-                          >
-                            <Button 
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              className="bg-red-50 border-red-150 text-red-600 rounded-lg text-xs hover:bg-red-100 cursor-pointer"
-                            />
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
+        <div className="animate-in fade-in duration-300">
+          <DanhMucCapDoTuDuy />
         </div>
       )}
 
@@ -561,126 +394,26 @@ export default function CategoryAdminModule({
       {/* VIEW PANEL 4: QUESTION TYPES MANAGEMENT                      */}
       {/* ========================================================== */}
       {currentTabKey === 'loai-hinh-cau-hoi' && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 w-full">
-              <Input
-                placeholder="Tra cứu phân loại mẫu đề theo ký tự loại hoặc chức năng chấm điểm..."
-                prefix={<SearchOutlined className="text-slate-400" />}
-                className="rounded-xl border-slate-200 text-xs font-semibold py-1.5"
-                value={typeSearch}
-                onChange={e => setTypeSearch(e.target.value)}
-                allowClear
-              />
-            </div>
+        <div className="animate-in fade-in duration-300">
+          <DanhMucLoaiHinhCauHoi />
+        </div>
+      )}
 
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreate}
-              className="bg-[#002147] border-transparent text-white font-black text-xs rounded-xl hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-            >
-              Đăng ký định dạng câu hỏi mới
-            </Button>
-          </div>
+      {/* ========================================================== */}
+      {/* VIEW PANEL 5: COMPETENCY COMPONENT MANAGEMENT                      */}
+      {/* ========================================================== */}
+      {currentTabKey === 'thanh-phan-nang-luc' && (
+        <div className="animate-in fade-in duration-300">
+          <DanhMucThanhPhanNangLuc />
+        </div>
+      )}
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
-                  <th className="py-3 px-4 text-left">Định dạng thô</th>
-                  <th className="py-3 px-4 text-left">Tên gọi loại hình câu hỏi</th>
-                  <th className="py-3 px-4 text-center">Thiết lập tự động chấm</th>
-                  <th className="py-3 px-4 text-center">Trọng số cơ bản</th>
-                  <th className="py-3 px-4 text-center">Tiêu trạng hoạt vụ</th>
-                  <th className="py-3 px-4 text-right">Hành vi tác động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredQuestionTypes.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <Empty description="Không tìm thấy danh mục loại hình câu hỏi nào phù hợp." />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredQuestionTypes.map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-600 bg-slate-150 px-2 py-0.5 rounded text-[11px] border">
-                          {t.code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{t.name}</strong>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium max-w-sm truncate">{t.description}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-center select-none">
-                        {t.autoGrading ? (
-                          <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 border border-green-100 rounded-md font-bold text-[9px]">
-                            ⚡ TỰ ĐỘNG CHẤM
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100 rounded-md font-bold text-[9px]">
-                            ✍️ THỦ CÔNG / TỰ LUẬN
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-black text-slate-700">
-                          {t.scoreWeight.toFixed(1)} P
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span onClick={() => handleToggleStatus(t)} className="cursor-pointer select-none">
-                          {t.status === 'active' ? (
-                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded-md font-extrabold text-[9px]">
-                              🟢 ĐANG LƯU HÀNH
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded-md font-extrabold text-[9px]">
-                              🔴 ĐANG KHÓA SỔ
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={6}>
-                          <Tooltip title="Chỉnh sửa chi tiết">
-                            <Button 
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenEdit(t)}
-                              className="bg-slate-50 border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-100 cursor-pointer"
-                            />
-                          </Tooltip>
-
-                          <Popconfirm
-                            title={`Bạn chắc chắn muốn loại bỏ phương thức định dạng đề "${t.name}"?`}
-                            onConfirm={() => handleDelete(t.id, t.name)}
-                            okText="Đồng ý xóa"
-                            cancelText="Hủy bỏ"
-                            centered
-                          >
-                            <Button 
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              className="bg-red-50 border-red-150 text-red-600 rounded-lg text-xs hover:bg-red-100 cursor-pointer"
-                            />
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
+      {/* ========================================================== */}
+      {/* VIEW PANEL 6: EXAM SESSION MANAGEMENT                      */}
+      {/* ========================================================== */}
+      {currentTabKey === 'danh-muc-dot-thi' && (
+        <div className="animate-in fade-in duration-300">
+          <DanhMucDotThi />
         </div>
       )}
 
@@ -704,8 +437,6 @@ export default function CategoryAdminModule({
         cancelText="Đóng cửa sổ"
         centered
         width={500}
-        overlayBgSpanClick={false}
-        id="category-creation-shared-modal"
       >
         <Form
           form={form}

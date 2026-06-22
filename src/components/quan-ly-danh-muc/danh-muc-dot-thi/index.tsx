@@ -2,33 +2,86 @@ import React, { useState } from 'react';
 import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider } from 'antd';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
-import CreateCapDoTuDuyModal from './create.tsx';
-import UpdateCapDoTuDuyModal from './update.tsx';
-import DetailCapDoTuDuyModal from './detail.tsx';
-import DeleteCapDoTuDuyModal from './delete.tsx';
+import CreateDotThiModal from './create.tsx';
+import UpdateDotThiModal from './update.tsx';
+import DetailDotThiModal from './detail.tsx';
+import DeleteDotThiModal from './delete.tsx';
 
 const { RangePicker } = DatePicker;
 
 // Define type based on the provided DB schema
-interface DmCapDoTuDuyType {
+interface DmDotThiType {
   Id: string;
   Ma: string;
   Ten: string;
+  NgayBatDau: string;
+  NgayKetThuc: string;
+  TrangThai: 'HOAT_DONG' | 'KHONG_HOAT_DONG';
   IsActive: boolean;
   GhiChu?: string;
   CreatedAt: string;
 }
 
 // Mock data matching the UI image
-const mockData: DmCapDoTuDuyType[] = [
-  { Id: '1', Ma: '1', Ten: 'Biết', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '2', Ma: '2', Ten: 'Hiểu', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '3', Ma: '3', Ten: 'Vận dụng', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '4', Ma: '4', Ten: 'Vận dụng cao', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '5', Ma: '5', Ten: 'Phân tích', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
+const mockData: DmDotThiType[] = [
+  {
+    Id: '1',
+    Ma: 'D1',
+    Ten: 'Thi thử nghiệm đợt 1 2025',
+    NgayBatDau: '22-12-2024',
+    NgayKetThuc: '22-12-2024',
+    TrangThai: 'HOAT_DONG',
+    IsActive: true,
+    GhiChu: '',
+    CreatedAt: '22-12-2024',
+  },
+  {
+    Id: '2',
+    Ma: 'D2',
+    Ten: 'Thi thử nghiệm đợt 1 2025',
+    NgayBatDau: '22-12-2024',
+    NgayKetThuc: '22-12-2024',
+    TrangThai: 'HOAT_DONG',
+    IsActive: true,
+    GhiChu: '',
+    CreatedAt: '22-12-2024',
+  },
+  {
+    Id: '3',
+    Ma: 'VD',
+    Ten: 'Thi chính thức đợt 1 2024',
+    NgayBatDau: '22-12-2024',
+    NgayKetThuc: '22-12-2024',
+    TrangThai: 'HOAT_DONG',
+    IsActive: true,
+    GhiChu: '',
+    CreatedAt: '22-12-2024',
+  },
+  {
+    Id: '4',
+    Ma: '...',
+    Ten: '...',
+    NgayBatDau: '22-12-2024',
+    NgayKetThuc: '22-12-2024',
+    TrangThai: 'KHONG_HOAT_DONG',
+    IsActive: false,
+    GhiChu: '',
+    CreatedAt: '22-12-2024',
+  },
+  {
+    Id: '5',
+    Ma: '...',
+    Ten: '...',
+    NgayBatDau: '22-12-2024',
+    NgayKetThuc: '22-12-2024',
+    TrangThai: 'KHONG_HOAT_DONG',
+    IsActive: false,
+    GhiChu: '',
+    CreatedAt: '22-12-2024',
+  },
 ];
 
-export default function DanhMucCapDoTuDuy() {
+export default function DanhMucDotThi() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
@@ -38,19 +91,19 @@ export default function DanhMucCapDoTuDuy() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<DmCapDoTuDuyType | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<DmDotThiType | null>(null);
 
-  const handleOpenDetail = (record: DmCapDoTuDuyType) => {
+  const handleOpenDetail = (record: DmDotThiType) => {
     setSelectedRecord(record);
     setIsDetailModalOpen(true);
   };
 
-  const handleOpenUpdate = (record: DmCapDoTuDuyType) => {
+  const handleOpenUpdate = (record: DmDotThiType) => {
     setSelectedRecord(record);
     setIsUpdateModalOpen(true);
   };
 
-  const handleOpenDelete = (record: DmCapDoTuDuyType) => {
+  const handleOpenDelete = (record: DmDotThiType) => {
     setSelectedRecord(record);
     setIsDeleteMultiple(false);
     setIsDeleteModalOpen(true);
@@ -70,7 +123,7 @@ export default function DanhMucCapDoTuDuy() {
     onChange: onSelectChange,
   };
 
-  const columns: ColumnsType<DmCapDoTuDuyType> = [
+  const columns: ColumnsType<DmDotThiType> = [
     {
       title: 'STT',
       dataIndex: 'stt',
@@ -80,12 +133,12 @@ export default function DanhMucCapDoTuDuy() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: 'Mã cấp độ tư duy',
+      title: 'Mã đợt thi',
       dataIndex: 'Ma',
       key: 'Ma',
     },
     {
-      title: 'Tên cấp độ tư duy',
+      title: 'Tên đợt thi',
       dataIndex: 'Ten',
       key: 'Ten',
     },
@@ -93,6 +146,16 @@ export default function DanhMucCapDoTuDuy() {
       title: 'Ngày tạo',
       dataIndex: 'CreatedAt',
       key: 'CreatedAt',
+    },
+    {
+      title: 'Ngày bắt đầu',
+      dataIndex: 'NgayBatDau',
+      key: 'NgayBatDau',
+    },
+    {
+      title: 'Ngày kết thúc',
+      dataIndex: 'NgayKetThuc',
+      key: 'NgayKetThuc',
     },
     {
       title: 'Tình trạng',
@@ -170,7 +233,7 @@ export default function DanhMucCapDoTuDuy() {
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Tên mức độ</label>
+                  <label className="text-gray-600 text-sm font-medium">Tên đợt thi</label>
                   <Input placeholder="Nhập" className="h-10 w-full" />
                 </div>
 
@@ -251,7 +314,7 @@ export default function DanhMucCapDoTuDuy() {
         </div>
 
         {/* Modals */}
-        <CreateCapDoTuDuyModal
+        <CreateDotThiModal
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSave={(values) => {
@@ -259,7 +322,7 @@ export default function DanhMucCapDoTuDuy() {
           }}
         />
 
-        <UpdateCapDoTuDuyModal
+        <UpdateDotThiModal
           open={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           record={selectedRecord}
@@ -268,13 +331,13 @@ export default function DanhMucCapDoTuDuy() {
           }}
         />
 
-        <DetailCapDoTuDuyModal
+        <DetailDotThiModal
           open={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           record={selectedRecord}
         />
 
-        <DeleteCapDoTuDuyModal
+        <DeleteDotThiModal
           open={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
           itemName={selectedRecord?.Ten}
