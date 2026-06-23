@@ -39,7 +39,7 @@ import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/
 import QuestionTopicsModule from './components/QuestionTopicsModule';
 import QuestionStatsModule from './components/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
-import SystemAdminModule from './components/SystemAdminModule';
+import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import Login from './components/Login';
@@ -76,6 +76,12 @@ export default function App() {
 
   // Personal Profile Modal state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ fullName: '', email: '' });
+
+  // Password Modal state
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
   // Navigation controller helper
   const handleDashboardNavigate = (tab: 'question-bank' | 'matrix-config' | 'quan-ly-de-thi-goi-de') => {
@@ -195,13 +201,23 @@ export default function App() {
         key: 'profile',
         label: 'Hồ sơ cá nhân',
         icon: <UserOutlined />,
-        onClick: () => setIsProfileOpen(true)
+        onClick: () => {
+          setProfileForm({
+            fullName: currentUser?.fullName || '',
+            email: currentUser?.email || ''
+          });
+          setIsEditingProfile(false);
+          setIsProfileOpen(true);
+        }
       },
       {
         key: 'password',
         label: 'Đổi mật khẩu',
         icon: <KeyOutlined />,
-        onClick: () => message.info('Tính năng bảo mật: Vui lòng liên hệ quản trị viên cơ sở dữ liệu để thay đổi thiết lập mật khẩu.')
+        onClick: () => {
+          setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+          setIsPasswordOpen(true);
+        }
       },
       {
         key: 'help',
@@ -282,12 +298,14 @@ export default function App() {
     {
       key: 'quan-tri-danh-muc',
       icon: <FolderOutlined />,
-      label: 'Quản trị danh mục dán nhãn',
+      label: 'Quản trị danh mục',
       children: [
         { key: 'danh-muc-mon-thi', label: 'Danh mục môn thi' },
         { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
         { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
-        { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' }
+        { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
+        { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
+        { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
       ]
     }
   ];
@@ -351,6 +369,8 @@ export default function App() {
       case 'danh-muc-khoi-lop':
       case 'cap-do-tu-duy':
       case 'loai-hinh-cau-hoi':
+      case 'thanh-phan-nang-luc':
+      case 'danh-muc-dot-thi':
         return (
           <CategoryAdminModule
             currentTabKey={activeMenuKey}
@@ -394,10 +414,12 @@ export default function App() {
       case 'quan-ly-nguoi-dung': return 'Quản trị hệ thống / Quản lý người dùng';
       case 'quan-ly-nhom-nguoi-dung': return 'Quản trị hệ thống / Quản lý nhóm người dùng';
       case 'chinh-sach-bao-mat': return 'Quản trị hệ thống / Chính sách bảo mật';
-      case 'danh-muc-mon-thi': return 'Quản trị danh mục dán nhãn / Danh mục môn thi';
-      case 'danh-muc-khoi-lop': return 'Quản trị danh mục dán nhãn / Danh mục khối lớp';
-      case 'cap-do-tu-duy': return 'Quản trị danh mục dán nhãn / Cấp độ tư duy';
-      case 'loai-hinh-cau-hoi': return 'Quản trị danh mục dán nhãn / Loại hình câu hỏi';
+      case 'danh-muc-mon-thi': return 'Quản trị danh mục / Danh mục môn thi';
+      case 'danh-muc-khoi-lop': return 'Quản trị danh mục / Danh mục khối lớp';
+      case 'cap-do-tu-duy': return 'Quản trị danh mục / Cấp độ tư duy';
+      case 'loai-hinh-cau-hoi': return 'Quản trị danh mục / Loại hình câu hỏi';
+      case 'thanh-phan-nang-luc': return 'Quản trị danh mục / Thành phần năng lực';
+      case 'danh-muc-dot-thi': return 'Quản trị danh mục / Danh mục đợt thi';
       default: return `Phân hệ / ${activeMenuKey.replace(/-/g, ' ')}`;
     }
   };
@@ -415,6 +437,72 @@ export default function App() {
       case 'teacher': return 'Giáo viên bộ môn';
       case 'reviewer': return 'Chuyên gia giám định';
       default: return 'Người dùng hệ thống';
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!profileForm.fullName || !profileForm.email) {
+      message.error('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: profileForm.fullName,
+          email: profileForm.email
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        message.success('Cập nhật hồ sơ cá nhân thành công!');
+        setCurrentUser(data.user);
+        localStorage.setItem('user_info', JSON.stringify(data.user));
+        setIsEditingProfile(false);
+      } else {
+        message.error(data.detail || data.message || 'Có lỗi xảy ra khi cập nhật hồ sơ');
+      }
+    } catch (error) {
+      message.error('Không thể kết nối đến máy chủ');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      message.error('Vui lòng điền đầy đủ các trường mật khẩu');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      message.error('Mật khẩu mới và Xác nhận mật khẩu không khớp');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          old_password: passwordForm.oldPassword,
+          new_password: passwordForm.newPassword
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        message.success('Đổi mật khẩu thành công!');
+        setIsPasswordOpen(false);
+      } else {
+        message.error(data.detail || data.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+      }
+    } catch (error) {
+      message.error('Không thể kết nối đến máy chủ');
     }
   };
 
@@ -571,48 +659,139 @@ export default function App() {
         title={
           <div className="border-b pb-2 flex items-center gap-1.5">
             <UserOutlined className="text-[#0f172a]" />
-            <span className="font-extrabold uppercase text-[13px] text-slate-800">Thông tin hồ sơ cá nhân Chuyên môn</span>
+            <span className="font-extrabold uppercase text-[13px] text-slate-800">Thông tin hồ sơ cá nhân</span>
           </div>
         }
         open={isProfileOpen}
         onCancel={() => setIsProfileOpen(false)}
-        footer={[
-          <Button key="close" type="primary" onClick={() => setIsProfileOpen(false)} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
-            Xác nhận đóng
-          </Button>
-        ]}
+        footer={
+          isEditingProfile ? [
+            <Button key="cancel" onClick={() => setIsEditingProfile(false)} className="rounded-xl font-bold text-xs">
+              Hủy bỏ
+            </Button>,
+            <Button key="save" type="primary" onClick={handleUpdateProfile} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
+              Lưu thay đổi
+            </Button>
+          ] : [
+            <Button key="edit" onClick={() => setIsEditingProfile(true)} className="rounded-xl font-bold text-xs border-slate-300">
+              Chỉnh sửa hồ sơ
+            </Button>,
+            <Button key="close" type="primary" onClick={() => setIsProfileOpen(false)} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
+              Đóng
+            </Button>
+          ]
+        }
         centered
         width={450}
       >
         <div className="space-y-4 pt-4 text-xs font-medium text-slate-650" id="profile-modal-body">
           <div className="flex items-center gap-4 bg-slate-50 border p-4 rounded-2xl">
-            <Avatar size={64} style={{ backgroundColor: '#0f172a' }}>TT</Avatar>
+            <Avatar size={64} style={{ backgroundColor: '#0f172a' }}>
+              {getUserInitials(currentUser?.fullName || currentUser?.username || 'User')}
+            </Avatar>
             <div>
-              <h3 className="text-sm font-black text-slate-900 leading-tight">Phan Thu Trang</h3>
-              <p className="text-slate-400 text-[11px] block mt-1">Chương trình Đào tạo Sư phạm Ngữ văn Việt Nam</p>
+              <h3 className="text-sm font-black text-slate-900 leading-tight">{currentUser?.fullName || currentUser?.username}</h3>
+              <p className="text-slate-400 text-[11px] block mt-1">Tài khoản: {currentUser?.username}</p>
               <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase mt-2 inline-block">
-                Tổ trưởng Thẩm định
+                {getRoleLabel(currentUser?.role)}
               </span>
             </div>
           </div>
 
           <div className="space-y-2.5">
-            <div className="flex justify-between border-b pb-1.5 border-dashed">
-              <span className="text-slate-400">Đơn vị công tác:</span>
-              <strong className="text-slate-800">Trường THPT Chuyên Quốc Học</strong>
-            </div>
-            <div className="flex justify-between border-b pb-1.5 border-dashed">
-              <span className="text-slate-400">Học vị:</span>
-              <strong className="text-slate-800">Thạc sĩ Ngữ văn học</strong>
-            </div>
-            <div className="flex justify-between border-b pb-1.5 border-dashed">
-              <span className="text-slate-400">Email công vụ:</span>
-              <strong className="text-slate-800">trangpt@school.edu.vn</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Môn học quản lý:</span>
-              <strong className="text-slate-800">Ngữ văn & Tiếng Anh bậc THPT</strong>
-            </div>
+            {isEditingProfile ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-500 font-bold block mb-1">Họ và tên</label>
+                  <Input 
+                    value={profileForm.fullName} 
+                    onChange={e => setProfileForm({...profileForm, fullName: e.target.value})}
+                    className="rounded-lg border-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-bold block mb-1">Email liên hệ</label>
+                  <Input 
+                    value={profileForm.email} 
+                    onChange={e => setProfileForm({...profileForm, email: e.target.value})}
+                    className="rounded-lg border-slate-300"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between border-b pb-1.5 border-dashed">
+                  <span className="text-slate-400">Trạng thái:</span>
+                  <strong className={currentUser?.status === 'active' ? 'text-emerald-600' : 'text-red-600'}>
+                    {currentUser?.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
+                  </strong>
+                </div>
+                <div className="flex justify-between border-b pb-1.5 border-dashed">
+                  <span className="text-slate-400">Họ và tên:</span>
+                  <strong className="text-slate-800">{currentUser?.fullName || 'Chưa cập nhật'}</strong>
+                </div>
+                <div className="flex justify-between border-b pb-1.5 border-dashed">
+                  <span className="text-slate-400">Email:</span>
+                  <strong className="text-slate-800">{currentUser?.email || 'Chưa cập nhật'}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Quyền truy cập:</span>
+                  <strong className="text-slate-800 uppercase text-[10px] tracking-wide">{currentUser?.role}</strong>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Password Change Dialog */}
+      <Modal
+        title={
+          <div className="border-b pb-2 flex items-center gap-1.5">
+            <KeyOutlined className="text-[#0f172a]" />
+            <span className="font-extrabold uppercase text-[13px] text-slate-800">Thay đổi mật khẩu</span>
+          </div>
+        }
+        open={isPasswordOpen}
+        onCancel={() => setIsPasswordOpen(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setIsPasswordOpen(false)} className="rounded-xl font-bold text-xs">
+            Hủy bỏ
+          </Button>,
+          <Button key="save" type="primary" onClick={handleChangePassword} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
+            Cập nhật mật khẩu
+          </Button>
+        ]}
+        centered
+        width={400}
+      >
+        <div className="space-y-4 pt-4 text-xs font-medium text-slate-650">
+          <div className="space-y-1">
+            <label className="text-xs text-slate-500 font-bold">Mật khẩu hiện tại</label>
+            <Input.Password 
+              value={passwordForm.oldPassword} 
+              onChange={e => setPasswordForm({...passwordForm, oldPassword: e.target.value})}
+              className="rounded-lg border-slate-300"
+              placeholder="Nhập mật khẩu cũ..."
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-500 font-bold">Mật khẩu mới</label>
+            <Input.Password 
+              value={passwordForm.newPassword} 
+              onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+              className="rounded-lg border-slate-300"
+              placeholder="Nhập mật khẩu mới..."
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-slate-500 font-bold">Xác nhận mật khẩu mới</label>
+            <Input.Password 
+              value={passwordForm.confirmPassword} 
+              onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+              className="rounded-lg border-slate-300"
+              placeholder="Nhập lại mật khẩu mới..."
+            />
           </div>
         </div>
       </Modal>

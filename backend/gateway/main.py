@@ -77,7 +77,7 @@ async def proxy_request(request: Request, target_url: str) -> Response:
     """Forward a request to a downstream service."""
     async with httpx.AsyncClient(timeout=120.0) as client:
         # Build the target URL
-        path = request.url.path
+        path = request.scope.get("path", request.url.path)
         query = str(request.url.query)
         url = f"{target_url}{path}" + (f"?{query}" if query else "")
 
@@ -158,7 +158,7 @@ async def proxy_analytics_summary(request: Request):
 
 
 # ─── Route: Auth Service ────────────────────────────────────────────
-@app.api_route("/api/auth/{path:path}", methods=["GET", "POST"])
+@app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_auth(request: Request, path: str = ""):
     """Forward auth requests to Auth Service."""
     request.scope["path"] = f"/{path}" if path else "/"
@@ -264,5 +264,6 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run("backend.gateway.main:app", host="0.0.0.0", port=8000, reload=True)

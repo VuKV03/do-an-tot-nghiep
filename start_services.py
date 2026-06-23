@@ -57,6 +57,7 @@ def start_all():
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
 
         proc = subprocess.Popen(
             [

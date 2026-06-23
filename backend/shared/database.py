@@ -9,8 +9,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase
 # pyrefly: ignore [missing-import]
 from sqlalchemy import text
+import ssl
 
 from .config import db_config
+
+# Configure SSL context
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 
 class Base(DeclarativeBase):
@@ -26,6 +32,7 @@ engine = create_async_engine(
     max_overflow=20,
     pool_recycle=3600,
     pool_pre_ping=True,
+    connect_args={"ssl": ssl_context} if db_config.USE_SSL else {}
 )
 
 # Session factory
@@ -54,6 +61,7 @@ async def ensure_database_exists():
         port=db_config.PORT,
         user=db_config.USER,
         password=db_config.PASSWORD,
+        ssl=ssl_context if db_config.USE_SSL else None,
     )
     try:
         async with conn.cursor() as cur:
