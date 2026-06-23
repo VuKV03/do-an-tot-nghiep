@@ -27,6 +27,18 @@ class RegisterRequest(BaseModel):
     role: Optional[str] = "teacher"
 
 
+class UpdateRequest(BaseModel):
+    fullName: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    password: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class UserResponse(BaseModel):
     id: str
     username: str

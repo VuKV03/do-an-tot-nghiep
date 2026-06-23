@@ -15,7 +15,7 @@ from passlib.context import CryptContext
 from backend.shared.database import get_db
 from backend.auth_service.models import User
 from backend.auth_service.schemas import (
-    LoginRequest, RegisterRequest, UserResponse,
+    LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest
 )
 from backend.auth_service.jwt_handler import create_access_token, create_refresh_token
 
@@ -95,4 +95,74 @@ async def list_users(db: AsyncSession = Depends(get_db)):
         "success": True,
         "count": len(users),
         "data": [UserResponse.model_validate(u).model_dump() for u in users],
+    }
+
+
+@router.put("/users/{user_id}")
+async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depends(get_db)):
+    """Cập nhật thông tin người dùng."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại.")
+        
+    if body.fullName is not None:
+        user.fullName = body.fullName
+    if body.email is not None:
+        user.email = body.email
+    if body.role is not None:
+        user.role = body.role
+    if body.status is not None:
+        user.status = body.status
+    if body.password is not None:
+        user.password_hash = pwd_context.hash(body.password)
+        
+    await db.commit()
+    return {
+        "success": True,
+        "message": "Cập nhật thông tin thành công!",
+        "user": UserResponse.model_validate(user).model_dump()
+    }
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
+    """Xóa người dùng khỏi hệ thống."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại.")
+        
+    # Prevent deletion of admin/teacher01 or self if needed (hardcode safety for seed users here if desired)
+    if user.username in ["admin"]:
+        raise HTTPException(status_code=403, detail="Không thể xóa tài khoản quản trị hệ thống gốc.")
+        
+    await db.delete(user)
+    await db.commit()
+    return {
+        "success": True,
+        "message": "Đã xóa người dùng thành công!"
+    }
+
+
+@router.put("/users/{user_id}/password")
+async def change_password(user_id: str, body: ChangePasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Đổi mật khẩu người dùng."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại.")
+        
+    if not pwd_context.verify(body.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác.")
+        
+    user.password_hash = pwd_context.hash(body.new_password)
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Đổi mật khẩu thành công!"
     }

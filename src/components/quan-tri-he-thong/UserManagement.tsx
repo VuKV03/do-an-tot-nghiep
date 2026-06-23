@@ -1,16 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Table, 
-  Input, 
-  Button, 
-  Select, 
-  Modal, 
-  Tag, 
-  Form, 
-  Space, 
-  Popconfirm, 
-  Alert, 
-  message, 
+import {
+  Table,
+  Input,
+  Button,
+  Select,
+  Modal,
+  Tag,
+  Form,
+  Space,
+  Popconfirm,
+  Alert,
+  message,
   Empty,
   Tooltip,
   Row,
@@ -27,7 +27,9 @@ import {
   UsergroupAddOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../types';
-import { SYSTEM_USERS } from '../../data';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
 
 interface SecurityLog {
   id: string;
@@ -45,22 +47,42 @@ interface UserManagementProps {
 }
 
 export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserManagementProps) {
-  const [users, setUsers] = useState<SystemUser[]>(SYSTEM_USERS);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [loading, setLoading] = useState(false);
   const [userSearchText, setUserSearchText] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
-  
+
   // Modals for Users
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [userModalMode, setUserModalMode] = useState<'create' | 'edit'>('create');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm] = Form.useForm();
 
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_URL}/auth/users`);
+      if (res.data.success) {
+        setUsers(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      message.error('Không thể tải danh sách người dùng.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       const matchSearch = u.fullName.toLowerCase().includes(userSearchText.toLowerCase()) ||
-                          u.username.toLowerCase().includes(userSearchText.toLowerCase()) ||
-                          u.email.toLowerCase().includes(userSearchText.toLowerCase());
+        u.username.toLowerCase().includes(userSearchText.toLowerCase()) ||
+        u.email.toLowerCase().includes(userSearchText.toLowerCase());
       const matchRole = userRoleFilter === 'all' || u.role === userRoleFilter;
       const matchStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
       return matchSearch && matchRole && matchStatus;
@@ -88,126 +110,162 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   };
 
   const handleSaveUserForm = () => {
-    userForm.validateFields().then(values => {
-      if (userModalMode === 'create') {
-        const newUser: SystemUser = {
-          id: `u-${Date.now()}`,
-          fullName: values.fullName,
-          username: values.username.toLowerCase().trim(),
-          email: values.email,
-          role: values.role,
-          status: values.status || 'active'
-        };
+    userForm.validateFields().then(async values => {
+      try {
+        if (userModalMode === 'create') {
+          // Generate a temporary password for new users
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+          let tempPass = '';
+          for (let i = 0; i < 10; i++) {
+            tempPass += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
 
-        setUsers(prev => [newUser, ...prev]);
+          const res = await axios.post(`${API_URL}/auth/register`, {
+            username: values.username.toLowerCase().trim(),
+            email: values.email,
+            fullName: values.fullName,
+            password: tempPass,
+            role: values.role
+          });
 
-        // Add to global Audit Logs
+          if (res.data.success) {
+            await fetchUsers(); // Refresh the list
+
+            // Add to global Audit Logs
+            onAddAuditLog({
+              id: `log-sec-${Date.now()}`,
+              user: 'Quản trị viên',
+              action: 'Tạo người dùng',
+              timestamp: new Date().toISOString(),
+              details: `Đã tạo tài khoản cán bộ mới: ${values.fullName} (@${values.username}, Quyền: ${values.role})`
+            });
+
+            // Add to security log
+            setSecurityLogs(prev => [
+              {
+                id: `sec-${Date.now()}`,
+                user: 'admin_panel',
+                action: 'Tạo tài khoản cán bộ',
+                timestamp: new Date().toISOString(),
+                level: 'success',
+                ip: '127.0.0.1',
+                details: `Thêm mới tài khoản chuyên viên ${values.fullName} thành công.`
+              },
+              ...prev
+            ]);
+
+            message.success(`Kích hoạt thành công tài khoản cán bộ: ${values.fullName}`);
+            Modal.success({
+              title: 'MẬT KHẨU TẠM THỜI',
+              content: (
+                <div>
+                  <p>Tài khoản <strong>@{values.username}</strong> đã được tạo thành công.</p>
+                  <p>Mật khẩu tạm thời: <code className="bg-slate-100 p-1 rounded font-bold">{tempPass}</code></p>
+                  <p className="text-xs mt-2 text-slate-500">Hãy yêu cầu người dùng đổi mật khẩu trong lần đăng nhập đầu tiên.</p>
+                </div>
+              )
+            });
+          }
+        } else {
+          // Edit existing user
+          const res = await axios.put(`${API_URL}/auth/users/${editingUserId}`, {
+            fullName: values.fullName,
+            email: values.email,
+            role: values.role,
+            status: values.status
+          });
+
+          if (res.data.success) {
+            await fetchUsers(); // Refresh list
+
+            onAddAuditLog({
+              id: `log-sec-${Date.now()}`,
+              user: 'Quản trị viên',
+              action: 'Sửa người dùng',
+              timestamp: new Date().toISOString(),
+              details: `Đã thay đổi thông tin người dùng: @${values.username}`
+            });
+
+            message.success('Cập nhật thông tin cán bộ thành công.');
+          }
+        }
+        setIsUserModalOpen(false);
+      } catch (err: any) {
+        console.error('Error saving user:', err);
+        message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi lưu thông tin người dùng.');
+      }
+    });
+  };
+
+  const handleDeleteUser = async (user: SystemUser) => {
+    try {
+      const res = await axios.delete(`${API_URL}/auth/users/${user.id}`);
+      if (res.data.success) {
+        await fetchUsers(); // Refresh list
+
         onAddAuditLog({
           id: `log-sec-${Date.now()}`,
           user: 'Quản trị viên',
-          action: 'Tạo người dùng',
+          action: 'Xóa người dùng',
           timestamp: new Date().toISOString(),
-          details: `Đã tạo tài khoản cán bộ mới: ${newUser.fullName} (@${newUser.username}, Quyền: ${newUser.role})`
+          details: `Đã thu hồi tài khoản của: ${user.fullName} (@${user.username})`
         });
 
-        // Add to security log
         setSecurityLogs(prev => [
           {
             id: `sec-${Date.now()}`,
             user: 'admin_panel',
-            action: 'Tạo tài khoản cán bộ',
+            action: 'Xóa tài khoản',
             timestamp: new Date().toISOString(),
-            level: 'success',
+            level: 'warning',
             ip: '127.0.0.1',
-            details: `Thêm mới tài khoản chuyên viên ${newUser.fullName} thành công.`
+            details: `Đã xóa tài khoản @${user.username} khỏi hệ thống theo yêu cầu của hội đồng.`
           },
           ...prev
         ]);
 
-        message.success(`Kích hoạt thành công tài khoản cán bộ: ${newUser.fullName}`);
-      } else {
-        setUsers(prev => prev.map(u => {
-          if (u.id === editingUserId) {
-            return {
-              ...u,
-              fullName: values.fullName,
-              username: values.username.toLowerCase().trim(),
-              email: values.email,
-              role: values.role,
-              status: values.status
-            };
-          }
-          return u;
-        }));
-
-        onAddAuditLog({
-          id: `log-sec-${Date.now()}`,
-          user: 'Quản trị viên',
-          action: 'Sửa người dùng',
-          timestamp: new Date().toISOString(),
-          details: `Đã thay đổi thông tin người dùng: @${values.username}`
-        });
-
-        message.success('Cập nhật thông tin cán bộ thành công.');
+        message.success(`Đã gỡ quyền truy cập của cán bộ: ${user.fullName}`);
       }
-      setIsUserModalOpen(false);
-    });
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
+    }
   };
 
-  const handleDeleteUser = (user: SystemUser) => {
-    setUsers(prev => prev.filter(u => u.id !== user.id));
-    
-    onAddAuditLog({
-      id: `log-sec-${Date.now()}`,
-      user: 'Quản trị viên',
-      action: 'Xóa người dùng',
-      timestamp: new Date().toISOString(),
-      details: `Đã thu hồi tài khoản của: ${user.fullName} (@${user.username})`
-    });
-
-    setSecurityLogs(prev => [
-      {
-        id: `sec-${Date.now()}`,
-        user: 'admin_panel',
-        action: 'Xóa tài khoản',
-        timestamp: new Date().toISOString(),
-        level: 'warning',
-        ip: '127.0.0.1',
-        details: `Đã xóa tài khoản @${user.username} khỏi hệ thống theo yêu cầu của hội đồng.`
-      },
-      ...prev
-    ]);
-
-    message.success(`Đã gỡ quyền truy cập của cán bộ: ${user.fullName}`);
-  };
-
-  const handleToggleUserStatus = (user: SystemUser) => {
+  const handleToggleUserStatus = async (user: SystemUser) => {
     const newStatus = user.status === 'active' ? 'inactive' : 'active';
-    setUsers(prev => prev.map(u => {
-      if (u.id === user.id) {
-        return { ...u, status: newStatus };
-      }
-      return u;
-    }));
-
     const statusText = newStatus === 'active' ? 'MỞ KHÓA' : 'TẠM KHÓA';
-    message.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
 
-    setSecurityLogs(prev => [
-      {
-        id: `sec-${Date.now()}`,
-        user: 'admin_panel',
-        action: `${statusText} tài khoản`,
-        timestamp: new Date().toISOString(),
-        level: newStatus === 'active' ? 'success' : 'danger',
-        ip: '127.0.0.1',
-        details: `Cập nhật trạng thái người dùng @${user.username} thành ${newStatus === 'active' ? 'Hoạt động' : 'Tạm khóa'}.`
-      },
-      ...prev
-    ]);
+    try {
+      const res = await axios.put(`${API_URL}/auth/users/${user.id}`, {
+        status: newStatus
+      });
+
+      if (res.data.success) {
+        await fetchUsers(); // Refresh list
+
+        message.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
+
+        setSecurityLogs(prev => [
+          {
+            id: `sec-${Date.now()}`,
+            user: 'admin_panel',
+            action: `${statusText} tài khoản`,
+            timestamp: new Date().toISOString(),
+            level: newStatus === 'active' ? 'success' : 'danger',
+            ip: '127.0.0.1',
+            details: `Cập nhật trạng thái người dùng @${user.username} thành ${newStatus === 'active' ? 'Hoạt động' : 'Tạm khóa'}.`
+          },
+          ...prev
+        ]);
+      }
+    } catch (err: any) {
+      console.error('Error toggling user status:', err);
+      message.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái tài khoản.');
+    }
   };
 
-  const handleResetPassword = (user: SystemUser) => {
+  const handleResetPassword = async (user: SystemUser) => {
     // Generate a temporary password
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
     let tempPass = '';
@@ -215,45 +273,56 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       tempPass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    Modal.success({
-      title: 'ĐÃ THIẾT LẬP LẠI MẬT KHẨU TẠM THỜI',
-      content: (
-        <div className="space-y-3 pt-3 text-xs leading-relaxed text-slate-700">
-          <p>Mã hóa lại cấu trúc an toàn mật khẩu cho tài khoản <strong>@{user.username}</strong> thành công.</p>
-          <div className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-3 text-center my-3">
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest mb-1">MẬT KHẨU TẠM THỜI</span>
-            <code className="text-sm font-mono font-black text-blue-900 bg-blue-50 px-2 py-0.5 rounded tracking-wider">{tempPass}</code>
-          </div>
-          <Alert 
-            type="warning" 
-            showIcon 
-            title={<span className="text-[11px] font-bold">Hãy lưu lại thông tin này và yêu cầu cán bộ thay đổi mật khẩu sau lần đầu tiên đăng nhập lại hệ thống.</span>}
-          />
-        </div>
-      ),
-      okText: 'Hoàn tất, ghi nhận',
-      centered: true
-    });
+    try {
+      const res = await axios.put(`${API_URL}/auth/users/${user.id}`, {
+        password: tempPass
+      });
 
-    setSecurityLogs(prev => [
-      {
-        id: `sec-${Date.now()}`,
-        user: 'admin_panel',
-        action: 'Reset Mật khẩu',
-        timestamp: new Date().toISOString(),
-        level: 'warning',
-        ip: '127.0.0.1',
-        details: `Yêu cầu làm mới khóa an toàn định danh cho người dùng @${user.username}.`
-      },
-      ...prev
-    ]);
+      if (res.data.success) {
+        Modal.success({
+          title: 'ĐÃ THIẾT LẬP LẠI MẬT KHẨU TẠM THỜI',
+          content: (
+            <div className="space-y-3 pt-3 text-xs leading-relaxed text-slate-700">
+              <p>Mã hóa lại cấu trúc an toàn mật khẩu cho tài khoản <strong>@{user.username}</strong> thành công.</p>
+              <div className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-3 text-center my-3">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest mb-1">MẬT KHẨU TẠM THỜI</span>
+                <code className="text-sm font-mono font-black text-blue-900 bg-blue-50 px-2 py-0.5 rounded tracking-wider">{tempPass}</code>
+              </div>
+              <Alert
+                type="warning"
+                showIcon
+                title={<span className="text-[11px] font-bold">Hãy lưu lại thông tin này và yêu cầu cán bộ thay đổi mật khẩu sau lần đầu tiên đăng nhập lại hệ thống.</span>}
+              />
+            </div>
+          ),
+          okText: 'Hoàn tất, ghi nhận',
+          centered: true
+        });
+
+        setSecurityLogs(prev => [
+          {
+            id: `sec-${Date.now()}`,
+            user: 'admin_panel',
+            action: 'Reset Mật khẩu',
+            timestamp: new Date().toISOString(),
+            level: 'warning',
+            ip: '127.0.0.1',
+            details: `Yêu cầu làm mới khóa an toàn định danh cho người dùng @${user.username}.`
+          },
+          ...prev
+        ]);
+      }
+    } catch (err: any) {
+      console.error('Error resetting password:', err);
+      message.error(err.response?.data?.detail || 'Không thể đặt lại mật khẩu.');
+    }
   };
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Filters and Add user button */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-        
+
         <div className="flex flex-1 flex-col md:flex-row gap-3 w-full">
           <div className="relative flex-1">
             <Input
@@ -320,7 +389,13 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredUsers.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center">
+                  Đang tải dữ liệu người dùng...
+                </td>
+              </tr>
+            ) : filteredUsers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-12 text-center">
                   <Empty description="Không tìm thấy thông tin tài khoản cán bộ nào phù hợp." />
@@ -331,7 +406,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-2.5 px-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-[#002147] font-black text-[11px] uppercaseSelectable">
+                      <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-[#002147] font-black text-[11px] uppercase select-none">
                         {u.fullName.split(' ').slice(-1)[0][0]}
                       </div>
                       <span className="font-bold text-slate-800 text-[12px]">{u.fullName}</span>
@@ -376,7 +451,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                   <td className="py-2.5 px-4 text-right">
                     <Space size={6} className="justify-end">
                       <Tooltip title="Chỉnh sửa tài khoản">
-                        <Button 
+                        <Button
                           size="small"
                           icon={<EditOutlined />}
                           onClick={() => handleOpenEditUser(u)}
@@ -385,7 +460,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                       </Tooltip>
 
                       <Tooltip title="Nhập lại mật khẩu (Reset)">
-                        <Button 
+                        <Button
                           size="small"
                           icon={<KeyOutlined />}
                           onClick={() => handleResetPassword(u)}
@@ -394,15 +469,14 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                       </Tooltip>
 
                       <Tooltip title={u.status === 'active' ? 'Khóa tạm thời tài khoản' : 'Mở khóa tài khoản'}>
-                        <Button 
+                        <Button
                           size="small"
                           icon={u.status === 'active' ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
                           onClick={() => handleToggleUserStatus(u)}
-                          className={`rounded-lg text-xs cursor-pointer ${
-                            u.status === 'active' 
-                              ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' 
+                          className={`rounded-lg text-xs cursor-pointer ${u.status === 'active'
+                              ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
                               : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                          }`}
+                            }`}
                         />
                       </Tooltip>
 
@@ -415,7 +489,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                         disabled={u.username === 'trangpt' || u.username === 'dungnt'}
                         centered
                       >
-                        <Button 
+                        <Button
                           size="small"
                           danger
                           disabled={u.username === 'trangpt' || u.username === 'dungnt'}
@@ -490,7 +564,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 <Input placeholder="Ví dụ: anhnv" disabled={userModalMode === 'edit'} className="rounded-xl border-slate-200 font-bold font-mono text-slate-800" />
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="email"
@@ -512,7 +586,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Vai trò phân nhiệm chính</span>}
                 rules={[{ required: true }]}
               >
-                <Select 
+                <Select
                   className="font-bold text-xs"
                   options={[
                     { value: 'admin', label: '⚙️ Quản trị viên' },
@@ -522,15 +596,15 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 />
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="status"
                 label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Trực hợp định danh</span>}
                 rules={[{ required: true }]}
               >
-                <Select 
-                  className="font-bold text-xs" 
+                <Select
+                  className="font-bold text-xs"
                   placeholder="Chọn trạng thái"
                   options={[
                     { value: 'active', label: '🟢 Đang hoạt động' },
