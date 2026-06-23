@@ -1,0 +1,426 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Input, Select, Button, Tree, Radio, InputNumber, Spin, message, Tooltip, Empty } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, SearchOutlined } from '@ant-design/icons';
+import type { TreeDataNode, TreeProps } from 'antd';
+import {
+  apiGetMonHoc, apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
+  MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
+} from './mockData';
+
+interface Props { onBack: () => void; }
+
+export default function CreateMatrixForm({ onBack }: Props) {
+  // --- State ---
+  const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
+  const [monHocId, setMonHocId] = useState<string | null>(null);
+  const [maMatran, setMaMatran] = useState('');
+  const [tenMatran, setTenMatran] = useState('');
+  const [loai, setLoai] = useState<number>(1); // 1=Thủ công
+  const [isChangingSubject, setIsChangingSubject] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [caiDat, setCaiDat] = useState<CaiDatMaTran | null>(null);
+  const [dataChuDe, setDataChuDe] = useState<ChuDeNode[]>([]);
+  const [dataChuDeSelect, setDataChuDeSelect] = useState<TreeDataNode[]>([]);
+  const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+  const [searchValue, setSearchValue] = useState('');
+  const [obj, setObj] = useState<MaTranData[]>([]);
+
+  // Load môn học on mount
+  useEffect(() => { apiGetMonHoc().then(setMonHocList); }, []);
+
+  // --- Format helpers ---
+  const formatChuDeItems = (items: ChuDeNode[]): TreeDataNode[] =>
+    items?.map(item => ({
+      title: item.ten,
+      key: item.id,
+      children: item.children?.length ? formatChuDeItems(item.children) : undefined,
+    })) || [];
+
+  const flattenTree = (nodes: TreeDataNode[]): TreeDataNode[] => {
+    let r: TreeDataNode[] = [];
+    nodes.forEach(n => {
+      r.push({ ...n, children: undefined });
+      if (n.children) r = r.concat(flattenTree(n.children));
+    });
+    return r;
+  };
+
+  // --- Bước 1: Chọn Môn ---
+  const changeMonHoc = async (value: string) => {
+    setIsChangingSubject(true);
+    setCheckedKeys([]); setObj([]);
+    setMonHocId(value);
+    const cd = await apiGetCaiDatMaTran(value);
+    setCaiDat(cd);
+    const chuDe = await apiGetChuDe(value);
+    setDataChuDe(chuDe);
+    setDataChuDeSelect(formatChuDeItems(chuDe));
+    setIsChangingSubject(false);
+  };
+
+  // --- Bước 6-7: Tick chọn chủ đề → Tạo data table ---
+  const layTatCaId = (ids: React.Key[], tree: ChuDeNode[]): { child: ChuDeNode; parent: ChuDeNode }[] => {
+    const result: { child: ChuDeNode; parent: ChuDeNode }[] = [];
+    tree.forEach(parent => {
+      parent.children?.forEach(child => {
+        if (ids.includes(child.id)) result.push({ child, parent });
+      });
+    });
+    return result;
+  };
+
+  const taoDanhSachMaTran = (
+    items: { child: ChuDeNode; parent: ChuDeNode }[],
+    nangLuc: CaiDatMaTran['ds_dm_thanh_phan_nang_luc'],
+    mucDo: CaiDatMaTran['ds_dm_muc_do'],
+    loaiCH: CaiDatMaTran['ds_loai_cau_hoi'],
+  ): MaTranData[] => {
+    return items.map(({ child, parent }) => {
+      const dsCH: ItemMaTranData[] = [];
+      loaiCH.forEach(lch => {
+        nangLuc.forEach(nl => {
+          mucDo.forEach(md => {
+            const found = child.ds_cau_hoi?.find(
+              q => q.muc_do_id === md.id && q.loai_cau_hoi_id === lch.loai_cau_hoi_id && q.nang_luc_id === nl.id
+            );
+            dsCH.push({
+              muc_do_id: md.id, loai_cau_hoi_id: lch.loai_cau_hoi_id, nang_luc_id: nl.id,
+              so_cau: 0, tong_so_cau: found?.so_luong ?? 0, diem: lch.diem,
+            });
+          });
+        });
+      });
+      return {
+        noi_dung_kien_thuc: parent.ten, noi_dung_id: parent.id, ma_noi_dung: parent.ma,
+        don_vi_kien_thuc: child.ten, don_vi_id: child.id, ma_don_vi: child.ma,
+        so_tiet: parent.so_tiet || 0, is_dung_sai: parent.is_dung_sai || false,
+        ds_loai_cau_hoi: dsCH, ti_le: '0',
+      };
+    });
+  };
+
+  const onCheck: TreeProps['onCheck'] = (_checkedKeysVal, info) => {
+    if (!caiDat) return;
+    const ids = (info as any).checkedNodes.map((n: any) => n.key);
+    setCheckedKeys(ids);
+    const found = layTatCaId(ids, dataChuDe);
+    const newData = taoDanhSachMaTran(found, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
+    setObj(prev => {
+      const kept = prev.filter(r => ids.includes(r.don_vi_id));
+      newData.forEach(item => { if (!kept.some(e => e.don_vi_id === item.don_vi_id)) kept.push(item); });
+      kept.sort((a, b) => (a.noi_dung_kien_thuc || '').localeCompare(b.noi_dung_kien_thuc || '') || a.don_vi_kien_thuc.localeCompare(b.don_vi_kien_thuc));
+      return [...kept];
+    });
+  };
+
+  // --- Bước 10: Nhập số câu ---
+  const handleInputChange = (rowIdx: number, cellIdx: number, val: number | null) => {
+    setObj(prev => {
+      const next = [...prev];
+      const row = { ...next[rowIdx], ds_loai_cau_hoi: [...next[rowIdx].ds_loai_cau_hoi] };
+      row.ds_loai_cau_hoi[cellIdx] = { ...row.ds_loai_cau_hoi[cellIdx], so_cau: val ?? 0 };
+      // recalc ti_le
+      const totalCau = row.ds_loai_cau_hoi.reduce((s, c) => s + (c.so_cau || 0), 0);
+      const totalDiem = row.ds_loai_cau_hoi.reduce((s, c) => s + (c.so_cau || 0) * (c.diem || 0), 0);
+      row.ti_le = totalDiem.toFixed(2);
+      next[rowIdx] = row;
+      return next;
+    });
+  };
+
+  // --- Search tree ---
+  const treeData = useMemo(() => {
+    if (!searchValue) return dataChuDeSelect;
+    const loop = (data: TreeDataNode[]): TreeDataNode[] =>
+      data.map(item => {
+        const title = String(item.title);
+        const idx = title.toLowerCase().indexOf(searchValue.toLowerCase());
+        const label = idx > -1
+          ? <span>{title.substring(0, idx)}<span className="text-red-500 font-bold">{title.substring(idx, idx + searchValue.length)}</span>{title.substring(idx + searchValue.length)}</span>
+          : <span>{title}</span>;
+        return { ...item, title: label, children: item.children ? loop(item.children) : undefined } as TreeDataNode;
+      }).filter(item => {
+        const orig = dataChuDeSelect && flattenTree(dataChuDeSelect).find(n => n.key === item.key);
+        const origTitle = String(orig?.title || '');
+        const match = origTitle.toLowerCase().includes(searchValue.toLowerCase());
+        return match || (item.children && item.children.length > 0);
+      });
+    return loop(dataChuDeSelect);
+  }, [dataChuDeSelect, searchValue]);
+
+  // --- Dynamic columns ---
+  const colGroups = useMemo(() => {
+    if (!caiDat) return [];
+    return caiDat.ds_loai_cau_hoi.map(lch => ({
+      loaiCH: lch,
+      nangLucs: caiDat.ds_dm_thanh_phan_nang_luc.map(nl => ({
+        nangLuc: nl,
+        mucDos: caiDat.ds_dm_muc_do,
+      })),
+    }));
+  }, [caiDat]);
+
+  // --- rowSpan calculation ---
+  const getRowSpan = (idx: number): number => {
+    if (idx > 0 && obj[idx].noi_dung_id === obj[idx - 1].noi_dung_id) return 0;
+    return obj.filter(r => r.noi_dung_id === obj[idx].noi_dung_id).length;
+  };
+
+  // --- Summary ---
+  const summaryByCellIdx = useMemo(() => {
+    if (!obj.length || !caiDat) return [];
+    const cellCount = obj[0]?.ds_loai_cau_hoi.length || 0;
+    return Array.from({ length: cellCount }, (_, ci) =>
+      obj.reduce((s, r) => s + (r.ds_loai_cau_hoi[ci]?.so_cau || 0), 0)
+    );
+  }, [obj, caiDat]);
+
+  const totalQuestions = summaryByCellIdx.reduce((s, v) => s + v, 0);
+  const totalScore = useMemo(() => {
+    if (!obj.length) return 0;
+    return obj.reduce((s, r) => s + r.ds_loai_cau_hoi.reduce((ss, c) => ss + (c.so_cau || 0) * (c.diem || 0), 0), 0);
+  }, [obj]);
+
+  // --- Save ---
+  const handleSave = async () => {
+    if (!monHocId) { message.warning('Vui lòng chọn môn học.'); return; }
+    if (!tenMatran.trim()) { message.warning('Vui lòng nhập tên ma trận.'); return; }
+    if (obj.length === 0) { message.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
+    setSaving(true);
+    const res = await apiSaveMaTran({ mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+    setSaving(false);
+    if (res.success) { message.success(res.message); onBack(); }
+  };
+
+  // --- Cell index finder ---
+  const getCellIndex = (loaiCHId: string, nlId: string, mdId: string): number => {
+    if (!obj.length) return -1;
+    return obj[0].ds_loai_cau_hoi.findIndex(c => c.loai_cau_hoi_id === loaiCHId && c.nang_luc_id === nlId && c.muc_do_id === mdId);
+  };
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button icon={<ArrowLeftOutlined />} onClick={onBack} className="cursor-pointer" />
+          <h2 className="text-[#1a3c8b] font-bold text-base m-0">Thêm mới Ma trận đề thi</h2>
+        </div>
+        <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}
+          className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded cursor-pointer">
+          Lưu ma trận
+        </Button>
+      </div>
+
+      {/* Thông tin chung */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+        <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0 mb-4">Thông tin chung</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
+            <Select placeholder="Chọn môn học" className="w-full text-xs" loading={monHocList.length === 0}
+              value={monHocId} onChange={changeMonHoc}
+              options={monHocList.map(m => ({ value: m.id, label: m.ten }))} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Mã ma trận</label>
+            <Input placeholder="Nhập mã" className="text-xs" value={maMatran} onChange={e => setMaMatran(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận <span className="text-red-500">*</span></label>
+            <Input placeholder="Nhập tên" className="text-xs" value={tenMatran} onChange={e => setTenMatran(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Loại</label>
+            <Radio.Group value={loai} onChange={e => setLoai(e.target.value)} className="text-xs">
+              <Radio value={1} className="text-xs">Thủ công</Radio>
+              <Radio value={2} className="text-xs">Ngẫu nhiên</Radio>
+            </Radio.Group>
+          </div>
+        </div>
+      </div>
+
+      {/* Content: Tree + Table */}
+      {monHocId && (
+        <Spin spinning={isChangingSubject} tip="Đang tải dữ liệu...">
+          <div className="flex gap-4" style={{ minHeight: 400 }}>
+            {/* Left: Cây chủ đề */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-xs" style={{ width: 300, flexShrink: 0 }}>
+              <div className="px-4 py-3 border-b border-slate-200">
+                <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-2">Chọn chủ đề</h3>
+                <Input size="small" placeholder="Tìm kiếm..." prefix={<SearchOutlined className="text-slate-400" />}
+                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear />
+              </div>
+              <div className="p-3 overflow-y-auto" style={{ maxHeight: 500 }}>
+                {dataChuDeSelect.length > 0 ? (
+                  <Tree checkable checkStrictly blockNode treeData={treeData}
+                    onCheck={onCheck} checkedKeys={checkedKeys} disabled={loai !== 1}
+                    className="text-xs" />
+                ) : (
+                  <Empty description="Chọn môn học để xem chủ đề" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </div>
+            </div>
+
+            {/* Right: Bảng ma trận */}
+            <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0">Bảng ma trận đề thi</h3>
+                {obj.length > 0 && (
+                  <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
+                    Tổng: {totalQuestions} câu | {totalScore.toFixed(2)} điểm
+                  </span>
+                )}
+              </div>
+              <div className="overflow-auto" style={{ maxHeight: 520 }}>
+                {obj.length === 0 ? (
+                  <div className="p-8">
+                    <Empty description="Tick chọn tiểu mục ở cây bên trái để tạo bảng ma trận" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  </div>
+                ) : (
+                  <table className="w-full text-[11px] border-collapse" style={{ minWidth: 600 }}>
+                    <thead>
+                      {/* Row 1: Loại câu hỏi header */}
+                      <tr className="bg-slate-50">
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-10 sticky left-0 bg-slate-50 z-10">STT</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-10" style={{ minWidth: 140, left: 40 }}>Chủ đề</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold" style={{ minWidth: 160 }}>Tiểu mục</th>
+                        {colGroups.map((g, gi) => (
+                          <th key={gi} colSpan={g.nangLucs.length * g.nangLucs[0].mucDos.length}
+                            className="border border-slate-200 px-2 py-1.5 text-center font-bold bg-blue-50 text-[#1a3c8b]">
+                            {g.loaiCH.dm_loai_cau_hoi.ten}
+                            <div className="text-[9px] font-normal text-slate-400">{g.loaiCH.diem} đ/câu</div>
+                          </th>
+                        ))}
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-16 bg-amber-50">Điểm</th>
+                      </tr>
+                      {/* Row 2: Năng lực */}
+                      <tr className="bg-slate-50">
+                        {colGroups.map((g, gi) =>
+                          g.nangLucs.map((nl, ni) => (
+                            <th key={`${gi}-${ni}`} colSpan={nl.mucDos.length}
+                              className="border border-slate-200 px-1 py-1 text-center font-semibold text-[10px] bg-indigo-50 text-indigo-700">
+                              {nl.nangLuc.ten}
+                            </th>
+                          ))
+                        )}
+                      </tr>
+                      {/* Row 3: Mức độ */}
+                      <tr className="bg-slate-50">
+                        {colGroups.map((g, gi) =>
+                          g.nangLucs.map((nl, ni) =>
+                            nl.mucDos.map((md, mi) => (
+                              <th key={`${gi}-${ni}-${mi}`}
+                                className="border border-slate-200 px-1 py-1 text-center font-medium text-[9px] bg-slate-100 text-slate-600 whitespace-nowrap"
+                                style={{ minWidth: 50 }}>
+                                {md.ten}
+                              </th>
+                            ))
+                          )
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {obj.map((row, ri) => {
+                        const rs = getRowSpan(ri);
+                        return (
+                          <tr key={row.don_vi_id} className="hover:bg-blue-50/30 transition-colors">
+                            {rs > 0 && (
+                              <>
+                                <td rowSpan={rs} className="border border-slate-200 px-2 py-1.5 text-center font-medium sticky left-0 bg-white z-10">
+                                  {ri + 1}
+                                </td>
+                                <td rowSpan={rs} className="border border-slate-200 px-2 py-1.5 text-left font-semibold text-slate-800 sticky bg-white z-10" style={{ left: 40 }}>
+                                  {row.noi_dung_kien_thuc}
+                                </td>
+                              </>
+                            )}
+                            <td className="border border-slate-200 px-2 py-1.5 text-left text-slate-700">
+                              {row.don_vi_kien_thuc}
+                            </td>
+                            {colGroups.map((g, gi) =>
+                              g.nangLucs.map((nl, ni) =>
+                                nl.mucDos.map((md, mi) => {
+                                  const ci = getCellIndex(g.loaiCH.loai_cau_hoi_id, nl.nangLuc.id, md.id);
+                                  const cell = ci >= 0 ? row.ds_loai_cau_hoi[ci] : null;
+                                  const isOver = cell && (cell.so_cau || 0) > (cell.tong_so_cau || 0);
+                                  return (
+                                    <td key={`${gi}-${ni}-${mi}`} className="border border-slate-200 px-0.5 py-0.5 text-center">
+                                      <div className="flex items-center justify-center gap-0.5">
+                                        <InputNumber size="small" min={0} value={cell?.so_cau ?? 0}
+                                          onChange={v => ci >= 0 && handleInputChange(ri, ci, v)}
+                                          className="text-[10px]" style={{ width: 36 }} controls={false} />
+                                        <Tooltip title={`Ngân hàng: ${cell?.tong_so_cau ?? 0} câu`}>
+                                          <span className={`text-[9px] ${isOver ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                                            /{cell?.tong_so_cau ?? 0}
+                                          </span>
+                                        </Tooltip>
+                                      </div>
+                                    </td>
+                                  );
+                                })
+                              )
+                            )}
+                            <td className="border border-slate-200 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50">
+                              {row.ti_le}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {/* Summary */}
+                    <tfoot>
+                      <tr className="bg-slate-100 font-bold">
+                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs">Tổng số câu</td>
+                        {summaryByCellIdx.map((v, i) => (
+                          <td key={i} className="border border-slate-200 px-1 py-2 text-center text-xs">{v}</td>
+                        ))}
+                        <td className="border border-slate-200 px-2 py-2 text-center text-xs text-amber-700">{totalScore.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </Spin>
+      )}
+
+      {/* Bảng cấu hình tổng hợp */}
+      {obj.length > 0 && caiDat && (
+        <div className="bg-white border border-slate-200 rounded-lg shadow-xs p-5">
+          <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-3">Bảng cấu hình tổng hợp theo loại câu hỏi</h3>
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="border border-slate-200 px-3 py-2 text-left font-bold">Loại câu hỏi</th>
+                <th className="border border-slate-200 px-3 py-2 text-center font-bold">Số câu yêu cầu</th>
+                <th className="border border-slate-200 px-3 py-2 text-center font-bold">Số câu cấu hình</th>
+                <th className="border border-slate-200 px-3 py-2 text-center font-bold">Điểm/câu</th>
+                <th className="border border-slate-200 px-3 py-2 text-center font-bold">Tổng điểm</th>
+              </tr>
+            </thead>
+            <tbody>
+              {caiDat.ds_loai_cau_hoi.map(lch => {
+                const soCauConfig = obj.reduce((s, r) =>
+                  s + r.ds_loai_cau_hoi.filter(c => c.loai_cau_hoi_id === lch.loai_cau_hoi_id).reduce((ss, c) => ss + (c.so_cau || 0), 0), 0);
+                return (
+                  <tr key={lch.loai_cau_hoi_id} className="hover:bg-slate-50">
+                    <td className="border border-slate-200 px-3 py-2">{lch.noi_dung_phan}</td>
+                    <td className="border border-slate-200 px-3 py-2 text-center">{lch.so_luong_cau}</td>
+                    <td className={`border border-slate-200 px-3 py-2 text-center font-bold ${soCauConfig > lch.so_luong_cau ? 'text-red-500' : soCauConfig === lch.so_luong_cau ? 'text-green-600' : ''}`}>
+                      {soCauConfig}
+                    </td>
+                    <td className="border border-slate-200 px-3 py-2 text-center">{lch.diem}</td>
+                    <td className="border border-slate-200 px-3 py-2 text-center font-bold text-amber-700">{(soCauConfig * lch.diem).toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

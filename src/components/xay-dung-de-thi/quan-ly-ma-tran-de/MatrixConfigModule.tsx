@@ -40,8 +40,11 @@ import {
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../data';
+import CreateMatrixForm from './CreateMatrixForm';
 
 export default function MatrixConfigModule() {
+  // View mode: 'list' | 'create'
+  const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
 
 
   // List Searching & Filtering states
@@ -194,6 +197,10 @@ export default function MatrixConfigModule() {
 
 
 
+  if (viewMode === 'create') {
+    return <CreateMatrixForm onBack={() => { setViewMode('list'); fetchMatrixList(1, pageSize); }} />;
+  }
+
   return (
     <div className="space-y-6" id="matrix-module-facade">
 
@@ -294,6 +301,7 @@ export default function MatrixConfigModule() {
                   type="primary"
                   icon={<PlusOutlined />}
                   className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                  onClick={() => setViewMode('create')}
                 >
                   Thêm mới
                 </Button>
