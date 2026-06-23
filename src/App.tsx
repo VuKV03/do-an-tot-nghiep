@@ -39,7 +39,7 @@ import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/
 import QuestionTopicsModule from './components/QuestionTopicsModule';
 import QuestionStatsModule from './components/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
-import SystemAdminModule from './components/SystemAdminModule';
+import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import Login from './components/Login';

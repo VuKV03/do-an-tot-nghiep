@@ -2,6 +2,7 @@
 SQLAlchemy ORM models for the Auth Service.
 Tables: users
 """
+# pyrefly: ignore [missing-import]
 from sqlalchemy import Column, String, Boolean, Text
 from backend.shared.database import Base
 

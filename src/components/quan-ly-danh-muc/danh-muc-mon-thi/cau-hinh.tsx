@@ -2,8 +2,6 @@ import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, Button, Space, Divider } from 'antd';
 import type { DmMonThiType } from './index';
 
-const { Option } = Select;
-
 export interface CauHinhMonThiType {
   Id: string;
   Ma: string;
@@ -135,11 +133,15 @@ export default function CauHinhMonThiModal({ open, onClose, onSave, record }: Ca
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-600 text-sm font-medium mb-1.5">Loại câu hỏi</label>
-                  <Select placeholder="Chọn loại câu hỏi" className="w-full h-10">
-                    <Option value="trac-nghiem">Câu hỏi trắc nghiệm một lựa chọn</Option>
-                    <Option value="dung-sai">Câu hỏi đúng sai dạng bảng</Option>
-                    <Option value="tu-luan">Câu hỏi tự luận</Option>
-                  </Select>
+                  <Select 
+                    placeholder="Chọn loại câu hỏi" 
+                    className="w-full h-10"
+                    options={[
+                      { value: 'trac-nghiem', label: 'Câu hỏi trắc nghiệm một lựa chọn' },
+                      { value: 'dung-sai', label: 'Câu hỏi đúng sai dạng bảng' },
+                      { value: 'tu-luan', label: 'Câu hỏi tự luận' },
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -168,11 +170,15 @@ export default function CauHinhMonThiModal({ open, onClose, onSave, record }: Ca
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-600 text-sm font-medium mb-1.5">Loại câu hỏi</label>
-                  <Select placeholder="Chọn loại câu hỏi" className="w-full h-10">
-                    <Option value="trac-nghiem">Câu hỏi trắc nghiệm một lựa chọn</Option>
-                    <Option value="dung-sai">Câu hỏi đúng sai dạng bảng</Option>
-                    <Option value="tu-luan">Câu hỏi tự luận</Option>
-                  </Select>
+                  <Select 
+                    placeholder="Chọn loại câu hỏi" 
+                    className="w-full h-10"
+                    options={[
+                      { value: 'trac-nghiem', label: 'Câu hỏi trắc nghiệm một lựa chọn' },
+                      { value: 'dung-sai', label: 'Câu hỏi đúng sai dạng bảng' },
+                      { value: 'tu-luan', label: 'Câu hỏi tự luận' },
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -223,12 +229,16 @@ export default function CauHinhMonThiModal({ open, onClose, onSave, record }: Ca
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-600 text-sm font-medium mb-1.5">Loại câu hỏi</label>
-                  <Select placeholder="Chọn loại câu hỏi" className="w-full h-10">
-                    <Option value="trac-nghiem">Câu hỏi trắc nghiệm một lựa chọn</Option>
-                    <Option value="dung-sai">Câu hỏi đúng sai dạng bảng</Option>
-                    <Option value="tu-luan">Câu hỏi tự luận</Option>
-                    <Option value="tra-loi-ngan">Câu trả lời ngắn</Option>
-                  </Select>
+                  <Select 
+                    placeholder="Chọn loại câu hỏi" 
+                    className="w-full h-10"
+                    options={[
+                      { value: 'trac-nghiem', label: 'Câu hỏi trắc nghiệm một lựa chọn' },
+                      { value: 'dung-sai', label: 'Câu hỏi đúng sai dạng bảng' },
+                      { value: 'tu-luan', label: 'Câu hỏi tự luận' },
+                      { value: 'tra-loi-ngan', label: 'Câu trả lời ngắn' },
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

@@ -20,6 +20,13 @@ class DatabaseConfig:
     NAME: str = os.getenv("DB_NAME", "quan_ly_sinh_de_ai_v2")
 
     @property
+    def USE_SSL(self) -> bool:
+        env_ssl = os.getenv("DB_USE_SSL")
+        if env_ssl is not None:
+            return env_ssl.lower() in ("true", "1", "yes")
+        return "tidbcloud.com" in self.HOST.lower()
+
+    @property
     def url(self) -> str:
         return (
             f"mysql+aiomysql://{self.USER}:{self.PASSWORD}"
