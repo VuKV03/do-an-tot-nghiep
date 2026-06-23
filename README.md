@@ -4,7 +4,7 @@
 
 ## 📌 Giới thiệu dự án
 
-**SmartTest v2** là hệ thống quản lý ngân hàng câu hỏi, cấu hình ma trận đề thi và sinh đề kiểm tra tự động tích hợp Trí tuệ Nhân tạo (**Google Gemini AI**). Hệ thống được phát triển theo kiến trúc **Microservices** hiện đại, kết hợp giao diện tối giản, trực quan và các tương tác mượt mà, giúp giáo viên và nhà quản lý giáo dục tối ưu hóa quy trình ra đề thi chuẩn hóa chỉ trong vài giây.
+**Hệ thống Quản lý & Sinh đề thi bằng AI (V2)** là hệ thống quản lý ngân hàng câu hỏi, cấu hình ma trận đề thi và sinh đề kiểm tra tự động tích hợp Trí tuệ Nhân tạo (**Google Gemini AI**). Hệ thống được phát triển theo kiến trúc **Microservices** hiện đại, kết hợp giao diện tối giản, trực quan và các tương tác mượt mà, giúp giáo viên và nhà quản lý giáo dục tối ưu hóa quy trình ra đề thi chuẩn hóa chỉ trong vài giây.
 
 ---
 
