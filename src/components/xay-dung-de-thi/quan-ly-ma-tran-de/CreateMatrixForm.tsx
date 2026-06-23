@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Input, Select, Button, Tree, Radio, InputNumber, Spin, message, Tooltip, Empty } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, SearchOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SaveOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+
+const getShortCode = (ma: string, ten: string) => {
+  const lowerTen = ten.toLowerCase();
+  if (lowerTen.includes('nhiều lựa chọn') || lowerTen === 'trắc nghiệm') return 'TN';
+  if (lowerTen.includes('đúng sai') || lowerTen.includes('đúng/sai')) return 'ĐS';
+  if (lowerTen.includes('trả lời ngắn') || lowerTen.includes('tự luận ngắn') || lowerTen === 'trả lời ngắn') return 'TLN';
+  if (lowerTen.includes('tự luận')) return 'TL';
+  return ma;
+};
 import type { TreeDataNode, TreeProps } from 'antd';
 import {
   apiGetMonHoc, apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
@@ -22,11 +31,10 @@ export default function CreateMatrixForm({ onBack }: Props) {
   const [caiDat, setCaiDat] = useState<CaiDatMaTran | null>(null);
   const [dataChuDe, setDataChuDe] = useState<ChuDeNode[]>([]);
   const [dataChuDeSelect, setDataChuDeSelect] = useState<TreeDataNode[]>([]);
-  const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+  const [checkedKeys, setCheckedKeys] = useState<{ checked: React.Key[]; halfChecked: React.Key[] }>({ checked: [], halfChecked: [] });
   const [searchValue, setSearchValue] = useState('');
   const [obj, setObj] = useState<MaTranData[]>([]);
 
-  // Load môn học on mount
   useEffect(() => { apiGetMonHoc().then(setMonHocList); }, []);
 
   // --- Format helpers ---
@@ -49,7 +57,7 @@ export default function CreateMatrixForm({ onBack }: Props) {
   // --- Bước 1: Chọn Môn ---
   const changeMonHoc = async (value: string) => {
     setIsChangingSubject(true);
-    setCheckedKeys([]); setObj([]);
+    setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
     setMonHocId(value);
     const cd = await apiGetCaiDatMaTran(value);
     setCaiDat(cd);
@@ -100,10 +108,11 @@ export default function CreateMatrixForm({ onBack }: Props) {
     });
   };
 
-  const onCheck: TreeProps['onCheck'] = (_checkedKeysVal, info) => {
+  const onCheck: TreeProps['onCheck'] = (checkedKeysVal, info) => {
     if (!caiDat) return;
-    const ids = (info as any).checkedNodes.map((n: any) => n.key);
-    setCheckedKeys(ids);
+    const keysObj = checkedKeysVal as { checked: React.Key[]; halfChecked: React.Key[] };
+    setCheckedKeys(keysObj);
+    const ids = keysObj.checked;
     const found = layTatCaId(ids, dataChuDe);
     const newData = taoDanhSachMaTran(found, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
     setObj(prev => {
@@ -127,6 +136,14 @@ export default function CreateMatrixForm({ onBack }: Props) {
       next[rowIdx] = row;
       return next;
     });
+  };
+
+  const handleRemoveRow = (donViId: string) => {
+    setCheckedKeys(prev => {
+      const nextChecked = prev.checked.filter(k => k !== donViId);
+      return { ...prev, checked: nextChecked };
+    });
+    setObj(prev => prev.filter(r => r.don_vi_id !== donViId));
   };
 
   // --- Search tree ---
@@ -266,7 +283,7 @@ export default function CreateMatrixForm({ onBack }: Props) {
             {/* Right: Bảng ma trận */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0">Bảng ma trận đề thi</h3>
+                <h3 className="text-[#1a3c8b] font-bold text-xs m-0">Chi tiết ma trận đề</h3>
                 {obj.length > 0 && (
                   <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
                     Tổng: {totalQuestions} câu | {totalScore.toFixed(2)} điểm
@@ -281,42 +298,51 @@ export default function CreateMatrixForm({ onBack }: Props) {
                 ) : (
                   <table className="w-full text-[11px] border-collapse" style={{ minWidth: 600 }}>
                     <thead>
-                      {/* Row 1: Loại câu hỏi header */}
+                      {/* Row 1: Năng lực header */}
                       <tr className="bg-slate-50">
                         <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-10 sticky left-0 bg-slate-50 z-10">STT</th>
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-10" style={{ minWidth: 140, left: 40 }}>Chủ đề</th>
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold" style={{ minWidth: 160 }}>Tiểu mục</th>
-                        {colGroups.map((g, gi) => (
-                          <th key={gi} colSpan={g.nangLucs.length * g.nangLucs[0].mucDos.length}
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-10" style={{ minWidth: 140, left: 40 }}>Nội dung kiến thức</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold" style={{ minWidth: 160 }}>Đơn vị kiến thức</th>
+                        {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) => (
+                          <th key={nl.id} colSpan={caiDat.ds_dm_muc_do.length * caiDat.ds_loai_cau_hoi.length}
                             className="border border-slate-200 px-2 py-1.5 text-center font-bold bg-blue-50 text-[#1a3c8b]">
-                            {g.loaiCH.dm_loai_cau_hoi.ten}
-                            <div className="text-[9px] font-normal text-slate-400">{g.loaiCH.diem} đ/câu</div>
+                            {nl.ten}
                           </th>
                         ))}
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-16 bg-amber-50">Điểm</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-16 bg-amber-50">Tổng % điểm</th>
                       </tr>
-                      {/* Row 2: Năng lực */}
+                      {/* Row 2: Mức độ */}
                       <tr className="bg-slate-50">
-                        {colGroups.map((g, gi) =>
-                          g.nangLucs.map((nl, ni) => (
-                            <th key={`${gi}-${ni}`} colSpan={nl.mucDos.length}
-                              className="border border-slate-200 px-1 py-1 text-center font-semibold text-[10px] bg-indigo-50 text-indigo-700">
-                              {nl.nangLuc.ten}
-                            </th>
-                          ))
+                        {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
+                          caiDat.ds_dm_muc_do.map((md) => {
+                            let shortName = md.ten;
+                            if (md.ten === 'Nhận biết') shortName = 'Nhận biết';
+                            else if (md.ten === 'Thông hiểu') shortName = 'Thông hiểu';
+                            else if (md.ten === 'Vận dụng') shortName = 'Vận dụng';
+                            else if (md.ten === 'Vận dụng cao') shortName = 'Vận dụng cao';
+                            return (
+                              <th key={`${nl.id}-${md.id}`} colSpan={caiDat.ds_loai_cau_hoi.length}
+                                className="border border-slate-200 px-1 py-1 text-center font-semibold text-[10px] bg-indigo-50 text-indigo-700">
+                                {shortName}
+                              </th>
+                            );
+                          })
                         )}
                       </tr>
-                      {/* Row 3: Mức độ */}
+                      {/* Row 3: Loại câu hỏi */}
                       <tr className="bg-slate-50">
-                        {colGroups.map((g, gi) =>
-                          g.nangLucs.map((nl, ni) =>
-                            nl.mucDos.map((md, mi) => (
-                              <th key={`${gi}-${ni}-${mi}`}
-                                className="border border-slate-200 px-1 py-1 text-center font-medium text-[9px] bg-slate-100 text-slate-600 whitespace-nowrap"
-                                style={{ minWidth: 50 }}>
-                                {md.ten}
-                              </th>
-                            ))
+                        {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
+                          caiDat.ds_dm_muc_do.map((md) =>
+                            caiDat.ds_loai_cau_hoi.map((lch) => {
+                              const shortCode = getShortCode(lch.dm_loai_cau_hoi.ma, lch.dm_loai_cau_hoi.ten);
+                              return (
+                                <th key={`${nl.id}-${md.id}-${lch.loai_cau_hoi_id}`}
+                                  className="border border-slate-200 px-1 py-1 text-center font-medium text-[9px] bg-slate-100 text-slate-600 whitespace-nowrap"
+                                  style={{ minWidth: 45 }}>
+                                  {shortCode}
+                                </th>
+                              );
+                            })
                           )
                         )}
                       </tr>
@@ -337,46 +363,127 @@ export default function CreateMatrixForm({ onBack }: Props) {
                               </>
                             )}
                             <td className="border border-slate-200 px-2 py-1.5 text-left text-slate-700">
-                              {row.don_vi_kien_thuc}
+                              <div className="flex items-center justify-between gap-1 group">
+                                <span className="font-medium">{row.don_vi_kien_thuc}</span>
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  icon={<DeleteOutlined className="text-red-500 text-[10px]" />}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-5 w-5 flex items-center justify-center border border-red-200 bg-red-50 hover:bg-red-100 rounded cursor-pointer shrink-0"
+                                  onClick={() => handleRemoveRow(row.don_vi_id)}
+                                />
+                              </div>
                             </td>
-                            {colGroups.map((g, gi) =>
-                              g.nangLucs.map((nl, ni) =>
-                                nl.mucDos.map((md, mi) => {
-                                  const ci = getCellIndex(g.loaiCH.loai_cau_hoi_id, nl.nangLuc.id, md.id);
+                            {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
+                              caiDat.ds_dm_muc_do.map((md) =>
+                                caiDat.ds_loai_cau_hoi.map((lch) => {
+                                  const ci = getCellIndex(lch.loai_cau_hoi_id, nl.id, md.id);
                                   const cell = ci >= 0 ? row.ds_loai_cau_hoi[ci] : null;
                                   const isOver = cell && (cell.so_cau || 0) > (cell.tong_so_cau || 0);
                                   return (
-                                    <td key={`${gi}-${ni}-${mi}`} className="border border-slate-200 px-0.5 py-0.5 text-center">
+                                    <td key={`${nl.id}-${md.id}-${lch.loai_cau_hoi_id}`} className="border border-slate-200 px-0.5 py-0.5 text-center">
                                       <div className="flex items-center justify-center gap-0.5">
                                         <InputNumber size="small" min={0} value={cell?.so_cau ?? 0}
                                           onChange={v => ci >= 0 && handleInputChange(ri, ci, v)}
                                           className="text-[10px]" style={{ width: 36 }} controls={false} />
-                                        <Tooltip title={`Ngân hàng: ${cell?.tong_so_cau ?? 0} câu`}>
-                                          <span className={`text-[9px] ${isOver ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                                            /{cell?.tong_so_cau ?? 0}
-                                          </span>
-                                        </Tooltip>
+                                        {cell && cell.tong_so_cau > 0 && (
+                                          <Tooltip title={`Ngân hàng: ${cell.tong_so_cau} câu`}>
+                                            <span className={`text-[9px] ${isOver ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                                              /{cell.tong_so_cau}
+                                            </span>
+                                          </Tooltip>
+                                        )}
                                       </div>
                                     </td>
                                   );
                                 })
                               )
                             )}
-                            <td className="border border-slate-200 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50">
-                              {row.ti_le}
-                            </td>
+                            {rs > 0 && (
+                              <td rowSpan={rs} className="border border-slate-200 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50">
+                                {(() => {
+                                  const totalScoreVal = obj.reduce((s, r) => s + r.ds_loai_cau_hoi.reduce((ss, c) => ss + (c.so_cau || 0) * (c.diem || 0), 0), 0);
+                                  const chudeScore = obj
+                                    .filter(r => r.noi_dung_id === row.noi_dung_id)
+                                    .reduce((s, r) => s + r.ds_loai_cau_hoi.reduce((ss, c) => ss + (c.so_cau || 0) * (c.diem || 0), 0), 0);
+                                  const pct = totalScoreVal > 0 ? Math.round((chudeScore / totalScoreVal) * 100) : 0;
+                                  return `${pct}%`;
+                                })()}
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
                     </tbody>
                     {/* Summary */}
                     <tfoot>
-                      <tr className="bg-slate-100 font-bold">
-                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs">Tổng số câu</td>
-                        {summaryByCellIdx.map((v, i) => (
-                          <td key={i} className="border border-slate-200 px-1 py-2 text-center text-xs">{v}</td>
-                        ))}
-                        <td className="border border-slate-200 px-2 py-2 text-center text-xs text-amber-700">{totalScore.toFixed(2)}</td>
+                      {/* Row 1: Tổng lệnh hỏi */}
+                      <tr className="bg-slate-50 font-semibold border-t border-slate-200">
+                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold bg-slate-50">Tổng lệnh hỏi</td>
+                        {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
+                          caiDat.ds_dm_muc_do.map((md) =>
+                            caiDat.ds_loai_cau_hoi.map((lch) => {
+                              // Calculate sum for this column
+                              let colCount = 0;
+                              let colTotal = 0;
+                              obj.forEach((r) => {
+                                const ci = getCellIndex(lch.loai_cau_hoi_id, nl.id, md.id);
+                                if (ci >= 0) {
+                                  const cell = r.ds_loai_cau_hoi[ci];
+                                  if (cell) {
+                                    colCount += cell.so_cau || 0;
+                                    colTotal += cell.tong_so_cau || 0;
+                                  }
+                                }
+                              });
+                              return (
+                                <td key={`${nl.id}-${md.id}-${lch.loai_cau_hoi_id}`} className="border border-slate-200 px-1 py-1.5 text-center text-[10px] font-bold bg-slate-50 text-slate-700">
+                                  {colCount}/{colTotal}
+                                </td>
+                              );
+                            })
+                          )
+                        )}
+                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-amber-700 bg-amber-50">
+                          {totalQuestions} câu
+                        </td>
+                      </tr>
+                      {/* Row 2: Tỉ lệ lệnh hỏi */}
+                      <tr className="bg-slate-50 font-semibold border-t border-slate-200">
+                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold bg-slate-50">Tỉ lệ lệnh hỏi</td>
+                        {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
+                          caiDat.ds_dm_muc_do.map((md) => {
+                            // Sum questions in this specific Năng lực & Mức độ
+                            let mdQuestions = 0;
+                            obj.forEach((r) => {
+                              caiDat.ds_loai_cau_hoi.forEach((lch) => {
+                                const ci = getCellIndex(lch.loai_cau_hoi_id, nl.id, md.id);
+                                if (ci >= 0) {
+                                  mdQuestions += r.ds_loai_cau_hoi[ci]?.so_cau || 0;
+                                }
+                              });
+                            });
+
+                            let pctText = '0%';
+                            if (totalQuestions > 0) {
+                              pctText = `${Math.round((mdQuestions / totalQuestions) * 100)}%`;
+                            } else {
+                              if (md.id === 'md-1') pctText = '40%';
+                              else if (md.id === 'md-2') pctText = '30%';
+                              else if (md.id === 'md-3') pctText = '20%';
+                              else if (md.id === 'md-4') pctText = '10%';
+                            }
+
+                            return (
+                              <td key={`${nl.id}-${md.id}`} colSpan={caiDat.ds_loai_cau_hoi.length}
+                                className="border border-slate-200 px-1 py-1.5 text-center text-[10px] font-bold bg-slate-50 text-[#1a3c8b]">
+                                {pctText}
+                              </td>
+                            );
+                          })
+                        )}
+                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-slate-500 bg-slate-50"></td>
                       </tr>
                     </tfoot>
                   </table>

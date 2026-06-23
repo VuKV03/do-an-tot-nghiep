@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.shared.database import ensure_database_exists, init_tables, async_session
-from backend.exam_service.models import Exam, Question, Package  # Register models
+from backend.exam_service.models import Exam, Question, Package, MatrixConfig  # Register models
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
 
@@ -146,6 +146,17 @@ async def lifespan(app: FastAPI):
     print("=" * 60)
     print("🔧 [Exam Service] Khởi động trên Port 8001...")
     await ensure_database_exists()
+    
+    # Drop table to force recreate with correct schema
+    # from backend.shared.database import engine
+    # from sqlalchemy import text
+    # try:
+    #     async with engine.begin() as conn:
+    #         print("[Exam Service] Dropping matrix_configs table if exists to update schema...")
+    #         await conn.execute(text("DROP TABLE IF EXISTS matrix_configs;"))
+    # except Exception as e:
+    #     print(f"[Exam Service] Error dropping matrix_configs: {e}")
+
     await init_tables()
     await seed_demo_data()
     print("✅ [Exam Service] Sẵn sàng phục vụ!")
@@ -173,6 +184,8 @@ app.add_middleware(
 # Register routes
 app.include_router(exams_router)
 app.include_router(packages_router)
+from backend.exam_service.routes.matrix_configs import router as matrix_configs_router
+app.include_router(matrix_configs_router)
 
 
 @app.get("/health")

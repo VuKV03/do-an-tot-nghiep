@@ -596,7 +596,7 @@ export default function App() {
             </Badge>
 
             {/* Drodown logged-in user details */}
-            <Dropdown menu={userMenuItems} trigger={['click']} placement="bottomRight" id="header-user-dropdown">
+            <Dropdown menu={userMenuItems} trigger={['click']} placement="bottomRight">
               <div className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-800 rounded-xl transition-all">
                 <Avatar
                   style={{ backgroundColor: '#1e293b', verticalAlign: 'middle' }}
