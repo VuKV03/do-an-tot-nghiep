@@ -36,7 +36,8 @@ import {
   SearchOutlined,
   SlidersOutlined,
   UpOutlined,
-  DownOutlined
+  DownOutlined,
+  SendOutlined
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../data';
@@ -45,6 +46,7 @@ import CreateMatrixForm from './CreateMatrixForm';
 export default function MatrixConfigModule() {
   // View mode: 'list' | 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
+  const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>('list');
@@ -105,7 +107,7 @@ export default function MatrixConfigModule() {
       params.set('pageSize', String(size));
       if (searchText.trim()) params.set('search', searchText.trim());
       if (filterSubject !== 'all') params.set('subject', filterSubject);
-      if (filterGrade !== 'all') params.set('status', filterGrade);
+      params.set('status', 'new');
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
@@ -212,6 +214,47 @@ export default function MatrixConfigModule() {
     } catch {
       message.error('Lỗi kết nối API khi xóa.');
     }
+  };
+
+  // Handle single row send to evaluation
+  const handleSendToEvaluation = async (id: string) => {
+    try {
+      const res = await fetch('/api/matrix-configs/status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'pending',
+          ids: [id]
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success('Đã gửi ma trận đề đi thẩm định thành công!');
+        setActiveTab('evaluation');
+      } else {
+        message.error(json.error || 'Lỗi khi gửi thẩm định.');
+      }
+    } catch {
+      message.error('Lỗi kết nối API khi gửi thẩm định.');
+    }
+  };
+
+  // Handle confirm sending to evaluation dialog
+  const handleConfirmSendToEvaluation = (row: MatrixTableDataRow) => {
+    Modal.confirm({
+      title: 'Xác nhận gửi thẩm định',
+      content: (
+        <div className="text-xs text-slate-600">
+          Bạn có chắc chắn muốn gửi ma trận đề <strong className="text-slate-800">"{row.name}"</strong> (Mã: {row.code}) đi thẩm định/phản biện không?
+        </div>
+      ),
+      okText: 'Xác nhận gửi',
+      cancelText: 'Hủy',
+      centered: true,
+      onOk: async () => {
+        await handleSendToEvaluation(row.id);
+      }
+    });
   };
 
   // Checkbox helpers
@@ -368,7 +411,16 @@ export default function MatrixConfigModule() {
   };
 
   if (viewMode === 'create') {
-    return <CreateMatrixForm onBack={() => { setViewMode('list'); fetchMatrixList(1, pageSize); }} />;
+    return (
+      <CreateMatrixForm
+        editingId={editingMatrixId}
+        onBack={() => {
+          setEditingMatrixId(undefined);
+          setViewMode('list');
+          fetchMatrixList(1, pageSize);
+        }}
+      />
+    );
   }
 
   return (
@@ -450,22 +502,8 @@ export default function MatrixConfigModule() {
                       onChange={setFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        { value: 'all', label: 'Toán' },
-                        ...SUBJECTS
-                      ]}
-                    />
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
-                    <Select
-                      value={filterGrade}
-                      onChange={setFilterGrade}
-                      className="w-full text-xs"
-                      options={[
                         { value: 'all', label: 'Tất cả' },
-                        ...GRADES
+                        ...SUBJECTS
                       ]}
                     />
                   </div>
@@ -507,7 +545,10 @@ export default function MatrixConfigModule() {
                   type="primary"
                   icon={<PlusOutlined />}
                   className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
-                  onClick={() => setViewMode('create')}
+                  onClick={() => {
+                    setEditingMatrixId(undefined);
+                    setViewMode('create');
+                  }}
                 >
                   Thêm mới
                 </Button>
@@ -581,7 +622,25 @@ export default function MatrixConfigModule() {
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
                             <Tooltip title="Chỉnh sửa">
-                              <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<EditOutlined className="text-[#2c3e9e]" />}
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  setEditingMatrixId(row.id);
+                                  setViewMode('create');
+                                }}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Gửi thẩm định">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<SendOutlined className="text-amber-500" />}
+                                className="cursor-pointer"
+                                onClick={() => handleConfirmSendToEvaluation(row)}
+                              />
                             </Tooltip>
                             <Popconfirm
                               title="Xóa ma trận này?"

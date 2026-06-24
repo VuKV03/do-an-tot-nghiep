@@ -13,12 +13,16 @@ const getShortCode = (ma: string, ten: string) => {
 import type { TreeDataNode, TreeProps } from 'antd';
 import {
   apiGetMonHoc, apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
+  apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
 
-interface Props { onBack: () => void; }
+interface Props {
+  onBack: () => void;
+  editingId?: string;
+}
 
-export default function CreateMatrixForm({ onBack }: Props) {
+export default function CreateMatrixForm({ onBack, editingId }: Props) {
   // --- State ---
   const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
   const [monHocId, setMonHocId] = useState<string | null>(null);
@@ -35,7 +39,62 @@ export default function CreateMatrixForm({ onBack }: Props) {
   const [searchValue, setSearchValue] = useState('');
   const [obj, setObj] = useState<MaTranData[]>([]);
 
-  useEffect(() => { apiGetMonHoc().then(setMonHocList); }, []);
+  // --- Step 1: Chọn Môn ---
+  const changeMonHoc = async (value: string) => {
+    setIsChangingSubject(true);
+    setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
+    setMonHocId(value);
+    const cd = await apiGetCaiDatMaTran(value);
+    setCaiDat(cd);
+    const chuDe = await apiGetChuDe(value);
+    setDataChuDe(chuDe);
+    setDataChuDeSelect(formatChuDeItems(chuDe));
+    setIsChangingSubject(false);
+    return { cd, chuDe };
+  };
+
+  useEffect(() => {
+    const loadDetail = async () => {
+      if (!editingId) return;
+      try {
+        const res = await apiGetMatrixConfigDetail(editingId);
+        if (res.success && res.data) {
+          const mId = res.data.mon_hoc_id;
+          
+          // Load subject data
+          setIsChangingSubject(true);
+          setMonHocId(mId);
+          const cd = await apiGetCaiDatMaTran(mId);
+          setCaiDat(cd);
+          const chuDe = await apiGetChuDe(mId);
+          setDataChuDe(chuDe);
+          setDataChuDeSelect(formatChuDeItems(chuDe));
+          setIsChangingSubject(false);
+
+          // Now populate the fields
+          setTenMatran(res.data.name);
+          setMaMatran(res.data.code);
+
+          // Populate tree selection
+          const ds = res.data.ds_cau_truc || [];
+          const keys = ds.map((row: any) => row.don_vi_id);
+          setCheckedKeys({ checked: keys, halfChecked: [] });
+
+          // Populate matrix structure
+          setObj(ds);
+        } else {
+          message.error(res.message || 'Lỗi khi tải chi tiết ma trận.');
+        }
+      } catch (e) {
+        message.error('Lỗi khi tải chi tiết ma trận.');
+      }
+    };
+
+    apiGetMonHoc().then(list => {
+      setMonHocList(list);
+      loadDetail();
+    });
+  }, [editingId]);
 
   // --- Format helpers ---
   const formatChuDeItems = (items: ChuDeNode[]): TreeDataNode[] =>
@@ -52,19 +111,6 @@ export default function CreateMatrixForm({ onBack }: Props) {
       if (n.children) r = r.concat(flattenTree(n.children));
     });
     return r;
-  };
-
-  // --- Bước 1: Chọn Môn ---
-  const changeMonHoc = async (value: string) => {
-    setIsChangingSubject(true);
-    setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
-    setMonHocId(value);
-    const cd = await apiGetCaiDatMaTran(value);
-    setCaiDat(cd);
-    const chuDe = await apiGetChuDe(value);
-    setDataChuDe(chuDe);
-    setDataChuDeSelect(formatChuDeItems(chuDe));
-    setIsChangingSubject(false);
   };
 
   // --- Bước 6-7: Tick chọn chủ đề → Tạo data table ---
@@ -121,6 +167,38 @@ export default function CreateMatrixForm({ onBack }: Props) {
       kept.sort((a, b) => (a.noi_dung_kien_thuc || '').localeCompare(b.noi_dung_kien_thuc || '') || a.don_vi_kien_thuc.localeCompare(b.don_vi_kien_thuc));
       return [...kept];
     });
+  };
+
+  // --- Sinh ma trận ngẫu nhiên ---
+  const handleAutoGenerateMatrix = () => {
+    if (!caiDat || dataChuDe.length === 0) return;
+    const pairs: { child: ChuDeNode; parent: ChuDeNode }[] = [];
+    dataChuDe.forEach(parent => {
+      parent.children?.forEach(child => {
+        pairs.push({ child, parent });
+      });
+    });
+    if (pairs.length === 0) return;
+    const selectedPairs = pairs.slice(0, Math.min(pairs.length, 3));
+    const selectedKeys = selectedPairs.map(p => p.child.id);
+    setCheckedKeys({ checked: selectedKeys, halfChecked: [] });
+    const generatedData = taoDanhSachMaTran(selectedPairs, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
+    generatedData.forEach((row, rIdx) => {
+      row.ds_loai_cau_hoi.forEach((cell) => {
+        if (cell.loai_cau_hoi_id === 'lch-tn') {
+          cell.so_cau = 4;
+        } else if (cell.loai_cau_hoi_id === 'lch-tln') {
+          cell.so_cau = rIdx === 1 ? 1 : 2;
+        } else if (cell.loai_cau_hoi_id === 'lch-ds') {
+          cell.so_cau = rIdx === 1 ? 2 : 1;
+        }
+        cell.diem = cell.diem || 0.25;
+      });
+      const totalDiem = row.ds_loai_cau_hoi.reduce((s, c) => s + (c.so_cau || 0) * (c.diem || 0), 0);
+      row.ti_le = totalDiem.toFixed(2);
+    });
+    setObj(generatedData);
+    message.success('Đã tự động phân bổ câu hỏi ngẫu nhiên chuẩn 10 điểm!');
   };
 
   // --- Bước 10: Nhập số câu ---
@@ -205,9 +283,19 @@ export default function CreateMatrixForm({ onBack }: Props) {
     if (!tenMatran.trim()) { message.warning('Vui lòng nhập tên ma trận.'); return; }
     if (obj.length === 0) { message.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
     setSaving(true);
-    const res = await apiSaveMaTran({ mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+    let res;
+    if (editingId) {
+      res = await apiUpdateMaTran(editingId, { mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+    } else {
+      res = await apiSaveMaTran({ mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+    }
     setSaving(false);
-    if (res.success) { message.success(res.message); onBack(); }
+    if (res.success) {
+      message.success(res.message);
+      onBack();
+    } else {
+      message.error(res.message || 'Lỗi khi lưu ma trận.');
+    }
   };
 
   // --- Cell index finder ---
@@ -222,7 +310,9 @@ export default function CreateMatrixForm({ onBack }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button icon={<ArrowLeftOutlined />} onClick={onBack} className="cursor-pointer" />
-          <h2 className="text-[#1a3c8b] font-bold text-base m-0">Thêm mới Ma trận đề thi</h2>
+          <h2 className="text-[#1a3c8b] font-bold text-base m-0">
+            {editingId ? 'Chỉnh sửa Ma trận đề thi' : 'Thêm mới Ma trận đề thi'}
+          </h2>
         </div>
         <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}
           className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded cursor-pointer">
@@ -237,7 +327,7 @@ export default function CreateMatrixForm({ onBack }: Props) {
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
             <Select placeholder="Chọn môn học" className="w-full text-xs" loading={monHocList.length === 0}
-              value={monHocId} onChange={changeMonHoc}
+              value={monHocId} onChange={changeMonHoc} disabled={!!editingId}
               options={monHocList.map(m => ({ value: m.id, label: m.ten }))} />
           </div>
           <div>
@@ -267,12 +357,26 @@ export default function CreateMatrixForm({ onBack }: Props) {
               <div className="px-4 py-3 border-b border-slate-200">
                 <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-2">Chọn chủ đề</h3>
                 <Input size="small" placeholder="Tìm kiếm..." prefix={<SearchOutlined className="text-slate-400" />}
-                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear />
+                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear
+                  disabled={loai === 2} />
               </div>
               <div className="p-3 overflow-y-auto" style={{ maxHeight: 500 }}>
-                {dataChuDeSelect.length > 0 ? (
+                {loai === 2 ? (
+                  <div className="space-y-4 p-2 text-xs">
+                    <div className="text-slate-500 font-medium leading-relaxed bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-amber-800">
+                      Chế độ sinh ngẫu nhiên sẽ tự động phân bổ câu hỏi từ Ngân hàng câu hỏi theo cấu trúc chuẩn.
+                    </div>
+                    <Button 
+                      type="primary" 
+                      onClick={handleAutoGenerateMatrix}
+                      className="w-full bg-[#2c3e9e] hover:bg-[#243590] border-transparent text-white font-semibold rounded text-xs py-1.5 cursor-pointer"
+                    >
+                      Tự động phân bổ câu hỏi
+                    </Button>
+                  </div>
+                ) : dataChuDeSelect.length > 0 ? (
                   <Tree checkable checkStrictly blockNode treeData={treeData}
-                    onCheck={onCheck} checkedKeys={checkedKeys} disabled={loai !== 1}
+                    onCheck={onCheck} checkedKeys={checkedKeys}
                     className="text-xs" />
                 ) : (
                   <Empty description="Chọn môn học để xem chủ đề" image={Empty.PRESENTED_IMAGE_SIMPLE} />

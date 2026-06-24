@@ -123,8 +123,8 @@ export default function ExamContentDisplay({
                                 <div
                                   key={optIdx}
                                   className={`p-1.5 rounded border ${isCorrect
-                                      ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800 font-semibold'
-                                      : 'border-transparent'
+                                    ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800 font-semibold'
+                                    : 'border-transparent'
                                     }`}
                                 >
                                   {label}. {opt}
@@ -151,8 +151,8 @@ export default function ExamContentDisplay({
                         <div
                           key={optIdx}
                           className={`p-2 rounded border transition-all ${isCorrect
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold shadow-xxs'
-                              : 'bg-slate-50/40 border-slate-100 hover:border-slate-200 text-slate-600'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold shadow-xxs'
+                            : 'bg-slate-50/40 border-slate-100 hover:border-slate-200 text-slate-600'
                             }`}
                         >
                           {label}. {opt}

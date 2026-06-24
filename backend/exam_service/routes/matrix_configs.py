@@ -72,7 +72,7 @@ async def list_matrix_configs(
 
     if status and status != "all":
         if status == "pending":
-            conditions.append(or_(MatrixConfig.status == "new", MatrixConfig.status == "pending"))
+            conditions.append(MatrixConfig.status == "pending")
         else:
             conditions.append(MatrixConfig.status == status)
 
@@ -208,6 +208,39 @@ async def batch_delete_matrix_configs(body: BatchDeleteRequest, db: AsyncSession
     }
 
 
+@router.get("/{config_id}")
+async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
+    """Lấy chi tiết một ma trận đề thi."""
+    result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == config_id))
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ma trận đề thi.")
+
+    inv_map = {v: k for k, v in SUBJECT_MAP.items()}
+    mon_hoc_id = inv_map.get(config.subject, "mh-toan")
+
+    try:
+        ds_cau_truc = json.loads(config.structure) if config.structure else []
+    except Exception:
+        ds_cau_truc = []
+
+    return {
+        "success": True,
+        "data": {
+            "id": config.id,
+            "code": config.code,
+            "name": config.name,
+            "mon_hoc_id": mon_hoc_id,
+            "subject": config.subject,
+            "totalScore": config.totalScore,
+            "totalQuestions": config.totalQuestions,
+            "status": config.status,
+            "createdAt": config.createdAt,
+            "ds_cau_truc": ds_cau_truc
+        }
+    }
+
+
 class MatrixConfigUpdateStatus(BaseModel):
     status: str
     ids: List[str]
@@ -230,4 +263,53 @@ async def update_matrix_configs_status(body: MatrixConfigUpdateStatus, db: Async
     return {
         "success": True,
         "message": f"Cập nhật trạng thái thẩm định thành công cho {len(body.ids)} ma trận."
+    }
+
+
+@router.put("/{config_id}")
+async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: AsyncSession = Depends(get_db)):
+    """Chỉnh sửa ma trận đề thi."""
+    result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == config_id))
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ma trận đề thi cần chỉnh sửa.")
+
+    if not body.ten.strip():
+        raise HTTPException(status_code=400, detail="Tên ma trận không được để trống.")
+
+    # Calculate total questions and total score
+    total_questions = 0
+    total_score = 0.0
+
+    for row in body.ds_cau_truc:
+        for cell in row.get("ds_loai_cau_hoi", []):
+            so_cau = cell.get("so_cau") or 0
+            diem = cell.get("diem") or 0.0
+            total_questions += so_cau
+            total_score += so_cau * diem
+
+    subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
+
+    # Update fields
+    config.name = body.ten
+    if body.ma and body.ma.strip():
+        config.code = body.ma.strip()
+    config.subject = subject_name
+    config.totalScore = total_score
+    config.totalQuestions = total_questions
+    config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Cập nhật ma trận thành công!",
+        "data": {
+            "id": config.id,
+            "code": config.code,
+            "name": config.name,
+            "subject": config.subject,
+            "totalScore": config.totalScore,
+            "totalQuestions": config.totalQuestions
+        }
     }

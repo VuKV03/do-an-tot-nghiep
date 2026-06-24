@@ -479,3 +479,30 @@ export async function apiSaveMaTran(payload: any): Promise<{ success: boolean; m
     return { success: false, message: 'Lỗi kết nối API khi lưu ma trận.' };
   }
 }
+
+/** Lấy chi tiết ma trận để sửa */
+export async function apiGetMatrixConfigDetail(id: string): Promise<{ success: boolean; data?: any; message?: string }> {
+  try {
+    const res = await fetch(`/api/matrix-configs/${id}`);
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: 'Lỗi kết nối API khi lấy chi tiết ma trận.' };
+  }
+}
+
+/** Cập nhật ma trận */
+export async function apiUpdateMaTran(id: string, payload: any): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/matrix-configs/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: 'Lỗi kết nối API khi cập nhật ma trận.' };
+  }
+}
+
