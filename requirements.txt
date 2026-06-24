@@ -1,6 +1,6 @@
 # ============================================
 # Python Microservices Dependencies
-# Hệ thống Quản lý Sinh đề AI v2
+# System v2
 # ============================================
 
 # Web Framework

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npx concurrently \"vite\" \".\\dev\\Scripts\\python start_services.py\"",
+    "dev": "node start.js",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
