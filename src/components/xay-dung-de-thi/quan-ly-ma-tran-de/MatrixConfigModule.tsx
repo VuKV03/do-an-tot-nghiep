@@ -40,8 +40,11 @@ import {
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../data';
+import CreateMatrixForm from './CreateMatrixForm';
 
 export default function MatrixConfigModule() {
+  // View mode: 'list' | 'create'
+  const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
 
 
   // List Searching & Filtering states
@@ -194,6 +197,10 @@ export default function MatrixConfigModule() {
 
 
 
+  if (viewMode === 'create') {
+    return <CreateMatrixForm onBack={() => { setViewMode('list'); fetchMatrixList(1, pageSize); }} />;
+  }
+
   return (
     <div className="space-y-6" id="matrix-module-facade">
 
@@ -202,249 +209,250 @@ export default function MatrixConfigModule() {
       {/* ========================================== */}
       <div className="space-y-6 animate-in fade-in duration-300">
 
-          {/* Search Filter Section */}
-          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
-            <div 
-              className="flex items-center gap-2 cursor-pointer mb-4 w-fit group" 
-              onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-            >
-              <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Tìm kiếm thông tin</h3>
-              <div className="text-[#1a3c8b] opacity-70 group-hover:opacity-100 transition-opacity">
-                {isSearchExpanded ? <UpOutlined className="text-[10px]" /> : <DownOutlined className="text-[10px]" />}
-              </div>
+        {/* Search Filter Section */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+          <div
+            className="flex items-center gap-2 cursor-pointer mb-4 w-fit group"
+            onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+          >
+            <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Tìm kiếm thông tin</h3>
+            <div className="text-[#1a3c8b] opacity-70 group-hover:opacity-100 transition-opacity">
+              {isSearchExpanded ? <UpOutlined className="text-[10px]" /> : <DownOutlined className="text-[10px]" />}
             </div>
-
-            {isSearchExpanded && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                  {/* Tên ma trận */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
-                    <Input
-                      placeholder="Nhập"
-                      className="rounded border-slate-300 text-xs"
-                      value={searchText}
-                      onChange={e => setSearchText(e.target.value)}
-                      allowClear
-                    />
-                  </div>
-
-                  {/* Môn thi */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
-                    <Select
-                      value={filterSubject}
-                      onChange={setFilterSubject}
-                      className="w-full text-xs"
-                      options={[
-                        { value: 'all', label: 'Toán' },
-                        ...SUBJECTS
-                      ]}
-                    />
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
-                    <Select
-                      value={filterGrade}
-                      onChange={setFilterGrade}
-                      className="w-full text-xs"
-                      options={[
-                        { value: 'all', label: 'Tất cả' },
-                        ...GRADES
-                      ]}
-                    />
-                  </div>
-
-                  {/* Ngày tạo */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Ngày tạo</label>
-                    <Input
-                      placeholder="Bắt đầu    →    Kết thúc"
-                      className="rounded border-slate-300 text-xs"
-                      suffix={<span className="text-slate-400 text-xs">📅</span>}
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                {/* Tìm kiếm button */}
-                <div className="flex justify-center mt-5">
-                  <Button
-                    type="primary"
-                    className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded px-8 hover:bg-[#243590] cursor-pointer"
-                    onClick={handleSearchClick}
-                    loading={tableLoading}
-                  >
-                    Tìm kiếm
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Results Table Section */}
-          <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
-            {/* Table Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
-              <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
-              <div className="flex items-center gap-2">
+          {isSearchExpanded && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                {/* Tên ma trận */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
+                  <Input
+                    placeholder="Nhập"
+                    className="rounded border-slate-300 text-xs"
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                    allowClear
+                  />
+                </div>
+
+                {/* Môn thi */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                  <Select
+                    value={filterSubject}
+                    onChange={setFilterSubject}
+                    className="w-full text-xs"
+                    options={[
+                      { value: 'all', label: 'Toán' },
+                      ...SUBJECTS
+                    ]}
+                  />
+                </div>
+
+                {/* Trạng thái */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
+                  <Select
+                    value={filterGrade}
+                    onChange={setFilterGrade}
+                    className="w-full text-xs"
+                    options={[
+                      { value: 'all', label: 'Tất cả' },
+                      ...GRADES
+                    ]}
+                  />
+                </div>
+
+                {/* Ngày tạo */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Ngày tạo</label>
+                  <Input
+                    placeholder="Bắt đầu    →    Kết thúc"
+                    className="rounded border-slate-300 text-xs"
+                    suffix={<span className="text-slate-400 text-xs">📅</span>}
+                    readOnly
+                  />
+                </div>
+              </div>
+
+              {/* Tìm kiếm button */}
+              <div className="flex justify-center mt-5">
                 <Button
                   type="primary"
-                  icon={<PlusOutlined />}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded px-8 hover:bg-[#243590] cursor-pointer"
+                  onClick={handleSearchClick}
+                  loading={tableLoading}
                 >
-                  Thêm mới
-                </Button>
-                <Button
-                  danger
-                  className="font-semibold text-xs rounded cursor-pointer"
-                  onClick={handleBatchDelete}
-                  disabled={selectedRowIds.length === 0}
-                >
-                  Xóa{selectedRowIds.length > 0 ? ` (${selectedRowIds.length})` : ''}
+                  Tìm kiếm
                 </Button>
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Table */}
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="py-3 px-3 text-center w-10">
-                    <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
-                  </th>
-                  <th className="py-3 px-3 text-center w-14">STT</th>
-                  <th className="py-3 px-3 text-left">Mã ma trận</th>
-                  <th className="py-3 px-3 text-left">Tên ma trận</th>
-                  <th className="py-3 px-3 text-left">Môn học</th>
-                  <th className="py-3 px-3 text-center">Tổng điểm</th>
-                  <th className="py-3 px-3 text-center">Số câu hỏi</th>
-                  <th className="py-3 px-3 text-center">Thời gian làm bài (phút)</th>
-                  <th className="py-3 px-3 text-center">Trạng thái</th>
-                  <th className="py-3 px-3 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tableLoading ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Spin size="default" />
-                    </td>
-                  </tr>
-                ) : tableData.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Empty description="Không tìm thấy ma trận đề nào." />
-                    </td>
-                  </tr>
-                ) : (
-                  tableData.map((row, idx) => {
-                    const isChecked = selectedRowIds.includes(row.id);
-                    return (
-                      <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
-                        <td className="py-3 px-3 text-center">
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer accent-[#2c3e9e]"
-                            checked={isChecked}
-                            onChange={() => toggleSelectRow(row.id)}
-                          />
-                        </td>
-                        <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="py-3 px-3">{row.code}</td>
-                        <td className="py-3 px-3">{row.name}</td>
-                        <td className="py-3 px-3">{row.subject}</td>
-                        <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
-                        <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
-                        <td className="py-3 px-3 text-center">{row.duration}</td>
-                        <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
-                        <td className="py-3 px-3 text-center">
-                          <Space size={4}>
-                            <Tooltip title="Chỉnh sửa">
-                              <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
-                            </Tooltip>
-                            <Popconfirm
-                              title="Xóa ma trận này?"
-                              onConfirm={() => handleDeleteRow(row.id)}
-                              okText="Xóa"
-                              cancelText="Hủy"
-                              centered
-                            >
-                              <Tooltip title="Xóa">
-                                <Button size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer" />
-                              </Tooltip>
-                            </Popconfirm>
-                          </Space>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-
-            {/* Pagination Footer */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
-              <span>
-                {tableData.length > 0
-                  ? `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, tableTotalRows)} / ${tableTotalRows} bản ghi`
-                  : '0 bản ghi'}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  size="small"
-                  type="text"
-                  className="text-xs cursor-pointer"
-                  disabled={currentPage <= 1}
-                  onClick={() => handlePageChange(currentPage - 1)}
-                >&lt;</Button>
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  const pg = i + 1;
-                  return (
-                    <Button
-                      key={pg}
-                      size="small"
-                      type={pg === currentPage ? 'primary' : 'text'}
-                      className={`text-xs cursor-pointer min-w-[28px] ${pg === currentPage ? 'bg-[#2c3e9e] border-transparent text-white rounded' : ''}`}
-                      onClick={() => handlePageChange(pg)}
-                    >{pg}</Button>
-                  );
-                })}
-                {totalPages > 5 && <span className="px-1">...</span>}
-                {totalPages > 5 && (
-                  <Button
-                    size="small"
-                    type="text"
-                    className="text-xs cursor-pointer min-w-[28px]"
-                    onClick={() => handlePageChange(totalPages)}
-                  >{totalPages}</Button>
-                )}
-                <Button
-                  size="small"
-                  type="text"
-                  className="text-xs cursor-pointer"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => handlePageChange(currentPage + 1)}
-                >&gt;</Button>
-                <Select
-                  size="small"
-                  value={String(pageSize)}
-                  className="text-xs ml-2"
-                  style={{ width: 100 }}
-                  onChange={(val) => handlePageSizeChange(Number(val))}
-                  options={[
-                    { value: '10', label: '10/ trang' },
-                    { value: '20', label: '20/ trang' },
-                    { value: '50', label: '50/ trang' },
-                  ]}
-                />
-              </div>
+        {/* Results Table Section */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
+          {/* Table Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+            <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                onClick={() => setViewMode('create')}
+              >
+                Thêm mới
+              </Button>
+              <Button
+                danger
+                className="font-semibold text-xs rounded cursor-pointer"
+                onClick={handleBatchDelete}
+                disabled={selectedRowIds.length === 0}
+              >
+                Xóa{selectedRowIds.length > 0 ? ` (${selectedRowIds.length})` : ''}
+              </Button>
             </div>
           </div>
 
+          {/* Table */}
+          <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
+                <th className="py-3 px-3 text-center w-10">
+                  <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                </th>
+                <th className="py-3 px-3 text-center w-14">STT</th>
+                <th className="py-3 px-3 text-left">Mã ma trận</th>
+                <th className="py-3 px-3 text-left">Tên ma trận</th>
+                <th className="py-3 px-3 text-left">Môn học</th>
+                <th className="py-3 px-3 text-center">Tổng điểm</th>
+                <th className="py-3 px-3 text-center">Số câu hỏi</th>
+                <th className="py-3 px-3 text-center">Thời gian làm bài (phút)</th>
+                <th className="py-3 px-3 text-center">Trạng thái</th>
+                <th className="py-3 px-3 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tableLoading ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center">
+                    <Spin size="default" />
+                  </td>
+                </tr>
+              ) : tableData.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center">
+                    <Empty description="Không tìm thấy ma trận đề nào." />
+                  </td>
+                </tr>
+              ) : (
+                tableData.map((row, idx) => {
+                  const isChecked = selectedRowIds.includes(row.id);
+                  return (
+                    <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
+                      <td className="py-3 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          className="cursor-pointer accent-[#2c3e9e]"
+                          checked={isChecked}
+                          onChange={() => toggleSelectRow(row.id)}
+                        />
+                      </td>
+                      <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className="py-3 px-3">{row.code}</td>
+                      <td className="py-3 px-3">{row.name}</td>
+                      <td className="py-3 px-3">{row.subject}</td>
+                      <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
+                      <td className="py-3 px-3 text-center">{row.duration}</td>
+                      <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
+                      <td className="py-3 px-3 text-center">
+                        <Space size={4}>
+                          <Tooltip title="Chỉnh sửa">
+                            <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
+                          </Tooltip>
+                          <Popconfirm
+                            title="Xóa ma trận này?"
+                            onConfirm={() => handleDeleteRow(row.id)}
+                            okText="Xóa"
+                            cancelText="Hủy"
+                          // centered
+                          >
+                            <Tooltip title="Xóa">
+                              <Button size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer" />
+                            </Tooltip>
+                          </Popconfirm>
+                        </Space>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+
+          {/* Pagination Footer */}
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
+            <span>
+              {tableData.length > 0
+                ? `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, tableTotalRows)} / ${tableTotalRows} bản ghi`
+                : '0 bản ghi'}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                size="small"
+                type="text"
+                className="text-xs cursor-pointer"
+                disabled={currentPage <= 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+              >&lt;</Button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const pg = i + 1;
+                return (
+                  <Button
+                    key={pg}
+                    size="small"
+                    type={pg === currentPage ? 'primary' : 'text'}
+                    className={`text-xs cursor-pointer min-w-[28px] ${pg === currentPage ? 'bg-[#2c3e9e] border-transparent text-white rounded' : ''}`}
+                    onClick={() => handlePageChange(pg)}
+                  >{pg}</Button>
+                );
+              })}
+              {totalPages > 5 && <span className="px-1">...</span>}
+              {totalPages > 5 && (
+                <Button
+                  size="small"
+                  type="text"
+                  className="text-xs cursor-pointer min-w-[28px]"
+                  onClick={() => handlePageChange(totalPages)}
+                >{totalPages}</Button>
+              )}
+              <Button
+                size="small"
+                type="text"
+                className="text-xs cursor-pointer"
+                disabled={currentPage >= totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
+              >&gt;</Button>
+              <Select
+                size="small"
+                value={String(pageSize)}
+                className="text-xs ml-2"
+                style={{ width: 100 }}
+                onChange={(val) => handlePageSizeChange(Number(val))}
+                options={[
+                  { value: '10', label: '10/ trang' },
+                  { value: '20', label: '20/ trang' },
+                  { value: '50', label: '50/ trang' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
+
+      </div>
     </div>
   );
 }

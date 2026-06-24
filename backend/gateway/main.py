@@ -127,6 +127,14 @@ async def proxy_exams_fallback(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
+# ─── Route: Matrix Configs ──────────────────────────────────────────
+@app.api_route("/api/matrix-configs/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_matrix_configs(request: Request, path: str = ""):
+    """Forward matrix config requests to Exam Service."""
+    request.scope["path"] = f"/matrix-configs/{path}" if path else "/matrix-configs/"
+    return await proxy_request(request, SERVICE_MAP["exam"])
+
+
 # ─── Route: AI Service ──────────────────────────────────────────────
 @app.post("/api/generate-questions")
 async def proxy_generate_questions(request: Request):

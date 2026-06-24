@@ -60,3 +60,19 @@ class Package(Base):
     accessType = Column(String(50), default="standard")
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
+
+
+class MatrixConfig(Base):
+    __tablename__ = "matrix_configs"
+
+    id = Column(String(255), primary_key=True)
+    code = Column(String(100), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    subject = Column(String(100), nullable=False)
+    totalScore = Column(Float, default=0.0)
+    totalQuestions = Column(Integer, default=0)
+    duration = Column(Integer, default=45)
+    status = Column(String(50), default="new")
+    createdAt = Column(String(100), nullable=False)
+    structure = Column(Text)  # JSON string of ds_cau_truc array
+
