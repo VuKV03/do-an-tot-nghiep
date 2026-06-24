@@ -445,7 +445,7 @@ export default function App() {
       message.error('Vui lòng nhập đầy đủ thông tin');
       return;
     }
-    
+
     try {
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
@@ -630,9 +630,9 @@ export default function App() {
               }
             />
 
-            <span className="text-[10px] bg-sky-100/70 border border-sky-200 text-[#0f172a] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider block">
+            {/* <span className="text-[10px] bg-sky-100/70 border border-sky-200 text-[#0f172a] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider block">
               Hệ thống bảo mật 256-bit TLS
-            </span>
+            </span> */}
           </div>
 
           {/* Yielded workspace content active view */}
@@ -703,17 +703,17 @@ export default function App() {
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-slate-500 font-bold block mb-1">Họ và tên</label>
-                  <Input 
-                    value={profileForm.fullName} 
-                    onChange={e => setProfileForm({...profileForm, fullName: e.target.value})}
+                  <Input
+                    value={profileForm.fullName}
+                    onChange={e => setProfileForm({ ...profileForm, fullName: e.target.value })}
                     className="rounded-lg border-slate-300"
                   />
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 font-bold block mb-1">Email liên hệ</label>
-                  <Input 
-                    value={profileForm.email} 
-                    onChange={e => setProfileForm({...profileForm, email: e.target.value})}
+                  <Input
+                    value={profileForm.email}
+                    onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
                     className="rounded-lg border-slate-300"
                   />
                 </div>
@@ -768,27 +768,27 @@ export default function App() {
         <div className="space-y-4 pt-4 text-xs font-medium text-slate-650">
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-bold">Mật khẩu hiện tại</label>
-            <Input.Password 
-              value={passwordForm.oldPassword} 
-              onChange={e => setPasswordForm({...passwordForm, oldPassword: e.target.value})}
+            <Input.Password
+              value={passwordForm.oldPassword}
+              onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
               className="rounded-lg border-slate-300"
               placeholder="Nhập mật khẩu cũ..."
             />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-bold">Mật khẩu mới</label>
-            <Input.Password 
-              value={passwordForm.newPassword} 
-              onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+            <Input.Password
+              value={passwordForm.newPassword}
+              onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
               className="rounded-lg border-slate-300"
               placeholder="Nhập mật khẩu mới..."
             />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-slate-500 font-bold">Xác nhận mật khẩu mới</label>
-            <Input.Password 
-              value={passwordForm.confirmPassword} 
-              onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+            <Input.Password
+              value={passwordForm.confirmPassword}
+              onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
               className="rounded-lg border-slate-300"
               placeholder="Nhập lại mật khẩu mới..."
             />
