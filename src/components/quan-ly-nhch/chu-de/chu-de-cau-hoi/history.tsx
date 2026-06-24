@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Modal, ConfigProvider, Table, Input, Select, DatePicker, Button, Space } from 'antd';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Modal, ConfigProvider, Table, Input, Select, DatePicker, Button, message, Spin } from 'antd';
 import { Eye } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChuDeType } from './index';
+import { topicsApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -14,22 +15,65 @@ export interface LichSuChuDeModalProps {
 
 interface HistoryRecordType {
   id: string;
-  nguoiThucHien: string;
-  thoiGian: string;
-  noiDung: string;
+  topic_id: string;
+  action: string;
+  actor: string;
+  timestamp: string;
+  note: string;
 }
-
-// Mock data matching the screenshot
-const mockHistoryData: HistoryRecordType[] = [
-  { id: '1', nguoiThucHien: '4005- Nguyễn Văn A', thoiGian: 'dd/mm/yyyy\n00:00:00', noiDung: "Thêm mới chủ đề 'Tên chủ đề...'" },
-  { id: '2', nguoiThucHien: '4005- Nguyễn Văn A', thoiGian: 'dd/mm/yyyy\n00:00:00', noiDung: 'Sửa thông tin "ghi chú..."' },
-  { id: '3', nguoiThucHien: '4005- Nguyễn Văn A', thoiGian: 'dd/mm/yyyy\n00:00:00', noiDung: "Sửa thông tin chủ đề 'Tên chủ đề'" },
-  { id: '4', nguoiThucHien: '4005- Nguyễn Văn A', thoiGian: 'dd/mm/yyyy\n00:00:00', noiDung: "Từ chối thẩm định chủ đề 'Tên chủ đề...'" },
-  { id: '5', nguoiThucHien: '4005- Nguyễn Văn A', thoiGian: 'dd/mm/yyyy\n00:00:00', noiDung: "Đồng ý thẩm định chủ đề 'Tên chủ đề'" },
-];
 
 export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeModalProps) {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [rawData, setRawData] = useState<HistoryRecordType[]>([]);
+
+  // Filters
+  const [searchNoiDung, setSearchNoiDung] = useState('');
+  const [searchDates, setSearchDates] = useState<any>(null);
+  const [searchAction, setSearchAction] = useState('Tất cả');
+
+  const fetchHistory = useCallback(async () => {
+    if (!record?.Id) return;
+    setLoading(true);
+    try {
+      const res = await topicsApi.getHistory(record.Id);
+      setRawData(res.data);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e.message || 'Không thể tải lịch sử!');
+    } finally {
+      setLoading(false);
+    }
+  }, [record?.Id]);
+
+  useEffect(() => {
+    if (open) {
+      fetchHistory();
+    } else {
+      setRawData([]);
+      setSearchNoiDung('');
+      setSearchDates(null);
+      setSearchAction('Tất cả');
+    }
+  }, [open, fetchHistory]);
+
+  const filteredData = useMemo(() => {
+    return rawData.filter((item) => {
+      const matchText = !searchNoiDung || item.note.toLowerCase().includes(searchNoiDung.toLowerCase());
+      
+      const matchAction = searchAction === 'Tất cả' || item.action === searchAction;
+
+      let matchDate = true;
+      if (searchDates && searchDates[0] && searchDates[1] && item.timestamp) {
+        const itemTime = new Date(item.timestamp).getTime();
+        const start = searchDates[0].startOf('day').valueOf();
+        const end = searchDates[1].endOf('day').valueOf();
+        matchDate = itemTime >= start && itemTime <= end;
+      }
+
+      return matchText && matchAction && matchDate;
+    });
+  }, [rawData, searchNoiDung, searchAction, searchDates]);
 
   const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -51,21 +95,21 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
     },
     {
       title: 'Người thực hiện',
-      dataIndex: 'nguoiThucHien',
-      key: 'nguoiThucHien',
+      dataIndex: 'actor',
+      key: 'actor',
       width: 220,
     },
     {
       title: 'Thời gian thực hiện',
-      dataIndex: 'thoiGian',
-      key: 'thoiGian',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
       width: 180,
-      render: (text) => <div className="whitespace-pre-line">{text}</div>,
+      render: (v) => v ? new Date(v).toLocaleString('vi-VN') : '',
     },
     {
       title: 'Nội dung thực hiện',
-      dataIndex: 'noiDung',
-      key: 'noiDung',
+      dataIndex: 'note',
+      key: 'note',
     },
     {
       title: 'Thao tác',
@@ -123,7 +167,12 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
               <div className="flex flex-col gap-1.5">
                 <label className="text-gray-600 text-sm font-medium">Nội dung thực hiện</label>
-                <Input placeholder="Nhập" className="h-[38px] w-full" />
+                <Input 
+                  placeholder="Nhập" 
+                  className="h-[38px] w-full" 
+                  value={searchNoiDung}
+                  onChange={(e) => setSearchNoiDung(e.target.value)}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -132,18 +181,22 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
                   className="h-[38px] w-full"
                   placeholder={['Bắt đầu', 'Kết thúc']}
                   format="DD/MM/YYYY"
+                  value={searchDates}
+                  onChange={setSearchDates}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-gray-600 text-sm font-medium">Loại thao tác</label>
                 <Select
-                  defaultValue="Tất cả"
+                  value={searchAction}
+                  onChange={setSearchAction}
                   className="h-[38px] w-full"
                   options={[
                     { value: 'Tất cả', label: 'Tất cả' },
                     { value: 'Thêm mới', label: 'Thêm mới' },
                     { value: 'Sửa', label: 'Sửa' },
+                    { value: 'Gửi thẩm định', label: 'Gửi thẩm định' },
                     { value: 'Từ chối', label: 'Từ chối' },
                     { value: 'Đồng ý', label: 'Đồng ý' },
                   ]}
@@ -167,22 +220,24 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
               </Button>
             </div>
 
-            <Table
-              rowSelection={rowSelection}
-              columns={columns}
-              dataSource={mockHistoryData}
-              rowKey="id"
-              pagination={{
-                total: 1234,
-                showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                showSizeChanger: true,
-                defaultPageSize: 10,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                locale: { items_per_page: '/ trang' },
-                className: 'mt-6',
-              }}
-              className="border-t border-gray-200"
-            />
+            <Spin spinning={loading}>
+              <Table
+                rowSelection={rowSelection}
+                columns={columns}
+                dataSource={filteredData}
+                rowKey="id"
+                pagination={{
+                  total: filteredData.length,
+                  showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
+                  showSizeChanger: true,
+                  defaultPageSize: 10,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  locale: { items_per_page: '/ trang' },
+                  className: 'mt-6',
+                }}
+                className="border-t border-gray-200"
+              />
+            </Spin>
           </div>
 
           {/* Footer Actions */}

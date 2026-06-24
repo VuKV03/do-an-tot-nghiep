@@ -447,10 +447,12 @@ export default function App() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           fullName: profileForm.fullName,
@@ -483,10 +485,12 @@ export default function App() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           old_password: passwordForm.oldPassword,

@@ -8,12 +8,15 @@ const { TextArea } = Input;
 export interface UpdateChuDeModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => void;
+  onSave?: (values: any) => Promise<boolean | 'duplicate_code'> | boolean | 'duplicate_code';
   record?: ChuDeType | null;
   allData: ChuDeType[];
+  monThis?: { Id: string; Ma: string; Ten: string }[];
+  khoiLops?: { Id: string; Ma: string; Ten: string }[];
+  onDuplicateCode?: () => void;
 }
 
-export default function UpdateChuDeModal({ open, onClose, onSave, record, allData }: UpdateChuDeModalProps) {
+export default function UpdateChuDeModal({ open, onClose, onSave, record, allData, monThis = [], khoiLops = [], onDuplicateCode }: UpdateChuDeModalProps) {
   const [form] = Form.useForm();
   
   const cap = Form.useWatch('Cap', form);
@@ -42,14 +45,24 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
     }
   }, [open, record, form]);
 
-  const handleFinish = (values: any) => {
+  const handleFinish = async (values: any) => {
     if (onSave) {
-      onSave({
+      const result = await onSave({
         ...record,
         ...values,
       });
+      if (result === true) {
+        onClose();
+      } else if (result === 'duplicate_code') {
+        form.setFields([{
+          name: 'Ma',
+          errors: ['Mã chủ đề này đã tồn tại, vui lòng nhập mã khác!'],
+        }]);
+        onDuplicateCode?.();
+      }
+    } else {
+      onClose();
     }
-    onClose();
   };
 
   const handleCancel = () => {
@@ -106,7 +119,7 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
               <Select
                 placeholder="Chọn môn thi"
                 className="h-[42px] text-base"
-                options={mockMonThi.map(m => ({ value: m.Id, label: m.Ten }))}
+                options={(monThis.length > 0 ? monThis : mockMonThi).map(m => ({ value: m.Id, label: m.Ten }))}
                 disabled // Thường khi sửa không cho đổi môn thi nếu đã map câu hỏi, tạm disable
               />
             </Form.Item>
@@ -120,7 +133,7 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
                 placeholder="Chọn khối lớp"
                 className="h-[42px] text-base bg-gray-50"
                 disabled={cap === 'Tieumuc'}
-                options={mockKhoiLop.map(k => ({ value: k.Id, label: k.Ten }))}
+                options={(khoiLops.length > 0 ? khoiLops : mockKhoiLop).map(k => ({ value: k.Id, label: k.Ten }))}
               />
             </Form.Item>
 

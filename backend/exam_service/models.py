@@ -1,9 +1,10 @@
 """
 SQLAlchemy ORM models for the Exam Service.
-Tables: exams, questions, packages
+Tables: exams, questions, packages, dm_mon_thi, dm_cap_do_tu_duy,
+        dm_loai_hinh_cau_hoi, dm_thanh_phan_nang_luc, dm_khoi_lop
 """
 # pyrefly: ignore [missing-import]
-from sqlalchemy import Column, String, Integer, Float, Text, ForeignKey
+from sqlalchemy import Column, String, Integer, Float, Text, ForeignKey, Boolean
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 from backend.shared.database import Base
@@ -76,3 +77,136 @@ class MatrixConfig(Base):
     createdAt = Column(String(100), nullable=False)
     structure = Column(Text)  # JSON string of ds_cau_truc array
 
+
+# ─── Danh mục môn thi (DmMonThi) ────────────────────────────────────
+class DmMonThi(Base):
+    __tablename__ = "subject_categories"
+
+    id = Column(String(36), primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    is_active = Column(Boolean, default=True)                     # IsActive
+    note = Column(Text, default="")                               # GhiChu
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=True)
+
+    # Relationship
+    thanh_phan_nang_lucs = relationship(
+        "DmThanhPhanNangLuc", back_populates="mon_thi", cascade="all, delete-orphan"
+    )
+
+
+# ─── Danh mục cấp độ tư duy (DmCapDoTuDuy) ──────────────────────────
+class DmCapDoTuDuy(Base):
+    __tablename__ = "cognitive_levels"
+
+    id = Column(String(36), primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    note = Column(Text, default="")                               # GhiChu
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=True)
+
+
+# ─── Danh mục loại hình câu hỏi (DmLoaiHinhCauHoi) ──────────────────
+class DmLoaiHinhCauHoi(Base):
+    __tablename__ = "question_types"
+
+    id = Column(String(36), primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    note = Column(Text, default="")                               # GhiChu
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=True)
+
+
+# ─── Danh mục thành phần năng lực (DmThanhPhanNangLuc) ───────────────
+class DmThanhPhanNangLuc(Base):
+    __tablename__ = "competency_components"
+
+    id = Column(String(36), primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    subject_id = Column(                                          # IdMonThi
+        String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True
+    )
+    is_active = Column(Boolean, default=True)                     # IsActive
+    note = Column(Text, default="")                               # GhiChu
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=True)
+
+    # Relationship
+    mon_thi = relationship("DmMonThi", back_populates="thanh_phan_nang_lucs")
+
+
+# ─── Danh mục khối lớp (DmKhoiLop) ──────────────────────────────────
+class DmKhoiLop(Base):
+    __tablename__ = "grade_levels"
+
+    id = Column(String(36), primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    is_active = Column(Boolean, default=True)                     # IsActive
+    note = Column(Text, default="")                               # GhiChu
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=True)
+
+
+# ─── Danh mục đợt thi (DmDotThi) ────────────────────────────────────
+class ExamPeriod(Base):
+    __tablename__ = "exam_periods"
+
+    id = Column(String(36), primary_key=True)                     # Id
+    code = Column(String(50), unique=True, nullable=False)        # Ma
+    name = Column(String(255), nullable=False)                    # Ten
+    start_date = Column(String(50), nullable=False)               # NgayBatDau
+    end_date = Column(String(50), nullable=False)                 # NgayKetThuc
+    status = Column(String(50), default="HOAT_DONG")              # TrangThai
+    is_active = Column(Boolean, default=True)                     # IsActive
+    note = Column(Text, default="")                               # GhiChu
+    created_by = Column(String(36), nullable=True)                # CreatedBy
+    updated_by = Column(String(36), nullable=True)                # UpdatedBy
+    created_at = Column(String(50), nullable=False)               # CreatedAt
+    updated_at = Column(String(50), nullable=True)                # UpdatedAt
+
+
+# ─── Chủ đề (chu_de) ────────────────────────────────────────────────
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id = Column(String(36), primary_key=True)                     # id
+    parent_id = Column(String(36), nullable=True)                 # parent_id
+    code = Column(String(50), nullable=False)                     # ma
+    name = Column(String(255), nullable=False)                    # ten
+    subject_id = Column(                                          # id_mon_thi
+        String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True
+    )
+    grade_id = Column(                                            # id_khoi_lop
+        String(36), ForeignKey("grade_levels.id", ondelete="SET NULL"), nullable=True
+    )
+    status = Column(Integer, default=1)                           # trang_thai
+    created_by = Column(String(36), nullable=True)                # id_nguoi_tao
+    created_at = Column(String(50), nullable=False)               # thoi_gian_tao
+    submitted_by = Column(String(36), nullable=True)              # id_nguoi_gui
+    submitted_at = Column(String(50), nullable=True)              # thoi_gian_gui
+    approved_by = Column(String(36), nullable=True)               # id_nguoi_tham_dinh
+    approved_at = Column(String(50), nullable=True)               # thoi_gian_tham_dinh
+    approval_note = Column(Text, default="")                      # noi_dung_tham_dinh
+    note = Column(Text, default="")                               # ghi_chu
+
+
+# ─── Lịch sử chủ đề (topic_histories) ───────────────────────────────
+class TopicHistory(Base):
+    __tablename__ = "topic_histories"
+
+    id = Column(String(36), primary_key=True)                     # id
+    topic_id = Column(                                            # topic_id
+        String(36), ForeignKey("topics.id", ondelete="CASCADE"), nullable=False
+    )
+    action = Column(String(50), nullable=False)                   # action: 'Thêm mới', 'Sửa', 'Gửi thẩm định', 'Đồng ý', 'Từ chối'
+    actor = Column(String(255), nullable=True)                    # user who did this (nguoiThucHien)
+    timestamp = Column(String(50), nullable=False)                # thoi_gian (ISO 8601 string)
+    note = Column(Text, default="")                               # noi_dung (Details)
+
+    # Relationship to Topic (optional but good to have)
+    # topic = relationship("Topic", backref="histories")

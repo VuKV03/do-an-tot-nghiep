@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, Tag } from 'antd';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, message, Spin } from 'antd';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreVertical, Send, History } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import CreateChuDeModal from './create';
@@ -7,6 +7,7 @@ import UpdateChuDeModal from './update';
 import DeleteChuDeModal from './delete';
 import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
+import { topicsApi, dmMonThiApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -31,129 +32,67 @@ export interface ChuDeType {
   children?: ChuDeType[];
 }
 
+// Fallback mocks if needed for typescript type exports
 export const mockMonThi = [
-  { Id: '1', Ma: 'TO', Ten: 'Toán học' },
-  { Id: '2', Ma: 'LI', Ten: 'Vật lý' },
-  { Id: '3', Ma: 'HO', Ten: 'Hóa Học' },
-  { Id: '4', Ma: 'SI', Ten: 'Sinh học' },
-  { Id: '5', Ma: 'SU', Ten: 'Lịch sử' },
+  { Id: 'mon-01', Ma: 'MATH', Ten: 'Toán học' },
+  { Id: 'mon-02', Ma: 'PHYS', Ten: 'Vật lý' },
 ];
 
 export const mockKhoiLop = [
-  { Id: '1', Ma: 'K12', Ten: 'Khối 12' },
-  { Id: '2', Ma: 'K11', Ten: 'Khối 11' },
-  { Id: '3', Ma: 'K10', Ten: 'Khối 10' },
+  { Id: 'kl-12', Ma: 'G12', Ten: 'Khối 12' },
+  { Id: 'kl-11', Ma: 'G11', Ten: 'Khối 11' },
 ];
 
-export const mockData: ChuDeType[] = [
-  {
-    Id: '1',
-    ParentId: null,
-    Ma: 'CD01',
-    Ten: 'Biến ngẫu nhiên rời rạc',
-    IdMonThi: '1',
-    IdKhoiLop: '1',
-    TrangThai: 2,
-    IdNguoiTao: 'user1',
-    ThoiGianTao: '20/05/2025',
-    IdNguoiGui: 'user1',
-    ThoiGianGui: '21/05/2025',
-    IdNguoiThamDinh: 'admin',
-    ThoiGianThamDinh: '22/05/2025',
-    NoiDungThamDinh: 'Đạt',
-    GhiChu: null,
-    MonThiName: 'Toán',
-    KhoiLopName: 'Khối 12',
-    children: []
-  },
-  {
-    Id: '2',
-    ParentId: null,
-    Ma: 'CD02',
-    Ten: 'Ứng dụng toán học',
-    IdMonThi: '1',
-    IdKhoiLop: '2',
-    TrangThai: 3,
-    IdNguoiTao: 'user1',
-    ThoiGianTao: '20/05/2025',
-    IdNguoiGui: 'user1',
-    ThoiGianGui: '21/05/2025',
-    IdNguoiThamDinh: 'admin',
-    ThoiGianThamDinh: '22/05/2025',
-    NoiDungThamDinh: 'Cần bổ sung',
-    GhiChu: null,
-    MonThiName: 'Toán',
-    KhoiLopName: 'Khối 11',
-    children: [
-      {
-        Id: '2-1',
-        ParentId: '2',
-        Ma: 'CD02-1',
-        Ten: 'Ứng dụng toán học 1',
-        IdMonThi: '1',
-        IdKhoiLop: '2',
-        TrangThai: 2,
-        IdNguoiTao: 'user1',
-        ThoiGianTao: '20/05/2025',
-        IdNguoiGui: 'user1',
-        ThoiGianGui: '21/05/2025',
-        IdNguoiThamDinh: 'admin',
-        ThoiGianThamDinh: '22/05/2025',
-        NoiDungThamDinh: 'Đạt',
-        GhiChu: 'Yêu cầu 1',
-        MonThiName: 'Toán',
-        KhoiLopName: 'Khối 11',
-      },
-      {
-        Id: '2-2',
-        ParentId: '2',
-        Ma: 'CD02-2',
-        Ten: 'Sân khấu hoá tác phẩm văn học',
-        IdMonThi: '1',
-        IdKhoiLop: '2',
-        TrangThai: 2,
-        IdNguoiTao: 'user1',
-        ThoiGianTao: '20/05/2025',
-        IdNguoiGui: 'user1',
-        ThoiGianGui: '21/05/2025',
-        IdNguoiThamDinh: 'admin',
-        ThoiGianThamDinh: '22/05/2025',
-        NoiDungThamDinh: 'Đạt',
-        GhiChu: 'Yêu cầu 2',
-        MonThiName: 'Toán',
-        KhoiLopName: 'Khối 11',
+function buildTopicTree(flatList: ChuDeType[]): ChuDeType[] {
+  const map: { [key: string]: ChuDeType } = {};
+  const roots: ChuDeType[] = [];
+
+  flatList.forEach((item) => {
+    map[item.Id] = { ...item, children: [] };
+  });
+
+  flatList.forEach((item) => {
+    const cloned = map[item.Id];
+    if (cloned.ParentId && map[cloned.ParentId]) {
+      if (!map[cloned.ParentId].children) {
+        map[cloned.ParentId].children = [];
       }
-    ]
-  },
-  {
-    Id: '3',
-    ParentId: null,
-    Ma: 'CD03',
-    Ten: 'Sân khấu hoá tác phẩm văn học',
-    IdMonThi: '1',
-    IdKhoiLop: '1',
-    TrangThai: 0,
-    IdNguoiTao: 'user1',
-    ThoiGianTao: '20/05/2025',
-    IdNguoiGui: null,
-    ThoiGianGui: null,
-    IdNguoiThamDinh: null,
-    ThoiGianThamDinh: null,
-    NoiDungThamDinh: null,
-    GhiChu: null,
-    MonThiName: 'Toán',
-    KhoiLopName: 'Khối 12',
-  }
-];
+      map[cloned.ParentId].children!.push(cloned);
+    } else {
+      roots.push(cloned);
+    }
+  });
+
+  const cleanEmptyChildren = (nodes: ChuDeType[]) => {
+    nodes.forEach(node => {
+      if (node.children && node.children.length === 0) {
+        delete node.children;
+      } else if (node.children) {
+        cleanEmptyChildren(node.children);
+      }
+    });
+  };
+  cleanEmptyChildren(roots);
+
+  return roots;
+}
 
 export default function ChuDeCauHoi() {
-  const [data, setData] = useState<ChuDeType[]>(mockData);
+  const [rawData, setRawData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  const [monThis, setMonThis] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
+  const [khoiLops, setKhoiLops] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
+
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   // Filters
-  const [filterMonThi, setFilterMonThi] = useState<string>('1');
-  const [filterKhoiLop, setFilterKhoiLop] = useState<string>('1');
+  const [searchTen, setSearchTen] = useState('');
+  const [filterMonThi, setFilterMonThi] = useState<string>('');
+  const [filterKhoiLop, setFilterKhoiLop] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<any>('Tất cả');
+  const [filterDates, setFilterDates] = useState<any>(null);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -164,6 +103,43 @@ export default function ChuDeCauHoi() {
   
   const [isMultipleAction, setIsMultipleAction] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ChuDeType | null>(null);
+
+  const fetchFilters = async () => {
+    try {
+      const [mtRes, klRes] = await Promise.all([
+        dmMonThiApi.list(),
+        dmKhoiLopApi.list()
+      ]);
+      const mappedMonThi = mtRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
+      const mappedKhoiLop = klRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
+      setMonThis(mappedMonThi);
+      setKhoiLops(mappedKhoiLop);
+      if (mappedMonThi.length > 0) {
+        setFilterMonThi('');
+      }
+    } catch (e: any) {
+      console.error(e);
+      message.error('Không thể tải bộ lọc Môn thi / Khối lớp!');
+    }
+  };
+
+  const fetchTopics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await topicsApi.list();
+      setRawData(res.data);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e.message || 'Không thể tải danh sách chủ đề!');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFilters();
+    fetchTopics();
+  }, [fetchTopics]);
 
   const handleOpenUpdate = (record: ChuDeType) => {
     setSelectedRecord(record);
@@ -225,7 +201,6 @@ export default function ChuDeCauHoi() {
   const renderActionMenu = (record: ChuDeType): MenuProps => {
     const items: MenuProps['items'] = [];
     
-    // Gửi thẩm định / phản biện
     if (record.TrangThai === 0 || record.TrangThai === 3) {
       items.push({
         key: 'send',
@@ -235,7 +210,6 @@ export default function ChuDeCauHoi() {
       });
     }
 
-    // Lịch sử
     items.push({
       key: 'history',
       icon: <History size={16} />,
@@ -243,7 +217,6 @@ export default function ChuDeCauHoi() {
       onClick: () => handleOpenLichSu(record)
     });
 
-    // Xóa
     items.push({
       key: 'delete',
       icon: <Trash2 size={16} className="text-red-500" />,
@@ -253,6 +226,50 @@ export default function ChuDeCauHoi() {
 
     return { items };
   };
+
+  const filteredTree = useMemo(() => {
+    const mapped: ChuDeType[] = rawData.map((item: any) => ({
+      Id: item.id,
+      ParentId: item.parent_id,
+      Ma: item.code,
+      Ten: item.name,
+      IdMonThi: item.subject_id,
+      IdKhoiLop: item.grade_id,
+      TrangThai: item.status,
+      IdNguoiTao: item.created_by || 'user1',
+      ThoiGianTao: item.created_at,
+      IdNguoiGui: item.submitted_by,
+      ThoiGianGui: item.submitted_at,
+      IdNguoiThamDinh: item.approved_by,
+      ThoiGianThamDinh: item.approved_at,
+      NoiDungThamDinh: item.approval_note,
+      GhiChu: item.note,
+      MonThiName: item.subject_name || '',
+      KhoiLopName: item.grade_name || '',
+    }));
+
+    const filteredFlat = mapped.filter((item) => {
+      const matchTen = !searchTen || 
+        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) || 
+        item.Ma.toLowerCase().includes(searchTen.toLowerCase());
+      
+      const matchMonThi = !filterMonThi || item.IdMonThi === filterMonThi;
+      const matchKhoiLop = filterKhoiLop.length === 0 || filterKhoiLop.includes(item.IdKhoiLop);
+      const matchStatus = filterStatus === 'Tất cả' || item.TrangThai === filterStatus;
+      
+      let matchDate = true;
+      if (filterDates && filterDates[0] && filterDates[1] && item.ThoiGianTao) {
+        const itemTime = new Date(item.ThoiGianTao).getTime();
+        const start = filterDates[0].startOf('day').valueOf();
+        const end = filterDates[1].endOf('day').valueOf();
+        matchDate = itemTime >= start && itemTime <= end;
+      }
+      
+      return matchTen && matchMonThi && matchKhoiLop && matchStatus && matchDate;
+    });
+
+    return buildTopicTree(filteredFlat);
+  }, [rawData, searchTen, filterMonThi, filterKhoiLop, filterStatus, filterDates]);
 
   const columns: ColumnsType<ChuDeType> = [
     {
@@ -283,6 +300,7 @@ export default function ChuDeCauHoi() {
       dataIndex: 'ThoiGianTao',
       key: 'ThoiGianTao',
       width: 150,
+      render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '',
     },
     {
       title: 'Trạng thái',
@@ -302,6 +320,7 @@ export default function ChuDeCauHoi() {
             type="text"
             icon={<Eye size={16} className="text-blue-600" />}
             className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
+            onClick={() => handleOpenLichSu(record)}
           />
           {(record.TrangThai === 0 || record.TrangThai === 3) && (
             <Button
@@ -355,7 +374,12 @@ export default function ChuDeCauHoi() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Tên chủ đề/tiểu mục</label>
-                  <Input placeholder="Nhập" className="h-10 w-full" />
+                  <Input 
+                    placeholder="Nhập" 
+                    className="h-10 w-full" 
+                    value={searchTen}
+                    onChange={(e) => setSearchTen(e.target.value)}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -366,7 +390,10 @@ export default function ChuDeCauHoi() {
                     value={filterMonThi}
                     onChange={setFilterMonThi}
                     className="h-10 w-full"
-                    options={mockMonThi.map(m => ({ value: m.Id, label: m.Ten }))}
+                    options={[
+                      { value: '', label: 'Tất cả' },
+                      ...monThis.map(m => ({ value: m.Id, label: m.Ten }))
+                    ]}
                   />
                 </div>
 
@@ -375,37 +402,30 @@ export default function ChuDeCauHoi() {
                   <Select
                     value={filterKhoiLop}
                     onChange={setFilterKhoiLop}
-                    className="h-10 w-full"
+                    className="h-10 w-full text-sm"
                     mode="multiple"
+                    placeholder="Chọn khối lớp"
                     maxTagCount="responsive"
-                    options={mockKhoiLop.map(m => ({ value: m.Id, label: m.Ten }))}
+                    options={khoiLops.map(m => ({ value: m.Id, label: m.Ten }))}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Ngày tạo</label>
                   <RangePicker
-                    className="h-10 w-full"
+                    className="h-10 w-full text-sm"
                     placeholder={['Bắt đầu', 'Kết thúc']}
                     format="DD/MM/YYYY"
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Chủ đề</label>
-                  <Select
-                    defaultValue="Tất cả"
-                    className="h-10 w-full"
-                    options={[
-                      { value: 'Tất cả', label: 'Tất cả' },
-                    ]}
+                    value={filterDates}
+                    onChange={setFilterDates}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Trạng thái</label>
                   <Select
-                    defaultValue="Tất cả"
+                    value={filterStatus}
+                    onChange={setFilterStatus}
                     className="h-10 w-full"
                     options={[
                       { value: 'Tất cả', label: 'Tất cả' },
@@ -416,12 +436,6 @@ export default function ChuDeCauHoi() {
                     ]}
                   />
                 </div>
-              </div>
-
-              <div className="flex justify-center mt-6">
-                <Button type="primary" className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-8 h-10 font-medium">
-                  Tìm kiếm
-                </Button>
               </div>
             </div>
           )}
@@ -447,7 +461,7 @@ export default function ChuDeCauHoi() {
                 Gửi thẩm định
               </Button>
               <Button
-                className="border-blue-500 text-blue-500 h-10 font-medium px-4 hover:bg-blue-50"
+                className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
                 disabled={selectedRowKeys.length === 0}
                 onClick={handleOpenDeleteMultiple}
               >
@@ -456,41 +470,95 @@ export default function ChuDeCauHoi() {
             </Space>
           </div>
 
-          <Table
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={data}
-            rowKey="Id"
-            pagination={{
-              total: 1234,
-              showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-              showSizeChanger: true,
-              defaultPageSize: 10,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              locale: { items_per_page: '/ trang' },
-              className: 'mt-6',
-            }}
-            className="border-t border-gray-200"
-          />
+          <Spin spinning={loading}>
+            <Table
+              rowSelection={rowSelection}
+              columns={columns}
+              dataSource={filteredTree}
+              rowKey="Id"
+              pagination={{
+                total: filteredTree.length,
+                showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
+                showSizeChanger: true,
+                defaultPageSize: 10,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                locale: { items_per_page: '/ trang' },
+                className: 'mt-6',
+              }}
+              className="border-t border-gray-200"
+            />
+          </Spin>
         </div>
 
         {/* Modals */}
         <CreateKhoiLopModalWrapper 
           open={isCreateModalOpen} 
           onClose={() => setIsCreateModalOpen(false)} 
-          onSave={(values: any) => console.log('Created:', values)}
-          allData={data}
+          monThis={monThis.filter(m => m.IsActive !== false)}
+          khoiLops={khoiLops.filter(k => k.IsActive !== false)}
+          onSave={async (values: any) => {
+            try {
+              await topicsApi.create({
+                parent_id: values.ParentId || null,
+                code: values.Ma,
+                name: values.Ten,
+                subject_id: values.IdMonThi,
+                grade_id: values.IdKhoiLop,
+                status: 0,
+                note: values.GhiChu || '',
+              });
+              message.success('Tạo chủ đề/tiểu mục thành công!');
+              fetchTopics();
+              return true;
+            } catch (e: any) {
+              if (e.message?.includes('Mã chủ đề đã tồn tại')) {
+                message.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`);
+                return 'duplicate_code';
+              }
+              if (e.message?.includes('Failed to fetch')) {
+                message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
+                return false;
+              }
+              message.error(e.message || 'Không thể tạo chủ đề!');
+              return false;
+            }
+          }}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
         />
 
         <UpdateChuDeModal
           open={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           record={selectedRecord}
-          onSave={(values) => {
-            console.log('Updated:', values);
-            setIsUpdateModalOpen(false);
+          monThis={monThis}
+          khoiLops={khoiLops}
+          onSave={async (values) => {
+            try {
+              await topicsApi.update(selectedRecord!.Id, {
+                parent_id: values.ParentId || null,
+                code: values.Ma,
+                name: values.Ten,
+                subject_id: values.IdMonThi,
+                grade_id: values.IdKhoiLop,
+                note: values.GhiChu || '',
+              });
+              message.success('Cập nhật chủ đề/tiểu mục thành công!');
+              fetchTopics();
+              return true;
+            } catch (e: any) {
+              if (e.message?.includes('Mã chủ đề đã tồn tại')) {
+                message.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng chọn mã khác!`);
+                return 'duplicate_code';
+              }
+              if (e.message?.includes('Failed to fetch')) {
+                message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
+                return false;
+              }
+              message.error(e.message || 'Không thể cập nhật chủ đề!');
+              return false;
+            }
           }}
-          allData={data}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
         />
 
         <DeleteChuDeModal
@@ -499,9 +567,23 @@ export default function ChuDeCauHoi() {
           itemName={selectedRecord?.Ten}
           isMultiple={isMultipleAction}
           multipleCount={selectedRowKeys.length}
-          onConfirm={() => {
-            if (isMultipleAction) setSelectedRowKeys([]);
-            setIsDeleteModalOpen(false);
+          onConfirm={async () => {
+            try {
+              if (isMultipleAction) {
+                for (const key of selectedRowKeys) {
+                  await topicsApi.delete(key.toString());
+                }
+                message.success('Đã xóa các chủ đề được chọn!');
+                setSelectedRowKeys([]);
+              } else if (selectedRecord) {
+                await topicsApi.delete(selectedRecord.Id);
+                message.success(`Đã xóa chủ đề "${selectedRecord.Ten}"!`);
+              }
+              setIsDeleteModalOpen(false);
+              fetchTopics();
+            } catch (e: any) {
+              message.error(e.message || 'Không thể xóa chủ đề!');
+            }
           }}
         />
 
@@ -511,9 +593,23 @@ export default function ChuDeCauHoi() {
           itemName={selectedRecord?.Ten}
           isMultiple={isMultipleAction}
           multipleCount={selectedRowKeys.length}
-          onConfirm={() => {
-            if (isMultipleAction) setSelectedRowKeys([]);
-            setIsGuiThamDinhModalOpen(false);
+          onConfirm={async () => {
+            try {
+              if (isMultipleAction) {
+                for (const key of selectedRowKeys) {
+                  await topicsApi.submit(key.toString());
+                }
+                message.success('Đã gửi thẩm định các chủ đề được chọn!');
+                setSelectedRowKeys([]);
+              } else if (selectedRecord) {
+                await topicsApi.submit(selectedRecord.Id);
+                message.success(`Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`);
+              }
+              setIsGuiThamDinhModalOpen(false);
+              fetchTopics();
+            } catch (e: any) {
+              message.error(e.message || 'Không thể gửi thẩm định!');
+            }
           }}
         />
 
@@ -527,7 +623,6 @@ export default function ChuDeCauHoi() {
   );
 }
 
-// Wrapping create modal to pass data and hide complexity from index
 function CreateKhoiLopModalWrapper(props: any) {
   return <CreateChuDeModal {...props} />;
 }
