@@ -1,0 +1,76 @@
+{
+  "moduleName": "quan-ly-de-thi",
+  "title": "Quản lý Đề thi, Gói đề thi",
+  "tabs": [
+    {
+      "key": "exam_variants",
+      "label": "Đề thi hoán vị / riêng lẻ",
+      "api": "/api/exams?loai=4",
+      "columns": [
+        { "key": "ma", "title": "Mã đề", "dataIndex": "code", "format": "tag" },
+        { "key": "ten", "title": "Tên đề thi", "dataIndex": "name", "format": "bold" },
+        { "key": "ten_mon_hoc", "title": "Môn thi", "dataIndex": "subject" },
+        { "key": "tong_diem", "title": "Tổng điểm", "dataIndex": "totalScore" },
+        { "key": "tong_so_cau_hoi_de_rieng_le", "title": "Số câu hỏi", "dataIndex": "totalQuestions" },
+        { "key": "thoi_gian_lam_bai", "title": "Thời lượng", "dataIndex": "duration", "suffix": " phút" },
+        { "key": "ngay_tao", "title": "Ngày tạo", "dataIndex": "createdAt", "format": "date" },
+        { "key": "trang_thai", "title": "Trạng thái", "dataIndex": "status", "format": "statusTag" }
+      ],
+      "actions": [
+        { "key": "view", "label": "Xem chi tiết", "icon": "EyeOutlined" },
+        { "key": "edit", "label": "Chỉnh sửa câu hỏi", "icon": "EditOutlined" },
+        { "key": "review", "label": "Gửi thẩm định", "icon": "SafetyCertificateOutlined" },
+        { "key": "permissions", "label": "Phân quyền", "icon": "SlidersOutlined" },
+        { "key": "history", "label": "Lịch sử chỉnh sửa", "icon": "HistoryOutlined" },
+        { "key": "docx", "label": "Tải Word (.docx)", "icon": "DownloadOutlined" },
+        { "key": "sync", "label": "Đồng bộ thi trực tuyến", "icon": "ShareAltOutlined" }
+      ]
+    },
+    {
+      "key": "exam_roots",
+      "label": "Đề gốc",
+      "api": "/api/exams?loai=3",
+      "columns": [
+        { "key": "ma", "title": "Mã đề gốc", "dataIndex": "code", "format": "tag" },
+        { "key": "ten", "title": "Tên đề gốc", "dataIndex": "name", "format": "bold" },
+        { "key": "ten_mon_hoc", "title": "Môn thi", "dataIndex": "subject" },
+        { "key": "tong_so_cau_hoi_de_rieng_le", "title": "Số câu hỏi", "dataIndex": "totalQuestions" },
+        { "key": "thoi_gian_lam_bai", "title": "Thời lượng", "dataIndex": "duration", "suffix": " phút" },
+        { "key": "ngay_tao", "title": "Ngày tạo", "dataIndex": "createdAt", "format": "date" },
+        { "key": "trang_thai", "title": "Trạng thái", "dataIndex": "status", "format": "statusTag" }
+      ],
+      "quick_filters": [
+        { "key": "add", "label": "Thêm mới đề gốc", "type": "primary", "action": "openModalDeRiengLe", "props": { "typeAdd": true } },
+        { "key": "excel", "label": "Xuất Excel báo cáo", "type": "default", "action": "exportExcel" },
+        { "key": "delete_more", "label": "Xóa nhiều đề gốc", "type": "danger", "action": "handleDeleteMany" }
+      ],
+      "actions": [
+        { "key": "view", "label": "Xem chi tiết", "icon": "EyeOutlined" },
+        { "key": "edit", "label": "Chỉnh sửa câu hỏi", "icon": "EditOutlined" },
+        { "key": "docx", "label": "Tải Word (.docx)", "icon": "DownloadOutlined" },
+        { "key": "delete", "label": "Xóa đề", "icon": "DeleteOutlined", "danger": true }
+      ]
+    },
+    {
+      "key": "exam_packages",
+      "label": "Gói đề thi",
+      "api": "/api/exams/packages",
+      "columns": [
+        { "key": "ma", "title": "Mã gói đề", "dataIndex": "code", "format": "tag" },
+        { "key": "ten", "title": "Tên gói tuyển tập", "dataIndex": "name", "format": "bold" },
+        { "key": "ten_mon_thi", "title": "Môn & Khối", "format": "tags" },
+        { "key": "tong_so_de_goc", "title": "Số đề gốc", "dataIndex": "originalCount" },
+        { "key": "tong_so_de_hoan_vi", "title": "Số đề hoán vị", "dataIndex": "examsCount" },
+        { "key": "ngay_tao", "title": "Ngày tạo", "dataIndex": "createdAt", "format": "date" },
+        { "key": "trang_thai", "title": "Trạng thái", "dataIndex": "status", "format": "activeToggle" }
+      ],
+      "quick_filters": [
+        { "key": "add_package", "label": "Tạo gói đề & hoán vị mới", "type": "primary", "action": "openModalAddGoiDeThiNew" }
+      ],
+      "actions": [
+        { "key": "toggle_status", "label": "Khóa/Mở gói đề", "icon": "SyncOutlined" },
+        { "key": "delete", "label": "Giải tán gói đề", "icon": "DeleteOutlined", "danger": true }
+      ]
+    }
+  ]
+}

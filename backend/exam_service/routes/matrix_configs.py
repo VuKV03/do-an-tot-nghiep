@@ -71,7 +71,10 @@ async def list_matrix_configs(
         conditions.append(MatrixConfig.subject == subj_name)
 
     if status and status != "all":
-        conditions.append(MatrixConfig.status == status)
+        if status == "pending":
+            conditions.append(or_(MatrixConfig.status == "new", MatrixConfig.status == "pending"))
+        else:
+            conditions.append(MatrixConfig.status == status)
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -202,4 +205,29 @@ async def batch_delete_matrix_configs(body: BatchDeleteRequest, db: AsyncSession
     return {
         "success": True,
         "message": f"Đã xóa thành công {len(body.ids)} ma trận đề thi."
+    }
+
+
+class MatrixConfigUpdateStatus(BaseModel):
+    status: str
+    ids: List[str]
+    notes: Optional[str] = None
+
+
+@router.put("/status")
+async def update_matrix_configs_status(body: MatrixConfigUpdateStatus, db: AsyncSession = Depends(get_db)):
+    """Cập nhật trạng thái thẩm định cho một hoặc nhiều ma trận đề."""
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="Không có ma trận nào được chọn.")
+    
+    for mid in body.ids:
+        result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == mid))
+        config = result.scalar_one_or_none()
+        if config:
+            config.status = body.status
+
+    await db.commit()
+    return {
+        "success": True,
+        "message": f"Cập nhật trạng thái thẩm định thành công cho {len(body.ids)} ma trận."
     }
