@@ -8,7 +8,7 @@ const { TextArea } = Input;
 export interface CreateChuDeModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => Promise<boolean> | boolean;
+  onSave?: (values: any) => Promise<boolean | 'duplicate_code'> | boolean | 'duplicate_code';
   allData: ChuDeType[];
   monThis?: { Id: string; Ma: string; Ten: string }[];
   khoiLops?: { Id: string; Ma: string; Ten: string }[];

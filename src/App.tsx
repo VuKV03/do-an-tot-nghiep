@@ -34,7 +34,7 @@ import {
 import { Question, MatrixConfig, AuditLog, SystemUser } from './types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
 import DashboardOverview from './components/DashboardOverview';
-import QuestionBankModule from './components/QuestionBankModule';
+import QuestionBankModule from './components/quan-ly-nhch/ngan-hang-cau-hoi/tab-ngan-hang-cau-hoi';
 import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
 import QuestionTopicsModule from './components/QuestionTopicsModule';
 import QuestionStatsModule from './components/QuestionStatsModule';
