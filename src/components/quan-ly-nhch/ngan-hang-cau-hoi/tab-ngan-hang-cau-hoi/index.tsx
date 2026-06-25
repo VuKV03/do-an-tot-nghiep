@@ -4,7 +4,8 @@ import type { MenuProps } from 'antd';
 import CreateQuestionModal from './manual-create';
 import DeleteConfirmModal from './delete';
 import SendReviewConfirmModal from './send-review';
-import QuestionReviewModule from '../tham-dinh-cau-hoi/review';
+import ThamDinhCauHoiTab from '../tham-dinh-cau-hoi';
+import QuestionHistoryModal from '../history';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -86,6 +87,9 @@ export default function QuestionBankModule({
   // File import state
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importedFile, setImportedFile] = useState<string | null>(null);
+
+  // History modal state
+  const [historyQuestion, setHistoryQuestion] = useState<Question | null>(null);
 
   // Subjects dropdown
   const subjectDropdownOptions = useMemo(() => SUBJECTS, []);
@@ -502,7 +506,7 @@ export default function QuestionBankModule({
           label: <span className="text-xs font-semibold text-slate-700">Lịch sử chỉnh sửa, thẩm định</span>,
           icon: <HistoryOutlined className="text-slate-500 text-xs" />,
           onClick: () => {
-            message.info(`Lịch sử chỉnh sửa, thẩm định của câu hỏi ${record.code} đang được phát triển.`);
+            setHistoryQuestion(record);
           }
         });
 
@@ -1049,6 +1053,13 @@ export default function QuestionBankModule({
         </div>
       </Modal>
 
+      {/* History Modal */}
+      <QuestionHistoryModal
+        question={historyQuestion}
+        mode="ngan-hang"
+        onClose={() => setHistoryQuestion(null)}
+      />
+
       {/* CUSTOM CONFIRMATION POPUPS */}
       <DeleteConfirmModal
         open={isDeleteOpen}
@@ -1074,8 +1085,9 @@ export default function QuestionBankModule({
 
         </div>
       ) : (
-        <QuestionReviewModule
+        <ThamDinhCauHoiTab
           questions={questions}
+          onUpdateQuestion={onUpdateQuestion}
           onOpenReview={onOpenReview}
         />
       )}
