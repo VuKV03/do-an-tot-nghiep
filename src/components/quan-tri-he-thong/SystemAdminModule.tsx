@@ -8,9 +8,9 @@ import {
 } from '@ant-design/icons';
 import { AuditLog } from '../../types';
 
-import UserManagement from './UserManagement';
-import GroupManagement from './GroupManagement';
-import SecurityPolicy from './SecurityPolicy';
+import UserManagement from './quan-ly-nguoi-dung/UserManagement';
+import GroupManagement from './quan-ly-nhom-nguoi-dung/GroupManagement';
+import SecurityPolicy from './chinh-sach-bao-mat/SecurityPolicy';
 
 interface SystemAdminModuleProps {
   currentTabKey: string;

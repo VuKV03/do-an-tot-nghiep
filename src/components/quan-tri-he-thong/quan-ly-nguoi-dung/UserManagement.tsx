@@ -26,7 +26,7 @@ import {
   SearchOutlined,
   UsergroupAddOutlined
 } from '@ant-design/icons';
-import { SystemUser, AuditLog } from '../../types';
+import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
@@ -474,8 +474,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                           icon={u.status === 'active' ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
                           onClick={() => handleToggleUserStatus(u)}
                           className={`rounded-lg text-xs cursor-pointer ${u.status === 'active'
-                              ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                              : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                            ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                             }`}
                         />
                       </Tooltip>
@@ -487,7 +487,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                         okText="Có, gỡ bỏ"
                         cancelText="Hủy bỏ"
                         disabled={u.username === 'trangpt' || u.username === 'dungnt'}
-                        centered
                       >
                         <Button
                           size="small"
@@ -551,7 +550,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             <Input placeholder="Ví dụ: ThS. Nguyễn Văn A" className="rounded-xl border-slate-200 font-bold" />
           </Form.Item>
 
-          <Row gap={16} gutter={16}>
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="username"
@@ -579,7 +578,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             </Col>
           </Row>
 
-          <Row gap={16} gutter={16}>
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="role"

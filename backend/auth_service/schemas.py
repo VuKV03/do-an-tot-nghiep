@@ -49,3 +49,27 @@ class UserResponse(BaseModel):
     createdAt: str
 
     model_config = {"from_attributes": True}
+
+class GroupCreateRequest(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    permissions: Optional[list[str]] = []
+
+class GroupUpdateRequest(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    permissions: Optional[list[str]] = None
+
+class GroupResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    description: Optional[str] = None
+    memberCount: int
+    permissions: list[str]
+    createdAt: str
+
+    model_config = {"from_attributes": True}
+
