@@ -34,6 +34,7 @@ interface ReviewModalProps {
     NguoiTao?: string;
     NguoiDuyetCuoi?: string;
     NgayDuyetCuoi?: string;
+    GhiChu?: string | null;
   } | null;
   onApprove?: (comment: string) => void;
   onReject?: (comment: string) => void;
@@ -89,6 +90,14 @@ export default function ReviewModal({ open, onClose, record, onApprove, onReject
               <div className="text-gray-500 text-sm mb-1">Tên chủ đề</div>
               <div className="text-gray-800 font-medium text-base">
                 {record?.Ten || 'Tên chủ đề 01'}
+              </div>
+            </div>
+
+            {/* Ghi chú / Yêu cầu cần đạt */}
+            <div>
+              <div className="text-gray-500 text-sm mb-1">Ghi chú/Yêu cầu cần đạt</div>
+              <div className="text-gray-800 text-sm whitespace-pre-wrap">
+                {record?.GhiChu || <span className="text-gray-400 italic">—</span>}
               </div>
             </div>
             

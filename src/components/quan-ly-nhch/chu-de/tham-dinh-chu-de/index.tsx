@@ -20,6 +20,7 @@ interface ThamDinhType {
   NguoiTao?: string;
   NguoiDuyetCuoi?: string;
   NgayDuyetCuoi?: string;
+  GhiChu?: string | null;
   ParentId?: string | null;
   children?: ThamDinhType[];
 }
@@ -178,6 +179,7 @@ export default function ThamDinhChuDeMain() {
       NguoiTao: item.created_by || 'user1',
       NguoiDuyetCuoi: item.approved_by || 'Chưa có thông tin',
       NgayDuyetCuoi: item.approved_at ? new Date(item.approved_at).toLocaleDateString('vi-VN') : 'Chưa có thông tin',
+      GhiChu: item.note || null,
       ParentId: item.parent_id
     }));
 
