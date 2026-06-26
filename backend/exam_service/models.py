@@ -78,8 +78,8 @@ class MatrixConfig(Base):
     structure = Column(Text)  # JSON string of ds_cau_truc array
 
 
-# ─── Danh mục môn học (DmMonHoc) ────────────────────────────────────
-class DmMonHoc(Base):
+# ─── Danh mục môn học (SubjectCategory) ──────────────────────────────
+class SubjectCategory(Base):
     __tablename__ = "subject_categories"
 
     id = Column(String(36), primary_key=True)
@@ -92,12 +92,12 @@ class DmMonHoc(Base):
 
     # Relationship
     thanh_phan_nang_lucs = relationship(
-        "DmThanhPhanNangLuc", back_populates="mon_hoc", cascade="all, delete-orphan"
+        "CompetencyComponent", back_populates="mon_hoc", cascade="all, delete-orphan"
     )
 
 
-# ─── Danh mục cấp độ tư duy (DmCapDoTuDuy) ──────────────────────────
-class DmCapDoTuDuy(Base):
+# ─── Danh mục cấp độ tư duy (CognitiveLevel) ─────────────────────────
+class CognitiveLevel(Base):
     __tablename__ = "cognitive_levels"
 
     id = Column(String(36), primary_key=True)
@@ -108,8 +108,8 @@ class DmCapDoTuDuy(Base):
     updated_at = Column(String(50), nullable=True)
 
 
-# ─── Danh mục loại hình câu hỏi (DmLoaiHinhCauHoi) ──────────────────
-class DmLoaiHinhCauHoi(Base):
+# ─── Danh mục loại hình câu hỏi (QuestionType) ───────────────────────
+class QuestionType(Base):
     __tablename__ = "question_types"
 
     id = Column(String(36), primary_key=True)
@@ -120,8 +120,8 @@ class DmLoaiHinhCauHoi(Base):
     updated_at = Column(String(50), nullable=True)
 
 
-# ─── Danh mục thành phần năng lực (DmThanhPhanNangLuc) ───────────────
-class DmThanhPhanNangLuc(Base):
+# ─── Danh mục thành phần năng lực (CompetencyComponent) ──────────────
+class CompetencyComponent(Base):
     __tablename__ = "competency_components"
 
     id = Column(String(36), primary_key=True)
@@ -136,11 +136,11 @@ class DmThanhPhanNangLuc(Base):
     updated_at = Column(String(50), nullable=True)
 
     # Relationship
-    mon_hoc = relationship("DmMonHoc", back_populates="thanh_phan_nang_lucs")
+    mon_hoc = relationship("SubjectCategory", back_populates="thanh_phan_nang_lucs")
 
 
-# ─── Danh mục khối lớp (DmKhoiLop) ──────────────────────────────────
-class DmKhoiLop(Base):
+# ─── Danh mục khối lớp (GradeLevel) ──────────────────────────────────
+class GradeLevel(Base):
     __tablename__ = "grade_levels"
 
     id = Column(String(36), primary_key=True)
@@ -152,7 +152,7 @@ class DmKhoiLop(Base):
     updated_at = Column(String(50), nullable=True)
 
 
-# ─── Danh mục đợt thi (DmDotThi) ────────────────────────────────────
+# ─── Danh mục đợt thi (ExamPeriod) ────────────────────────────────────
 class ExamPeriod(Base):
     __tablename__ = "exam_periods"
 

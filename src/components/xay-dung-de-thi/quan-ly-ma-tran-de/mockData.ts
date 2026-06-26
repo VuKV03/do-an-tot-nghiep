@@ -26,7 +26,7 @@ export interface DmMucDo {
   ten: string;
 }
 
-export interface DmThanhPhanNangLuc {
+export interface CompetencyComponent {
   id: string;
   ten: string;
 }
@@ -41,7 +41,7 @@ export interface LoaiCauHoi {
 
 export interface CaiDatMaTran {
   ds_dm_muc_do: DmMucDo[];
-  ds_dm_thanh_phan_nang_luc: DmThanhPhanNangLuc[];
+  ds_dm_thanh_phan_nang_luc: CompetencyComponent[];
   ds_loai_cau_hoi: LoaiCauHoi[];
 }
 

@@ -16,8 +16,17 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
 
   useEffect(() => {
     if (open && record) {
+      const parseDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        const parsed = dayjs(dateStr);
+        if (parsed.isValid() && dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+          return parsed;
+        }
+        return dayjs(dateStr, 'DD-MM-YYYY');
+      };
+
       const dates = record.NgayBatDau && record.NgayKetThuc 
-        ? [dayjs(record.NgayBatDau, 'DD-MM-YYYY'), dayjs(record.NgayKetThuc, 'DD-MM-YYYY')]
+        ? [parseDate(record.NgayBatDau), parseDate(record.NgayKetThuc)]
         : [];
 
       form.setFieldsValue({

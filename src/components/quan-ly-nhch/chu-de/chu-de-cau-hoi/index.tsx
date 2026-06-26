@@ -8,7 +8,7 @@ import DeleteChuDeModal from './delete';
 import DetailChuDeModal from './detail';
 import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
-import { topicsApi, dmMonHocApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -125,8 +125,8 @@ export default function ChuDeCauHoi() {
   const fetchFilters = async () => {
     try {
       const [mtRes, klRes] = await Promise.all([
-        dmMonHocApi.list(),
-        dmKhoiLopApi.list()
+        subjectCategoryApi.list(),
+        gradeLevelApi.list()
       ]);
       const mappedMonHoc = mtRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
       const mappedKhoiLop = klRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
@@ -196,14 +196,78 @@ export default function ChuDeCauHoi() {
     setIsLichSuModalOpen(true);
   };
 
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
+  const getSubTopicIdsRecursive = (topicIds: string[]): string[] => {
+    const result = new Set<string>(topicIds);
+    const queue = [...topicIds];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId) continue;
+      const children = rawData.filter(item => item.parent_id === currentId);
+      children.forEach(child => {
+        if (!result.has(child.id)) {
+          result.add(child.id);
+          queue.push(child.id);
+        }
+      });
+    }
+    return Array.from(result);
+  };
+
+  const getDescendantKeys = (record: ChuDeType): React.Key[] => {
+    const keys: React.Key[] = [];
+    const recurse = (node: ChuDeType) => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          keys.push(child.Id);
+          recurse(child);
+        });
+      }
+    };
+    recurse(record);
+    return keys;
+  };
+
+  const handleSelect = (record: ChuDeType, selected: boolean) => {
+    const descendantKeys = getDescendantKeys(record);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        const keysToAdd = [record.Id, ...descendantKeys];
+        keysToAdd.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        const keysToRemove = [record.Id, ...descendantKeys];
+        return prev.filter(key => !keysToRemove.includes(key));
+      }
+    });
+  };
+
+  const handleSelectAll = (selected: boolean, selectedRows: ChuDeType[], changeRows: ChuDeType[]) => {
+    const changeRowKeys: React.Key[] = changeRows.map(row => row.Id);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        changeRowKeys.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        return prev.filter(key => !changeRowKeys.includes(key));
+      }
+    });
   };
 
   const rowSelection = {
     selectedRowKeys,
-    onChange: onSelectChange,
-    checkStrictly: false,
+    onSelect: handleSelect,
+    onSelectAll: handleSelectAll,
+    checkStrictly: true,
   };
 
   const getTrangThaiTag = (trangThai: number) => {
@@ -384,9 +448,9 @@ export default function ChuDeCauHoi() {
         },
       }}
     >
-      <div className="p-6 flex flex-col gap-8 bg-white min-h-[calc(100vh-200px)]">
+      <div className="flex flex-col gap-6">
         {/* Search Section */}
-        <div className="flex flex-col gap-4 border-b border-gray-200 pb-8 transition-all duration-300">
+        <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 transition-all duration-300">
           <div
             className="flex items-center gap-2 cursor-pointer text-[#1e3a8a] font-semibold text-lg select-none w-fit"
             onClick={() => setIsSearchExpanded(!isSearchExpanded)}
@@ -483,7 +547,14 @@ export default function ChuDeCauHoi() {
         {/* Results Section */}
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+              {selectedRowKeys.length > 0 && (
+                <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> chủ đề/tiểu mục
+                </span>
+              )}
+            </div>
             <Space>
               <Button
                 type="primary"
@@ -635,14 +706,19 @@ export default function ChuDeCauHoi() {
           onConfirm={async () => {
             try {
               if (isMultipleAction) {
-                for (const key of selectedRowKeys) {
-                  await topicsApi.submit(key.toString());
-                }
+                const allIdsToSubmit = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
+                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
                 message.success('Đã gửi thẩm định các chủ đề được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
-                await topicsApi.submit(selectedRecord.Id);
-                message.success(`Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`);
+                const allIdsToSubmit = getSubTopicIdsRecursive([selectedRecord.Id]);
+                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                const hasChildren = allIdsToSubmit.length > 1;
+                message.success(
+                  hasChildren
+                    ? `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                    : `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`
+                );
               }
               setIsGuiThamDinhModalOpen(false);
               fetchTopics();

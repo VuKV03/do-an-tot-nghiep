@@ -25,8 +25,8 @@ async function apiFetch<T>(
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-/** DmMonHoc — subject_categories */
-export interface DmMonHocAPI {
+/** SubjectCategory — subject_categories */
+export interface SubjectCategoryAPI {
   id: string;
   code: string;       // Ma
   name: string;       // Ten
@@ -36,8 +36,8 @@ export interface DmMonHocAPI {
   updated_at?: string | null;
 }
 
-/** DmCapDoTuDuy — cognitive_levels */
-export interface DmCapDoTuDuyAPI {
+/** CognitiveLevel — cognitive_levels */
+export interface CognitiveLevelAPI {
   id: string;
   code: string;
   name: string;
@@ -46,8 +46,8 @@ export interface DmCapDoTuDuyAPI {
   updated_at?: string | null;
 }
 
-/** DmLoaiHinhCauHoi — question_types */
-export interface DmLoaiHinhCauHoiAPI {
+/** QuestionType — question_types */
+export interface QuestionTypeAPI {
   id: string;
   code: string;
   name: string;
@@ -56,8 +56,8 @@ export interface DmLoaiHinhCauHoiAPI {
   updated_at?: string | null;
 }
 
-/** DmThanhPhanNangLuc — competency_components */
-export interface DmThanhPhanNangLucAPI {
+/** CompetencyComponent — competency_components */
+export interface CompetencyComponentAPI {
   id: string;
   code: string;
   name: string;
@@ -68,8 +68,8 @@ export interface DmThanhPhanNangLucAPI {
   updated_at?: string | null;
 }
 
-/** DmKhoiLop — grade_levels */
-export interface DmKhoiLopAPI {
+/** GradeLevel — grade_levels */
+export interface GradeLevelAPI {
   id: string;
   code: string;
   name: string;
@@ -79,123 +79,123 @@ export interface DmKhoiLopAPI {
   updated_at?: string | null;
 }
 
-// ─── DmMonHoc API ─────────────────────────────────────────────────────────
+// ─── SubjectCategory API ───────────────────────────────────────────────────
 
-export const dmMonHocApi = {
+export const subjectCategoryApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmMonHocAPI[] }>(
-      "/dm-mon-hoc/"
+    apiFetch<{ success: boolean; count: number; data: SubjectCategoryAPI[] }>(
+      "/subject-categories/"
     ),
-  create: (body: Omit<DmMonHocAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmMonHocAPI }>(
-      "/dm-mon-hoc/",
+  create: (body: Omit<SubjectCategoryAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: SubjectCategoryAPI }>(
+      "/subject-categories/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmMonHocAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmMonHocAPI }>(
-      `/dm-mon-hoc/${id}`,
+  update: (id: string, body: Partial<Omit<SubjectCategoryAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: SubjectCategoryAPI }>(
+      `/subject-categories/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-mon-hoc/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/subject-categories/${id}`, {
       method: "DELETE",
     }),
 };
 
-// ─── DmCapDoTuDuy API ─────────────────────────────────────────────────────
+// ─── CognitiveLevel API ───────────────────────────────────────────────────
 
-export const dmCapDoTuDuyApi = {
+export const cognitiveLevelApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmCapDoTuDuyAPI[] }>(
-      "/dm-cap-do-tu-duy/"
+    apiFetch<{ success: boolean; count: number; data: CognitiveLevelAPI[] }>(
+      "/cognitive-levels/"
     ),
-  create: (body: Omit<DmCapDoTuDuyAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmCapDoTuDuyAPI }>(
-      "/dm-cap-do-tu-duy/",
+  create: (body: Omit<CognitiveLevelAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: CognitiveLevelAPI }>(
+      "/cognitive-levels/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmCapDoTuDuyAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmCapDoTuDuyAPI }>(
-      `/dm-cap-do-tu-duy/${id}`,
+  update: (id: string, body: Partial<Omit<CognitiveLevelAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: CognitiveLevelAPI }>(
+      `/cognitive-levels/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-cap-do-tu-duy/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/cognitive-levels/${id}`, {
       method: "DELETE",
     }),
 };
 
-// ─── DmLoaiHinhCauHoi API ─────────────────────────────────────────────────
+// ─── QuestionType API ─────────────────────────────────────────────────────
 
-export const dmLoaiHinhCauHoiApi = {
+export const questionTypeApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmLoaiHinhCauHoiAPI[] }>(
-      "/dm-loai-hinh-cau-hoi/"
+    apiFetch<{ success: boolean; count: number; data: QuestionTypeAPI[] }>(
+      "/question-types/"
     ),
-  create: (body: Omit<DmLoaiHinhCauHoiAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmLoaiHinhCauHoiAPI }>(
-      "/dm-loai-hinh-cau-hoi/",
+  create: (body: Omit<QuestionTypeAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: QuestionTypeAPI }>(
+      "/question-types/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmLoaiHinhCauHoiAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmLoaiHinhCauHoiAPI }>(
-      `/dm-loai-hinh-cau-hoi/${id}`,
+  update: (id: string, body: Partial<Omit<QuestionTypeAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: QuestionTypeAPI }>(
+      `/question-types/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-loai-hinh-cau-hoi/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/question-types/${id}`, {
       method: "DELETE",
     }),
 };
 
-// ─── DmThanhPhanNangLuc API ───────────────────────────────────────────────
+// ─── CompetencyComponent API ──────────────────────────────────────────────
 
-export const dmThanhPhanNangLucApi = {
+export const competencyComponentApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmThanhPhanNangLucAPI[] }>(
-      "/dm-thanh-phan-nang-luc/"
+    apiFetch<{ success: boolean; count: number; data: CompetencyComponentAPI[] }>(
+      "/competency-components/"
     ),
-  create: (body: Omit<DmThanhPhanNangLucAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmThanhPhanNangLucAPI }>(
-      "/dm-thanh-phan-nang-luc/",
+  create: (body: Omit<CompetencyComponentAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: CompetencyComponentAPI }>(
+      "/competency-components/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmThanhPhanNangLucAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmThanhPhanNangLucAPI }>(
-      `/dm-thanh-phan-nang-luc/${id}`,
+  update: (id: string, body: Partial<Omit<CompetencyComponentAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: CompetencyComponentAPI }>(
+      `/competency-components/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-thanh-phan-nang-luc/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/competency-components/${id}`, {
       method: "DELETE",
     }),
 };
 
-// ─── DmKhoiLop API ────────────────────────────────────────────────────────
+// ─── GradeLevel API ───────────────────────────────────────────────────────
 
-export const dmKhoiLopApi = {
+export const gradeLevelApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmKhoiLopAPI[] }>(
-      "/dm-khoi-lop/"
+    apiFetch<{ success: boolean; count: number; data: GradeLevelAPI[] }>(
+      "/grade-levels/"
     ),
-  create: (body: Omit<DmKhoiLopAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmKhoiLopAPI }>(
-      "/dm-khoi-lop/",
+  create: (body: Omit<GradeLevelAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: GradeLevelAPI }>(
+      "/grade-levels/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmKhoiLopAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmKhoiLopAPI }>(
-      `/dm-khoi-lop/${id}`,
+  update: (id: string, body: Partial<Omit<GradeLevelAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: GradeLevelAPI }>(
+      `/grade-levels/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-khoi-lop/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/grade-levels/${id}`, {
       method: "DELETE",
     }),
 };
 
-// ─── DmDotThi — exam_periods ───────────────────────────────────────────────
-export interface DmDotThiAPI {
+// ─── ExamPeriod — exam_periods ──────────────────────────────────────────────
+export interface ExamPeriodAPI {
   id: string;
   code: string;
   name: string;
@@ -231,24 +231,24 @@ export interface TopicAPI {
   grade_name?: string;
 }
 
-// ─── DmDotThi API ──────────────────────────────────────────────────────────
-export const dmDotThiApi = {
+// ─── ExamPeriod API ─────────────────────────────────────────────────────────
+export const examPeriodApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmDotThiAPI[] }>(
-      "/dm-dot-thi/"
+    apiFetch<{ success: boolean; count: number; data: ExamPeriodAPI[] }>(
+      "/exam-periods/"
     ),
-  create: (body: Omit<DmDotThiAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmDotThiAPI }>(
-      "/dm-dot-thi/",
+  create: (body: Omit<ExamPeriodAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: ExamPeriodAPI }>(
+      "/exam-periods/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmDotThiAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmDotThiAPI }>(
-      `/dm-dot-thi/${id}`,
+  update: (id: string, body: Partial<Omit<ExamPeriodAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: ExamPeriodAPI }>(
+      `/exam-periods/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-dot-thi/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/exam-periods/${id}`, {
       method: "DELETE",
     }),
 };

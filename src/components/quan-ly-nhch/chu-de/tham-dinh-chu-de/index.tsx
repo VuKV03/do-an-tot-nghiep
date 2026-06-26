@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, HelpCircle, FileText } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import ChuDeCauHoi from '../chu-de-cau-hoi';
 import ReviewModal from './review';
-import { topicsApi, dmMonHocApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -68,6 +68,7 @@ export default function ThamDinhChuDeMain() {
   const [activeTab, setActiveTab] = useState<'topic' | 'review'>('topic');
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isMultipleAction, setIsMultipleAction] = useState(false);
 
   // Filters State
   const [searchText, setSearchText] = useState('');
@@ -101,8 +102,8 @@ export default function ThamDinhChuDeMain() {
     try {
       const [tRes, mtRes, klRes] = await Promise.all([
         topicsApi.list(),
-        dmMonHocApi.list(),
-        dmKhoiLopApi.list(),
+        subjectCategoryApi.list(),
+        gradeLevelApi.list(),
       ]);
       setRawData(tRes.data);
       const mappedMonHoc = mtRes.data.map(i => ({ id: i.id, name: i.name }));
@@ -123,6 +124,7 @@ export default function ThamDinhChuDeMain() {
 
   const handleOpenReview = (record: ThamDinhType) => {
     setSelectedRecord(record);
+    setIsMultipleAction(false);
     setIsReviewOpen(true);
   };
 
@@ -144,28 +146,82 @@ export default function ThamDinhChuDeMain() {
     };
     const recordToReview = findRecord(filteredTree);
     setSelectedRecord(recordToReview || filteredTree[0]);
+    setIsMultipleAction(true);
     setIsReviewOpen(true);
   };
 
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
-  // Thu thập đệ quy tất cả ID của record và các con/cháu bên trong
-  const collectAllIds = (record: ThamDinhType): string[] => {
-    const ids: string[] = [record.Id];
-    if (record.children && record.children.length > 0) {
-      record.children.forEach(child => {
-        ids.push(...collectAllIds(child));
+  const getSubTopicIdsRecursive = (topicIds: string[]): string[] => {
+    const result = new Set<string>(topicIds);
+    const queue = [...topicIds];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId) continue;
+      const children = rawData.filter(item => item.parent_id === currentId);
+      children.forEach(child => {
+        if (!result.has(child.id)) {
+          result.add(child.id);
+          queue.push(child.id);
+        }
       });
     }
-    return ids;
+    return Array.from(result);
+  };
+
+  const getDescendantKeys = (record: ThamDinhType): React.Key[] => {
+    const keys: React.Key[] = [];
+    const recurse = (node: ThamDinhType) => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          keys.push(child.Key);
+          recurse(child);
+        });
+      }
+    };
+    recurse(record);
+    return keys;
+  };
+
+  const handleSelect = (record: ThamDinhType, selected: boolean) => {
+    const descendantKeys = getDescendantKeys(record);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        const keysToAdd = [record.Key, ...descendantKeys];
+        keysToAdd.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        const keysToRemove = [record.Key, ...descendantKeys];
+        return prev.filter(key => !keysToRemove.includes(key));
+      }
+    });
+  };
+
+  const handleSelectAll = (selected: boolean, selectedRows: ThamDinhType[], changeRows: ThamDinhType[]) => {
+    const changeRowKeys: React.Key[] = changeRows.map(row => row.Key);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        changeRowKeys.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        return prev.filter(key => !changeRowKeys.includes(key));
+      }
+    });
   };
 
   const rowSelection = {
     selectedRowKeys,
-    onChange: onSelectChange,
-    checkStrictly: false,
+    onSelect: handleSelect,
+    onSelectAll: handleSelectAll,
+    checkStrictly: true,
   };
 
   const getStatusBadge = (status: 'approved' | 'rejected' | 'pending') => {
@@ -311,7 +367,7 @@ export default function ThamDinhChuDeMain() {
         },
       }}
     >
-      <div className="pt-3 px-6 pb-6 flex flex-col gap-6 bg-white min-h-[calc(100vh-200px)]">
+      <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]">
         {/* Tab Headers */}
         <div className="flex gap-1 border-b border-gray-300 relative">
           <button
@@ -450,7 +506,14 @@ export default function ThamDinhChuDeMain() {
             {/* Results Grid Section */}
             <div className="flex flex-col gap-4">
               <div className="flex justify-between items-center mb-2">
-                <h2 className="text-[#1e3a8a] font-bold text-lg">Kết quả tìm kiếm</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-[#1e3a8a] font-bold text-lg">Kết quả tìm kiếm</h2>
+                  {selectedRowKeys.length > 0 && (
+                    <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                      Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> chủ đề/tiểu mục
+                    </span>
+                  )}
+                </div>
                 <Space>
                   <Button
                     type="primary"
@@ -493,14 +556,25 @@ export default function ThamDinhChuDeMain() {
               record={selectedRecord}
               onApprove={async (comment) => {
                 try {
-                  const ids = selectedRecord ? collectAllIds(selectedRecord) : [];
+                  let ids: string[] = [];
+                  if (isMultipleAction) {
+                    ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
+                  } else if (selectedRecord) {
+                    ids = getSubTopicIdsRecursive([selectedRecord.Id]);
+                  }
                   await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
-                  const hasChildren = (selectedRecord?.children?.length ?? 0) > 0;
-                  message.success(
-                    hasChildren
-                      ? `Đã phê duyệt chủ đề "${selectedRecord?.Ten}" và ${ids.length - 1} tiểu mục bên trong`
-                      : `Đã phê duyệt: "${selectedRecord?.Ten}"`
-                  );
+                  
+                  if (isMultipleAction) {
+                    message.success('Đã phê duyệt các chủ đề được chọn!');
+                    setSelectedRowKeys([]);
+                  } else if (selectedRecord) {
+                    const hasChildren = ids.length > 1;
+                    message.success(
+                      hasChildren
+                        ? `Đã phê duyệt chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                        : `Đã phê duyệt chủ đề "${selectedRecord.Ten}"!`
+                    );
+                  }
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể phê duyệt chủ đề!');
@@ -508,14 +582,25 @@ export default function ThamDinhChuDeMain() {
               }}
               onReject={async (comment) => {
                 try {
-                  const ids = selectedRecord ? collectAllIds(selectedRecord) : [];
+                  let ids: string[] = [];
+                  if (isMultipleAction) {
+                    ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
+                  } else if (selectedRecord) {
+                    ids = getSubTopicIdsRecursive([selectedRecord.Id]);
+                  }
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
-                  const hasChildren = (selectedRecord?.children?.length ?? 0) > 0;
-                  message.warning(
-                    hasChildren
-                      ? `Từ chối chủ đề "${selectedRecord?.Ten}" và ${ids.length - 1} tiểu mục bên trong`
-                      : `Từ chối chủ đề: "${selectedRecord?.Ten}"`
-                  );
+                  
+                  if (isMultipleAction) {
+                    message.warning('Từ chối các chủ đề được chọn!');
+                    setSelectedRowKeys([]);
+                  } else if (selectedRecord) {
+                    const hasChildren = ids.length > 1;
+                    message.warning(
+                      hasChildren
+                        ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                        : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
+                    );
+                  }
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể từ chối chủ đề!');

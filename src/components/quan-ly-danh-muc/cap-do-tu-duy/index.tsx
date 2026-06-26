@@ -1,295 +1,253 @@
-import React, { useState } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Table, Input, DatePicker, Button, Space, ConfigProvider, Empty, Spin, message } from 'antd';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
-import CreateCapDoTuDuyModal from './create.tsx';
-import UpdateCapDoTuDuyModal from './update.tsx';
-import DetailCapDoTuDuyModal from './detail.tsx';
-import DeleteCapDoTuDuyModal from './delete.tsx';
+import { cognitiveLevelApi, type CognitiveLevelAPI } from '../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
-// Define type based on the provided DB schema
-interface DmCapDoTuDuyType {
-  Id: string;
-  Ma: string;
-  Ten: string;
-  IsActive: boolean;
-  GhiChu?: string;
-  CreatedAt: string;
+/** Type khớp hoàn toàn với DB / API fields */
+export interface CognitiveLevelType {
+  id: string;
+  code: string;
+  name: string;
+  note?: string;
+  created_at: string;
+  updated_at?: string | null;
 }
 
-// Mock data matching the UI image
-const mockData: DmCapDoTuDuyType[] = [
-  { Id: '1', Ma: '1', Ten: 'Biết', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '2', Ma: '2', Ten: 'Hiểu', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '3', Ma: '3', Ten: 'Vận dụng', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '4', Ma: '4', Ten: 'Vận dụng cao', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '5', Ma: '5', Ten: 'Phân tích', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
-];
+// ─── Inline modals (Create / Update / Detail / Delete) ────────────────────
+function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (v: Partial<CognitiveLevelType>) => Promise<boolean> }) {
+  const [form, setForm] = React.useState<Partial<CognitiveLevelType>>({});
+  const handleSave = async () => {
+    if (form.code && form.name) {
+      const success = await onSave(form);
+      if (success) {
+        setForm({});
+        onClose();
+      }
+    }
+  };
+  return (
+    <ConfigProvider theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 } }}>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
+            <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Thêm mới cấp độ tư duy</div>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-gray-700 font-medium text-[15px] block mb-1">Mã cấp độ <span className="text-red-500">*</span></label>
+                <Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-gray-700 font-medium text-[15px] block mb-1">Tên cấp độ <span className="text-red-500">*</span></label>
+                <Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label>
+                <Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
+              <Button onClick={() => { setForm({}); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+              <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ConfigProvider>
+  );
+}
 
+function UpdateModal({ open, onClose, record, onSave }: { open: boolean; onClose: () => void; record: CognitiveLevelType | null; onSave: (v: Partial<CognitiveLevelType>) => Promise<boolean> }) {
+  const [form, setForm] = React.useState<Partial<CognitiveLevelType>>({});
+  useEffect(() => { if (open && record) setForm({ code: record.code, name: record.name, note: record.note || '' }); }, [open, record]);
+  const handleSave = async () => {
+    const success = await onSave(form);
+    if (success) {
+      onClose();
+    }
+  };
+  return (
+    <ConfigProvider theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 } }}>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
+            <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Cập nhật cấp độ tư duy</div>
+            <div className="flex flex-col gap-4">
+              <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã cấp độ <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
+              <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên cấp độ <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+              <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
+            </div>
+            <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
+              <Button onClick={onClose} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+              <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ConfigProvider>
+  );
+}
+
+function DetailModal({ open, onClose, record }: { open: boolean; onClose: () => void; record: CognitiveLevelType | null }) {
+  return open && record ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
+        <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Chi tiết cấp độ tư duy</div>
+        <div className="flex flex-col gap-4">
+          {([['id','id'],['code','Mã cấp độ'],['name','Tên cấp độ'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof CognitiveLevelType, string][]).map(([key, label]) => (
+            <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={String(record[key] ?? '')} className="h-[38px] bg-gray-50 text-gray-800" /></div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-6 pt-4 border-t border-gray-200">
+          <Button onClick={onClose} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+}
+
+function DeleteModal({ open, onClose, onConfirm, itemName, isMultiple, multipleCount }: { open: boolean; onClose: () => void; onConfirm: () => void; itemName?: string; isMultiple?: boolean; multipleCount?: number }) {
+  return open ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl w-[460px] p-6">
+        <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-6">Xác nhận xóa</div>
+        <p className="text-[17px] text-slate-700 mb-8">{isMultiple ? `Bạn có chắc chắn xóa ${multipleCount || 0} bản ghi đã chọn?` : `Bạn có chắc chắn xóa cấp độ tư duy "${itemName || ''}"?`}</p>
+        <div className="flex justify-center gap-4 pt-4 border-t border-gray-200">
+          <Button onClick={onClose} className="border-gray-400 text-gray-600 px-10 h-10 font-semibold">Hủy</Button>
+          <Button danger type="primary" onClick={() => { onConfirm(); onClose(); }} className="px-10 h-10 font-semibold">Xóa</Button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────
 export default function DanhMucCapDoTuDuy() {
+  const [data, setData] = useState<CognitiveLevelType[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
-
-  // Modal states
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<DmCapDoTuDuyType | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<CognitiveLevelType | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchDates, setSearchDates] = useState<any>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
-  const handleOpenDetail = (record: DmCapDoTuDuyType) => {
-    setSelectedRecord(record);
-    setIsDetailModalOpen(true);
-  };
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await cognitiveLevelApi.list();
+      setData(res.data as CognitiveLevelType[]);
+    } catch { messageApi.error('Không thể tải dữ liệu!'); }
+    finally { setLoading(false); }
+  }, [messageApi]);
 
-  const handleOpenUpdate = (record: DmCapDoTuDuyType) => {
-    setSelectedRecord(record);
-    setIsUpdateModalOpen(true);
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleOpenDelete = (record: DmCapDoTuDuyType) => {
-    setSelectedRecord(record);
-    setIsDeleteMultiple(false);
-    setIsDeleteModalOpen(true);
-  };
+  const filteredData = React.useMemo(() => {
+    return data.filter(item => {
+      const kw = searchKeyword.toLowerCase();
+      const matchKeyword = !kw || (item.code?.toLowerCase().includes(kw) || item.name?.toLowerCase().includes(kw));
+      let matchDate = true;
+      if (searchDates && searchDates[0] && searchDates[1] && item.created_at) {
+        const itemDate = new Date(item.created_at).getTime();
+        const start = searchDates[0].startOf('day').valueOf();
+        const end = searchDates[1].endOf('day').valueOf();
+        matchDate = itemDate >= start && itemDate <= end;
+      }
+      return matchKeyword && matchDate;
+    });
+  }, [data, searchKeyword, searchDates]);
 
-  const handleOpenDeleteMultiple = () => {
-    setIsDeleteMultiple(true);
-    setIsDeleteModalOpen(true);
-  };
-
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: onSelectChange,
-  };
-
-  const columns: ColumnsType<DmCapDoTuDuyType> = [
+  const columns: ColumnsType<CognitiveLevelType> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+    { title: 'Mã', dataIndex: 'code', key: 'code' },
+    { title: 'Tên', dataIndex: 'name', key: 'name' },
+    { title: 'Ghi chú', dataIndex: 'note', key: 'note' },
+    { title: 'Ngày tạo', dataIndex: 'created_at', key: 'created_at', render: (v) => v ? new Date(v).toLocaleString('vi-VN') : '' },
     {
-      title: 'STT',
-      dataIndex: 'stt',
-      key: 'stt',
-      width: 60,
-      align: 'center',
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: 'Mã cấp độ tư duy',
-      dataIndex: 'Ma',
-      key: 'Ma',
-    },
-    {
-      title: 'Tên cấp độ tư duy',
-      dataIndex: 'Ten',
-      key: 'Ten',
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'CreatedAt',
-      key: 'CreatedAt',
-    },
-    {
-      title: 'Tình trạng',
-      dataIndex: 'IsActive',
-      key: 'IsActive',
-      render: (isActive: boolean) => (
-        <span
-          className={`px-3 py-1 rounded border text-sm font-medium ${
-            isActive
-              ? 'border-emerald-400 text-emerald-600 bg-emerald-50'
-              : 'border-rose-400 text-rose-500 bg-rose-50'
-          }`}
-        >
-          {isActive ? 'Hoạt động' : 'Không hoạt động'}
-        </span>
-      ),
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      align: 'center',
-      render: (_, record) => (
+      title: 'Thao tác', key: 'action', align: 'center',
+      render: (_, r) => (
         <Space size="small">
-          <Button
-            type="text"
-            onClick={() => handleOpenDetail(record)}
-            icon={<Eye size={16} className="text-blue-600" />}
-            className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md"
-          />
-          <Button
-            type="text"
-            onClick={() => handleOpenUpdate(record)}
-            icon={<Edit size={16} className="text-blue-600" />}
-            className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md"
-          />
-          <Button
-            type="text"
-            onClick={() => handleOpenDelete(record)}
-            icon={<Trash2 size={16} className="text-red-500" />}
-            className="bg-red-50 hover:bg-red-100 flex items-center justify-center p-2 rounded-md"
-          />
+          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDetailOpen(true); }} icon={<Eye size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
+          <Button type="text" onClick={() => { setSelectedRecord(r); setIsUpdateOpen(true); }} icon={<Edit size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
+          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDeleteMultiple(false); setIsDeleteOpen(true); }} icon={<Trash2 size={16} className="text-red-500" />} className="bg-red-50 hover:bg-red-100 p-2 rounded-md" />
         </Space>
       ),
     },
   ];
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#1d4ed8',
-          borderRadius: 6,
-        },
-        components: {
-          Table: {
-            headerBg: '#f8fafc',
-            headerColor: '#334155',
-            rowHoverBg: '#f1f5f9',
-          },
-        },
-      }}
-    >
+    <ConfigProvider theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 }, components: { Table: { headerBg: '#f8fafc', headerColor: '#334155', rowHoverBg: '#f1f5f9' } } }}>
+      {contextHolder}
       <div className="p-6 flex flex-col gap-8 bg-white min-h-[calc(100vh-200px)]">
-        {/* Search Section */}
-        <div className="flex flex-col gap-4 border-b border-gray-200 pb-8 transition-all duration-300">
-          <div
-            className="flex items-center gap-2 cursor-pointer text-[#1e3a8a] font-semibold text-lg select-none w-fit"
-            onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-          >
+        <div className="flex flex-col gap-4 border-b border-gray-200 pb-8">
+          <div className="flex items-center gap-2 cursor-pointer text-[#1e3a8a] font-semibold text-lg select-none w-fit" onClick={() => setIsSearchExpanded(!isSearchExpanded)}>
             <span>Tìm kiếm thông tin</span>
             {isSearchExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </div>
-
           {isSearchExpanded && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Tên mức độ</label>
-                  <Input placeholder="Nhập" className="h-10 w-full" />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Tình trạng</label>
-                  <Select
-                    defaultValue="Tất cả"
-                    className="h-10 w-full"
-                    options={[
-                      { value: 'Tất cả', label: 'Tất cả' },
-                      { value: 'Hoạt động', label: 'Hoạt động' },
-                      { value: 'Không hoạt động', label: 'Không hoạt động' },
-                    ]}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Ngày tạo</label>
-                  <RangePicker
-                    className="h-10 w-full"
-                    placeholder={['Bắt đầu', 'Kết thúc']}
-                    format="DD/MM/YYYY"
-                  />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Mã / Tên</label><Input placeholder="Nhập mã hoặc tên" className="h-10 w-full" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} allowClear /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Ngày tạo</label><RangePicker className="h-10 w-full" placeholder={['Bắt đầu', 'Kết thúc']} format="DD/MM/YYYY" value={searchDates} onChange={setSearchDates} /></div>
               </div>
-
-              <div className="flex justify-center mt-4">
-                <Button type="primary" className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-8 h-10 font-medium">
-                  Tìm kiếm
-                </Button>
-              </div>
+              <div className="flex justify-center mt-4"><Button type="primary" onClick={fetchData} className="bg-[#1d4ed8] border-none px-8 h-10 font-medium">Làm mới dữ liệu</Button></div>
             </div>
           )}
         </div>
 
-        {/* Results Section */}
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+              {selectedRowKeys.length > 0 && (
+                <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> cấp độ tư duy
+                </span>
+              )}
+            </div>
             <Space>
-              <Button
-                type="primary"
-                className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none h-10 font-medium px-4"
-                onClick={() => setIsCreateModalOpen(true)}
-              >
-                Thêm mới
-              </Button>
-              <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50">
-                Xuất Excel
-              </Button>
-              <Button
-                danger
-                className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
-                disabled={selectedRowKeys.length === 0}
-                onClick={handleOpenDeleteMultiple}
-              >
-                Xóa
-              </Button>
+              <Button type="primary" className="bg-[#1d4ed8] border-none h-10 font-medium px-4" onClick={() => setIsCreateOpen(true)}>Thêm mới</Button>
+              <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50">Xuất Excel</Button>
+              <Button danger className="border-red-500 text-red-500 h-10 font-medium px-4" disabled={selectedRowKeys.length === 0} onClick={() => { setIsDeleteMultiple(true); setIsDeleteOpen(true); }}>Xóa</Button>
             </Space>
           </div>
-
-          <Table
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={mockData}
-            rowKey="Id"
-            pagination={{
-              total: 1234,
-              showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-              showSizeChanger: true,
-              defaultPageSize: 10,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              locale: { items_per_page: '/ trang' },
-              className: 'mt-6',
-            }}
-            className="border-t border-gray-200"
-          />
+          <Spin spinning={loading}>
+            <Table rowSelection={{ selectedRowKeys, onChange: (k) => setSelectedRowKeys(k) }} columns={columns} dataSource={filteredData} rowKey="id" locale={{ emptyText: <Empty description="Không có dữ liệu cấp độ tư duy" /> }} pagination={{ total: filteredData.length, showTotal: (t, r) => `${r[0]} - ${r[1]} / ${t} bản ghi`, showSizeChanger: true, defaultPageSize: 10, pageSizeOptions: ['10', '20', '50', '100'], locale: { items_per_page: '/ trang' }, className: 'mt-6' }} className="border-t border-gray-200" />
+          </Spin>
         </div>
-
-        {/* Modals */}
-        <CreateCapDoTuDuyModal
-          open={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          onSave={(values) => {
-            console.log('Created:', values);
-          }}
-        />
-
-        <UpdateCapDoTuDuyModal
-          open={isUpdateModalOpen}
-          onClose={() => setIsUpdateModalOpen(false)}
-          record={selectedRecord}
-          onSave={(values) => {
-            console.log('Updated:', values);
-          }}
-        />
-
-        <DetailCapDoTuDuyModal
-          open={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          record={selectedRecord}
-        />
-
-        <DeleteCapDoTuDuyModal
-          open={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          itemName={selectedRecord?.Ten}
-          isMultiple={isDeleteMultiple}
-          multipleCount={selectedRowKeys.length}
-          onConfirm={() => {
-            if (isDeleteMultiple) {
-              console.log('Deleted multiple:', selectedRowKeys);
-              setSelectedRowKeys([]);
-            } else {
-              console.log('Deleted single:', selectedRecord?.Id);
-            }
-          }}
-        />
       </div>
+
+      <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)}
+        onSave={async (v) => {
+          try { await cognitiveLevelApi.create({ code: v.code!, name: v.name!, note: v.note ?? '' }); messageApi.success('Thêm thành công!'); fetchData(); return true; }
+          catch (error: any) { messageApi.error(error.message || 'Lỗi khi thêm!'); return false; }
+        }}
+      />
+      <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord}
+        onSave={async (v) => {
+          if (!selectedRecord) return false;
+          try { await cognitiveLevelApi.update(selectedRecord.id, { code: v.code, name: v.name, note: v.note }); messageApi.success('Cập nhật thành công!'); fetchData(); return true; }
+          catch (error: any) { messageApi.error(error.message || 'Lỗi khi cập nhật!'); return false; }
+        }}
+      />
+      <DetailModal open={isDetailOpen} onClose={() => setIsDetailOpen(false)} record={selectedRecord} />
+      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length}
+        onConfirm={async () => {
+          try {
+            if (isDeleteMultiple) { await Promise.all(selectedRowKeys.map((k) => cognitiveLevelApi.delete(String(k)))); messageApi.success(`Đã xóa ${selectedRowKeys.length} cấp độ!`); setSelectedRowKeys([]); }
+            else if (selectedRecord) { await cognitiveLevelApi.delete(selectedRecord.id); messageApi.success('Đã xóa!'); }
+            fetchData();
+          } catch { messageApi.error('Lỗi khi xóa!'); }
+        }}
+      />
     </ConfigProvider>
   );
 }

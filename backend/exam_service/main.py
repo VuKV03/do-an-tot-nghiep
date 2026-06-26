@@ -15,17 +15,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.shared.database import ensure_database_exists, init_tables, async_session
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
-    DmMonHoc, DmCapDoTuDuy, DmLoaiHinhCauHoi,  # category models
-    DmThanhPhanNangLuc, DmKhoiLop, ExamPeriod, Topic
+    SubjectCategory, CognitiveLevel, QuestionType,  # category models
+    CompetencyComponent, GradeLevel, ExamPeriod, Topic
 )
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
-from backend.exam_service.routes.dm_mon_hoc import router as dm_mon_hoc_router
-from backend.exam_service.routes.dm_cap_do_tu_duy import router as dm_cap_do_tu_duy_router
-from backend.exam_service.routes.dm_loai_hinh_cau_hoi import router as dm_loai_hinh_cau_hoi_router
-from backend.exam_service.routes.dm_thanh_phan_nang_luc import router as dm_thanh_phan_nang_luc_router
-from backend.exam_service.routes.dm_khoi_lop import router as dm_khoi_lop_router
-from backend.exam_service.routes.dm_dot_thi import router as dm_dot_thi_router
+from backend.exam_service.routes.subject_categories import router as subject_categories_router
+from backend.exam_service.routes.cognitive_levels import router as cognitive_levels_router
+from backend.exam_service.routes.question_types import router as question_types_router
+from backend.exam_service.routes.competency_components import router as competency_components_router
+from backend.exam_service.routes.grade_levels import router as grade_levels_router
+from backend.exam_service.routes.exam_periods import router as exam_periods_router
 from backend.exam_service.routes.topics import router as topics_router
 
 
@@ -150,84 +150,84 @@ async def seed_demo_data():
             await db.commit()
             print("[Exam Service] \u2705 Đã nạp gói đề thi mẫu thành công.")
 
-        # ─── Seed subject_categories (DmMonHoc) ──────────────────────
-        result3 = await db.execute(select(func.count()).select_from(DmMonHoc))
+        # ─── Seed subject_categories (SubjectCategory) ──────────────────────
+        result3 = await db.execute(select(func.count()).select_from(SubjectCategory))
         if result3.scalar() == 0:
             print("[Exam Service] Seeding subject_categories...")
             now = datetime.utcnow().isoformat() + "Z"
             subjects = [
-                DmMonHoc(id="mon-01", code="MATH", name="Toán học",       is_active=True,  note="Môn khoa học tự nhiên.",  created_at=now),
-                DmMonHoc(id="mon-02", code="PHYS", name="Vật Lý",         is_active=True,  note="Dùng cho khối tự nhiên.",  created_at=now),
-                DmMonHoc(id="mon-03", code="CHEM", name="Hóa Học",        is_active=True,  note="Ngân hàng hóa học.",       created_at=now),
-                DmMonHoc(id="mon-04", code="BIO",  name="Sinh học",       is_active=False, note="Tạm ngưng khai thác.",    created_at=now),
-                DmMonHoc(id="mon-05", code="HIST", name="Lịch sử",        is_active=True,  note="Khoa học xã hội.",        created_at=now),
-                DmMonHoc(id="mon-06", code="LIT",  name="Ngữ văn",        is_active=True,  note="Môn học bắt buộc.",       created_at=now),
-                DmMonHoc(id="mon-07", code="ENG",  name="Tiếng Anh",      is_active=True,  note="Ngoại ngữ chính.",        created_at=now),
+                SubjectCategory(id="mon-01", code="MATH", name="Toán học",       is_active=True,  note="Môn khoa học tự nhiên.",  created_at=now),
+                SubjectCategory(id="mon-02", code="PHYS", name="Vật Lý",         is_active=True,  note="Dùng cho khối tự nhiên.",  created_at=now),
+                SubjectCategory(id="mon-03", code="CHEM", name="Hóa Học",        is_active=True,  note="Ngân hàng hóa học.",       created_at=now),
+                SubjectCategory(id="mon-04", code="BIO",  name="Sinh học",       is_active=False, note="Tạm ngưng khai thác.",    created_at=now),
+                SubjectCategory(id="mon-05", code="HIST", name="Lịch sử",        is_active=True,  note="Khoa học xã hội.",        created_at=now),
+                SubjectCategory(id="mon-06", code="LIT",  name="Ngữ văn",        is_active=True,  note="Môn học bắt buộc.",       created_at=now),
+                SubjectCategory(id="mon-07", code="ENG",  name="Tiếng Anh",      is_active=True,  note="Ngoại ngữ chính.",        created_at=now),
             ]
             for s in subjects:
                 db.add(s)
             await db.commit()
             print("[Exam Service] \u2705 subject_categories seeded.")
 
-        # ─── Seed cognitive_levels (DmCapDoTuDuy) ────────────────────
-        result4 = await db.execute(select(func.count()).select_from(DmCapDoTuDuy))
+        # ─── Seed cognitive_levels (CognitiveLevel) ────────────────────
+        result4 = await db.execute(select(func.count()).select_from(CognitiveLevel))
         if result4.scalar() == 0:
             print("[Exam Service] Seeding cognitive_levels...")
             now = datetime.utcnow().isoformat() + "Z"
             levels = [
-                DmCapDoTuDuy(id="cdtd-01", code="L1", name="Biết",          note="Nhận biết, ghi nhớ kiến thức.",      created_at=now),
-                DmCapDoTuDuy(id="cdtd-02", code="L2", name="Hiểu",          note="Hiểu và diễn giải kiến thức.",       created_at=now),
-                DmCapDoTuDuy(id="cdtd-03", code="L3", name="Vận dụng",      note="Áp dụng kiến thức vào bài tập.",     created_at=now),
-                DmCapDoTuDuy(id="cdtd-04", code="L4", name="Vận dụng cao",  note="Phân tích, tổng hợp, đánh giá.",    created_at=now),
+                CognitiveLevel(id="cdtd-01", code="L1", name="Biết",          note="Nhận biết, ghi nhớ kiến thức.",      created_at=now),
+                CognitiveLevel(id="cdtd-02", code="L2", name="Hiểu",          note="Hiểu và diễn giải kiến thức.",       created_at=now),
+                CognitiveLevel(id="cdtd-03", code="L3", name="Vận dụng",      note="Áp dụng kiến thức vào bài tập.",     created_at=now),
+                CognitiveLevel(id="cdtd-04", code="L4", name="Vận dụng cao",  note="Phân tích, tổng hợp, đánh giá.",    created_at=now),
             ]
             for lv in levels:
                 db.add(lv)
             await db.commit()
             print("[Exam Service] \u2705 cognitive_levels seeded.")
 
-        # ─── Seed question_types (DmLoaiHinhCauHoi) ──────────────────
-        result5 = await db.execute(select(func.count()).select_from(DmLoaiHinhCauHoi))
+        # ─── Seed question_types (QuestionType) ──────────────────
+        result5 = await db.execute(select(func.count()).select_from(QuestionType))
         if result5.scalar() == 0:
             print("[Exam Service] Seeding question_types...")
             now = datetime.utcnow().isoformat() + "Z"
             qtypes = [
-                DmLoaiHinhCauHoi(id="lhch-01", code="SINGLE",    name="Trắc nghiệm một đáp án",  note="Chọn 1 trong 4 đáp án.",          created_at=now),
-                DmLoaiHinhCauHoi(id="lhch-02", code="MULTI",     name="Trắc nghiệm nhiều đáp án", note="Chọn nhiều đáp án đúng.",         created_at=now),
-                DmLoaiHinhCauHoi(id="lhch-03", code="TRUEFALSE", name="Đúng / Sai",               note="Xác định mệnh đề đúng/sai.",      created_at=now),
-                DmLoaiHinhCauHoi(id="lhch-04", code="SHORT",     name="Trả lời ngắn",             note="Điền đáp án bằng văn bản ngắn.", created_at=now),
-                DmLoaiHinhCauHoi(id="lhch-05", code="ESSAY",     name="Tự luận",                  note="Trả lời dạng đoạn văn.",          created_at=now),
+                QuestionType(id="lhch-01", code="SINGLE",    name="Trắc nghiệm một đáp án",  note="Chọn 1 trong 4 đáp án.",          created_at=now),
+                QuestionType(id="lhch-02", code="MULTI",     name="Trắc nghiệm nhiều đáp án", note="Chọn nhiều đáp án đúng.",         created_at=now),
+                QuestionType(id="lhch-03", code="TRUEFALSE", name="Đúng / Sai",               note="Xác định mệnh đề đúng/sai.",      created_at=now),
+                QuestionType(id="lhch-04", code="SHORT",     name="Trả lời ngắn",             note="Điền đáp án bằng văn bản ngắn.", created_at=now),
+                QuestionType(id="lhch-05", code="ESSAY",     name="Tự luận",                  note="Trả lời dạng đoạn văn.",          created_at=now),
             ]
             for qt in qtypes:
                 db.add(qt)
             await db.commit()
             print("[Exam Service] \u2705 question_types seeded.")
 
-        # ─── Seed competency_components (DmThanhPhanNangLuc) ─────────
-        result6 = await db.execute(select(func.count()).select_from(DmThanhPhanNangLuc))
+        # ─── Seed competency_components (CompetencyComponent) ─────────
+        result6 = await db.execute(select(func.count()).select_from(CompetencyComponent))
         if result6.scalar() == 0:
             print("[Exam Service] Seeding competency_components...")
             now = datetime.utcnow().isoformat() + "Z"
             comps = [
-                DmThanhPhanNangLuc(id="tpnl-01", code="PC1", name="Nhận thức vật lí",                                     subject_id="mon-02", is_active=True,  note="", created_at=now),
-                DmThanhPhanNangLuc(id="tpnl-02", code="PC2", name="Tìm hiểu thế giới tự nhiên dưới góc độ vật lí",        subject_id="mon-02", is_active=True,  note="", created_at=now),
-                DmThanhPhanNangLuc(id="tpnl-03", code="PC3", name="Vận dụng kiến thức kỹ năng đã học",                    subject_id="mon-02", is_active=True,  note="", created_at=now),
-                DmThanhPhanNangLuc(id="tpnl-04", code="MC1", name="Tư duy và lập luận toán học",                          subject_id="mon-01", is_active=True,  note="", created_at=now),
-                DmThanhPhanNangLuc(id="tpnl-05", code="MC2", name="Mô hình hóa toán học",                                 subject_id="mon-01", is_active=True,  note="", created_at=now),
+                CompetencyComponent(id="tpnl-01", code="PC1", name="Nhận thức vật lí",                                     subject_id="mon-02", is_active=True,  note="", created_at=now),
+                CompetencyComponent(id="tpnl-02", code="PC2", name="Tìm hiểu thế giới tự nhiên dưới góc độ vật lí",        subject_id="mon-02", is_active=True,  note="", created_at=now),
+                CompetencyComponent(id="tpnl-03", code="PC3", name="Vận dụng kiến thức kỹ năng đã học",                    subject_id="mon-02", is_active=True,  note="", created_at=now),
+                CompetencyComponent(id="tpnl-04", code="MC1", name="Tư duy và lập luận toán học",                          subject_id="mon-01", is_active=True,  note="", created_at=now),
+                CompetencyComponent(id="tpnl-05", code="MC2", name="Mô hình hóa toán học",                                 subject_id="mon-01", is_active=True,  note="", created_at=now),
             ]
             for c in comps:
                 db.add(c)
             await db.commit()
             print("[Exam Service] \u2705 competency_components seeded.")
 
-        # ─── Seed grade_levels (DmKhoiLop) ───────────────────────────
-        result7 = await db.execute(select(func.count()).select_from(DmKhoiLop))
+        # ─── Seed grade_levels (GradeLevel) ───────────────────────────
+        result7 = await db.execute(select(func.count()).select_from(GradeLevel))
         if result7.scalar() == 0:
             print("[Exam Service] Seeding grade_levels...")
             now = datetime.utcnow().isoformat() + "Z"
             grades = [
-                DmKhoiLop(id="kl-10", code="G10", name="Khối 10", is_active=True,  note="", created_at=now),
-                DmKhoiLop(id="kl-11", code="G11", name="Khối 11", is_active=True,  note="", created_at=now),
-                DmKhoiLop(id="kl-12", code="G12", name="Khối 12", is_active=True,  note="", created_at=now),
+                GradeLevel(id="kl-10", code="G10", name="Khối 10", is_active=True,  note="", created_at=now),
+                GradeLevel(id="kl-11", code="G11", name="Khối 11", is_active=True,  note="", created_at=now),
+                GradeLevel(id="kl-12", code="G12", name="Khối 12", is_active=True,  note="", created_at=now),
             ]
             for g in grades:
                 db.add(g)
@@ -265,10 +265,10 @@ async def seed_demo_data():
             now = datetime.utcnow().isoformat() + "Z"
             
             # Fetch first subject and grade IDs dynamically to avoid foreign key errors!
-            subj_res = await db.execute(select(DmMonHoc.id))
+            subj_res = await db.execute(select(SubjectCategory.id))
             first_subject_id = subj_res.scalars().first()
             
-            grade_res = await db.execute(select(DmKhoiLop.id))
+            grade_res = await db.execute(select(GradeLevel.id))
             first_grade_id = grade_res.scalars().first()
             
             # Fallback if somehow they are empty
@@ -348,12 +348,12 @@ from backend.exam_service.routes.matrix_configs import router as matrix_configs_
 app.include_router(matrix_configs_router)
 
 # Category routes
-app.include_router(dm_mon_hoc_router)
-app.include_router(dm_cap_do_tu_duy_router)
-app.include_router(dm_loai_hinh_cau_hoi_router)
-app.include_router(dm_thanh_phan_nang_luc_router)
-app.include_router(dm_khoi_lop_router)
-app.include_router(dm_dot_thi_router)
+app.include_router(subject_categories_router)
+app.include_router(cognitive_levels_router)
+app.include_router(question_types_router)
+app.include_router(competency_components_router)
+app.include_router(grade_levels_router)
+app.include_router(exam_periods_router)
 app.include_router(topics_router)
 
 

@@ -678,16 +678,18 @@ export default function ThamDinhCauHoiTab({
           {/* ── Results card ── */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
-              <h2 className="text-[#002147] font-black text-sm uppercase tracking-tight my-0">
-                Kết quả tìm kiếm
-              </h2>
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <h2 className="text-[#002147] font-black text-sm uppercase tracking-tight my-0">
+                  Kết quả tìm kiếm
+                </h2>
                 {selectedRowKeys.length > 0 && (
-                  <span className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded font-medium">
-                    Đã chọn <strong className="text-slate-800">{selectedRowKeys.length}</strong> câu hỏi
+                  <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                    Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> câu hỏi
                   </span>
                 )}
+              </div>
+
+              <div className="flex items-center gap-2">
                 <Button
                   type="primary"
                   onClick={handleBulkReview}

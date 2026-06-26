@@ -8,7 +8,7 @@ const { RangePicker } = DatePicker;
 export interface UpdateDotThiModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => void;
+  onSave?: (values: any) => Promise<boolean> | boolean;
   record?: any;
 }
 
@@ -20,8 +20,19 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
 
   useEffect(() => {
     if (open && record) {
+      const parseDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        // Try parsing assuming YYYY-MM-DD or standard ISO format first
+        const parsed = dayjs(dateStr);
+        if (parsed.isValid() && dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+          return parsed;
+        }
+        // Fallback to DD-MM-YYYY
+        return dayjs(dateStr, 'DD-MM-YYYY');
+      };
+
       const dates = record.NgayBatDau && record.NgayKetThuc 
-        ? [dayjs(record.NgayBatDau, 'DD-MM-YYYY'), dayjs(record.NgayKetThuc, 'DD-MM-YYYY')]
+        ? [parseDate(record.NgayBatDau), parseDate(record.NgayKetThuc)]
         : [];
         
       form.setFieldsValue({
@@ -36,7 +47,7 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
     }
   }, [open, record, form]);
 
-  const handleFinish = (values: any) => {
+  const handleFinish = async (values: any) => {
     const { NgayHieuLuc, ...rest } = values;
     let NgayBatDau = null;
     let NgayKetThuc = null;
@@ -46,14 +57,16 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
     }
 
     if (onSave) {
-      onSave({
+      const success = await onSave({
         ...record,
         ...rest,
         NgayBatDau,
         NgayKetThuc,
       });
+      if (success) {
+        onClose();
+      }
     }
-    onClose();
   };
 
   const handleCancel = () => {

@@ -1,8 +1,8 @@
 """
-DmDotThi CRUD routes — Danh mục đợt thi
+ExamPeriod CRUD routes — Danh mục đợt thi
 Table: exam_periods
-GET /dm-dot-thi/, POST /dm-dot-thi/,
-PUT /dm-dot-thi/{id}, DELETE /dm-dot-thi/{id}
+GET /exam-periods/, POST /exam-periods/,
+PUT /exam-periods/{id}, DELETE /exam-periods/{id}
 """
 import uuid
 from datetime import datetime, timezone
@@ -21,7 +21,7 @@ from backend.exam_service.schemas import (
     ExamPeriodResponse, ExamPeriodListResponse,
 )
 
-router = APIRouter(prefix="/dm-dot-thi", tags=["DmDotThi"])
+router = APIRouter(prefix="/exam-periods", tags=["Exam Periods"])
 
 
 def _now() -> str:
@@ -46,7 +46,7 @@ def _to_response(obj: ExamPeriod) -> ExamPeriodResponse:
 
 
 @router.get("/", response_model=ExamPeriodListResponse)
-async def list_dm_dot_thi(db: AsyncSession = Depends(get_db)):
+async def list_exam_periods(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách tất cả đợt thi."""
     result = await db.execute(select(ExamPeriod).order_by(ExamPeriod.created_at.desc()))
     items = result.scalars().all()
@@ -55,7 +55,7 @@ async def list_dm_dot_thi(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/", status_code=201)
-async def create_dm_dot_thi(body: ExamPeriodCreate, db: AsyncSession = Depends(get_db)):
+async def create_exam_period(body: ExamPeriodCreate, db: AsyncSession = Depends(get_db)):
     """Tạo đợt thi mới."""
     existing = await db.execute(select(ExamPeriod).where(ExamPeriod.code == body.code))
     if existing.scalar_one_or_none():
@@ -82,7 +82,7 @@ async def create_dm_dot_thi(body: ExamPeriodCreate, db: AsyncSession = Depends(g
 
 
 @router.put("/{item_id}")
-async def update_dm_dot_thi(
+async def update_exam_period(
     item_id: str, body: ExamPeriodUpdate, db: AsyncSession = Depends(get_db)
 ):
     """Cập nhật đợt thi."""
@@ -110,7 +110,7 @@ async def update_dm_dot_thi(
 
 
 @router.delete("/{item_id}")
-async def delete_dm_dot_thi(item_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_exam_period(item_id: str, db: AsyncSession = Depends(get_db)):
     """Xóa đợt thi."""
     result = await db.execute(select(ExamPeriod).where(ExamPeriod.id == item_id))
     obj = result.scalar_one_or_none()

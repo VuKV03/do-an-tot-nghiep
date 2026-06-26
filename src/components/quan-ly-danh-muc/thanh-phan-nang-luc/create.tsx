@@ -9,7 +9,7 @@ export interface CreateThanhPhanNangLucModalProps {
   onSave?: (values: any) => void;
 }
 
-// Mock subjects mapping to DmMonHoc
+// Mock subjects mapping to SubjectCategory
 const mockMonHoc = [
   { Id: '1', Ma: 'TO', Ten: 'Toán học' },
   { Id: '2', Ma: 'LI', Ten: 'Vật lý' },

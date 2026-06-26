@@ -1,12 +1,12 @@
 import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, Button, Space, Divider } from 'antd';
-import type { DmMonHocType } from './index';
+import type { SubjectCategoryType } from './index';
 
 export interface CauHinhMonHocType {
   Id: string;
   Ma: string;
   Ten: string;
-  ThoiGianHoc: number;
+  ThoiGianThi: number;
   SoLuongDe: number;
   SoCauHoi: number;
   ThangDiem: number;
@@ -31,7 +31,7 @@ interface CauHinhMonHocModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (values: Partial<CauHinhMonHocType>) => void;
-  record?: DmMonHocType | null;
+  record?: SubjectCategoryType | null;
 }
 
 export default function CauHinhMonHocModal({ open, onClose, onSave, record }: CauHinhMonHocModalProps) {
@@ -40,7 +40,7 @@ export default function CauHinhMonHocModal({ open, onClose, onSave, record }: Ca
   React.useEffect(() => {
     if (open && record) {
       form.setFieldsValue({
-        Ten: record.Ten,
+        name: record.name,
       });
     } else if (open) {
       form.resetFields();
@@ -90,7 +90,7 @@ export default function CauHinhMonHocModal({ open, onClose, onSave, record }: Ca
                 Tên môn học <span className="text-red-500">*</span>
               </label>
               <div className="h-10 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md flex items-center text-gray-700">
-                {record?.Ten || 'Chưa có tên môn học'}
+                {record?.name || 'Chưa có tên môn học'}
               </div>
             </div>
             <div>
@@ -124,7 +124,7 @@ export default function CauHinhMonHocModal({ open, onClose, onSave, record }: Ca
 
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Cấu trúc môn thi và cách tính điểm <span className="text-red-500">*</span>
+            Cấu trúc môn học và cách tính điểm <span className="text-red-500">*</span>
           </h3>
           
           <div className="space-y-6">
