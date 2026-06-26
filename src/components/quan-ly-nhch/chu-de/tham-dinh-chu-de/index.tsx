@@ -139,6 +139,7 @@ export default function ThamDinhChuDeMain() {
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
+    checkStrictly: false,
   };
 
   const getStatusBadge = (status: 'approved' | 'rejected' | 'pending') => {
@@ -429,6 +430,7 @@ export default function ThamDinhChuDeMain() {
                   rowSelection={rowSelection}
                   columns={columns}
                   dataSource={filteredTree}
+                  rowKey="Key"
                   pagination={{
                     total: filteredTree.length,
                     showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
