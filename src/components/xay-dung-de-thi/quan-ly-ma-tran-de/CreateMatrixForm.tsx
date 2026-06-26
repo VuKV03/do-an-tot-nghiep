@@ -12,11 +12,38 @@ const getShortCode = (ma: string, ten: string) => {
 };
 import type { TreeDataNode, TreeProps } from 'antd';
 import {
-  apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
+  apiGetCaiDatMaTran, apiSaveMaTran,
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
-import { dmMonThiApi } from '../../../services/danhMucApi.ts';
+import { dmMonThiApi, topicsApi, dmThanhPhanNangLucApi, dmCapDoTuDuyApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+
+const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
+  const map: { [key: string]: ChuDeNode } = {};
+  const roots: ChuDeNode[] = [];
+
+  flatList.forEach((item) => {
+    map[item.id] = {
+      id: item.id,
+      ma: item.code,
+      ten: item.name,
+      so_tiet: 10,
+      is_dung_sai: false,
+      children: []
+    };
+  });
+
+  flatList.forEach((item) => {
+    const cloned = map[item.id];
+    if (item.parent_id && map[item.parent_id]) {
+      map[item.parent_id].children.push(cloned);
+    } else {
+      roots.push(cloned);
+    }
+  });
+
+  return roots;
+};
 
 interface Props {
   onBack: () => void;
@@ -26,6 +53,7 @@ interface Props {
 export default function CreateMatrixForm({ onBack, editingId }: Props) {
   // --- State ---
   const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
+  const [fullSubjects, setFullSubjects] = useState<any[]>([]);
   const [monHocId, setMonHocId] = useState<string | null>(null);
   const [maMatran, setMaMatran] = useState('');
   const [tenMatran, setTenMatran] = useState('');
@@ -45,9 +73,45 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     setIsChangingSubject(true);
     setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
     setMonHocId(value);
-    const cd = await apiGetCaiDatMaTran(value);
+    const cd = { ...await apiGetCaiDatMaTran(value) };
+
+    let chuDe: ChuDeNode[] = [];
+    try {
+      const selectedSubj = fullSubjects.find(s => s.code === value);
+      if (selectedSubj) {
+        // Fetch real topics
+        const topicsRes = await topicsApi.list();
+        const rawTopics = topicsRes.data || [];
+        const filteredFlatTopics = rawTopics.filter(t => t.subject_id === selectedSubj.id);
+        chuDe = buildTopicTree(filteredFlatTopics);
+
+        // Fetch real competency components
+        const nlRes = await dmThanhPhanNangLucApi.list();
+        const rawNL = nlRes.data || [];
+        const filteredNL = rawNL
+          .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
+          .map((nl: any) => ({
+            id: nl.id,
+            ma: nl.code,
+            ten: nl.name
+          }));
+        cd.ds_dm_thanh_phan_nang_luc = filteredNL;
+
+        // Fetch real cognitive levels (Cấp độ tư duy)
+        const mdRes = await dmCapDoTuDuyApi.list();
+        const rawMD = mdRes.data || [];
+        const mappedMD = rawMD.map((md: any) => ({
+          id: md.id,
+          ma: md.code,
+          ten: md.name
+        }));
+        cd.ds_dm_muc_do = mappedMD;
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ từ database:', err);
+    }
+
     setCaiDat(cd);
-    const chuDe = await apiGetChuDe(value);
     setDataChuDe(chuDe);
     setDataChuDeSelect(formatChuDeItems(chuDe));
     setIsChangingSubject(false);
@@ -55,19 +119,55 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   };
 
   useEffect(() => {
-    const loadDetail = async () => {
+    const loadDetail = async (subjectsList: any[]) => {
       if (!editingId) return;
       try {
         const res = await apiGetMatrixConfigDetail(editingId);
         if (res.success && res.data) {
           const mId = res.data.mon_hoc_id;
-          
+
           // Load subject data
           setIsChangingSubject(true);
           setMonHocId(mId);
-          const cd = await apiGetCaiDatMaTran(mId);
+          const cd = { ...await apiGetCaiDatMaTran(mId) };
+
+          let chuDe: ChuDeNode[] = [];
+          try {
+            const selectedSubj = subjectsList.find(s => s.code === mId);
+            if (selectedSubj) {
+              // Fetch real topics
+              const topicsRes = await topicsApi.list();
+              const rawTopics = topicsRes.data || [];
+              const filteredFlatTopics = rawTopics.filter(t => t.subject_id === selectedSubj.id);
+              chuDe = buildTopicTree(filteredFlatTopics);
+
+              // Fetch real competency components
+              const nlRes = await dmThanhPhanNangLucApi.list();
+              const rawNL = nlRes.data || [];
+              const filteredNL = rawNL
+                .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
+                .map((nl: any) => ({
+                  id: nl.id,
+                  ma: nl.code,
+                  ten: nl.name
+                }));
+              cd.ds_dm_thanh_phan_nang_luc = filteredNL;
+
+              // Fetch real cognitive levels (Cấp độ tư duy)
+              const mdRes = await dmCapDoTuDuyApi.list();
+              const rawMD = mdRes.data || [];
+              const mappedMD = rawMD.map((md: any) => ({
+                id: md.id,
+                ma: md.code,
+                ten: md.name
+              }));
+              cd.ds_dm_muc_do = mappedMD;
+            }
+          } catch (err) {
+            console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ từ database:', err);
+          }
+
           setCaiDat(cd);
-          const chuDe = await apiGetChuDe(mId);
           setDataChuDe(chuDe);
           setDataChuDeSelect(formatChuDeItems(chuDe));
           setIsChangingSubject(false);
@@ -92,15 +192,19 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     };
 
     dmMonThiApi.list().then(res => {
-      const list = (res.data || []).map((item: any) => ({
-        id: item.code,
-        ten: item.name
-      }));
+      const rawList = res.data || [];
+      setFullSubjects(rawList);
+      const list = rawList
+        .filter((item: any) => item.is_active)
+        .map((item: any) => ({
+          id: item.code,
+          ten: item.name
+        }));
       setMonHocList(list);
-      loadDetail();
+      loadDetail(rawList);
     }).catch(() => {
       message.error('Lỗi khi tải danh sách môn học từ database.');
-      loadDetail();
+      loadDetail([]);
     });
   }, [editingId]);
 
@@ -124,10 +228,17 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   // --- Bước 6-7: Tick chọn chủ đề → Tạo data table ---
   const layTatCaId = (ids: React.Key[], tree: ChuDeNode[]): { child: ChuDeNode; parent: ChuDeNode }[] => {
     const result: { child: ChuDeNode; parent: ChuDeNode }[] = [];
+    if (!Array.isArray(ids)) return result;
     tree.forEach(parent => {
-      parent.children?.forEach(child => {
-        if (ids.includes(child.id)) result.push({ child, parent });
-      });
+      if (parent.children && parent.children.length > 0) {
+        parent.children.forEach(child => {
+          if (ids.includes(child.id)) result.push({ child, parent });
+        });
+      } else {
+        if (ids.includes(parent.id)) {
+          result.push({ child: parent, parent });
+        }
+      }
     });
     return result;
   };
@@ -162,11 +273,20 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     });
   };
 
-  const onCheck: TreeProps['onCheck'] = (checkedKeysVal, info) => {
+  const onCheck: TreeProps['onCheck'] = (checkedKeysVal, info: any) => {
     if (!caiDat) return;
-    const keysObj = checkedKeysVal as { checked: React.Key[]; halfChecked: React.Key[] };
-    setCheckedKeys(keysObj);
-    const ids = keysObj.checked;
+    let ids: React.Key[] = [];
+    let nextCheckedKeys: { checked: React.Key[]; halfChecked: React.Key[] } = { checked: [], halfChecked: [] };
+
+    if (Array.isArray(checkedKeysVal)) {
+      ids = checkedKeysVal;
+      nextCheckedKeys = { checked: checkedKeysVal, halfChecked: info.halfCheckedKeys || [] };
+    } else if (checkedKeysVal && typeof checkedKeysVal === 'object' && 'checked' in checkedKeysVal) {
+      ids = checkedKeysVal.checked || [];
+      nextCheckedKeys = checkedKeysVal as { checked: React.Key[]; halfChecked: React.Key[] };
+    }
+
+    setCheckedKeys(nextCheckedKeys);
     const found = layTatCaId(ids, dataChuDe);
     const newData = taoDanhSachMaTran(found, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
     setObj(prev => {
@@ -182,9 +302,13 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     if (!caiDat || dataChuDe.length === 0) return;
     const pairs: { child: ChuDeNode; parent: ChuDeNode }[] = [];
     dataChuDe.forEach(parent => {
-      parent.children?.forEach(child => {
-        pairs.push({ child, parent });
-      });
+      if (parent.children && parent.children.length > 0) {
+        parent.children.forEach(child => {
+          pairs.push({ child, parent });
+        });
+      } else {
+        pairs.push({ child: parent, parent });
+      }
     });
     if (pairs.length === 0) return;
     const selectedPairs = pairs.slice(0, Math.min(pairs.length, 3));
@@ -374,8 +498,8 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                     <div className="text-slate-500 font-medium leading-relaxed bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-amber-800">
                       Chế độ sinh ngẫu nhiên sẽ tự động phân bổ câu hỏi từ Ngân hàng câu hỏi theo cấu trúc chuẩn.
                     </div>
-                    <Button 
-                      type="primary" 
+                    <Button
+                      type="primary"
                       onClick={handleAutoGenerateMatrix}
                       className="w-full bg-[#2c3e9e] hover:bg-[#243590] border-transparent text-white font-semibold rounded text-xs py-1.5 cursor-pointer"
                     >
@@ -383,7 +507,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                     </Button>
                   </div>
                 ) : dataChuDeSelect.length > 0 ? (
-                  <Tree checkable checkStrictly blockNode treeData={treeData}
+                  <Tree checkable blockNode treeData={treeData}
                     onCheck={onCheck} checkedKeys={checkedKeys}
                     className="text-xs" />
                 ) : (

@@ -53,7 +53,7 @@ export default function MatrixConfigModule() {
       try {
         const res = await dmMonThiApi.list();
         if (res && res.data) {
-          setDbSubjects(res.data);
+          setDbSubjects(res.data.filter((item: any) => item.is_active));
         }
       } catch (err) {
         console.error('Không thể tải danh sách môn thi:', err);
