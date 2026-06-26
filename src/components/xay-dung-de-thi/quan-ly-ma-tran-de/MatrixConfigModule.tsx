@@ -40,10 +40,28 @@ import {
   SendOutlined
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
-import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../data';
+import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
+import { dmMonThiApi } from '../../../services/danhMucApi.ts';
 
 export default function MatrixConfigModule() {
+  // Real Môn thi list fetched from database API
+  const [dbSubjects, setDbSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await dmMonThiApi.list();
+        if (res && res.data) {
+          setDbSubjects(res.data);
+        }
+      } catch (err) {
+        console.error('Không thể tải danh sách môn thi:', err);
+      }
+    };
+    fetchSubjects();
+  }, []);
+
   // View mode: 'list' | 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
@@ -503,7 +521,7 @@ export default function MatrixConfigModule() {
                       className="w-full text-xs"
                       options={[
                         { value: 'all', label: 'Tất cả' },
-                        ...SUBJECTS
+                        ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
                   </div>
@@ -761,7 +779,7 @@ export default function MatrixConfigModule() {
                       className="w-full text-xs"
                       options={[
                         { value: 'all', label: 'Tất cả' },
-                        ...SUBJECTS
+                        ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
                   </div>

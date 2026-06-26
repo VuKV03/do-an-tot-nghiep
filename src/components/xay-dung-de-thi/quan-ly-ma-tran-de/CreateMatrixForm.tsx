@@ -12,10 +12,11 @@ const getShortCode = (ma: string, ten: string) => {
 };
 import type { TreeDataNode, TreeProps } from 'antd';
 import {
-  apiGetMonHoc, apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
+  apiGetCaiDatMaTran, apiGetChuDe, apiSaveMaTran,
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
+import { dmMonThiApi } from '../../../services/danhMucApi.ts';
 
 interface Props {
   onBack: () => void;
@@ -90,8 +91,15 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
       }
     };
 
-    apiGetMonHoc().then(list => {
+    dmMonThiApi.list().then(res => {
+      const list = (res.data || []).map((item: any) => ({
+        id: item.code,
+        ten: item.name
+      }));
       setMonHocList(list);
+      loadDetail();
+    }).catch(() => {
+      message.error('Lỗi khi tải danh sách môn học từ database.');
       loadDetail();
     });
   }, [editingId]);
