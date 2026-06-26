@@ -21,9 +21,12 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
   const monThiId = Form.useWatch('IdMonThi', form);
   const khoiLopId = Form.useWatch('IdKhoiLop', form);
 
-  // Lọc chủ đề cha (Parent) theo Môn thi và Khối lớp
+  // Lọc chủ đề cha (Parent) theo Môn thi (và Khối lớp nếu đã chọn)
   const filteredParents = allData.filter(
-    (item) => item.IdMonThi === monThiId && item.IdKhoiLop === khoiLopId && !item.ParentId
+    (item) =>
+      item.IdMonThi === monThiId &&
+      (!khoiLopId || item.IdKhoiLop === khoiLopId) &&
+      !item.ParentId
   );
 
   useEffect(() => {
@@ -35,9 +38,10 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
   const handleParentChange = (parentId: string) => {
     const parent = allData.find(p => p.Id === parentId);
     if (parent) {
-      // Auto fill khoi lop
+      // Auto fill mon thi và khoi lop từ chủ đề cha
       form.setFieldsValue({
-        IdKhoiLop: parent.IdKhoiLop
+        IdMonThi: parent.IdMonThi,
+        IdKhoiLop: parent.IdKhoiLop,
       });
     }
   };
@@ -132,7 +136,6 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
               <Select
                 placeholder="Chọn khối lớp"
                 className="h-[42px] text-base"
-                disabled={cap === 'Tieumuc'}
                 options={(khoiLops.length > 0 ? khoiLops : mockKhoiLop).map(k => ({ value: k.Id, label: k.Ten }))}
                 onChange={() => {
                   form.setFieldsValue({ ParentId: undefined });
@@ -168,7 +171,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
                   className="h-[42px] text-base"
                   options={filteredParents.map(p => ({ value: p.Id, label: p.Ten }))}
                   onChange={handleParentChange}
-                  disabled={!monThiId || !khoiLopId}
+                  disabled={!monThiId}
                 />
               </Form.Item>
             )}
