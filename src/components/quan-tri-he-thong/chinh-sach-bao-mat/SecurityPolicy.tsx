@@ -15,7 +15,7 @@ import {
   ExportOutlined,
   SearchOutlined
 } from '@ant-design/icons';
-import { AuditLog } from '../../types';
+import { AuditLog } from '../../../types';
 
 interface SecurityLog {
   id: string;

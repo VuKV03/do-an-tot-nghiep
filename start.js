@@ -4,8 +4,8 @@ import os from 'os';
 
 const isWindows = os.platform() === 'win32';
 const venvDir = 'dev';
-const pythonCmd = isWindows ? `${venvDir}\\Scripts\\python` : `${venvDir}/bin/python`;
-const pipCmd = isWindows ? `${venvDir}\\Scripts\\pip` : `${venvDir}/bin/pip`;
+const pythonCmd = isWindows ? `${venvDir}\\Scripts\\python.exe` : `${venvDir}/bin/python`;
+const pipCmd = isWindows ? `${venvDir}\\Scripts\\pip.exe` : `${venvDir}/bin/pip`;
 
 // 1. Kiểm tra môi trường ảo đã tồn tại chưa
 if (!fs.existsSync(venvDir) || !fs.existsSync(pythonCmd)) {

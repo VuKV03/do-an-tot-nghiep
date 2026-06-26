@@ -4,6 +4,16 @@ export type CognitiveLevel = 'nhan_biet' | 'thong_hieu' | 'van_dung' | 'van_dung
 
 export type QuestionStatus = 'approved' | 'pending' | 'draft';
 
+export interface TrueFalseStatement {
+  id: number;
+  topicId: string;
+  topicName: string;
+  level: CognitiveLevel;
+  nangLuc: string;
+  content: string;
+  isCorrect: boolean;
+}
+
 export interface Question {
   id: string;
   code: string;
@@ -18,6 +28,7 @@ export interface Question {
   subTopicName?: string;
   options?: string[]; // for single and multiple options
   correctAnswer?: string | string[]; // for single/multiple/true_false/short answers
+  statements?: TrueFalseStatement[]; // for true_false questions with statement-level metadata
   creator: string;
   createdAt: string;
   feedback?: string;

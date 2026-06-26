@@ -803,7 +803,6 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                         onConfirm={() => handleDeleteExam(record.id, record.name)}
                         okText="Có"
                         cancelText="Không"
-                        centered
                       >
                         <Button
                           size="small"
@@ -969,7 +968,6 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                         onConfirm={() => handleDeletePackage(record.id, record.name)}
                         okText="Xóa hoàn toàn"
                         cancelText="Hủy"
-                        centered
                       >
                         <Button
                           size="small"
@@ -1059,7 +1057,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                   </div>
                 </div>
 
-                <Row gap={16} gutter={16}>
+                <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item name="subject" label={<span className="text-xs font-extrabold uppercase text-slate-500">Môn học thiết đính</span>} required>
                       <Select options={SUBJECTS} className="text-xs font-semibold" />

@@ -1,0 +1,304 @@
+"""
+Topics (chu_de) CRUD & Review routes
+Table: topics
+GET /topics/, POST /topics/,
+PUT /topics/{id}, DELETE /topics/{id}
+POST /topics/{id}/submit, POST /topics/{id}/approve, POST /topics/{id}/reject
+"""
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter, Depends, HTTPException
+# pyrefly: ignore [missing-import]
+from sqlalchemy.ext.asyncio import AsyncSession
+# pyrefly: ignore [missing-import]
+from sqlalchemy import select
+from pydantic import BaseModel
+
+from backend.shared.database import get_db
+from backend.exam_service.models import Topic, DmMonThi, DmKhoiLop, TopicHistory
+from backend.exam_service.schemas import (
+    TopicCreate, TopicUpdate,
+    TopicResponse, TopicListResponse,
+    TopicHistoryResponse, TopicHistoryListResponse,
+)
+
+router = APIRouter(prefix="/topics", tags=["Topics"])
+
+
+class TopicReviewRequest(BaseModel):
+    comment: Optional[str] = ""
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _to_response(topic: Topic, subject_name: Optional[str] = None, grade_name: Optional[str] = None) -> TopicResponse:
+    return TopicResponse(
+        id=topic.id,
+        parent_id=topic.parent_id,
+        code=topic.code,
+        name=topic.name,
+        subject_id=topic.subject_id,
+        grade_id=topic.grade_id,
+        status=topic.status if topic.status is not None else 1,
+        created_by=topic.created_by,
+        created_at=topic.created_at,
+        submitted_by=topic.submitted_by,
+        submitted_at=topic.submitted_at,
+        approved_by=topic.approved_by,
+        approved_at=topic.approved_at,
+        approval_note=topic.approval_note or "",
+        note=topic.note or "",
+        subject_name=subject_name,
+        grade_name=grade_name,
+    )
+
+
+@router.get("/", response_model=TopicListResponse)
+async def list_topics(db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách tất cả chủ đề, kèm theo tên môn thi và khối lớp."""
+    stmt = (
+        select(Topic, DmMonThi.name.label("subject_name"), DmKhoiLop.name.label("grade_name"))
+        .outerjoin(DmMonThi, Topic.subject_id == DmMonThi.id)
+        .outerjoin(DmKhoiLop, Topic.grade_id == DmKhoiLop.id)
+        .order_by(Topic.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    
+    data = []
+    for row in rows:
+        topic, sub_name, gr_name = row
+        data.append(_to_response(topic, sub_name, gr_name))
+        
+    return TopicListResponse(success=True, count=len(data), data=data)
+
+
+@router.post("/", status_code=201)
+async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
+    """Tạo chủ đề mới (trạng thái mặc định: 0 - Tạo mới)."""
+    # Validate trùng mã
+    existing = await db.execute(select(Topic).where(Topic.code == body.code))
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Mã chủ đề đã tồn tại!")
+
+    obj = Topic(
+        id=str(uuid.uuid4()),
+        parent_id=body.parent_id,
+        code=body.code,
+        name=body.name,
+        subject_id=body.subject_id,
+        grade_id=body.grade_id,
+        status=0,  # 0: Tạo mới
+        created_by=body.created_by or "user1",
+        created_at=_now(),
+        submitted_by=None,
+        submitted_at=None,
+        approved_by=None,
+        approved_at=None,
+        approval_note="",
+        note=body.note or "",
+    )
+    db.add(obj)
+
+    # Log history
+    history_obj = TopicHistory(
+        id=str(uuid.uuid4()),
+        topic_id=obj.id,
+        action="Thêm mới",
+        actor=obj.created_by,
+        timestamp=_now(),
+        note=f"Thêm mới chủ đề '{obj.name}'"
+    )
+    db.add(history_obj)
+
+    await db.commit()
+    await db.refresh(obj)
+    
+    # Fetch names for response
+    sub_name = None
+    if obj.subject_id:
+        r = await db.execute(select(DmMonThi.name).where(DmMonThi.id == obj.subject_id))
+        sub_name = r.scalar()
+    gr_name = None
+    if obj.grade_id:
+        r = await db.execute(select(DmKhoiLop.name).where(DmKhoiLop.id == obj.grade_id))
+        gr_name = r.scalar()
+
+    return {"success": True, "message": "Thêm chủ đề thành công!", "data": _to_response(obj, sub_name, gr_name)}
+
+
+@router.put("/{item_id}")
+async def update_topic(
+    item_id: str, body: TopicUpdate, db: AsyncSession = Depends(get_db)
+):
+    """Cập nhật chủ đề."""
+    result = await db.execute(select(Topic).where(Topic.id == item_id))
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
+
+    # Validate trùng mã (loại trừ chính record đang cập nhật)
+    if body.code is not None and body.code != obj.code:
+        dup = await db.execute(select(Topic).where(Topic.code == body.code))
+        if dup.scalars().first():
+            raise HTTPException(status_code=400, detail="Mã chủ đề đã tồn tại!")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)
+
+    # Log history
+    history_obj = TopicHistory(
+        id=str(uuid.uuid4()),
+        topic_id=obj.id,
+        action="Sửa",
+        actor="user1",  # Placeholder for current user
+        timestamp=_now(),
+        note=f"Sửa thông tin chủ đề '{obj.name}'"
+    )
+    db.add(history_obj)
+
+    await db.commit()
+    await db.refresh(obj)
+    
+    # Fetch names for response
+    sub_name = None
+    if obj.subject_id:
+        r = await db.execute(select(DmMonThi.name).where(DmMonThi.id == obj.subject_id))
+        sub_name = r.scalar()
+    gr_name = None
+    if obj.grade_id:
+        r = await db.execute(select(DmKhoiLop.name).where(DmKhoiLop.id == obj.grade_id))
+        gr_name = r.scalar()
+
+    return {
+        "success": True,
+        "message": "Cập nhật chủ đề thành công!",
+        "data": _to_response(obj, sub_name, gr_name),
+    }
+
+
+@router.delete("/{item_id}")
+async def delete_topic(item_id: str, db: AsyncSession = Depends(get_db)):
+    """Xóa chủ đề."""
+    result = await db.execute(select(Topic).where(Topic.id == item_id))
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
+    name = obj.name
+    await db.delete(obj)
+    await db.commit()
+    return {"success": True, "message": f'Đã xóa chủ đề "{name}".'}
+
+
+@router.post("/{item_id}/submit")
+async def submit_topic(item_id: str, db: AsyncSession = Depends(get_db)):
+    """Gửi thẩm định chủ đề (chuyển trạng thái sang 1 - Chờ thẩm định)."""
+    result = await db.execute(select(Topic).where(Topic.id == item_id))
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
+    
+    obj.status = 1  # 1: Chờ thẩm định
+    obj.submitted_by = "user1"
+    obj.submitted_at = _now()
+    
+    # Log history
+    history_obj = TopicHistory(
+        id=str(uuid.uuid4()),
+        topic_id=obj.id,
+        action="Gửi thẩm định",
+        actor="user1",
+        timestamp=_now(),
+        note=f"Gửi thẩm định chủ đề '{obj.name}'"
+    )
+    db.add(history_obj)
+
+    await db.commit()
+    await db.refresh(obj)
+    return {"success": True, "message": "Gửi thẩm định chủ đề thành công!", "data": _to_response(obj)}
+
+
+@router.post("/{item_id}/approve")
+async def approve_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession = Depends(get_db)):
+    """Phê duyệt chủ đề (chuyển trạng thái sang 2 - Đã thẩm định)."""
+    result = await db.execute(select(Topic).where(Topic.id == item_id))
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
+    
+    obj.status = 2  # 2: Đã thẩm định
+    obj.approved_by = "admin"
+    obj.approved_at = _now()
+    obj.approval_note = body.comment or "Đạt"
+    
+    # Log history
+    history_obj = TopicHistory(
+        id=str(uuid.uuid4()),
+        topic_id=obj.id,
+        action="Đồng ý",
+        actor="admin",
+        timestamp=_now(),
+        note=f"Đồng ý thẩm định chủ đề '{obj.name}'"
+    )
+    db.add(history_obj)
+
+    await db.commit()
+    await db.refresh(obj)
+    return {"success": True, "message": "Phê duyệt chủ đề thành công!", "data": _to_response(obj)}
+
+
+@router.post("/{item_id}/reject")
+async def reject_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession = Depends(get_db)):
+    """Từ chối phê duyệt chủ đề (chuyển trạng thái sang 3 - Từ chối)."""
+    result = await db.execute(select(Topic).where(Topic.id == item_id))
+    obj = result.scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
+    
+    obj.status = 3  # 3: Từ chối
+    obj.approved_by = "admin"
+    obj.approved_at = _now()
+    obj.approval_note = body.comment or "Cần chỉnh sửa lại"
+    
+    # Log history
+    history_obj = TopicHistory(
+        id=str(uuid.uuid4()),
+        topic_id=obj.id,
+        action="Từ chối",
+        actor="admin",
+        timestamp=_now(),
+        note=f"Từ chối thẩm định chủ đề '{obj.name}'"
+    )
+    db.add(history_obj)
+
+    await db.commit()
+    await db.refresh(obj)
+    return {"success": True, "message": "Từ chối chủ đề thành công!", "data": _to_response(obj)}
+
+@router.get("/{item_id}/history", response_model=TopicHistoryListResponse)
+async def get_topic_history(item_id: str, db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách lịch sử của một chủ đề."""
+    stmt = (
+        select(TopicHistory)
+        .where(TopicHistory.topic_id == item_id)
+        .order_by(TopicHistory.timestamp.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    
+    data = [
+        TopicHistoryResponse(
+            id=r.id,
+            topic_id=r.topic_id,
+            action=r.action,
+            actor=r.actor,
+            timestamp=r.timestamp,
+            note=r.note
+        ) for r in rows
+    ]
+    return TopicHistoryListResponse(success=True, count=len(data), data=data)

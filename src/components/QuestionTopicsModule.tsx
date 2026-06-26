@@ -1,5 +1,5 @@
 import React from 'react';
-import ChuDeCauHoi from './quan-ly-nhch/chu-de/chu-de-cau-hoi/index';
+import ThamDinhChuDeMain from './quan-ly-nhch/chu-de/tham-dinh-chu-de/index';
 import { Question, TopicNode } from '../types';
 
 interface QuestionTopicsModuleProps {
@@ -8,5 +8,5 @@ interface QuestionTopicsModuleProps {
 }
 
 export default function QuestionTopicsModule(props: QuestionTopicsModuleProps) {
-  return <ChuDeCauHoi />;
+  return <ThamDinhChuDeMain />;
 }

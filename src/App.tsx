@@ -34,7 +34,7 @@ import {
 import { Question, MatrixConfig, AuditLog, SystemUser } from './types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
 import DashboardOverview from './components/DashboardOverview';
-import QuestionBankModule from './components/QuestionBankModule';
+import QuestionBankModule from './components/quan-ly-nhch/ngan-hang-cau-hoi/tab-ngan-hang-cau-hoi';
 import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
 import QuestionTopicsModule from './components/QuestionTopicsModule';
 import QuestionStatsModule from './components/QuestionStatsModule';
@@ -448,10 +448,12 @@ export default function App() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           fullName: profileForm.fullName,
@@ -484,10 +486,12 @@ export default function App() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           old_password: passwordForm.oldPassword,

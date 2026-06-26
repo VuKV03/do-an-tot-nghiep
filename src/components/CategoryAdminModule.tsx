@@ -35,12 +35,12 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import DanhMucKhoiLop from './quan-ly-danh-muc/danh-muc-khoi-lop';
-import DanhMucMonThi from './quan-ly-danh-muc/danh-muc-mon-thi';
-import DanhMucCapDoTuDuy from './quan-ly-danh-muc/cap-do-tu-duy';
-import DanhMucLoaiHinhCauHoi from './quan-ly-danh-muc/loai-hinh-cau-hoi';
-import DanhMucThanhPhanNangLuc from './quan-ly-danh-muc/thanh-phan-nang-luc';
-import DanhMucDotThi from './quan-ly-danh-muc/danh-muc-dot-thi';
+import DanhMucKhoiLop from './quan-ly-danh-muc/grade-levels';
+import DanhMucMonThi from './quan-ly-danh-muc/subject-categories';
+import DanhMucCapDoTuDuy from './quan-ly-danh-muc/cognitive-levels';
+import DanhMucLoaiHinhCauHoi from './quan-ly-danh-muc/question-types';
+import DanhMucThanhPhanNangLuc from './quan-ly-danh-muc/competency-components';
+import DanhMucDotThi from './quan-ly-danh-muc/exam-periods';
 
 
 

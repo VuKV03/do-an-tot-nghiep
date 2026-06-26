@@ -8,11 +8,14 @@ const { TextArea } = Input;
 export interface CreateChuDeModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => void;
+  onSave?: (values: any) => Promise<boolean | 'duplicate_code'> | boolean | 'duplicate_code';
   allData: ChuDeType[];
+  monThis?: { Id: string; Ma: string; Ten: string }[];
+  khoiLops?: { Id: string; Ma: string; Ten: string }[];
+  onDuplicateCode?: () => void;
 }
 
-export default function CreateChuDeModal({ open, onClose, onSave, allData }: CreateChuDeModalProps) {
+export default function CreateChuDeModal({ open, onClose, onSave, allData, monThis = [], khoiLops = [], onDuplicateCode }: CreateChuDeModalProps) {
   const [form] = Form.useForm();
   const cap = Form.useWatch('Cap', form);
   const monThiId = Form.useWatch('IdMonThi', form);
@@ -39,12 +42,24 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData }: Cre
     }
   };
 
-  const handleFinish = (values: any) => {
+  const handleFinish = async (values: any) => {
     if (onSave) {
-      onSave(values);
+      const result = await onSave(values);
+      if (result === true) {
+        form.resetFields();
+        onClose();
+      } else if (result === 'duplicate_code') {
+        // Highlight lỗi trực tiếp trên field Mã
+        form.setFields([{
+          name: 'Ma',
+          errors: ['Mã chủ đề này đã tồn tại, vui lòng nhập mã khác!'],
+        }]);
+        onDuplicateCode?.();
+      }
+    } else {
+      form.resetFields();
+      onClose();
     }
-    form.resetFields();
-    onClose();
   };
 
   const handleCancel = () => {
@@ -102,7 +117,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData }: Cre
               <Select
                 placeholder="Chọn môn thi"
                 className="h-[42px] text-base"
-                options={mockMonThi.map(m => ({ value: m.Id, label: m.Ten }))}
+                options={(monThis.length > 0 ? monThis : mockMonThi).map(m => ({ value: m.Id, label: m.Ten }))}
                 onChange={() => {
                   form.setFieldsValue({ ParentId: undefined });
                 }}
@@ -118,7 +133,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData }: Cre
                 placeholder="Chọn khối lớp"
                 className="h-[42px] text-base"
                 disabled={cap === 'Tieumuc'}
-                options={mockKhoiLop.map(k => ({ value: k.Id, label: k.Ten }))}
+                options={(khoiLops.length > 0 ? khoiLops : mockKhoiLop).map(k => ({ value: k.Id, label: k.Ten }))}
                 onChange={() => {
                   form.setFieldsValue({ ParentId: undefined });
                 }}
