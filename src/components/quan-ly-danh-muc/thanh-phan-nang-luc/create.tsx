@@ -9,8 +9,8 @@ export interface CreateThanhPhanNangLucModalProps {
   onSave?: (values: any) => void;
 }
 
-// Mock subjects mapping to DmMonThi
-const mockMonThi = [
+// Mock subjects mapping to DmMonHoc
+const mockMonHoc = [
   { Id: '1', Ma: 'TO', Ten: 'Toán học' },
   { Id: '2', Ma: 'LI', Ten: 'Vật lý' },
   { Id: '3', Ma: 'HO', Ten: 'Hóa Học' },
@@ -79,14 +79,14 @@ export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: C
           )}
         >
           <Form.Item
-            name="IdMonThi"
-            label={<span className="text-gray-700 font-medium text-[15px]">Môn thi</span>}
-            rules={[{ required: true, message: 'Vui lòng chọn môn thi' }]}
+            name="IdMonHoc"
+            label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
+            rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
           >
             <Select
-              placeholder="Chọn môn thi"
+              placeholder="Chọn môn học"
               className="h-[42px] text-base"
-              options={mockMonThi.map((m) => ({
+              options={mockMonHoc.map((m) => ({
                 value: m.Id,
                 label: `${m.Ma} - ${m.Ten}`,
               }))}

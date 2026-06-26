@@ -170,7 +170,7 @@ export const MOCK_CAI_DAT_MAP: Record<string, CaiDatMaTran> = {
 };
 
 // ------------------------------------------
-// 2.3 GET /api/cau-hoi/chu-de?mon_thi_id={id}
+// 2.3 GET /api/cau-hoi/chu-de?mon_hoc_id={id}
 // Topic tree (cha-con)
 // ------------------------------------------
 export interface ChuDeNode {

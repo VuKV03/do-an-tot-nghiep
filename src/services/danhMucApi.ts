@@ -25,8 +25,8 @@ async function apiFetch<T>(
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-/** DmMonThi — subject_categories */
-export interface DmMonThiAPI {
+/** DmMonHoc — subject_categories */
+export interface DmMonHocAPI {
   id: string;
   code: string;       // Ma
   name: string;       // Ten
@@ -61,7 +61,7 @@ export interface DmThanhPhanNangLucAPI {
   id: string;
   code: string;
   name: string;
-  subject_id: string | null; // IdMonThi
+  subject_id: string | null; // IdMonHoc
   is_active: boolean;
   note: string;
   created_at: string;
@@ -79,25 +79,25 @@ export interface DmKhoiLopAPI {
   updated_at?: string | null;
 }
 
-// ─── DmMonThi API ─────────────────────────────────────────────────────────
+// ─── DmMonHoc API ─────────────────────────────────────────────────────────
 
-export const dmMonThiApi = {
+export const dmMonHocApi = {
   list: () =>
-    apiFetch<{ success: boolean; count: number; data: DmMonThiAPI[] }>(
-      "/dm-mon-thi/"
+    apiFetch<{ success: boolean; count: number; data: DmMonHocAPI[] }>(
+      "/dm-mon-hoc/"
     ),
-  create: (body: Omit<DmMonThiAPI, "id" | "created_at" | "updated_at">) =>
-    apiFetch<{ success: boolean; message: string; data: DmMonThiAPI }>(
-      "/dm-mon-thi/",
+  create: (body: Omit<DmMonHocAPI, "id" | "created_at" | "updated_at">) =>
+    apiFetch<{ success: boolean; message: string; data: DmMonHocAPI }>(
+      "/dm-mon-hoc/",
       { method: "POST", body: JSON.stringify(body) }
     ),
-  update: (id: string, body: Partial<Omit<DmMonThiAPI, "id" | "created_at" | "updated_at">>) =>
-    apiFetch<{ success: boolean; message: string; data: DmMonThiAPI }>(
-      `/dm-mon-thi/${id}`,
+  update: (id: string, body: Partial<Omit<DmMonHocAPI, "id" | "created_at" | "updated_at">>) =>
+    apiFetch<{ success: boolean; message: string; data: DmMonHocAPI }>(
+      `/dm-mon-hoc/${id}`,
       { method: "PUT", body: JSON.stringify(body) }
     ),
   delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/dm-mon-thi/${id}`, {
+    apiFetch<{ success: boolean; message: string }>(`/dm-mon-hoc/${id}`, {
       method: "DELETE",
     }),
 };

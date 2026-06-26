@@ -31,7 +31,7 @@ Response: {
 
 ### 2.3 Lấy Chủ đề theo Môn (cây cha-con)
 ```
-GET /api/cau-hoi/chu-de?mon_thi_id={id}&page=1&page_size=1000000
+GET /api/cau-hoi/chu-de?mon_hoc_id={id}&page=1&page_size=1000000
 Response: {
   data: [{
     id, ma, ten, so_tiet, ten_khoi_lop, is_dung_sai,
@@ -49,10 +49,10 @@ Response: {
 ### 2.4 Sinh Ma trận Ngẫu nhiên (Step1 + Step3)
 ```
 POST /api/cau-hoi/de-thi/ma-tran-ngau-nhien/step1
-Body: { mon_thi_id, khoi_cau_hoi_cau_neo_id }
+Body: { mon_hoc_id, khoi_cau_hoi_cau_neo_id }
 
 POST /api/cau-hoi/de-thi/ma-tran-ngau-nhien/step3
-Body: { mon_thi_id, ds_chu_de, khoi_cau_hoi_cau_neo_id, is_use_nhch }
+Body: { mon_hoc_id, ds_chu_de, khoi_cau_hoi_cau_neo_id, is_use_nhch }
 ```
 
 ### 2.5 Lưu / Cập nhật
@@ -154,7 +154,7 @@ const fetchData = async (value: string) => {
 ```typescript
 const FetchChuDe = async (mon_hoc_id, caiDatNew) => {
   const [res] = await Promise.all([getChuDeSelect(mon_hoc_id)]);
-  // GET /api/cau-hoi/chu-de?mon_thi_id={id}&page_size=1000000
+  // GET /api/cau-hoi/chu-de?mon_hoc_id={id}&page_size=1000000
 
   const dataRender = res.data.data; // Mảng cây cha-con
 

@@ -120,24 +120,24 @@ class PackageListResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục môn thi (DmMonThi) ────────────────────────────────────
+# ─── Danh mục môn học (DmMonHoc) ────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmMonThiCreate(BaseModel):
+class DmMonHocCreate(BaseModel):
     code: str
     name: str
     is_active: bool = True
     note: Optional[str] = ""
 
 
-class DmMonThiUpdate(BaseModel):
+class DmMonHocUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     is_active: Optional[bool] = None
     note: Optional[str] = None
 
 
-class DmMonThiResponse(BaseModel):
+class DmMonHocResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -149,10 +149,10 @@ class DmMonThiResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmMonThiListResponse(BaseModel):
+class DmMonHocListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmMonThiResponse]
+    data: List[DmMonHocResponse]
 
 
 # ═══════════════════════════════════════════════════════════════════════

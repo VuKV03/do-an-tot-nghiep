@@ -1053,7 +1053,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                   <BulbOutlined className="text-blue-600 text-lg shrink-0 mt-0.5" />
                   <div className="text-xs leading-relaxed text-blue-700 font-medium">
                     <p className="font-extrabold uppercase mb-1">CƠ CHẾ LÀM VIỆC CỐ VẤN:</p>
-                    Bước này giúp gán phân phối chính xác môn thi và khối lớp để Gemini tối ưu cấu trúc sư phạm và ngân hàng kiến thức.
+                    Bước này giúp gán phân phối chính xác môn học và khối lớp để Gemini tối ưu cấu trúc sư phạm và ngân hàng kiến thức.
                   </div>
                 </div>
 

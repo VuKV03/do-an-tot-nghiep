@@ -1,6 +1,6 @@
 """
 SQLAlchemy ORM models for the Exam Service.
-Tables: exams, questions, packages, dm_mon_thi, dm_cap_do_tu_duy,
+Tables: exams, questions, packages, dm_mon_hoc, dm_cap_do_tu_duy,
         dm_loai_hinh_cau_hoi, dm_thanh_phan_nang_luc, dm_khoi_lop
 """
 # pyrefly: ignore [missing-import]
@@ -78,8 +78,8 @@ class MatrixConfig(Base):
     structure = Column(Text)  # JSON string of ds_cau_truc array
 
 
-# ─── Danh mục môn thi (DmMonThi) ────────────────────────────────────
-class DmMonThi(Base):
+# ─── Danh mục môn học (DmMonHoc) ────────────────────────────────────
+class DmMonHoc(Base):
     __tablename__ = "subject_categories"
 
     id = Column(String(36), primary_key=True)
@@ -92,7 +92,7 @@ class DmMonThi(Base):
 
     # Relationship
     thanh_phan_nang_lucs = relationship(
-        "DmThanhPhanNangLuc", back_populates="mon_thi", cascade="all, delete-orphan"
+        "DmThanhPhanNangLuc", back_populates="mon_hoc", cascade="all, delete-orphan"
     )
 
 
@@ -127,7 +127,7 @@ class DmThanhPhanNangLuc(Base):
     id = Column(String(36), primary_key=True)
     code = Column(String(50), unique=True, nullable=False)        # Ma
     name = Column(String(255), nullable=False)                    # Ten
-    subject_id = Column(                                          # IdMonThi
+    subject_id = Column(                                          # IdMonHoc
         String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True
     )
     is_active = Column(Boolean, default=True)                     # IsActive
@@ -136,7 +136,7 @@ class DmThanhPhanNangLuc(Base):
     updated_at = Column(String(50), nullable=True)
 
     # Relationship
-    mon_thi = relationship("DmMonThi", back_populates="thanh_phan_nang_lucs")
+    mon_hoc = relationship("DmMonHoc", back_populates="thanh_phan_nang_lucs")
 
 
 # ─── Danh mục khối lớp (DmKhoiLop) ──────────────────────────────────
@@ -178,7 +178,7 @@ class Topic(Base):
     parent_id = Column(String(36), nullable=True)                 # parent_id
     code = Column(String(50), nullable=False)                     # ma
     name = Column(String(255), nullable=False)                    # ten
-    subject_id = Column(                                          # id_mon_thi
+    subject_id = Column(                                          # id_mon_hoc
         String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True
     )
     grade_id = Column(                                            # id_khoi_lop

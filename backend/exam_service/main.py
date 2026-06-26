@@ -15,12 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.shared.database import ensure_database_exists, init_tables, async_session
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
-    DmMonThi, DmCapDoTuDuy, DmLoaiHinhCauHoi,  # category models
+    DmMonHoc, DmCapDoTuDuy, DmLoaiHinhCauHoi,  # category models
     DmThanhPhanNangLuc, DmKhoiLop, ExamPeriod, Topic
 )
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
-from backend.exam_service.routes.dm_mon_thi import router as dm_mon_thi_router
+from backend.exam_service.routes.dm_mon_hoc import router as dm_mon_hoc_router
 from backend.exam_service.routes.dm_cap_do_tu_duy import router as dm_cap_do_tu_duy_router
 from backend.exam_service.routes.dm_loai_hinh_cau_hoi import router as dm_loai_hinh_cau_hoi_router
 from backend.exam_service.routes.dm_thanh_phan_nang_luc import router as dm_thanh_phan_nang_luc_router
@@ -150,19 +150,19 @@ async def seed_demo_data():
             await db.commit()
             print("[Exam Service] \u2705 Đã nạp gói đề thi mẫu thành công.")
 
-        # ─── Seed subject_categories (DmMonThi) ──────────────────────
-        result3 = await db.execute(select(func.count()).select_from(DmMonThi))
+        # ─── Seed subject_categories (DmMonHoc) ──────────────────────
+        result3 = await db.execute(select(func.count()).select_from(DmMonHoc))
         if result3.scalar() == 0:
             print("[Exam Service] Seeding subject_categories...")
             now = datetime.utcnow().isoformat() + "Z"
             subjects = [
-                DmMonThi(id="mon-01", code="MATH", name="Toán học",       is_active=True,  note="Môn khoa học tự nhiên.",  created_at=now),
-                DmMonThi(id="mon-02", code="PHYS", name="Vật Lý",         is_active=True,  note="Dùng cho khối tự nhiên.",  created_at=now),
-                DmMonThi(id="mon-03", code="CHEM", name="Hóa Học",        is_active=True,  note="Ngân hàng hóa học.",       created_at=now),
-                DmMonThi(id="mon-04", code="BIO",  name="Sinh học",       is_active=False, note="Tạm ngưng khai thác.",    created_at=now),
-                DmMonThi(id="mon-05", code="HIST", name="Lịch sử",        is_active=True,  note="Khoa học xã hội.",        created_at=now),
-                DmMonThi(id="mon-06", code="LIT",  name="Ngữ văn",        is_active=True,  note="Môn thi bắt buộc.",       created_at=now),
-                DmMonThi(id="mon-07", code="ENG",  name="Tiếng Anh",      is_active=True,  note="Ngoại ngữ chính.",        created_at=now),
+                DmMonHoc(id="mon-01", code="MATH", name="Toán học",       is_active=True,  note="Môn khoa học tự nhiên.",  created_at=now),
+                DmMonHoc(id="mon-02", code="PHYS", name="Vật Lý",         is_active=True,  note="Dùng cho khối tự nhiên.",  created_at=now),
+                DmMonHoc(id="mon-03", code="CHEM", name="Hóa Học",        is_active=True,  note="Ngân hàng hóa học.",       created_at=now),
+                DmMonHoc(id="mon-04", code="BIO",  name="Sinh học",       is_active=False, note="Tạm ngưng khai thác.",    created_at=now),
+                DmMonHoc(id="mon-05", code="HIST", name="Lịch sử",        is_active=True,  note="Khoa học xã hội.",        created_at=now),
+                DmMonHoc(id="mon-06", code="LIT",  name="Ngữ văn",        is_active=True,  note="Môn học bắt buộc.",       created_at=now),
+                DmMonHoc(id="mon-07", code="ENG",  name="Tiếng Anh",      is_active=True,  note="Ngoại ngữ chính.",        created_at=now),
             ]
             for s in subjects:
                 db.add(s)
@@ -265,7 +265,7 @@ async def seed_demo_data():
             now = datetime.utcnow().isoformat() + "Z"
             
             # Fetch first subject and grade IDs dynamically to avoid foreign key errors!
-            subj_res = await db.execute(select(DmMonThi.id))
+            subj_res = await db.execute(select(DmMonHoc.id))
             first_subject_id = subj_res.scalars().first()
             
             grade_res = await db.execute(select(DmKhoiLop.id))
@@ -348,7 +348,7 @@ from backend.exam_service.routes.matrix_configs import router as matrix_configs_
 app.include_router(matrix_configs_router)
 
 # Category routes
-app.include_router(dm_mon_thi_router)
+app.include_router(dm_mon_hoc_router)
 app.include_router(dm_cap_do_tu_duy_router)
 app.include_router(dm_loai_hinh_cau_hoi_router)
 app.include_router(dm_thanh_phan_nang_luc_router)

@@ -9,8 +9,8 @@ export interface DetailThanhPhanNangLucModalProps {
   record?: any;
 }
 
-// Mock subjects mapping to DmMonThi
-const mockMonThi = [
+// Mock subjects mapping to DmMonHoc
+const mockMonHoc = [
   { Id: '1', Ma: 'TO', Ten: 'Toán học' },
   { Id: '2', Ma: 'LI', Ten: 'Vật lý' },
   { Id: '3', Ma: 'HO', Ten: 'Hóa Học' },
@@ -24,7 +24,7 @@ export default function DetailThanhPhanNangLucModal({ open, onClose, record }: D
   useEffect(() => {
     if (open && record) {
       form.setFieldsValue({
-        IdMonThi: record.IdMonThi,
+        IdMonHoc: record.IdMonHoc,
         Ma: record.Ma,
         Ten: record.Ten,
         GhiChu: record.GhiChu || '',
@@ -67,14 +67,14 @@ export default function DetailThanhPhanNangLucModal({ open, onClose, record }: D
 
         <Form form={form} layout="vertical">
           <Form.Item
-            name="IdMonThi"
-            label={<span className="text-gray-700 font-medium text-[15px]">Môn thi</span>}
+            name="IdMonHoc"
+            label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
           >
             <Select
               disabled
-              placeholder="Chọn môn thi"
+              placeholder="Chọn môn học"
               className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium"
-              options={mockMonThi.map((m) => ({
+              options={mockMonHoc.map((m) => ({
                 value: m.Id,
                 label: `${m.Ma} - ${m.Ten}`,
               }))}

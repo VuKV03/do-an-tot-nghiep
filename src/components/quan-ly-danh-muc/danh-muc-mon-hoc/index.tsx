@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { Button, ConfigProvider, DatePicker, Empty, Input, Select, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ChevronDown, ChevronUp, Edit, Eye, Plus, Settings, Trash2 } from 'lucide-react';
-import CreateMonThiModal from './create.tsx';
-import UpdateMonThiModal from './update.tsx';
-import DetailMonThiModal from './detail.tsx';
-import DeleteMonThiModal from './delete.tsx';
-import CauHinhMonThiModal from './cau-hinh.tsx';
+import CreateMonHocModal from './create.tsx';
+import UpdateMonHocModal from './update.tsx';
+import DetailMonHocModal from './detail.tsx';
+import DeleteMonHocModal from './delete.tsx';
+import CauHinhMonHocModal from './cau-hinh.tsx';
 
 const { RangePicker } = DatePicker;
 
-export interface DmMonThiType {
+export interface DmMonHocType {
   Id: string;
   Ma: string;
   Ten: string;
@@ -20,7 +20,7 @@ export interface DmMonThiType {
   UpdatedAt?: string;
 }
 
-const mockData: DmMonThiType[] = [
+const mockData: DmMonHocType[] = [
   {
     Id: '1',
     Ma: 'TO',
@@ -62,13 +62,13 @@ const mockData: DmMonThiType[] = [
     Ma: 'SU',
     Ten: 'Lịch sử',
     IsActive: false,
-    GhiChu: 'Môn thi thuộc nhóm khoa học xã hội.',
+    GhiChu: 'Môn học thuộc nhóm khoa học xã hội.',
     CreatedAt: '22-12-2024',
     UpdatedAt: '22-12-2024',
   },
 ];
 
-export default function DanhMucMonThi() {
+export default function DanhMucMonHoc() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -77,19 +77,19 @@ export default function DanhMucMonThi() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
   const [isCauHinhModalOpen, setIsCauHinhModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<DmMonThiType | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<DmMonHocType | null>(null);
 
-  const handleOpenDetail = (record: DmMonThiType) => {
+  const handleOpenDetail = (record: DmMonHocType) => {
     setSelectedRecord(record);
     setIsDetailModalOpen(true);
   };
 
-  const handleOpenUpdate = (record: DmMonThiType) => {
+  const handleOpenUpdate = (record: DmMonHocType) => {
     setSelectedRecord(record);
     setIsUpdateModalOpen(true);
   };
 
-  const handleOpenDelete = (record: DmMonThiType) => {
+  const handleOpenDelete = (record: DmMonHocType) => {
     setSelectedRecord(record);
     setIsDeleteMultiple(false);
     setIsDeleteModalOpen(true);
@@ -100,7 +100,7 @@ export default function DanhMucMonThi() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleOpenCauHinh = (record: DmMonThiType) => {
+  const handleOpenCauHinh = (record: DmMonHocType) => {
     setSelectedRecord(record);
     setIsCauHinhModalOpen(true);
   };
@@ -110,7 +110,7 @@ export default function DanhMucMonThi() {
     onChange: (newSelectedRowKeys: React.Key[]) => setSelectedRowKeys(newSelectedRowKeys),
   };
 
-  const columns: ColumnsType<DmMonThiType> = [
+  const columns: ColumnsType<DmMonHocType> = [
     {
       title: 'STT',
       key: 'stt',
@@ -119,12 +119,12 @@ export default function DanhMucMonThi() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: 'Mã môn thi',
+      title: 'Mã môn học',
       dataIndex: 'Ma',
       key: 'Ma',
     },
     {
-      title: 'Tên môn thi',
+      title: 'Tên môn học',
       dataIndex: 'Ten',
       key: 'Ten',
     },
@@ -214,7 +214,7 @@ export default function DanhMucMonThi() {
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Mã môn thi, tên môn thi</label>
+                  <label className="text-gray-600 text-sm font-medium">Mã môn học, tên môn học</label>
                   <Input placeholder="Nhập" className="h-10 w-full" />
                 </div>
 
@@ -280,7 +280,7 @@ export default function DanhMucMonThi() {
             columns={columns}
             dataSource={mockData}
             rowKey="Id"
-            locale={{ emptyText: <Empty description="Không có dữ liệu môn thi" /> }}
+            locale={{ emptyText: <Empty description="Không có dữ liệu môn học" /> }}
             pagination={{
               total: mockData.length,
               showTotal: (total: number, range: [number, number]) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
@@ -294,30 +294,30 @@ export default function DanhMucMonThi() {
           />
         </div>
 
-        <CreateMonThiModal
+        <CreateMonHocModal
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          onSave={(values: Partial<DmMonThiType>) => {
+          onSave={(values: Partial<DmMonHocType>) => {
             console.log('Created:', values);
           }}
         />
 
-        <UpdateMonThiModal
+        <UpdateMonHocModal
           open={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           record={selectedRecord}
-          onSave={(values: Partial<DmMonThiType>) => {
+          onSave={(values: Partial<DmMonHocType>) => {
             console.log('Updated:', values);
           }}
         />
 
-        <DetailMonThiModal
+        <DetailMonHocModal
           open={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           record={selectedRecord}
         />
 
-        <DeleteMonThiModal
+        <DeleteMonHocModal
           open={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
           itemName={selectedRecord?.Ten}
@@ -333,12 +333,12 @@ export default function DanhMucMonThi() {
           }}
         />
 
-        <CauHinhMonThiModal
+        <CauHinhMonHocModal
           open={isCauHinhModalOpen}
           onClose={() => setIsCauHinhModalOpen(false)}
           record={selectedRecord}
           onSave={(values) => {
-            console.log('Cấu hình môn thi:', values);
+            console.log('Cấu hình môn học:', values);
           }}
         />
       </div>

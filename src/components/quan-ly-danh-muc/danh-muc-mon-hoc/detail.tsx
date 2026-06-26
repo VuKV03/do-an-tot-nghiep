@@ -1,19 +1,17 @@
 import React, { useEffect } from 'react';
 import { Button, ConfigProvider, Form, Input, Modal, Switch } from 'antd';
-import type { DmMonThiType } from './index.tsx';
+import type { DmMonHocType } from './index.tsx';
 
 const { TextArea } = Input;
 
-export interface UpdateMonThiModalProps {
+export interface DetailMonHocModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: Partial<DmMonThiType>) => void;
-  record?: DmMonThiType | null;
+  record?: DmMonHocType | null;
 }
 
-export default function UpdateMonThiModal({ open, onClose, onSave, record }: UpdateMonThiModalProps) {
+export default function DetailMonHocModal({ open, onClose, record }: DetailMonHocModalProps) {
   const [form] = Form.useForm();
-  const isActive = Form.useWatch('IsActive', form);
 
   useEffect(() => {
     if (open && record) {
@@ -22,21 +20,13 @@ export default function UpdateMonThiModal({ open, onClose, onSave, record }: Upd
         Ten: record.Ten,
         GhiChu: record.GhiChu || '',
         IsActive: record.IsActive,
+        CreatedAt: record.CreatedAt,
+        UpdatedAt: record.UpdatedAt || '',
       });
     } else if (!open) {
       form.resetFields();
     }
   }, [open, record, form]);
-
-  const handleFinish = (values: Partial<DmMonThiType>) => {
-    onSave?.({ ...record, ...values });
-    onClose();
-  };
-
-  const handleCancel = () => {
-    form.resetFields();
-    onClose();
-  };
 
   return (
     <ConfigProvider
@@ -50,11 +40,11 @@ export default function UpdateMonThiModal({ open, onClose, onSave, record }: Upd
       <Modal
         title={
           <div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">
-            Cập nhật môn thi
+            Chi tiết môn học
           </div>
         }
         open={open}
-        onCancel={handleCancel}
+        onCancel={onClose}
         footer={null}
         width={600}
         closeIcon={<span className="text-gray-500 text-xl font-bold">✕</span>}
@@ -65,33 +55,22 @@ export default function UpdateMonThiModal({ open, onClose, onSave, record }: Upd
         }}
       >
         <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">
-          Thông tin môn thi
+          Thông tin môn học
         </div>
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFinish}
-          requiredMark={(label, info) => (
-            <div className="flex items-center gap-1">
-              {label} {info.required && <span className="text-red-500">*</span>}
-            </div>
-          )}
-        >
+        <Form form={form} layout="vertical">
           <Form.Item
             name="Ma"
-            label={<span className="text-gray-700 font-medium text-[15px]">Mã môn thi</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập mã môn thi' }]}
+            label={<span className="text-gray-700 font-medium text-[15px]">Mã môn học</span>}
           >
-            <Input placeholder="Nhập" className="h-[42px] text-base uppercase" maxLength={50} />
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium uppercase" />
           </Form.Item>
 
           <Form.Item
             name="Ten"
-            label={<span className="text-gray-700 font-medium text-[15px]">Tên môn thi</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập tên môn thi' }]}
+            label={<span className="text-gray-700 font-medium text-[15px]">Tên môn học</span>}
           >
-            <Input placeholder="Nhập" className="h-[42px] text-base" maxLength={255} />
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
           </Form.Item>
 
           <Form.Item
@@ -99,37 +78,43 @@ export default function UpdateMonThiModal({ open, onClose, onSave, record }: Upd
             label={<span className="text-gray-700 font-medium text-[15px]">Ghi chú</span>}
           >
             <TextArea
+              disabled
               rows={4}
-              placeholder="Nhập ghi chú cho môn thi."
-              className="text-base py-2"
-              maxLength={500}
+              className="text-base py-2 text-gray-800 cursor-default bg-gray-50 font-medium"
             />
           </Form.Item>
 
           <Form.Item label={<span className="text-gray-700 font-medium text-[15px]">Tình trạng</span>}>
             <div className="flex items-center gap-3 mt-1">
               <Form.Item name="IsActive" valuePropName="checked" noStyle>
-                <Switch />
+                <Switch disabled />
               </Form.Item>
-              <span className="text-gray-800 text-[15px]">
-                {isActive === false ? 'Không hoạt động' : 'Hoạt động'}
+              <span className="text-gray-800 text-[15px] font-medium">
+                {record?.IsActive === false ? 'Không hoạt động' : 'Hoạt động'}
               </span>
             </div>
           </Form.Item>
 
+          <Form.Item
+            name="CreatedAt"
+            label={<span className="text-gray-700 font-medium text-[15px]">Ngày tạo</span>}
+          >
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
+          </Form.Item>
+
+          <Form.Item
+            name="UpdatedAt"
+            label={<span className="text-gray-700 font-medium text-[15px]">Ngày cập nhật</span>}
+          >
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
+          </Form.Item>
+
           <div className="flex justify-center gap-4 mt-10 pt-5 border-t border-gray-200">
             <Button
-              onClick={handleCancel}
+              onClick={onClose}
               className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]"
             >
               Đóng
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]"
-            >
-              Lưu
             </Button>
           </div>
         </Form>

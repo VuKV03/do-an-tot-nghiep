@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Empty, Spin, message } from 'antd';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
-import { dmThanhPhanNangLucApi, dmMonThiApi, type DmThanhPhanNangLucAPI, type DmMonThiAPI } from '../../../services/danhMucApi.ts';
+import { dmThanhPhanNangLucApi, dmMonHocApi, type DmThanhPhanNangLucAPI, type DmMonHocAPI } from '../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -22,7 +22,7 @@ export interface DmThanhPhanNangLucType {
 function CreateModal({ open, onClose, onSave, subjectOptions }: {
   open: boolean; onClose: () => void;
   onSave: (v: Partial<DmThanhPhanNangLucType>) => Promise<boolean>;
-  subjectOptions: DmMonThiAPI[];
+  subjectOptions: DmMonHocAPI[];
 }) {
   const [form, setForm] = React.useState<Partial<DmThanhPhanNangLucType>>({ is_active: true });
   const handleSave = async () => {
@@ -39,8 +39,8 @@ function CreateModal({ open, onClose, onSave, subjectOptions }: {
       <div className="bg-white rounded-lg shadow-xl w-[580px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Thêm mới thành phần năng lực</div>
         <div className="flex flex-col gap-4">
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn thi</label>
-            <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn thi" allowClear />
+          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn học</label>
+            <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn học" allowClear />
           </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
@@ -63,7 +63,7 @@ function CreateModal({ open, onClose, onSave, subjectOptions }: {
 function UpdateModal({ open, onClose, record, onSave, subjectOptions }: {
   open: boolean; onClose: () => void; record: DmThanhPhanNangLucType | null;
   onSave: (v: Partial<DmThanhPhanNangLucType>) => Promise<boolean>;
-  subjectOptions: DmMonThiAPI[];
+  subjectOptions: DmMonHocAPI[];
 }) {
   const [form, setForm] = React.useState<Partial<DmThanhPhanNangLucType>>({});
   useEffect(() => { if (open && record) setForm({ code: record.code, name: record.name, subject_id: record.subject_id, is_active: record.is_active, note: record.note || '' }); }, [open, record]);
@@ -78,8 +78,8 @@ function UpdateModal({ open, onClose, record, onSave, subjectOptions }: {
       <div className="bg-white rounded-lg shadow-xl w-[580px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Cập nhật thành phần năng lực</div>
         <div className="flex flex-col gap-4">
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn thi</label>
-            <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn thi" allowClear />
+          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn học</label>
+            <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn học" allowClear />
           </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
@@ -99,7 +99,7 @@ function UpdateModal({ open, onClose, record, onSave, subjectOptions }: {
   ) : null;
 }
 
-function DetailModal({ open, onClose, record, subjectOptions }: { open: boolean; onClose: () => void; record: DmThanhPhanNangLucType | null; subjectOptions: DmMonThiAPI[] }) {
+function DetailModal({ open, onClose, record, subjectOptions }: { open: boolean; onClose: () => void; record: DmThanhPhanNangLucType | null; subjectOptions: DmMonHocAPI[] }) {
   const subjectName = record?.subject_id ? (subjectOptions.find(m => m.id === record.subject_id)?.name ?? record.subject_id) : '—';
   return open && record ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -109,7 +109,7 @@ function DetailModal({ open, onClose, record, subjectOptions }: { open: boolean;
           {([['id','ID'],['code','Mã'],['name','Tên'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof DmThanhPhanNangLucType, string][]).map(([key, label]) => (
             <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={String(record[key] ?? '')} className="h-[38px] bg-gray-50 text-gray-800" /></div>
           ))}
-          <div><label className="text-gray-600 text-sm font-medium block mb-1">Môn thi → {subjectName}</label><Input disabled value={record.subject_id ?? ''} className="h-[38px] bg-gray-50 text-gray-800" /></div>
+          <div><label className="text-gray-600 text-sm font-medium block mb-1">Môn học → {subjectName}</label><Input disabled value={record.subject_id ?? ''} className="h-[38px] bg-gray-50 text-gray-800" /></div>
           <div className="flex items-center gap-3"><label className="text-gray-600 text-sm font-medium">Trạng thái:</label><span className={`px-3 py-1 rounded border text-sm font-medium ${record.is_active ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{record.is_active ? 'Hoạt động' : 'Không hoạt động'}</span></div>
         </div>
         <div className="flex justify-center mt-6 pt-4 border-t border-gray-200"><Button onClick={onClose} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button></div>
@@ -136,7 +136,7 @@ function DeleteModal({ open, onClose, onConfirm, itemName, isMultiple, multipleC
 // ─── Main Component ────────────────────────────────────────────────
 export default function DanhMucThanhPhanNangLuc() {
   const [data, setData] = useState<DmThanhPhanNangLucType[]>([]);
-  const [subjects, setSubjects] = useState<DmMonThiAPI[]>([]);
+  const [subjects, setSubjects] = useState<DmMonHocAPI[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
@@ -147,14 +147,14 @@ export default function DanhMucThanhPhanNangLuc() {
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<DmThanhPhanNangLucType | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchSubject, setSearchSubject] = useState<string | null>(null);
+  const [searchSubject, setSearchSubject] = useState<string>('all');
   const [searchActive, setSearchActive] = useState('all');
   const [messageApi, contextHolder] = message.useMessage();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, subRes] = await Promise.all([dmThanhPhanNangLucApi.list(), dmMonThiApi.list()]);
+      const [res, subRes] = await Promise.all([dmThanhPhanNangLucApi.list(), dmMonHocApi.list()]);
       setData(res.data as DmThanhPhanNangLucType[]);
       setSubjects(subRes.data);
     } catch { messageApi.error('Không thể tải dữ liệu!'); }
@@ -172,14 +172,14 @@ export default function DanhMucThanhPhanNangLuc() {
       const matchActive = searchActive === 'all' || 
         (searchActive === 'true' && item.is_active === true) || 
         (searchActive === 'false' && item.is_active === false);
-      const matchSubject = !searchSubject || item.subject_id === searchSubject;
+      const matchSubject = searchSubject === 'all' || item.subject_id === searchSubject;
       return matchKeyword && matchActive && matchSubject;
     });
   }, [data, searchKeyword, searchActive, searchSubject]);
 
   const columns: ColumnsType<DmThanhPhanNangLucType> = [
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, i) => i + 1 },
-    { title: 'Môn thi', dataIndex: 'subject_id', key: 'subject_id', render: (v) => getSubjectName(v) },
+    { title: 'Môn học', dataIndex: 'subject_id', key: 'subject_id', render: (v) => getSubjectName(v) },
     { title: 'Mã', dataIndex: 'code', key: 'code' },
     { title: 'Tên', dataIndex: 'name', key: 'name' },
     { title: 'Ngày tạo', dataIndex: 'created_at', key: 'created_at', render: (v) => v ? new Date(v).toLocaleString('vi-VN') : '' },
@@ -211,7 +211,7 @@ export default function DanhMucThanhPhanNangLuc() {
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Mã / Tên</label><Input placeholder="Nhập mã hoặc tên" className="h-10 w-full" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} allowClear /></div>
-                <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Môn thi</label><Select className="h-10 w-full" placeholder="Tất cả" allowClear options={subjects.map(m => ({ value: m.id, label: m.name }))} value={searchSubject} onChange={setSearchSubject} /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Môn học</label><Select className="h-10 w-full" options={[{ value: 'all', label: 'Tất cả' }, ...subjects.map(m => ({ value: m.id, label: m.name }))]} value={searchSubject} onChange={setSearchSubject} /></div>
                 <div className="flex flex-col gap-1.5"><label className="text-gray-600 text-sm font-medium">Trạng thái</label><Select value={searchActive} onChange={setSearchActive} className="h-10 w-full" options={[{ value: 'all', label: 'Tất cả' }, { value: 'true', label: 'Hoạt động' }, { value: 'false', label: 'Không hoạt động' }]} /></div>
               </div>
               <div className="flex justify-center mt-4"><Button type="primary" onClick={fetchData} className="bg-[#1d4ed8] border-none px-8 h-10 font-medium">Làm mới dữ liệu</Button></div>

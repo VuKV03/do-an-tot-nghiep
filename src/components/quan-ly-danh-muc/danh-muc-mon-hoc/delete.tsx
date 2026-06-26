@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, Modal } from 'antd';
 import { HelpCircle } from 'lucide-react';
 
-export interface DeleteMonThiModalProps {
+export interface DeleteMonHocModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -11,14 +11,14 @@ export interface DeleteMonThiModalProps {
   multipleCount?: number;
 }
 
-export default function DeleteMonThiModal({
+export default function DeleteMonHocModal({
   open,
   onClose,
   onConfirm,
   itemName,
   isMultiple,
   multipleCount,
-}: DeleteMonThiModalProps) {
+}: DeleteMonHocModalProps) {
   return (
     <Modal
       title={
@@ -42,7 +42,7 @@ export default function DeleteMonThiModal({
         <div className="text-[17px] text-slate-800 pt-1">
           {isMultiple
             ? `Bạn có chắc chắn xóa ${multipleCount || 0} bản ghi đã chọn?`
-            : `Bạn có chắc chắn xóa bản ghi có tên môn thi “${itemName || ''}”?`}
+            : `Bạn có chắc chắn xóa bản ghi có tên môn học “${itemName || ''}”?`}
         </div>
       </div>
 

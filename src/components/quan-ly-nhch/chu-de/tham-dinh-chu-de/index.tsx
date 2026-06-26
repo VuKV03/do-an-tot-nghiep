@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, HelpCircle, FileText } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import ChuDeCauHoi from '../chu-de-cau-hoi';
 import ReviewModal from './review';
-import { topicsApi, dmMonThiApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, dmMonHocApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -13,7 +13,7 @@ interface ThamDinhType {
   Id: string;
   Ma: string;
   Ten: string;
-  MonThi: string;
+  MonHoc: string;
   KhoiLop: string;
   NgayTao: string;
   TrangThai: 'approved' | 'rejected' | 'pending';
@@ -62,7 +62,7 @@ function buildTree(flatList: ThamDinhType[]): ThamDinhType[] {
 export default function ThamDinhChuDeMain() {
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [monThis, setMonThis] = useState<{ id: string; name: string }[]>([]);
+  const [monHocs, setMonHocs] = useState<{ id: string; name: string }[]>([]);
   const [khoiLops, setKhoiLops] = useState<{ id: string; name: string }[]>([]);
 
   const [activeTab, setActiveTab] = useState<'topic' | 'review'>('topic');
@@ -77,6 +77,21 @@ export default function ThamDinhChuDeMain() {
   const [searchStatus, setSearchStatus] = useState('Chờ thẩm định');
   const [filterDates, setFilterDates] = useState<any>(null);
 
+  const parentTopicsOptions = useMemo(() => {
+    const parents = rawData
+      .filter((item: any) => !item.parent_id)
+      .filter((item: any) => {
+        const matchMonHoc = !searchSubject || item.subject_name === searchSubject;
+        const matchGrade = searchGrade.length === 0 || searchGrade.includes(item.grade_name);
+        return matchMonHoc && matchGrade;
+      });
+    return parents.map((p: any) => ({ value: p.id, label: p.name }));
+  }, [rawData, searchSubject, searchGrade]);
+
+  useEffect(() => {
+    setSearchParent('Tất cả');
+  }, [searchSubject, searchGrade]);
+
   // Modal State
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ThamDinhType | null>(null);
@@ -86,13 +101,13 @@ export default function ThamDinhChuDeMain() {
     try {
       const [tRes, mtRes, klRes] = await Promise.all([
         topicsApi.list(),
-        dmMonThiApi.list(),
+        dmMonHocApi.list(),
         dmKhoiLopApi.list(),
       ]);
       setRawData(tRes.data);
-      const mappedMonThi = mtRes.data.map(i => ({ id: i.id, name: i.name }));
+      const mappedMonHoc = mtRes.data.map(i => ({ id: i.id, name: i.name }));
       const mappedKhoiLop = klRes.data.map(i => ({ id: i.id, name: i.name }));
-      setMonThis(mappedMonThi);
+      setMonHocs(mappedMonHoc);
       setKhoiLops(mappedKhoiLop);
     } catch (e: any) {
       console.error(e);
@@ -136,6 +151,17 @@ export default function ThamDinhChuDeMain() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  // Thu thập đệ quy tất cả ID của record và các con/cháu bên trong
+  const collectAllIds = (record: ThamDinhType): string[] => {
+    const ids: string[] = [record.Id];
+    if (record.children && record.children.length > 0) {
+      record.children.forEach(child => {
+        ids.push(...collectAllIds(child));
+      });
+    }
+    return ids;
+  };
+
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
@@ -173,7 +199,7 @@ export default function ThamDinhChuDeMain() {
       Id: item.id,
       Ma: item.code,
       Ten: item.name,
-      MonThi: item.subject_name || '',
+      MonHoc: item.subject_name || '',
       KhoiLop: item.grade_name || '',
       NgayTao: item.created_at,
       TrangThai: item.status === 2 ? 'approved' : item.status === 3 ? 'rejected' : 'pending',
@@ -189,7 +215,7 @@ export default function ThamDinhChuDeMain() {
         item.Ten.toLowerCase().includes(searchText.toLowerCase()) ||
         item.Ma.toLowerCase().includes(searchText.toLowerCase());
 
-      const matchSubject = !searchSubject || item.MonThi === searchSubject;
+      const matchSubject = !searchSubject || item.MonHoc === searchSubject;
       const matchGrade = searchGrade.length === 0 || searchGrade.includes(item.KhoiLop);
 
       let matchStatus = true;
@@ -206,12 +232,13 @@ export default function ThamDinhChuDeMain() {
         const end = filterDates[1].endOf('day').valueOf();
         matchDate = itemTime >= start && itemTime <= end;
       }
+      const matchParent = searchParent === 'Tất cả' || item.Id === searchParent || item.ParentId === searchParent;
 
-      return matchText && matchSubject && matchGrade && matchStatus && matchDate;
+      return matchText && matchSubject && matchGrade && matchStatus && matchDate && matchParent;
     });
 
     return buildTree(filteredFlat);
-  }, [rawData, searchText, searchSubject, searchGrade, searchStatus, filterDates]);
+  }, [rawData, searchText, searchSubject, searchGrade, searchStatus, filterDates, searchParent]);
 
   const columns: ColumnsType<ThamDinhType> = [
     {
@@ -227,8 +254,8 @@ export default function ThamDinhChuDeMain() {
     },
     {
       title: 'Môn học',
-      dataIndex: 'MonThi',
-      key: 'MonThi',
+      dataIndex: 'MonHoc',
+      key: 'MonHoc',
       width: 120,
     },
     {
@@ -333,9 +360,9 @@ export default function ThamDinhChuDeMain() {
               {isSearchExpanded && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-                    {/* Tên chủ đề, tiểu mục */}
+                    {/* Tên chủ đề/tiểu mục */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-gray-600 text-sm font-medium">Tên chủ đề, tiểu mục</label>
+                      <label className="text-gray-600 text-sm font-medium">Tên chủ đề/tiểu mục</label>
                       <Input
                         placeholder="Nhập"
                         value={searchText}
@@ -344,10 +371,10 @@ export default function ThamDinhChuDeMain() {
                       />
                     </div>
 
-                    {/* Môn thi */}
+                    {/* Môn học */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-gray-600 text-sm font-medium">
-                        Môn thi <span className="text-red-500">*</span>
+                        Môn học <span className="text-red-500">*</span>
                       </label>
                       <Select
                         value={searchSubject}
@@ -355,7 +382,7 @@ export default function ThamDinhChuDeMain() {
                         className="h-10 w-full"
                         options={[
                           { value: '', label: 'Tất cả' },
-                          ...monThis.map(m => ({ value: m.name, label: m.name }))
+                          ...monHocs.map(m => ({ value: m.name, label: m.name }))
                         ]}
                       />
                     </div>
@@ -371,6 +398,20 @@ export default function ThamDinhChuDeMain() {
                         onChange={setSearchGrade}
                         className="min-h-10 w-full text-sm"
                         options={khoiLops.map(k => ({ value: k.name, label: k.name }))}
+                      />
+                    </div>
+
+                    {/* Chủ đề */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-gray-600 text-sm font-medium">Chủ đề</label>
+                      <Select
+                        value={searchParent}
+                        onChange={setSearchParent}
+                        className="h-10 w-full"
+                        options={[
+                          { value: 'Tất cả', label: 'Tất cả' },
+                          ...parentTopicsOptions
+                        ]}
                       />
                     </div>
 
@@ -452,8 +493,14 @@ export default function ThamDinhChuDeMain() {
               record={selectedRecord}
               onApprove={async (comment) => {
                 try {
-                  await topicsApi.approve(selectedRecord!.Id, comment);
-                  message.success(`Đã phê duyệt chủ đề: "${selectedRecord?.Ten}"`);
+                  const ids = selectedRecord ? collectAllIds(selectedRecord) : [];
+                  await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
+                  const hasChildren = (selectedRecord?.children?.length ?? 0) > 0;
+                  message.success(
+                    hasChildren
+                      ? `Đã phê duyệt chủ đề "${selectedRecord?.Ten}" và ${ids.length - 1} tiểu mục bên trong`
+                      : `Đã phê duyệt: "${selectedRecord?.Ten}"`
+                  );
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể phê duyệt chủ đề!');
@@ -461,8 +508,14 @@ export default function ThamDinhChuDeMain() {
               }}
               onReject={async (comment) => {
                 try {
-                  await topicsApi.reject(selectedRecord!.Id, comment);
-                  message.error(`Từ chối chủ đề: "${selectedRecord?.Ten}"`);
+                  const ids = selectedRecord ? collectAllIds(selectedRecord) : [];
+                  await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
+                  const hasChildren = (selectedRecord?.children?.length ?? 0) > 0;
+                  message.warning(
+                    hasChildren
+                      ? `Từ chối chủ đề "${selectedRecord?.Ten}" và ${ids.length - 1} tiểu mục bên trong`
+                      : `Từ chối chủ đề: "${selectedRecord?.Ten}"`
+                  );
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể từ chối chủ đề!');

@@ -236,9 +236,9 @@ export default function MatrixConfigModule() {
                   />
                 </div>
 
-                {/* Môn thi */}
+                {/* Môn học */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
                   <Select
                     value={filterSubject}
                     onChange={setFilterSubject}

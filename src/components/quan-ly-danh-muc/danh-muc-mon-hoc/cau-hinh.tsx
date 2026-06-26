@@ -1,19 +1,19 @@
 import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, Button, Space, Divider } from 'antd';
-import type { DmMonThiType } from './index';
+import type { DmMonHocType } from './index';
 
-export interface CauHinhMonThiType {
+export interface CauHinhMonHocType {
   Id: string;
   Ma: string;
   Ten: string;
-  ThoiGianThi: number;
+  ThoiGianHoc: number;
   SoLuongDe: number;
   SoCauHoi: number;
   ThangDiem: number;
-  CauTruc: CauTrucMonThi[];
+  CauTruc: CauTrucMonHoc[];
 }
 
-export interface CauTrucMonThi {
+export interface CauTrucMonHoc {
   Phan: string;
   LoaiCauHoi: string;
   TuCau: number;
@@ -27,14 +27,14 @@ export interface LuaChonDiem {
   Diem: number;
 }
 
-interface CauHinhMonThiModalProps {
+interface CauHinhMonHocModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (values: Partial<CauHinhMonThiType>) => void;
-  record?: DmMonThiType | null;
+  onSave: (values: Partial<CauHinhMonHocType>) => void;
+  record?: DmMonHocType | null;
 }
 
-export default function CauHinhMonThiModal({ open, onClose, onSave, record }: CauHinhMonThiModalProps) {
+export default function CauHinhMonHocModal({ open, onClose, onSave, record }: CauHinhMonHocModalProps) {
   const [form] = Form.useForm();
 
   React.useEffect(() => {
@@ -63,7 +63,7 @@ export default function CauHinhMonThiModal({ open, onClose, onSave, record }: Ca
     <Modal
       title={
         <div className="flex items-center gap-2">
-          <span className="text-xl font-semibold text-[#1e3a8a]">Cấu hình môn thi</span>
+          <span className="text-xl font-semibold text-[#1e3a8a]">Cấu hình môn học</span>
         </div>
       }
       open={open}
@@ -83,14 +83,14 @@ export default function CauHinhMonThiModal({ open, onClose, onSave, record }: Ca
     >
       <div className="mt-4">
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin Môn thi</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin Môn học</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-600 text-sm font-medium mb-1.5">
-                Tên môn thi <span className="text-red-500">*</span>
+                Tên môn học <span className="text-red-500">*</span>
               </label>
               <div className="h-10 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md flex items-center text-gray-700">
-                {record?.Ten || 'Chưa có tên môn thi'}
+                {record?.Ten || 'Chưa có tên môn học'}
               </div>
             </div>
             <div>

@@ -1,33 +1,21 @@
 import React from 'react';
-import { Modal, Form, Input, Switch, Button, ConfigProvider, Select } from 'antd';
+import { Button, ConfigProvider, Form, Input, Modal, Switch } from 'antd';
+import type { DmMonHocType } from './index.tsx';
 
 const { TextArea } = Input;
 
-export interface CreateThanhPhanNangLucModalProps {
+export interface CreateMonHocModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => void;
+  onSave?: (values: Partial<DmMonHocType>) => void;
 }
 
-// Mock subjects mapping to DmMonHoc
-const mockMonHoc = [
-  { Id: '1', Ma: 'TO', Ten: 'Toán học' },
-  { Id: '2', Ma: 'LI', Ten: 'Vật lý' },
-  { Id: '3', Ma: 'HO', Ten: 'Hóa Học' },
-  { Id: '4', Ma: 'SI', Ten: 'Sinh học' },
-  { Id: '5', Ma: 'SU', Ten: 'Lịch sử' },
-];
-
-export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: CreateThanhPhanNangLucModalProps) {
+export default function CreateMonHocModal({ open, onClose, onSave }: CreateMonHocModalProps) {
   const [form] = Form.useForm();
+  const isActive = Form.useWatch('IsActive', form);
 
-  // Watch isActive value to update the label dynamically
-  const isActive = Form.useWatch('isActive', form);
-
-  const handleFinish = (values: any) => {
-    if (onSave) {
-      onSave(values);
-    }
+  const handleFinish = (values: Partial<DmMonHocType>) => {
+    onSave?.(values);
     form.resetFields();
     onClose();
   };
@@ -49,7 +37,7 @@ export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: C
       <Modal
         title={
           <div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">
-            Thêm mới thành phần năng lực câu hỏi
+            Thêm mới môn học
           </div>
         }
         open={open}
@@ -64,14 +52,14 @@ export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: C
         }}
       >
         <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">
-          Thông tin thành phần năng lực câu hỏi
+          Thông tin môn học
         </div>
 
         <Form
           form={form}
           layout="vertical"
           onFinish={handleFinish}
-          initialValues={{ isActive: true }}
+          initialValues={{ IsActive: true }}
           requiredMark={(label, info) => (
             <div className="flex items-center gap-1">
               {label} {info.required && <span className="text-red-500">*</span>}
@@ -79,34 +67,19 @@ export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: C
           )}
         >
           <Form.Item
-            name="IdMonHoc"
-            label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
-            rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
+            name="Ma"
+            label={<span className="text-gray-700 font-medium text-[15px]">Mã môn học</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập mã môn học' }]}
           >
-            <Select
-              placeholder="Chọn môn học"
-              className="h-[42px] text-base"
-              options={mockMonHoc.map((m) => ({
-                value: m.Id,
-                label: `${m.Ma} - ${m.Ten}`,
-              }))}
-            />
+            <Input placeholder="Nhập" className="h-[42px] text-base uppercase" maxLength={50} />
           </Form.Item>
 
           <Form.Item
             name="Ten"
-            label={<span className="text-gray-700 font-medium text-[15px]">Tên thành phần năng lực</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập tên thành phần năng lực' }]}
+            label={<span className="text-gray-700 font-medium text-[15px]">Tên môn học</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập tên môn học' }]}
           >
-            <Input placeholder="Nhập" className="h-[42px] text-base" />
-          </Form.Item>
-
-          <Form.Item
-            name="Ma"
-            label={<span className="text-gray-700 font-medium text-[15px]">Mã thành phần năng lực</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập mã thành phần năng lực' }]}
-          >
-            <Input placeholder="Nhập" className="h-[42px] text-base" />
+            <Input placeholder="Nhập" className="h-[42px] text-base" maxLength={255} />
           </Form.Item>
 
           <Form.Item
@@ -115,16 +88,15 @@ export default function CreateThanhPhanNangLucModal({ open, onClose, onSave }: C
           >
             <TextArea
               rows={4}
-              placeholder="Nhập ghi chú cho thành phần năng lực"
+              placeholder="Nhập ghi chú cho môn học."
               className="text-base py-2"
+              maxLength={500}
             />
           </Form.Item>
 
-          <Form.Item
-            label={<span className="text-gray-700 font-medium text-[15px]">Tình trạng</span>}
-          >
+          <Form.Item label={<span className="text-gray-700 font-medium text-[15px]">Tình trạng</span>}>
             <div className="flex items-center gap-3 mt-1">
-              <Form.Item name="isActive" valuePropName="checked" noStyle>
+              <Form.Item name="IsActive" valuePropName="checked" noStyle>
                 <Switch />
               </Form.Item>
               <span className="text-gray-800 text-[15px]">

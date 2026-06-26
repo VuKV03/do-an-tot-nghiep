@@ -14,14 +14,14 @@ interface DmThanhPhanNangLucType {
   Id: string;
   Ma: string;
   Ten: string;
-  IdMonThi: string;
+  IdMonHoc: string;
   IsActive: boolean;
   GhiChu?: string;
   CreatedAt: string;
 }
 
-// Mock subjects mapping to DmMonThi
-const mockMonThi = [
+// Mock subjects mapping to DmMonHoc
+const mockMonHoc = [
   { Id: '1', Ma: 'TO', Ten: 'Toán học' },
   { Id: '2', Ma: 'LI', Ten: 'Vật lý' },
   { Id: '3', Ma: 'HO', Ten: 'Hóa Học' },
@@ -31,16 +31,39 @@ const mockMonThi = [
 
 // Mock data matching the UI image
 const mockData: DmThanhPhanNangLucType[] = [
-  { Id: '1', Ma: '1', Ten: 'Nhận thức vật lí', IdMonThi: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '2', Ma: '2', Ten: 'Tìm hiểu thế giới tự nhiên dưới góc độ vật lí', IdMonThi: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '3', Ma: '3', Ten: 'Vận dụng kiến thức kỹ năng đã học', IdMonThi: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '4', Ma: '4', Ten: '...', IdMonThi: '4', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
-  { Id: '5', Ma: '5', Ten: '...', IdMonThi: '4', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
+  { Id: '1', Ma: '1', Ten: 'Nhận thức vật lí', IdMonHoc: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
+  { Id: '2', Ma: '2', Ten: 'Tìm hiểu thế giới tự nhiên dưới góc độ vật lí', IdMonHoc: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
+  { Id: '3', Ma: '3', Ten: 'Vận dụng kiến thức kỹ năng đã học', IdMonHoc: '2', IsActive: true, GhiChu: '', CreatedAt: '22-12-2024' },
+  { Id: '4', Ma: '4', Ten: '...', IdMonHoc: '4', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
+  { Id: '5', Ma: '5', Ten: '...', IdMonHoc: '4', IsActive: false, GhiChu: '', CreatedAt: '22-12-2024' },
 ];
 
 export default function DanhMucThanhPhanNangLuc() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
+
+  // Search states
+  const [searchText, setSearchText] = useState('');
+  const [searchStatus, setSearchStatus] = useState('Tất cả');
+  const [searchSubject, setSearchSubject] = useState('Tất cả');
+
+  // Filtered data based on search states
+  const filteredData = React.useMemo(() => {
+    return mockData.filter(item => {
+      const kw = searchText.toLowerCase();
+      const matchKeyword = !kw || 
+        item.Ten.toLowerCase().includes(kw) || 
+        item.Ma.toLowerCase().includes(kw);
+      
+      const matchStatus = searchStatus === 'Tất cả' ||
+        (searchStatus === 'Hoạt động' && item.IsActive === true) ||
+        (searchStatus === 'Không hoạt động' && item.IsActive === false);
+
+      const matchSubject = searchSubject === 'Tất cả' || item.IdMonHoc === searchSubject;
+
+      return matchKeyword && matchStatus && matchSubject;
+    });
+  }, [searchText, searchStatus, searchSubject]);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -90,12 +113,12 @@ export default function DanhMucThanhPhanNangLuc() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: 'Môn thi',
-      dataIndex: 'IdMonThi',
-      key: 'IdMonThi',
-      render: (idMonThi: string) => {
-        const monThi = mockMonThi.find((m) => m.Id === idMonThi);
-        return monThi ? monThi.Ten : idMonThi;
+      title: 'Môn học',
+      dataIndex: 'IdMonHoc',
+      key: 'IdMonHoc',
+      render: (idMonHoc: string) => {
+        const monHoc = mockMonHoc.find((m) => m.Id === idMonHoc);
+        return monHoc ? monHoc.Ten : idMonHoc;
       },
     },
     {
@@ -190,13 +213,20 @@ export default function DanhMucThanhPhanNangLuc() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Tên thành phần năng lực</label>
-                  <Input placeholder="Nhập" className="h-10 w-full" />
+                  <Input 
+                    placeholder="Nhập" 
+                    className="h-10 w-full" 
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                    allowClear
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Tình trạng</label>
                   <Select
-                    defaultValue="Tất cả"
+                    value={searchStatus}
+                    onChange={setSearchStatus}
                     className="h-10 w-full"
                     options={[
                       { value: 'Tất cả', label: 'Tất cả' },
@@ -216,8 +246,16 @@ export default function DanhMucThanhPhanNangLuc() {
                 </div>
 
                 <div className="flex flex-col gap-1.5 md:col-span-1">
-                  <label className="text-gray-600 text-sm font-medium">Môn thi</label>
-                  <Input placeholder="Nhập" className="h-10 w-full" />
+                  <label className="text-gray-600 text-sm font-medium">Môn học</label>
+                  <Select
+                    value={searchSubject}
+                    onChange={setSearchSubject}
+                    className="h-10 w-full"
+                    options={[
+                      { value: 'Tất cả', label: 'Tất cả' },
+                      ...mockMonHoc.map((m) => ({ value: m.Id, label: m.Ten })),
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -259,10 +297,10 @@ export default function DanhMucThanhPhanNangLuc() {
           <Table
             rowSelection={rowSelection}
             columns={columns}
-            dataSource={mockData}
+            dataSource={filteredData}
             rowKey="Id"
             pagination={{
-              total: 1234,
+              total: filteredData.length,
               showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
               showSizeChanger: true,
               defaultPageSize: 10,
