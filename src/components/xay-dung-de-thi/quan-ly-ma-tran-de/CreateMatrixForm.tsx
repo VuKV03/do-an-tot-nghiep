@@ -16,7 +16,7 @@ import {
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
-import { dmMonThiApi, topicsApi, dmThanhPhanNangLucApi, dmCapDoTuDuyApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+import { dmMonThiApi, topicsApi, dmThanhPhanNangLucApi, dmCapDoTuDuyApi, dmLoaiHinhCauHoiApi, type TopicAPI } from '../../../services/danhMucApi.ts';
 
 const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
   const map: { [key: string]: ChuDeNode } = {};
@@ -106,9 +106,45 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
           ten: md.name
         }));
         cd.ds_dm_muc_do = mappedMD;
+
+        // Fetch real question types (Loại hình câu hỏi)
+        const lchRes = await dmLoaiHinhCauHoiApi.list();
+        const rawLCH = lchRes.data || [];
+        const mappedLCH = rawLCH.map((lch: any) => {
+          let diem = 1.0;
+          let so_luong_cau = 5;
+          let noi_dung_phan = lch.name;
+          const codeUpper = (lch.code || '').toUpperCase();
+          if (codeUpper === 'TN') {
+            diem = 0.25;
+            so_luong_cau = 12;
+            noi_dung_phan = 'Phần I: Trắc nghiệm nhiều lựa chọn';
+          } else if (codeUpper === 'DS') {
+            diem = 1.0;
+            so_luong_cau = 4;
+            noi_dung_phan = 'Phần II: Trắc nghiệm Đúng/Sai';
+          } else if (codeUpper === 'TLN') {
+            diem = 0.5;
+            so_luong_cau = 6;
+            noi_dung_phan = 'Phần III: Trả lời ngắn';
+          }
+
+          return {
+            loai_cau_hoi_id: lch.id,
+            diem: diem,
+            so_luong_cau: so_luong_cau,
+            noi_dung_phan: noi_dung_phan,
+            dm_loai_cau_hoi: {
+              id: lch.id,
+              ma: lch.code,
+              ten: lch.name
+            }
+          };
+        });
+        cd.ds_loai_cau_hoi = mappedLCH;
       }
     } catch (err) {
-      console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ từ database:', err);
+      console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ/loại câu hỏi từ database:', err);
     }
 
     setCaiDat(cd);
@@ -162,9 +198,45 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                 ten: md.name
               }));
               cd.ds_dm_muc_do = mappedMD;
+
+              // Fetch real question types (Loại hình câu hỏi)
+              const lchRes = await dmLoaiHinhCauHoiApi.list();
+              const rawLCH = lchRes.data || [];
+              const mappedLCH = rawLCH.map((lch: any) => {
+                let diem = 1.0;
+                let so_luong_cau = 5;
+                let noi_dung_phan = lch.name;
+                const codeUpper = (lch.code || '').toUpperCase();
+                if (codeUpper === 'TN') {
+                  diem = 0.25;
+                  so_luong_cau = 12;
+                  noi_dung_phan = 'Phần I: Trắc nghiệm nhiều lựa chọn';
+                } else if (codeUpper === 'DS') {
+                  diem = 1.0;
+                  so_luong_cau = 4;
+                  noi_dung_phan = 'Phần II: Trắc nghiệm Đúng/Sai';
+                } else if (codeUpper === 'TLN') {
+                  diem = 0.5;
+                  so_luong_cau = 6;
+                  noi_dung_phan = 'Phần III: Trả lời ngắn';
+                }
+
+                return {
+                  loai_cau_hoi_id: lch.id,
+                  diem: diem,
+                  so_luong_cau: so_luong_cau,
+                  noi_dung_phan: noi_dung_phan,
+                  dm_loai_cau_hoi: {
+                    id: lch.id,
+                    ma: lch.code,
+                    ten: lch.name
+                  }
+                };
+              });
+              cd.ds_loai_cau_hoi = mappedLCH;
             }
           } catch (err) {
-            console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ từ database:', err);
+            console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ/loại câu hỏi từ database:', err);
           }
 
           setCaiDat(cd);
@@ -317,14 +389,17 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     const generatedData = taoDanhSachMaTran(selectedPairs, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
     generatedData.forEach((row, rIdx) => {
       row.ds_loai_cau_hoi.forEach((cell) => {
-        if (cell.loai_cau_hoi_id === 'lch-tn') {
+        const lchConfig = caiDat.ds_loai_cau_hoi.find(x => x.loai_cau_hoi_id === cell.loai_cau_hoi_id);
+        const codeUpper = (lchConfig?.dm_loai_cau_hoi?.ma || '').toUpperCase();
+
+        if (codeUpper === 'TN') {
           cell.so_cau = 4;
-        } else if (cell.loai_cau_hoi_id === 'lch-tln') {
+        } else if (codeUpper === 'TLN') {
           cell.so_cau = rIdx === 1 ? 1 : 2;
-        } else if (cell.loai_cau_hoi_id === 'lch-ds') {
+        } else if (codeUpper === 'DS') {
           cell.so_cau = rIdx === 1 ? 2 : 1;
         }
-        cell.diem = cell.diem || 0.25;
+        cell.diem = cell.diem || (lchConfig ? lchConfig.diem : 0.25);
       });
       const totalDiem = row.ds_loai_cau_hoi.reduce((s, c) => s + (c.so_cau || 0) * (c.diem || 0), 0);
       row.ti_le = totalDiem.toFixed(2);
@@ -570,12 +645,11 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                         {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
                           caiDat.ds_dm_muc_do.map((md) =>
                             caiDat.ds_loai_cau_hoi.map((lch) => {
-                              const shortCode = getShortCode(lch.dm_loai_cau_hoi.ma, lch.dm_loai_cau_hoi.ten);
                               return (
                                 <th key={`${nl.id}-${md.id}-${lch.loai_cau_hoi_id}`}
                                   className="border border-slate-200 px-1 py-1 text-center font-medium text-[9px] bg-slate-100 text-slate-600 whitespace-nowrap"
                                   style={{ minWidth: 45 }}>
-                                  {shortCode}
+                                  {lch.dm_loai_cau_hoi.ma}
                                 </th>
                               );
                             })
