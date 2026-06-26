@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import CreateChuDeModal from './create';
 import UpdateChuDeModal from './update';
 import DeleteChuDeModal from './delete';
+import DetailChuDeModal from './detail';
 import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
 import { topicsApi, dmMonThiApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
@@ -98,6 +99,7 @@ export default function ChuDeCauHoi() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isGuiThamDinhModalOpen, setIsGuiThamDinhModalOpen] = useState(false);
   const [isLichSuModalOpen, setIsLichSuModalOpen] = useState(false);
   
@@ -144,6 +146,11 @@ export default function ChuDeCauHoi() {
   const handleOpenUpdate = (record: ChuDeType) => {
     setSelectedRecord(record);
     setIsUpdateModalOpen(true);
+  };
+
+  const handleOpenDetail = (record: ChuDeType) => {
+    setSelectedRecord(record);
+    setIsDetailModalOpen(true);
   };
 
   const handleOpenDelete = (record: ChuDeType) => {
@@ -320,7 +327,8 @@ export default function ChuDeCauHoi() {
             type="text"
             icon={<Eye size={16} className="text-blue-600" />}
             className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
-            onClick={() => handleOpenLichSu(record)}
+            title="Xem chi tiết"
+            onClick={() => handleOpenDetail(record)}
           />
           {(record.TrangThai === 0 || record.TrangThai === 3) && (
             <Button
@@ -617,6 +625,13 @@ export default function ChuDeCauHoi() {
           open={isLichSuModalOpen}
           onClose={() => setIsLichSuModalOpen(false)}
           record={selectedRecord}
+        />
+
+        <DetailChuDeModal
+          open={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          record={selectedRecord}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note, MonThiName: i.subject_name || '', KhoiLopName: i.grade_name || '' }))}
         />
       </div>
     </ConfigProvider>

@@ -113,11 +113,11 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
           <div className="grid grid-cols-2 gap-x-6">
             <Form.Item
               name="IdMonThi"
-              label={<span className="text-gray-700 font-medium text-[15px]">Môn thi</span>}
-              rules={[{ required: true, message: 'Vui lòng chọn môn thi' }]}
+              label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
+              rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
             >
               <Select
-                placeholder="Chọn môn thi"
+                placeholder="Chọn môn học"
                 className="h-[42px] text-base"
                 options={(monThis.length > 0 ? monThis : mockMonThi).map(m => ({ value: m.Id, label: m.Ten }))}
                 disabled // Thường khi sửa không cho đổi môn thi nếu đã map câu hỏi, tạm disable

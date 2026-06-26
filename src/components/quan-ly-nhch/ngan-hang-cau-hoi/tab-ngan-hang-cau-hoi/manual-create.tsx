@@ -137,6 +137,9 @@ export default function CreateQuestionModal({
   // State điều khiển Modal thêm/sửa câu hỏi con
   const [subQuestionModalOpen, setSubQuestionModalOpen] = useState(false);
   const [editingSubQuestionId, setEditingSubQuestionId] = useState<number | null>(null);
+  const [subFormTopicKey, setSubFormTopicKey] = useState<string | null>(null);
+  const [subQuestionType, setSubQuestionType] = useState<'single' | 'multiple' | 'true_false' | 'short'>('single');
+  const [subAnswers, setSubAnswers] = useState<AnswerRow[]>(DEFAULT_ANSWERS.map((a) => ({ ...a })));
   
   /** Key của chủ đề đang được chọn trong form (để lọc tiểu mục) */
   const [formTopicKey, setFormTopicKey] = useState<string | null>(null);
@@ -1030,80 +1033,284 @@ export default function CreateQuestionModal({
 
       {/* ── Modal con thêm/sửa Câu hỏi con (Dành cho Câu hỏi nhóm) ── */}
       <Modal
-        title={
-          <span className="text-lg font-bold text-slate-800">
-            {editingSubQuestionId ? "Chỉnh sửa câu hỏi con" : "Thêm mới câu hỏi con"}
-          </span>
-        }
+        title={null}
         open={subQuestionModalOpen}
         onCancel={() => setSubQuestionModalOpen(false)}
-        onOk={() => {
-          subQuestionForm.validateFields().then((values) => {
-            if (editingSubQuestionId) {
-              setSubQuestions((prev) =>
-                prev.map((item) =>
-                  item.id === editingSubQuestionId
-                    ? { ...item, text: values.text, type: values.type, link: values.link }
-                    : item
-                )
-              );
-              message.success('Cập nhật câu hỏi con thành công!');
-            } else {
-              const newId = subQuestions.length > 0 ? Math.max(...subQuestions.map((s) => s.id)) + 1 : 1;
-              setSubQuestions((prev) => [
-                ...prev,
-                { id: newId, text: values.text, type: values.type, link: values.link }
-              ]);
-              message.success('Thêm câu hỏi con thành công!');
-            }
-            setSubQuestionModalOpen(false);
-          });
-        }}
-        okText="Xác nhận"
-        cancelText="Hủy"
+        footer={null}
         centered
-        width={520}
+        width={1140}
+        styles={{ body: { padding: 0 } }}
       >
-        <Form form={subQuestionForm} layout="vertical" className="pt-3">
-          <Form.Item
-            name="text"
-            label={<span className="text-[15px] font-bold text-slate-700">Nội dung câu hỏi con <span className="text-red-500">*</span></span>}
-            rules={[{ required: true, message: 'Vui lòng nhập nội dung!' }]}
-            className="mb-3"
-            style={{ marginBottom: '8px' }}
-          >
-            <Input.TextArea rows={3} placeholder="Nhập nội dung câu hỏi con..." className="text-base font-medium" style={{ fontSize: '15px' }} />
-          </Form.Item>
+        {/* Header modal con */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <span className="text-[17px] font-extrabold text-slate-800">
+            {editingSubQuestionId ? 'Chỉnh sửa câu hỏi thành phần' : 'Thêm mới câu hỏi thành phần'}
+          </span>
+        </div>
 
-          <Form.Item
-            name="type"
-            label={<span className="text-[15px] font-bold text-slate-700">Loại câu hỏi <span className="text-red-500">*</span></span>}
-            rules={[{ required: true, message: 'Vui lòng chọn loại câu hỏi!' }]}
-            initialValue="single"
-            className="mb-3"
-            style={{ marginBottom: '8px' }}
+        <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 175px)' }}>
+          <Form
+            form={subQuestionForm}
+            layout="vertical"
+            onValuesChange={(changed) => {
+              if (changed.type) setSubQuestionType(changed.type);
+              if (changed.chuDecon) {
+                setSubFormTopicKey(changed.chuDecon);
+                subQuestionForm.setFieldValue('tieuMuccon', undefined);
+              }
+            }}
           >
-            <Select
-              size="large"
-              className="text-base font-medium"
-              options={[
-                { value: 'single', label: 'Một lựa chọn' },
-                { value: 'multiple', label: 'Đa lựa chọn' },
-                { value: 'true_false', label: 'Đúng sai' },
-                { value: 'short', label: 'Trả lời ngắn' },
-              ]}
-            />
-          </Form.Item>
+            {/* ── Thông tin câu hỏi thành phần ── */}
+            <div className="text-[15px] font-bold text-blue-700 mb-3">Thông tin câu hỏi thành phần</div>
 
-          <Form.Item
-            name="link"
-            label={<span className="text-[15px] font-bold text-slate-700">Liên kết</span>}
-            className="mb-0"
-            style={{ marginBottom: '4px' }}
+            {/* Hàng 1: Loại câu hỏi | Chủ đề | Tiểu mục chủ đề */}
+            <div className="grid grid-cols-3 gap-3 mb-1">
+              <Form.Item
+                name="type"
+                label={<span className="text-[14px] font-semibold text-slate-700">Loại câu hỏi <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng chọn loại câu hỏi!' }]}
+                initialValue="single"
+                style={{ marginBottom: '8px' }}
+              >
+                <Select
+                  size="large"
+                  className="w-full text-base font-medium"
+                  options={[
+                    { value: 'single', label: 'Câu kéo thả' },
+                    { value: 'multiple', label: 'Đa lựa chọn' },
+                    { value: 'true_false', label: 'Đúng sai' },
+                    { value: 'short', label: 'Trả lời ngắn' },
+                  ]}
+                  onChange={(val) => setSubQuestionType(val)}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="chuDecon"
+                label={<span className="text-[14px] font-semibold text-slate-700">Chủ đề</span>}
+                style={{ marginBottom: '8px' }}
+              >
+                <Select
+                  size="large"
+                  className="w-full text-base font-medium"
+                  placeholder="Rời rạc"
+                  options={topicTreeData.map((t) => ({
+                    value: t.key as string,
+                    label: t.title as string,
+                  }))}
+                  onChange={(val: string) => {
+                    setSubFormTopicKey(val);
+                    subQuestionForm.setFieldValue('tieuMuccon', undefined);
+                  }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="tieuMuccon"
+                label={<span className="text-[14px] font-semibold text-slate-700">Tiểu mục chủ đề</span>}
+                style={{ marginBottom: '8px' }}
+              >
+                <Select
+                  size="large"
+                  className="w-full text-base font-medium"
+                  placeholder="Biến ngẫu nhiên rời rạc"
+                  options={
+                    topicTreeData
+                      .find((t) => t.key === subFormTopicKey)
+                      ?.children?.map((c) => ({ value: c.key as string, label: c.title as string })) ?? []
+                  }
+                  disabled={!subFormTopicKey}
+                />
+              </Form.Item>
+            </div>
+
+            {/* Hàng 2: Cấp độ tư duy | Thứ tự liên kết | Thành phần năng lực */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <Form.Item
+                name="level"
+                label={<span className="text-[14px] font-semibold text-slate-700">Cấp độ tư duy <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng chọn cấp độ!' }]}
+                initialValue="thong_hieu"
+                style={{ marginBottom: '8px' }}
+              >
+                <Select
+                  size="large"
+                  className="w-full text-base font-medium"
+                  options={[
+                    { value: 'nhan_biet', label: 'Biết' },
+                    { value: 'thong_hieu', label: 'Hiểu' },
+                    { value: 'van_dung', label: 'Vận dụng' },
+                    { value: 'van_dung_cao', label: 'Vận dụng cao' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="link"
+                label={<span className="text-[14px] font-semibold text-slate-700">Thứ tự liên kết nhóm câu hỏi <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng nhập thứ tự!' }]}
+                initialValue="1"
+                style={{ marginBottom: '8px' }}
+              >
+                <Input size="large" className="w-full text-base font-medium" />
+              </Form.Item>
+
+              <Form.Item
+                name="nangLuc"
+                label={<span className="text-[14px] font-semibold text-slate-700">Thành phần năng lực <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng chọn thành phần năng lực!' }]}
+                initialValue="Nhận thức Toán"
+                style={{ marginBottom: '8px' }}
+              >
+                <Select
+                  size="large"
+                  className="w-full text-base font-medium"
+                  options={nangLucOptions}
+                />
+              </Form.Item>
+            </div>
+
+            {/* Nội dung câu hỏi */}
+            <Form.Item
+              name="text"
+              label={<span className="text-[14px] font-semibold text-slate-700">Nội dung câu hỏi <span className="text-red-500">*</span></span>}
+              rules={[{ required: true, message: 'Vui lòng nhập nội dung câu hỏi!' }]}
+              style={{ marginBottom: '16px' }}
+            >
+              <div className="border border-slate-300 rounded-lg overflow-hidden">
+                {/* Toolbar giả lập */}
+                <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50">
+                  {['H1', 'H2'].map((t) => (
+                    <button key={t} type="button"
+                      className="px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                      style={{ cursor: 'pointer' }}>{t}</button>
+                  ))}
+                  <span className="w-px h-4 bg-slate-300 mx-1" />
+                  {[{ t: 'B', cls: 'font-black' }, { t: 'I', cls: 'italic' }, { t: 'U', cls: 'underline' }].map(({ t, cls }) => (
+                    <button key={t} type="button"
+                      className={`px-1.5 py-0.5 text-[13px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors ${cls}`}
+                      style={{ cursor: 'pointer' }}>{t}</button>
+                  ))}
+                  <span className="w-px h-4 bg-slate-300 mx-1" />
+                  {['🔗', '🖼', 'Σ'].map((t, i) => (
+                    <button key={i} type="button"
+                      className="px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors"
+                      style={{ cursor: 'pointer' }}>{t}</button>
+                  ))}
+                </div>
+                <Form.Item name="text" noStyle>
+                  <Input.TextArea
+                    placeholder="Nhập"
+                    rows={4}
+                    className="border-0 rounded-none text-base resize-none"
+                    style={{ boxShadow: 'none', fontSize: '15px' }}
+                  />
+                </Form.Item>
+              </div>
+            </Form.Item>
+
+            {/* ── Thông tin câu trả lời ── */}
+            <div className="text-[15px] font-bold text-blue-700 mb-2">Thông tin câu trả lời</div>
+
+            <table className="w-full border-collapse text-base">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 text-slate-600 font-bold w-12 text-[14px]">STT</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-bold text-[14px]">
+                    Nội dung trả lời <span className="text-red-500">*</span>
+                  </th>
+                  <th className="text-center py-2 px-3 text-slate-600 font-bold w-28 text-[14px]">Đáp án đúng</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subAnswers.map((ans, idx) => (
+                  <tr key={ans.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="py-2.5 px-3 text-slate-400 font-mono align-middle text-[14px]">{idx + 1}</td>
+                    <td className="py-2.5 px-3 align-middle">
+                      <Input
+                        size="large"
+                        value={ans.content}
+                        onChange={(e) =>
+                          setSubAnswers((prev) =>
+                            prev.map((a) => (a.id === ans.id ? { ...a, content: e.target.value } : a))
+                          )
+                        }
+                        placeholder={`Lựa chọn trả lời ${String(idx + 1).padStart(2, '0')}`}
+                        className="text-base rounded-lg font-medium"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 text-center align-middle">
+                      <Checkbox
+                        checked={ans.isCorrect}
+                        onChange={() =>
+                          setSubAnswers((prev) =>
+                            subQuestionType === 'single'
+                              ? prev.map((a) => ({ ...a, isCorrect: a.id === ans.id }))
+                              : prev.map((a) => (a.id === ans.id ? { ...a, isCorrect: !a.isCorrect } : a))
+                          )
+                        }
+                        style={{ transform: 'scale(1.1)' }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newId = subAnswers.length > 0 ? Math.max(...subAnswers.map((a) => a.id)) + 1 : 1;
+                  setSubAnswers((prev) => [...prev, { id: newId, content: '', isCorrect: false }]);
+                }}
+                className="text-[14px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors"
+                style={{ cursor: 'pointer' }}
+              >
+                <PlusOutlined className="text-xs" /> Thêm lựa chọn
+              </button>
+            </div>
+          </Form>
+        </div>
+
+        {/* Footer modal con */}
+        <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-slate-200">
+          <Button
+            onClick={() => setSubQuestionModalOpen(false)}
+            className="rounded-lg text-base font-bold px-6 h-9"
           >
-            <Input size="large" placeholder="Nhập liên kết (ví dụ: 1, 2...)" className="text-base font-medium" />
-          </Form.Item>
-        </Form>
+            Đóng
+          </Button>
+          <Button
+            type="primary"
+            className="rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9"
+            onClick={() => {
+              subQuestionForm.validateFields().then((values) => {
+                if (editingSubQuestionId) {
+                  setSubQuestions((prev) =>
+                    prev.map((item) =>
+                      item.id === editingSubQuestionId
+                        ? { ...item, text: values.text, type: values.type, link: values.link }
+                        : item
+                    )
+                  );
+                  message.success('Cập nhật câu hỏi con thành công!');
+                } else {
+                  const newId = subQuestions.length > 0 ? Math.max(...subQuestions.map((s) => s.id)) + 1 : 1;
+                  setSubQuestions((prev) => [
+                    ...prev,
+                    { id: newId, text: values.text, type: values.type, link: values.link }
+                  ]);
+                  message.success('Thêm câu hỏi con thành công!');
+                }
+                setSubQuestionModalOpen(false);
+                setSubAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
+              });
+            }}
+          >
+            {editingSubQuestionId ? 'Cập nhật' : 'Thêm'}
+          </Button>
+        </div>
       </Modal>
     </Modal>
   );
