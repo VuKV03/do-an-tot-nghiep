@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select, func
 
 from backend.shared.database import ensure_database_exists, init_tables, async_session
-from backend.auth_service.models import User
+from backend.auth_service.models import User, UserGroup
 from backend.auth_service.routes.auth import router as auth_router
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -55,20 +55,51 @@ async def seed_admin_user():
             db.add(teacher)
 
             await db.commit()
-            print("[Auth Service] ✅ Đã tạo user admin (admin/admin123) và teacher01 (teacher01/teacher123).")
+            print("[Auth Service] Da tao user admin (admin/admin123) va teacher01 (teacher01/teacher123).")
+
+        group_count_result = await db.execute(select(func.count()).select_from(UserGroup))
+        group_count = group_count_result.scalar()
+        
+        if group_count == 0:
+            print("[Auth Service] Chua co nhom nguoi dung nao. Dang tao nhom mac dinh...")
+            import json
+            admin_group = UserGroup(
+                id=f"g-admin-{int(time.time() * 1000)}",
+                code="GRP_ADMIN",
+                name="Quản trị hệ thống",
+                description="Nhóm có toàn quyền quản trị hệ thống và người dùng.",
+                memberCount=1,
+                permissions=json.dumps(["system.*", "questions.*", "matrix.*", "exams.*"]),
+                createdAt=datetime.utcnow().isoformat() + "Z",
+            )
+            db.add(admin_group)
+
+            teacher_group = UserGroup(
+                id=f"g-teacher-{int(time.time() * 1000)}",
+                code="GRP_TEACHER",
+                name="Giáo viên",
+                description="Nhóm giáo viên có thể quản lý câu hỏi và đề thi.",
+                memberCount=1,
+                permissions=json.dumps(["questions.view", "questions.create", "matrix.create", "exams.create", "exams.view"]),
+                createdAt=datetime.utcnow().isoformat() + "Z",
+            )
+            db.add(teacher_group)
+            
+            await db.commit()
+            print("[Auth Service] Da tao nhom GRP_ADMIN va GRP_TEACHER.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
-    print("🔐 [Auth Service] Khởi động trên Port 8004...")
+    print("[Auth Service] Khoi dong tren Port 8004...")
     await ensure_database_exists()
     await init_tables()
     await seed_admin_user()
-    print("✅ [Auth Service] Sẵn sàng xác thực!")
+    print("[Auth Service] San sang xac thuc!")
     print("=" * 60)
     yield
-    print("[Auth Service] Đang tắt...")
+    print("[Auth Service] Dang tat...")
 
 
 app = FastAPI(

@@ -219,7 +219,7 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
                   layout="vertical"
                   margin={{ top: 10, right: 10, left: 30, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontalCheck={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                   <XAxis type="number" stroke="#64748b" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fontWeight: 500 }} width={120} />
                   <ChartTooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />

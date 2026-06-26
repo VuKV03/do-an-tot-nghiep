@@ -13,9 +13,10 @@ from sqlalchemy import select
 from passlib.context import CryptContext
 
 from backend.shared.database import get_db
-from backend.auth_service.models import User
+from backend.auth_service.models import User, UserGroup
 from backend.auth_service.schemas import (
-    LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest
+    LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest,
+    GroupCreateRequest, GroupUpdateRequest, GroupResponse
 )
 from backend.auth_service.jwt_handler import create_access_token, create_refresh_token
 
@@ -165,4 +166,107 @@ async def change_password(user_id: str, body: ChangePasswordRequest, db: AsyncSe
     return {
         "success": True,
         "message": "Đổi mật khẩu thành công!"
+    }
+
+
+import json
+
+def parse_group_permissions(group: UserGroup):
+    perms = []
+    if group.permissions:
+        try:
+            perms = json.loads(group.permissions)
+        except:
+            pass
+    return {
+        "id": group.id,
+        "code": group.code,
+        "name": group.name,
+        "description": group.description,
+        "memberCount": group.memberCount,
+        "permissions": perms,
+        "createdAt": group.createdAt
+    }
+
+@router.get("/groups")
+async def list_groups(db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách nhóm người dùng."""
+    result = await db.execute(select(UserGroup))
+    groups = result.scalars().all()
+    return {
+        "success": True,
+        "data": [parse_group_permissions(g) for g in groups],
+    }
+
+@router.post("/groups", status_code=201)
+async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_db)):
+    """Tạo mới nhóm người dùng."""
+    existing = await db.execute(select(UserGroup).where(UserGroup.code == body.code))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Mã nhóm đã tồn tại.")
+
+    group = UserGroup(
+        id=f"g-{int(time.time() * 1000)}",
+        code=body.code,
+        name=body.name,
+        description=body.description,
+        permissions=json.dumps(body.permissions) if body.permissions else "[]",
+        memberCount=0,
+        createdAt=datetime.utcnow().isoformat() + "Z",
+    )
+    db.add(group)
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Tạo nhóm thành công!",
+        "group": parse_group_permissions(group)
+    }
+
+@router.put("/groups/{group_id}")
+async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession = Depends(get_db)):
+    """Cập nhật thông tin nhóm."""
+    result = await db.execute(select(UserGroup).where(UserGroup.id == group_id))
+    group = result.scalar_one_or_none()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Nhóm không tồn tại.")
+        
+    if body.code is not None and body.code != group.code:
+        existing = await db.execute(select(UserGroup).where(UserGroup.code == body.code))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Mã nhóm đã tồn tại.")
+        group.code = body.code
+        
+    if body.name is not None:
+        group.name = body.name
+    if body.description is not None:
+        group.description = body.description
+    if body.permissions is not None:
+        group.permissions = json.dumps(body.permissions)
+        
+    await db.commit()
+    return {
+        "success": True,
+        "message": "Cập nhật thông tin thành công!",
+        "group": parse_group_permissions(group)
+    }
+
+@router.delete("/groups/{group_id}")
+async def delete_group(group_id: str, db: AsyncSession = Depends(get_db)):
+    """Xóa nhóm khỏi hệ thống."""
+    result = await db.execute(select(UserGroup).where(UserGroup.id == group_id))
+    group = result.scalar_one_or_none()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Nhóm không tồn tại.")
+        
+    if group.code in ["GRP_ADMIN"]:
+        raise HTTPException(status_code=403, detail="Không thể xóa nhóm quản trị hệ thống gốc.")
+        
+    await db.delete(group)
+    await db.commit()
+    return {
+        "success": True,
+        "message": "Đã xóa nhóm thành công!"
     }
