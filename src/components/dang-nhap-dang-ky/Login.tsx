@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Tabs, Alert, message, Card } from 'antd';
-import { 
-  UserOutlined, 
-  LockOutlined, 
-  MailOutlined, 
-  GlobalOutlined, 
+import { Form, Input, Button, Tabs, Alert, message, Card, ConfigProvider, theme } from 'antd';
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  GlobalOutlined,
   ArrowRightOutlined,
   KeyOutlined,
   TeamOutlined,
   SolutionOutlined,
   SafetyCertificateOutlined
 } from '@ant-design/icons';
-import { SystemUser } from '../types';
+import { SystemUser } from '../../types';
 
 interface LoginProps {
   onLoginSuccess: (user: SystemUser) => void;
@@ -122,7 +122,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         {/* Abstract animated/colorful grid background */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.2),rgba(255,255,255,0))]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
-        
+
         {/* Floating blurred light spheres */}
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
@@ -133,7 +133,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <GlobalOutlined className="text-slate-950 text-xl font-bold" />
           </div>
           <div>
-            <h1 className="text-white text-sm font-black tracking-widest uppercase my-0 leading-none">SmartTest NHCH</h1>
+            <h1 className="text-white text-sm font-black tracking-widest uppercase my-0 leading-none">NHCH</h1>
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Hệ thống Quản lý đề thi Quốc gia</span>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
         {/* Footer info */}
         <div className="relative z-10 flex items-center justify-between text-[11px] text-slate-500">
-          <span>© 2026 SmartTest AI. Bảo lưu mọi quyền.</span>
+          <span>© 2026 NHCH THI THPT.</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
             Hệ thống đang hoạt động ổn định
@@ -209,8 +209,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 {activeTab === 'login' ? 'Đăng nhập hệ thống' : 'Đăng ký tài khoản'}
               </h3>
               <p className="text-xs text-slate-400">
-                {activeTab === 'login' 
-                  ? 'Vui lòng điền thông tin xác thực để bắt đầu phiên làm việc.' 
+                {activeTab === 'login'
+                  ? 'Vui lòng điền thông tin xác thực để bắt đầu phiên làm việc.'
                   : 'Tạo tài khoản mới để trải nghiệm các phân hệ nghiệp vụ.'}
               </p>
             </div>
@@ -226,150 +226,152 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               />
             )}
 
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              centered
-              items={[
-                {
-                  key: 'login',
-                  label: <span className="font-bold text-xs select-none">ĐĂNG NHẬP</span>,
-                  children: (
-                    <Form
-                      form={loginForm}
-                      name="login_form"
-                      layout="vertical"
-                      onFinish={onFinishLogin}
-                      requiredMark={false}
-                      className="pt-4 space-y-4"
-                    >
-                      <Form.Item
-                        name="username"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
+            <ConfigProvider theme={{ components: { Tabs: { itemColor: '#94a3b8', itemSelectedColor: '#3b82f6', itemHoverColor: '#60a5fa' } } }}>
+              <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                centered
+                items={[
+                  {
+                    key: 'login',
+                    label: <span className="font-bold text-xs select-none">ĐĂNG NHẬP</span>,
+                    children: (
+                      <Form
+                        form={loginForm}
+                        name="login_form"
+                        layout="vertical"
+                        onFinish={onFinishLogin}
+                        requiredMark={false}
+                        className="pt-4 space-y-4"
                       >
-                        <Input 
-                          prefix={<UserOutlined className="text-slate-500" />} 
-                          placeholder="Tên đăng nhập (ví dụ: admin, teacher01)" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        name="password"
-                        rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
-                      >
-                        <Input.Password 
-                          prefix={<LockOutlined className="text-slate-500" />} 
-                          placeholder="Mật khẩu bảo mật" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
-
-                      <Form.Item className="pt-2">
-                        <Button 
-                          type="primary" 
-                          htmlType="submit" 
-                          loading={loading}
-                          className="w-full h-11 bg-blue-600 hover:bg-blue-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
+                        <Form.Item
+                          name="username"
+                          rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
                         >
-                          XÁC NHẬN VÀO HỆ THỐNG <ArrowRightOutlined />
-                        </Button>
-                      </Form.Item>
-                    </Form>
-                  )
-                },
-                {
-                  key: 'register',
-                  label: <span className="font-bold text-xs select-none">ĐĂNG KÝ MỚI</span>,
-                  children: (
-                    <Form
-                      form={registerForm}
-                      name="register_form"
-                      layout="vertical"
-                      onFinish={onFinishRegister}
-                      requiredMark={false}
-                      initialValues={{ role: 'teacher' }}
-                      className="pt-4 space-y-4"
-                    >
-                      <Form.Item
-                        name="username"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập mong muốn!' }]}
-                      >
-                        <Input 
-                          prefix={<UserOutlined className="text-slate-500" />} 
-                          placeholder="Tên đăng nhập viết liền không dấu" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
+                          <Input
+                            prefix={<UserOutlined className="text-slate-500" />}
+                            placeholder="Tên đăng nhập (ví dụ: admin, teacher01)"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
 
-                      <Form.Item
-                        name="fullName"
-                        rules={[{ required: true, message: 'Vui lòng nhập họ và tên của bạn!' }]}
-                      >
-                        <Input 
-                          prefix={<SolutionOutlined className="text-slate-500" />} 
-                          placeholder="Họ và tên đầy đủ" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        name="email"
-                        rules={[
-                          { required: true, message: 'Vui lòng nhập email!' },
-                          { type: 'email', message: 'Email không hợp lệ!' }
-                        ]}
-                      >
-                        <Input 
-                          prefix={<MailOutlined className="text-slate-500" />} 
-                          placeholder="Địa chỉ Email nhận tin" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        name="password"
-                        rules={[
-                          { required: true, message: 'Vui lòng nhập mật khẩu đăng ký!' },
-                          { min: 6, message: 'Mật khẩu phải chứa ít nhất 6 ký tự!' }
-                        ]}
-                      >
-                        <Input.Password 
-                          prefix={<LockOutlined className="text-slate-500" />} 
-                          placeholder="Mật khẩu tối thiểu 6 ký tự" 
-                          className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        name="role"
-                        label={<span className="text-slate-300 text-[10px] font-bold uppercase">Vai trò tác vụ của tài khoản</span>}
-                        rules={[{ required: true }]}
-                      >
-                        <select 
-                          className="w-full h-11 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 hover:border-slate-700 focus:border-blue-500 text-xs font-semibold outline-none cursor-pointer"
+                        <Form.Item
+                          name="password"
+                          rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                         >
-                          <option value="teacher">Giáo viên bộ môn (Soạn câu hỏi, đề thi)</option>
-                          <option value="reviewer">Chuyên gia giám định (Thẩm định câu hỏi)</option>
-                          <option value="admin">Quản trị viên (Quản trị hệ thống)</option>
-                        </select>
-                      </Form.Item>
+                          <Input.Password
+                            prefix={<LockOutlined className="text-slate-500" />}
+                            placeholder="Mật khẩu bảo mật"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
 
-                      <Form.Item className="pt-2">
-                        <Button 
-                          type="primary" 
-                          htmlType="submit" 
-                          loading={loading}
-                          className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2"
+                        <Form.Item className="pt-2">
+                          <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={loading}
+                            className="w-full h-11 bg-blue-600 hover:bg-blue-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            XÁC NHẬN VÀO HỆ THỐNG <ArrowRightOutlined />
+                          </Button>
+                        </Form.Item>
+                      </Form>
+                    )
+                  },
+                  {
+                    key: 'register',
+                    label: <span className="font-bold text-xs select-none">ĐĂNG KÝ MỚI</span>,
+                    children: (
+                      <Form
+                        form={registerForm}
+                        name="register_form"
+                        layout="vertical"
+                        onFinish={onFinishRegister}
+                        requiredMark={false}
+                        initialValues={{ role: 'teacher' }}
+                        className="pt-4 space-y-4"
+                      >
+                        <Form.Item
+                          name="username"
+                          rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập mong muốn!' }]}
                         >
-                          ĐĂNG KÝ TÀI KHOẢN MỚI <ArrowRightOutlined />
-                        </Button>
-                      </Form.Item>
-                    </Form>
-                  )
-                }
-              ]}
-            />
+                          <Input
+                            prefix={<UserOutlined className="text-slate-500" />}
+                            placeholder="Tên đăng nhập viết liền không dấu"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="fullName"
+                          rules={[{ required: true, message: 'Vui lòng nhập họ và tên của bạn!' }]}
+                        >
+                          <Input
+                            prefix={<SolutionOutlined className="text-slate-500" />}
+                            placeholder="Họ và tên đầy đủ"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="email"
+                          rules={[
+                            { required: true, message: 'Vui lòng nhập email!' },
+                            { type: 'email', message: 'Email không hợp lệ!' }
+                          ]}
+                        >
+                          <Input
+                            prefix={<MailOutlined className="text-slate-500" />}
+                            placeholder="Địa chỉ Email nhận tin"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="password"
+                          rules={[
+                            { required: true, message: 'Vui lòng nhập mật khẩu đăng ký!' },
+                            { min: 6, message: 'Mật khẩu phải chứa ít nhất 6 ký tự!' }
+                          ]}
+                        >
+                          <Input.Password
+                            prefix={<LockOutlined className="text-slate-500" />}
+                            placeholder="Mật khẩu tối thiểu 6 ký tự"
+                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          name="role"
+                          label={<span className="text-slate-300 text-[10px] font-bold uppercase">Vai trò tác vụ của tài khoản</span>}
+                          rules={[{ required: true }]}
+                        >
+                          <select
+                            className="w-full h-11 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 hover:border-slate-700 focus:border-blue-500 text-xs font-semibold outline-none cursor-pointer"
+                          >
+                            <option value="teacher">Giáo viên bộ môn (Soạn câu hỏi, đề thi)</option>
+                            <option value="reviewer">Chuyên gia giám định (Thẩm định câu hỏi)</option>
+                            <option value="admin">Quản trị viên (Quản trị hệ thống)</option>
+                          </select>
+                        </Form.Item>
+
+                        <Form.Item className="pt-2">
+                          <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={loading}
+                            className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            ĐĂNG KÝ TÀI KHOẢN MỚI <ArrowRightOutlined />
+                          </Button>
+                        </Form.Item>
+                      </Form>
+                    )
+                  }
+                ]}
+              />
+            </ConfigProvider>
           </div>
 
           {/* Quick Demo Access Bar */}

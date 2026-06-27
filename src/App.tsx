@@ -42,7 +42,7 @@ import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
-import Login from './components/Login';
+import Login from './components/dang-nhap-dang-ky/Login';
 
 const { Header, Sider, Content } = Layout;
 

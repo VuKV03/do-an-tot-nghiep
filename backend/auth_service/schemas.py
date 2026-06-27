@@ -73,3 +73,44 @@ class GroupResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class SecurityPolicyUpdate(BaseModel):
+    minPasswordLength: Optional[int] = None
+    requireUpperCase: Optional[bool] = None
+    requireSpecialChar: Optional[bool] = None
+    passwordExpiryDays: Optional[int] = None
+    sessionTimeoutMinutes: Optional[int] = None
+    maxLoginFailures: Optional[int] = None
+    enableCaptchaOnFail: Optional[bool] = None
+    enable2FAForAdmin: Optional[bool] = None
+
+class SecurityPolicyResponse(BaseModel):
+    id: str
+    minPasswordLength: int
+    requireUpperCase: bool
+    requireSpecialChar: bool
+    passwordExpiryDays: int
+    sessionTimeoutMinutes: int
+    maxLoginFailures: int
+    enableCaptchaOnFail: bool
+    enable2FAForAdmin: bool
+    updatedAt: str
+
+    model_config = {"from_attributes": True}
+
+class AuditLogCreate(BaseModel):
+    user: str
+    action: str
+    level: Optional[str] = "info"
+    ip: Optional[str] = None
+    details: Optional[str] = None
+
+class AuditLogResponse(BaseModel):
+    id: str
+    user: str
+    action: str
+    timestamp: str
+    level: str
+    ip: Optional[str] = None
+    details: Optional[str] = None
+
+    model_config = {"from_attributes": True}
