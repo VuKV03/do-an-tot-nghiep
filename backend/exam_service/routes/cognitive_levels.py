@@ -1,7 +1,7 @@
 """
-DmCapDoTuDuy CRUD routes — Danh mục cấp độ tư duy
-GET /dm-cap-do-tu-duy/, POST /dm-cap-do-tu-duy/,
-PUT /dm-cap-do-tu-duy/{id}, DELETE /dm-cap-do-tu-duy/{id}
+CognitiveLevel CRUD routes — Danh mục cấp độ tư duy
+GET /cognitive-levels/, POST /cognitive-levels/,
+PUT /cognitive-levels/{id}, DELETE /cognitive-levels/{id}
 """
 import uuid
 from datetime import datetime, timezone
@@ -14,21 +14,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.shared.database import get_db
-from backend.exam_service.models import DmCapDoTuDuy
+from backend.exam_service.models import CognitiveLevel
 from backend.exam_service.schemas import (
-    DmCapDoTuDuyCreate, DmCapDoTuDuyUpdate,
-    DmCapDoTuDuyResponse, DmCapDoTuDuyListResponse,
+    CognitiveLevelCreate, CognitiveLevelUpdate,
+    CognitiveLevelResponse, CognitiveLevelListResponse,
 )
 
-router = APIRouter(prefix="/dm-cap-do-tu-duy", tags=["DmCapDoTuDuy"])
+router = APIRouter(prefix="/cognitive-levels", tags=["Cognitive Levels"])
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _to_response(obj: DmCapDoTuDuy) -> DmCapDoTuDuyResponse:
-    return DmCapDoTuDuyResponse(
+def _to_response(obj: CognitiveLevel) -> CognitiveLevelResponse:
+    return CognitiveLevelResponse(
         id=obj.id,
         code=obj.code,
         name=obj.name,
@@ -38,23 +38,23 @@ def _to_response(obj: DmCapDoTuDuy) -> DmCapDoTuDuyResponse:
     )
 
 
-@router.get("/", response_model=DmCapDoTuDuyListResponse)
-async def list_dm_cap_do_tu_duy(db: AsyncSession = Depends(get_db)):
+@router.get("/", response_model=CognitiveLevelListResponse)
+async def list_cognitive_levels(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách tất cả cấp độ tư duy."""
-    result = await db.execute(select(DmCapDoTuDuy).order_by(DmCapDoTuDuy.created_at.desc()))
+    result = await db.execute(select(CognitiveLevel).order_by(CognitiveLevel.created_at.desc()))
     items = result.scalars().all()
     data = [_to_response(i) for i in items]
-    return DmCapDoTuDuyListResponse(success=True, count=len(data), data=data)
+    return CognitiveLevelListResponse(success=True, count=len(data), data=data)
 
 
 @router.post("/", status_code=201)
-async def create_dm_cap_do_tu_duy(body: DmCapDoTuDuyCreate, db: AsyncSession = Depends(get_db)):
+async def create_cognitive_level(body: CognitiveLevelCreate, db: AsyncSession = Depends(get_db)):
     """Tạo cấp độ tư duy mới."""
-    existing = await db.execute(select(DmCapDoTuDuy).where(DmCapDoTuDuy.code == body.code))
+    existing = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code == body.code))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Mã cấp độ tư duy đã tồn tại!")
 
-    obj = DmCapDoTuDuy(
+    obj = CognitiveLevel(
         id=str(uuid.uuid4()),
         code=body.code,
         name=body.name,
@@ -69,17 +69,17 @@ async def create_dm_cap_do_tu_duy(body: DmCapDoTuDuyCreate, db: AsyncSession = D
 
 
 @router.put("/{item_id}")
-async def update_dm_cap_do_tu_duy(
-    item_id: str, body: DmCapDoTuDuyUpdate, db: AsyncSession = Depends(get_db)
+async def update_cognitive_level(
+    item_id: str, body: CognitiveLevelUpdate, db: AsyncSession = Depends(get_db)
 ):
     """Cập nhật cấp độ tư duy."""
-    result = await db.execute(select(DmCapDoTuDuy).where(DmCapDoTuDuy.id == item_id))
+    result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy cấp độ tư duy.")
 
     if body.code is not None and body.code != obj.code:
-        dup = await db.execute(select(DmCapDoTuDuy).where(DmCapDoTuDuy.code == body.code))
+        dup = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code == body.code))
         if dup.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Mã cấp độ tư duy đã tồn tại!")
 
@@ -93,9 +93,9 @@ async def update_dm_cap_do_tu_duy(
 
 
 @router.delete("/{item_id}")
-async def delete_dm_cap_do_tu_duy(item_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_cognitive_level(item_id: str, db: AsyncSession = Depends(get_db)):
     """Xóa cấp độ tư duy."""
-    result = await db.execute(select(DmCapDoTuDuy).where(DmCapDoTuDuy.id == item_id))
+    result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy cấp độ tư duy.")

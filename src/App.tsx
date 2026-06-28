@@ -41,8 +41,9 @@ import QuestionStatsModule from './components/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
+import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
-import Login from './components/Login';
+import Login from './components/dang-nhap-dang-ky/Login';
 
 const { Header, Sider, Content } = Layout;
 
@@ -228,7 +229,7 @@ export default function App() {
             title: 'HƯỚNG DẪN SỬ DỤNG HỆ THỐNG',
             content: (
               <div className="space-y-3 pt-3 text-xs leading-relaxed text-slate-600">
-                <p>1. <strong>Quản lý ngân hàng câu hỏi:</strong> Lọc danh sách theo môn thi ở thanh bên, bấm vào lá cây chủ đề kiến thức để xem câu hỏi thuộc chuyên đề đó. Hỗ trợ thêm thủ công, import tài liệu, hoặc sử dụng AI để gợi ý nội dung.</p>
+                <p>1. <strong>Quản lý ngân hàng câu hỏi:</strong> Lọc danh sách theo môn học ở thanh bên, bấm vào lá cây chủ đề kiến thức để xem câu hỏi thuộc chuyên đề đó. Hỗ trợ thêm thủ công, import tài liệu, hoặc sử dụng AI để gợi ý nội dung.</p>
                 <p>2. <strong>Thẩm định chất lượng:</strong> Bấm chọn nút "Thẩm định" tại bảng câu hỏi để xem chi tiết, cho điểm phản hồi chuyên môn và đồng bộ chuyển đổi trạng thái duyệt.</p>
                 <p>3. <strong>Xây dựng ma trận & Sinh đề thi:</strong> Thiết lập tham số ma trận, điền phân bổ chỉ số câu hỏi và bấm nút sinh đề thi bằng AI để nhận ngay gói tệp lưu trữ kết quả kiểm thi.</p>
               </div>
@@ -259,7 +260,7 @@ export default function App() {
   // "Xây dựng đề" -> sub-items: ["Quản lý ma trận đề", "Quản lý đề thi & gói đề"]
   // "Quản lý ngân hàng câu hỏi" -> sub-items: ["Chủ đề câu hỏi", "Ngân hàng câu hỏi", "Thống kê NHCH"]
   // "Quản trị hệ thống" -> sub-items: ["Quản lý người dùng", "Quản lý nhóm người dùng", "Chính sách bảo mật"]
-  // "Quản trị danh mục" -> sub-items: ["Danh mục môn thi", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
+  // "Quản trị danh mục" -> sub-items: ["Danh mục môn học", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
   const menuItems = [
     {
       key: 'dashboard',
@@ -300,7 +301,7 @@ export default function App() {
       icon: <FolderOutlined />,
       label: 'Quản trị danh mục',
       children: [
-        { key: 'danh-muc-mon-thi', label: 'Danh mục môn thi' },
+        { key: 'danh-muc-mon-hoc', label: 'Danh mục môn học' },
         { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
         { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
         { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
@@ -365,7 +366,7 @@ export default function App() {
             onAddAuditLog={(log) => setAuditLogs(prev => [log, ...prev])}
           />
         );
-      case 'danh-muc-mon-thi':
+      case 'danh-muc-mon-hoc':
       case 'danh-muc-khoi-lop':
       case 'cap-do-tu-duy':
       case 'loai-hinh-cau-hoi':
@@ -415,7 +416,7 @@ export default function App() {
       case 'quan-ly-nguoi-dung': return 'Quản trị hệ thống / Quản lý người dùng';
       case 'quan-ly-nhom-nguoi-dung': return 'Quản trị hệ thống / Quản lý nhóm người dùng';
       case 'chinh-sach-bao-mat': return 'Quản trị hệ thống / Chính sách bảo mật';
-      case 'danh-muc-mon-thi': return 'Quản trị danh mục / Danh mục môn thi';
+      case 'danh-muc-mon-hoc': return 'Quản trị danh mục / Danh mục môn học';
       case 'danh-muc-khoi-lop': return 'Quản trị danh mục / Danh mục khối lớp';
       case 'cap-do-tu-duy': return 'Quản trị danh mục / Cấp độ tư duy';
       case 'loai-hinh-cau-hoi': return 'Quản trị danh mục / Loại hình câu hỏi';
@@ -530,15 +531,34 @@ export default function App() {
         style={{ backgroundColor: '#0f172a' }}
       >
         {/* Brand system Logo / Area */}
-        <div className="h-16 flex items-center px-4 gap-3 border-b border-white/[0.08]" id="sidebar-brand-box">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
-            <GlobalOutlined className="text-white text-base animate-pulse" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col select-none overflow-hidden text-ellipsis whitespace-nowrap">
-              <strong className="text-white text-xs font-black tracking-widest uppercase">SmartTest NHCH</strong>
-              <span className="text-[9px] text-blue-200 uppercase font-semibold">Tài nguyên Quốc gia</span>
-            </div>
+        <div className={`h-16 flex items-center border-b border-white/[0.08] ${collapsed ? 'justify-center px-2' : 'justify-between px-4'}`} id="sidebar-brand-box">
+          {!collapsed ? (
+            <>
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+                  <GlobalOutlined className="text-white text-base animate-pulse" />
+                </div>
+                <div className="flex flex-col select-none overflow-hidden text-ellipsis whitespace-nowrap">
+                  <strong className="text-white text-xs font-black tracking-widest uppercase">SmartTest NHCH</strong>
+                  <span className="text-[9px] text-blue-200 uppercase font-semibold">Tài nguyên Quốc gia</span>
+                </div>
+              </div>
+              <Button
+                type="text"
+                icon={<MenuFoldOutlined style={{ color: '#ffffff', fontSize: '20px' }} />}
+                onClick={() => setCollapsed(true)}
+                className="flex items-center justify-center p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                style={{ color: '#ffffff' }}
+              />
+            </>
+          ) : (
+            <Button
+              type="text"
+              icon={<MenuUnfoldOutlined style={{ color: '#ffffff', fontSize: '20px' }} />}
+              onClick={() => setCollapsed(false)}
+              className="flex items-center justify-center p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ color: '#ffffff' }}
+            />
           )}
         </div>
 
@@ -555,17 +575,7 @@ export default function App() {
           className="font-medium text-xs text-slate-100"
         />
 
-        {/* Left Side bottom collapse trigger */}
-        <div className="absolute bottom-4 left-4 right-4" id="sidebar-collapse-toggle">
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined className="text-emerald-400 font-black text-sm" /> : <MenuFoldOutlined className="text-slate-400 text-sm" />}
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full h-11 text-slate-200 bg-slate-800/90 hover:bg-slate-700/95 hover:text-white border border-slate-700/80 hover:border-slate-500 rounded-xl cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 shadow-lg font-bold text-xs select-none active:scale-[0.97]"
-          >
-            {!collapsed && <span className="tracking-wider uppercase text-[10px] font-black text-slate-300">Thu gọn trình đơn</span>}
-          </Button>
-        </div>
+
       </Sider>
 
       <Layout className="flex flex-col h-screen overflow-y-auto" id="app-viewport-wrapper">

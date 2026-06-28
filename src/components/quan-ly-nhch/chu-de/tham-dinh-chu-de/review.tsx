@@ -27,7 +27,7 @@ interface ReviewModalProps {
     Id: string;
     Ma: string;
     Ten: string;
-    MonThi: string;
+    MonHoc: string;
     KhoiLop: string;
     NgayTao: string;
     TrangThai: string;

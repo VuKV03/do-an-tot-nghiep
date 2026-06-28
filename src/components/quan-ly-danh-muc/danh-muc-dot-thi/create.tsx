@@ -7,7 +7,7 @@ const { RangePicker } = DatePicker;
 export interface CreateDotThiModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (values: any) => void;
+  onSave?: (values: any) => Promise<boolean> | boolean;
 }
 
 export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotThiModalProps) {
@@ -16,7 +16,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
   // Watch isActive value to update the label dynamically
   const isActive = Form.useWatch('isActive', form);
 
-  const handleFinish = (values: any) => {
+  const handleFinish = async (values: any) => {
     const { NgayHieuLuc, ...rest } = values;
     let NgayBatDau = null;
     let NgayKetThuc = null;
@@ -26,14 +26,16 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
     }
 
     if (onSave) {
-      onSave({
+      const success = await onSave({
         ...rest,
         NgayBatDau,
         NgayKetThuc,
       });
+      if (success) {
+        form.resetFields();
+        onClose();
+      }
     }
-    form.resetFields();
-    onClose();
   };
 
   const handleCancel = () => {

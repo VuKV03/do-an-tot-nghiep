@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, ConfigProvider } from 'antd';
 import type { ChuDeType } from './index';
-import { mockMonThi, mockKhoiLop } from './index';
+import { mockMonHoc, mockKhoiLop } from './index';
 
 const { TextArea } = Input;
 
@@ -11,28 +11,28 @@ export interface UpdateChuDeModalProps {
   onSave?: (values: any) => Promise<boolean | 'duplicate_code'> | boolean | 'duplicate_code';
   record?: ChuDeType | null;
   allData: ChuDeType[];
-  monThis?: { Id: string; Ma: string; Ten: string }[];
+  monHocs?: { Id: string; Ma: string; Ten: string }[];
   khoiLops?: { Id: string; Ma: string; Ten: string }[];
   onDuplicateCode?: () => void;
 }
 
-export default function UpdateChuDeModal({ open, onClose, onSave, record, allData, monThis = [], khoiLops = [], onDuplicateCode }: UpdateChuDeModalProps) {
+export default function UpdateChuDeModal({ open, onClose, onSave, record, allData, monHocs = [], khoiLops = [], onDuplicateCode }: UpdateChuDeModalProps) {
   const [form] = Form.useForm();
   
   const cap = Form.useWatch('Cap', form);
-  const monThiId = Form.useWatch('IdMonThi', form);
+  const monHocId = Form.useWatch('IdMonHoc', form);
   const khoiLopId = Form.useWatch('IdKhoiLop', form);
 
   // Lọc chủ đề cha
   const filteredParents = allData.filter(
-    (item) => item.IdMonThi === monThiId && item.IdKhoiLop === khoiLopId && !item.ParentId
+    (item) => item.IdMonHoc === monHocId && item.IdKhoiLop === khoiLopId && !item.ParentId
   );
 
   useEffect(() => {
     if (open && record) {
       const isSubtopic = record.ParentId !== null && record.ParentId !== undefined;
       form.setFieldsValue({
-        IdMonThi: record.IdMonThi,
+        IdMonHoc: record.IdMonHoc,
         IdKhoiLop: record.IdKhoiLop,
         Cap: isSubtopic ? 'Tieumuc' : 'Chude',
         ParentId: record.ParentId,
@@ -112,15 +112,15 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
         >
           <div className="grid grid-cols-2 gap-x-6">
             <Form.Item
-              name="IdMonThi"
+              name="IdMonHoc"
               label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
               rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
             >
               <Select
                 placeholder="Chọn môn học"
                 className="h-[42px] text-base"
-                options={(monThis.length > 0 ? monThis : mockMonThi).map(m => ({ value: m.Id, label: m.Ten }))}
-                disabled // Thường khi sửa không cho đổi môn thi nếu đã map câu hỏi, tạm disable
+                options={(monHocs.length > 0 ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
+                disabled // Thường khi sửa không cho đổi môn học nếu đã map câu hỏi, tạm disable
               />
             </Form.Item>
 

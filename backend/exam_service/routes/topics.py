@@ -18,7 +18,7 @@ from sqlalchemy import select
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Topic, DmMonThi, DmKhoiLop, TopicHistory
+from backend.exam_service.models import Topic, SubjectCategory, GradeLevel, TopicHistory
 from backend.exam_service.schemas import (
     TopicCreate, TopicUpdate,
     TopicResponse, TopicListResponse,
@@ -60,11 +60,11 @@ def _to_response(topic: Topic, subject_name: Optional[str] = None, grade_name: O
 
 @router.get("/", response_model=TopicListResponse)
 async def list_topics(db: AsyncSession = Depends(get_db)):
-    """Lấy danh sách tất cả chủ đề, kèm theo tên môn thi và khối lớp."""
+    """Lấy danh sách tất cả chủ đề, kèm theo tên môn học và khối lớp."""
     stmt = (
-        select(Topic, DmMonThi.name.label("subject_name"), DmKhoiLop.name.label("grade_name"))
-        .outerjoin(DmMonThi, Topic.subject_id == DmMonThi.id)
-        .outerjoin(DmKhoiLop, Topic.grade_id == DmKhoiLop.id)
+        select(Topic, SubjectCategory.name.label("subject_name"), GradeLevel.name.label("grade_name"))
+        .outerjoin(SubjectCategory, Topic.subject_id == SubjectCategory.id)
+        .outerjoin(GradeLevel, Topic.grade_id == GradeLevel.id)
         .order_by(Topic.created_at.desc())
     )
     result = await db.execute(stmt)
@@ -122,11 +122,11 @@ async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
     # Fetch names for response
     sub_name = None
     if obj.subject_id:
-        r = await db.execute(select(DmMonThi.name).where(DmMonThi.id == obj.subject_id))
+        r = await db.execute(select(SubjectCategory.name).where(SubjectCategory.id == obj.subject_id))
         sub_name = r.scalar()
     gr_name = None
     if obj.grade_id:
-        r = await db.execute(select(DmKhoiLop.name).where(DmKhoiLop.id == obj.grade_id))
+        r = await db.execute(select(GradeLevel.name).where(GradeLevel.id == obj.grade_id))
         gr_name = r.scalar()
 
     return {"success": True, "message": "Thêm chủ đề thành công!", "data": _to_response(obj, sub_name, gr_name)}
@@ -168,11 +168,11 @@ async def update_topic(
     # Fetch names for response
     sub_name = None
     if obj.subject_id:
-        r = await db.execute(select(DmMonThi.name).where(DmMonThi.id == obj.subject_id))
+        r = await db.execute(select(SubjectCategory.name).where(SubjectCategory.id == obj.subject_id))
         sub_name = r.scalar()
     gr_name = None
     if obj.grade_id:
-        r = await db.execute(select(DmKhoiLop.name).where(DmKhoiLop.id == obj.grade_id))
+        r = await db.execute(select(GradeLevel.name).where(GradeLevel.id == obj.grade_id))
         gr_name = r.scalar()
 
     return {

@@ -42,7 +42,7 @@ import {
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
-import { dmMonThiApi } from '../../../services/danhMucApi.ts';
+import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 
 export default function MatrixConfigModule() {
   // Real Môn thi list fetched from database API
@@ -51,7 +51,7 @@ export default function MatrixConfigModule() {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await dmMonThiApi.list();
+        const res = await subjectCategoryApi.list();
         if (res && res.data) {
           setDbSubjects(res.data.filter((item: any) => item.is_active));
         }
@@ -461,9 +461,8 @@ export default function MatrixConfigModule() {
             type={activeTab === 'list' ? 'primary' : 'text'}
             size="small"
             onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${
-              activeTab === 'list' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${activeTab === 'list' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             Ma trận đề
           </Button>
@@ -471,9 +470,8 @@ export default function MatrixConfigModule() {
             type={activeTab === 'evaluation' ? 'primary' : 'text'}
             size="small"
             onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${
-              activeTab === 'evaluation' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${activeTab === 'evaluation' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             Thẩm định/phản biện ma trận đề
           </Button>

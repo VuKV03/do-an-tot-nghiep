@@ -29,3 +29,28 @@ class UserGroup(Base):
     memberCount = Column(Integer, default=0)
     permissions = Column(Text, nullable=True)
     createdAt = Column(String(100), nullable=False)
+
+class SecurityPolicy(Base):
+    __tablename__ = "security_policies"
+
+    id = Column(String(255), primary_key=True, default="default")
+    minPasswordLength = Column(Integer, default=8)
+    requireUpperCase = Column(Boolean, default=True)
+    requireSpecialChar = Column(Boolean, default=True)
+    passwordExpiryDays = Column(Integer, default=90)
+    sessionTimeoutMinutes = Column(Integer, default=30)
+    maxLoginFailures = Column(Integer, default=5)
+    enableCaptchaOnFail = Column(Boolean, default=True)
+    enable2FAForAdmin = Column(Boolean, default=False)
+    updatedAt = Column(String(100), nullable=False)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String(255), primary_key=True)
+    user = Column(String(255), nullable=False)
+    action = Column(String(255), nullable=False)
+    timestamp = Column(String(100), nullable=False)
+    level = Column(String(50), default="info") # info, success, warning, danger
+    ip = Column(String(100), nullable=True)
+    details = Column(Text, nullable=True)

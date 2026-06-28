@@ -6,13 +6,13 @@ import CreateSubjectCategoryModal from './create.tsx';
 import UpdateSubjectCategoryModal from './update.tsx';
 import DetailSubjectCategoryModal from './detail.tsx';
 import DeleteSubjectCategoryModal from './delete.tsx';
-import CauHinhMonThiModal from './cau-hinh.tsx';
-import { dmMonThiApi, type DmMonThiAPI } from '../../../services/danhMucApi.ts';
+import CauHinhMonHocModal from './config.tsx';
+import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
 /** Type khớp hoàn toàn với DB / API fields */
-export interface DmMonThiType {
+export interface SubjectCategoryType {
   id: string;
   code: string;
   name: string;
@@ -22,8 +22,8 @@ export interface DmMonThiType {
   updated_at?: string | null;
 }
 
-export default function DanhMucMonThi() {
-  const [data, setData] = useState<DmMonThiType[]>([]);
+export default function DanhMucMonHoc() {
+  const [data, setData] = useState<SubjectCategoryType[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
@@ -33,7 +33,7 @@ export default function DanhMucMonThi() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
   const [isCauHinhModalOpen, setIsCauHinhModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<DmMonThiType | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<SubjectCategoryType | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchActive, setSearchActive] = useState('all');
   const [searchDates, setSearchDates] = useState<any>(null);
@@ -42,11 +42,11 @@ export default function DanhMucMonThi() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await dmMonThiApi.list();
+      const res = await subjectCategoryApi.list();
       // API trả về đúng tên field → dùng thẳng, không cần convert
-      setData(res.data as DmMonThiType[]);
+      setData(res.data as SubjectCategoryType[]);
     } catch {
-      messageApi.error('Không thể tải danh sách môn thi!');
+      messageApi.error('Không thể tải danh sách môn học!');
     } finally {
       setLoading(false);
     }
@@ -54,11 +54,11 @@ export default function DanhMucMonThi() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleOpenDetail = (record: DmMonThiType) => { setSelectedRecord(record); setIsDetailModalOpen(true); };
-  const handleOpenUpdate = (record: DmMonThiType) => { setSelectedRecord(record); setIsUpdateModalOpen(true); };
-  const handleOpenDelete = (record: DmMonThiType) => { setSelectedRecord(record); setIsDeleteMultiple(false); setIsDeleteModalOpen(true); };
+  const handleOpenDetail = (record: SubjectCategoryType) => { setSelectedRecord(record); setIsDetailModalOpen(true); };
+  const handleOpenUpdate = (record: SubjectCategoryType) => { setSelectedRecord(record); setIsUpdateModalOpen(true); };
+  const handleOpenDelete = (record: SubjectCategoryType) => { setSelectedRecord(record); setIsDeleteMultiple(false); setIsDeleteModalOpen(true); };
   const handleOpenDeleteMultiple = () => { setIsDeleteMultiple(true); setIsDeleteModalOpen(true); };
-  const handleOpenCauHinh = (record: DmMonThiType) => { setSelectedRecord(record); setIsCauHinhModalOpen(true); };
+  const handleOpenCauHinh = (record: SubjectCategoryType) => { setSelectedRecord(record); setIsCauHinhModalOpen(true); };
 
   const rowSelection = {
     selectedRowKeys,
@@ -83,7 +83,7 @@ export default function DanhMucMonThi() {
     });
   }, [data, searchKeyword, searchActive, searchDates]);
 
-  const columns: ColumnsType<DmMonThiType> = [
+  const columns: ColumnsType<SubjectCategoryType> = [
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, i) => i + 1 },
     { title: 'Mã', dataIndex: 'code', key: 'code' },
     { title: 'Tên', dataIndex: 'name', key: 'name' },
@@ -143,7 +143,14 @@ export default function DanhMucMonThi() {
 
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+              {selectedRowKeys.length > 0 && (
+                <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> môn học
+                </span>
+              )}
+            </div>
             <Space>
               <Button type="primary" className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none h-10 font-medium px-4" onClick={() => setIsCreateModalOpen(true)}>Thêm mới</Button>
               <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50">Xuất Excel</Button>
@@ -156,7 +163,7 @@ export default function DanhMucMonThi() {
               columns={columns}
               dataSource={filteredData}
               rowKey="id"
-              locale={{ emptyText: <Empty description="Không có dữ liệu môn thi" /> }}
+              locale={{ emptyText: <Empty description="Không có dữ liệu môn học" /> }}
               pagination={{ total: filteredData.length, showTotal: (total: number, range: [number, number]) => `${range[0]} - ${range[1]} / ${total} bản ghi`, showSizeChanger: true, defaultPageSize: 10, pageSizeOptions: ['10', '20', '50', '100'], locale: { items_per_page: '/ trang' }, className: 'mt-6' }}
               className="border-t border-gray-200"
             />
@@ -168,12 +175,12 @@ export default function DanhMucMonThi() {
           onClose={() => setIsCreateModalOpen(false)}
           onSave={async (values) => {
             try {
-              await dmMonThiApi.create({ code: values.code!, name: values.name!, is_active: values.is_active ?? true, note: values.note ?? '' });
-              messageApi.success('Thêm môn thi thành công!');
+              await subjectCategoryApi.create({ code: values.code!, name: values.name!, is_active: values.is_active ?? true, note: values.note ?? '' });
+              messageApi.success('Thêm môn học thành công!');
               fetchData();
               return true;
             } catch (error: any) {
-              messageApi.error(error.message || 'Lỗi khi thêm môn thi!');
+              messageApi.error(error.message || 'Lỗi khi thêm môn học!');
               return false;
             }
           }}
@@ -186,12 +193,12 @@ export default function DanhMucMonThi() {
           onSave={async (values) => {
             if (!selectedRecord) return false;
             try {
-              await dmMonThiApi.update(selectedRecord.id, { code: values.code, name: values.name, is_active: values.is_active, note: values.note });
-              messageApi.success('Cập nhật môn thi thành công!');
+              await subjectCategoryApi.update(selectedRecord.id, { code: values.code, name: values.name, is_active: values.is_active, note: values.note });
+              messageApi.success('Cập nhật môn học thành công!');
               fetchData();
               return true;
             } catch (error: any) {
-              messageApi.error(error.message || 'Lỗi khi cập nhật môn thi!');
+              messageApi.error(error.message || 'Lỗi khi cập nhật môn học!');
               return false;
             }
           }}
@@ -208,23 +215,23 @@ export default function DanhMucMonThi() {
           onConfirm={async () => {
             try {
               if (isDeleteMultiple) {
-                await Promise.all(selectedRowKeys.map((k) => dmMonThiApi.delete(String(k))));
-                messageApi.success(`Đã xóa ${selectedRowKeys.length} môn thi!`);
+                await Promise.all(selectedRowKeys.map((k) => subjectCategoryApi.delete(String(k))));
+                messageApi.success(`Đã xóa ${selectedRowKeys.length} môn học!`);
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
-                await dmMonThiApi.delete(selectedRecord.id);
-                messageApi.success('Đã xóa môn thi!');
+                await subjectCategoryApi.delete(selectedRecord.id);
+                messageApi.success('Đã xóa môn học!');
               }
               fetchData();
-            } catch { messageApi.error('Lỗi khi xóa môn thi!'); }
+            } catch { messageApi.error('Lỗi khi xóa môn học!'); }
           }}
         />
 
-        <CauHinhMonThiModal
+        <CauHinhMonHocModal
           open={isCauHinhModalOpen}
           onClose={() => setIsCauHinhModalOpen(false)}
           record={selectedRecord}
-          onSave={(values) => { console.log('Cấu hình môn thi:', values); }}
+          onSave={(values) => { console.log('Cấu hình môn học:', values); }}
         />
       </div>
     </ConfigProvider>

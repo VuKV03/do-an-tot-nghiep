@@ -120,24 +120,24 @@ class PackageListResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục môn thi (DmMonThi) ────────────────────────────────────
+# ─── Danh mục môn học (SubjectCategory) ─────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmMonThiCreate(BaseModel):
+class SubjectCategoryCreate(BaseModel):
     code: str
     name: str
     is_active: bool = True
     note: Optional[str] = ""
 
 
-class DmMonThiUpdate(BaseModel):
+class SubjectCategoryUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     is_active: Optional[bool] = None
     note: Optional[str] = None
 
 
-class DmMonThiResponse(BaseModel):
+class SubjectCategoryResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -149,29 +149,29 @@ class DmMonThiResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmMonThiListResponse(BaseModel):
+class SubjectCategoryListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmMonThiResponse]
+    data: List[SubjectCategoryResponse]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục cấp độ tư duy (DmCapDoTuDuy) ──────────────────────────
+# ─── Danh mục cấp độ tư duy (CognitiveLevel) ────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmCapDoTuDuyCreate(BaseModel):
+class CognitiveLevelCreate(BaseModel):
     code: str
     name: str
     note: Optional[str] = ""
 
 
-class DmCapDoTuDuyUpdate(BaseModel):
+class CognitiveLevelUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     note: Optional[str] = None
 
 
-class DmCapDoTuDuyResponse(BaseModel):
+class CognitiveLevelResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -182,29 +182,29 @@ class DmCapDoTuDuyResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmCapDoTuDuyListResponse(BaseModel):
+class CognitiveLevelListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmCapDoTuDuyResponse]
+    data: List[CognitiveLevelResponse]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục loại hình câu hỏi (DmLoaiHinhCauHoi) ──────────────────
+# ─── Danh mục loại hình câu hỏi (QuestionType) ──────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmLoaiHinhCauHoiCreate(BaseModel):
+class QuestionTypeCreate(BaseModel):
     code: str
     name: str
     note: Optional[str] = ""
 
 
-class DmLoaiHinhCauHoiUpdate(BaseModel):
+class QuestionTypeUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     note: Optional[str] = None
 
 
-class DmLoaiHinhCauHoiResponse(BaseModel):
+class QuestionTypeResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -215,17 +215,17 @@ class DmLoaiHinhCauHoiResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmLoaiHinhCauHoiListResponse(BaseModel):
+class QuestionTypeListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmLoaiHinhCauHoiResponse]
+    data: List[QuestionTypeResponse]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục thành phần năng lực (DmThanhPhanNangLuc) ───────────────
+# ─── Danh mục thành phần năng lực (CompetencyComponent) ─────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmThanhPhanNangLucCreate(BaseModel):
+class CompetencyComponentCreate(BaseModel):
     code: str
     name: str
     subject_id: Optional[str] = None
@@ -233,7 +233,7 @@ class DmThanhPhanNangLucCreate(BaseModel):
     note: Optional[str] = ""
 
 
-class DmThanhPhanNangLucUpdate(BaseModel):
+class CompetencyComponentUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     subject_id: Optional[str] = None
@@ -241,7 +241,7 @@ class DmThanhPhanNangLucUpdate(BaseModel):
     note: Optional[str] = None
 
 
-class DmThanhPhanNangLucResponse(BaseModel):
+class CompetencyComponentResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -254,31 +254,31 @@ class DmThanhPhanNangLucResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmThanhPhanNangLucListResponse(BaseModel):
+class CompetencyComponentListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmThanhPhanNangLucResponse]
+    data: List[CompetencyComponentResponse]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Danh mục khối lớp (DmKhoiLop) ──────────────────────────────────
+# ─── Danh mục khối lớp (GradeLevel) ─────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-class DmKhoiLopCreate(BaseModel):
+class GradeLevelCreate(BaseModel):
     code: str
     name: str
     is_active: bool = True
     note: Optional[str] = ""
 
 
-class DmKhoiLopUpdate(BaseModel):
+class GradeLevelUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     is_active: Optional[bool] = None
     note: Optional[str] = None
 
 
-class DmKhoiLopResponse(BaseModel):
+class GradeLevelResponse(BaseModel):
     id: str
     code: str
     name: str
@@ -290,13 +290,13 @@ class DmKhoiLopResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DmKhoiLopListResponse(BaseModel):
+class GradeLevelListResponse(BaseModel):
     success: bool = True
     count: int
-    data: List[DmKhoiLopResponse]
+    data: List[GradeLevelResponse]
 
 
-# ─── Exam Period (DmDotThi) Schemas ──────────────────────────────────────────
+# ─── Exam Period (ExamPeriod) Schemas ──────────────────────────────────────────
 class ExamPeriodCreate(BaseModel):
     code: str
     name: str

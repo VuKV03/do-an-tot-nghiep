@@ -54,11 +54,11 @@ export default function DetailChuDeModal({
               Thông tin chủ đề/tiểu mục
             </div>
 
-            {/* Môn thi | Khối lớp */}
+            {/* Môn học | Khối lớp */}
             <div className="grid grid-cols-2 gap-x-8">
               <div>
-                <p className="text-gray-500 text-[14px] mb-1">Môn thi</p>
-                <p className="text-gray-800 text-[15px]">{record.MonThiName || '—'}</p>
+                <p className="text-gray-500 text-[14px] mb-1">Môn học</p>
+                <p className="text-gray-800 text-[15px]">{record.MonHocName || '—'}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-[14px] mb-1">Khối lớp</p>

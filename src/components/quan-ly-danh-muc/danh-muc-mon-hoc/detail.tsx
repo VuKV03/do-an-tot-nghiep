@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
 import { Button, ConfigProvider, Form, Input, Modal, Switch } from 'antd';
-import type { DmMonThiType } from './index.tsx';
+import type { SubjectCategoryType } from './index.tsx';
 
 const { TextArea } = Input;
 
 export interface DetailSubjectCategoryModalProps {
   open: boolean;
   onClose: () => void;
-  record?: DmMonThiType | null;
+  record?: SubjectCategoryType | null;
 }
 
 export default function DetailSubjectCategoryModal({ open, onClose, record }: DetailSubjectCategoryModalProps) {
@@ -31,7 +31,7 @@ export default function DetailSubjectCategoryModal({ open, onClose, record }: De
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 } }}>
       <Modal
-        title={<div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">Chi tiết môn thi</div>}
+        title={<div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">Chi tiết môn học</div>}
         open={open}
         onCancel={onClose}
         footer={null}
@@ -40,14 +40,14 @@ export default function DetailSubjectCategoryModal({ open, onClose, record }: De
         centered
         styles={{ header: { marginBottom: 0, paddingBottom: 0 }, body: { paddingTop: '16px' } }}
       >
-        <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">Thông tin môn thi</div>
+        <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">Thông tin môn học</div>
 
         <Form form={form} layout="vertical">
-          <Form.Item name="code" label={<span className="text-gray-700 font-medium text-[15px]">Mã môn thi</span>}>
+          <Form.Item name="code" label={<span className="text-gray-700 font-medium text-[15px]">Mã môn học</span>}>
             <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium uppercase" />
           </Form.Item>
 
-          <Form.Item name="name" label={<span className="text-gray-700 font-medium text-[15px]">Tên môn thi</span>}>
+          <Form.Item name="name" label={<span className="text-gray-700 font-medium text-[15px]">Tên môn học</span>}>
             <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
           </Form.Item>
 

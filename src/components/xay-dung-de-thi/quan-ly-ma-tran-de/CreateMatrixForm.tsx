@@ -16,7 +16,7 @@ import {
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
-import { dmMonThiApi, topicsApi, dmThanhPhanNangLucApi, dmCapDoTuDuyApi, dmLoaiHinhCauHoiApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+import { subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, type TopicAPI } from '../../../services/danhMucApi.ts';
 
 const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
   const map: { [key: string]: ChuDeNode } = {};
@@ -86,7 +86,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
         chuDe = buildTopicTree(filteredFlatTopics);
 
         // Fetch real competency components
-        const nlRes = await dmThanhPhanNangLucApi.list();
+        const nlRes = await competencyComponentApi.list();
         const rawNL = nlRes.data || [];
         const filteredNL = rawNL
           .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
@@ -98,7 +98,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
         cd.ds_dm_thanh_phan_nang_luc = filteredNL;
 
         // Fetch real cognitive levels (Cấp độ tư duy)
-        const mdRes = await dmCapDoTuDuyApi.list();
+        const mdRes = await cognitiveLevelApi.list();
         const rawMD = mdRes.data || [];
         const mappedMD = rawMD.map((md: any) => ({
           id: md.id,
@@ -108,7 +108,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
         cd.ds_dm_muc_do = mappedMD;
 
         // Fetch real question types (Loại hình câu hỏi)
-        const lchRes = await dmLoaiHinhCauHoiApi.list();
+        const lchRes = await questionTypeApi.list();
         const rawLCH = lchRes.data || [];
         const mappedLCH = rawLCH.map((lch: any) => {
           let diem = 1.0;
@@ -178,7 +178,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
               chuDe = buildTopicTree(filteredFlatTopics);
 
               // Fetch real competency components
-              const nlRes = await dmThanhPhanNangLucApi.list();
+              const nlRes = await competencyComponentApi.list();
               const rawNL = nlRes.data || [];
               const filteredNL = rawNL
                 .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
@@ -190,7 +190,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
               cd.ds_dm_thanh_phan_nang_luc = filteredNL;
 
               // Fetch real cognitive levels (Cấp độ tư duy)
-              const mdRes = await dmCapDoTuDuyApi.list();
+              const mdRes = await cognitiveLevelApi.list();
               const rawMD = mdRes.data || [];
               const mappedMD = rawMD.map((md: any) => ({
                 id: md.id,
@@ -200,7 +200,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
               cd.ds_dm_muc_do = mappedMD;
 
               // Fetch real question types (Loại hình câu hỏi)
-              const lchRes = await dmLoaiHinhCauHoiApi.list();
+              const lchRes = await questionTypeApi.list();
               const rawLCH = lchRes.data || [];
               const mappedLCH = rawLCH.map((lch: any) => {
                 let diem = 1.0;
@@ -263,7 +263,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
       }
     };
 
-    dmMonThiApi.list().then(res => {
+    subjectCategoryApi.list().then(res => {
       const rawList = res.data || [];
       setFullSubjects(rawList);
       const list = rawList

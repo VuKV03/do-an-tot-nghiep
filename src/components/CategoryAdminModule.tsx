@@ -35,17 +35,17 @@ import {
   ExperimentOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import DanhMucKhoiLop from './quan-ly-danh-muc/grade-levels';
-import DanhMucMonThi from './quan-ly-danh-muc/subject-categories';
-import DanhMucCapDoTuDuy from './quan-ly-danh-muc/cognitive-levels';
-import DanhMucLoaiHinhCauHoi from './quan-ly-danh-muc/question-types';
-import DanhMucThanhPhanNangLuc from './quan-ly-danh-muc/competency-components';
-import DanhMucDotThi from './quan-ly-danh-muc/exam-periods';
+import DanhMucKhoiLop from './quan-ly-danh-muc/danh-muc-khoi-lop';
+import DanhMucMonHoc from './quan-ly-danh-muc/danh-muc-mon-hoc';
+import DanhMucCapDoTuDuy from './quan-ly-danh-muc/cap-do-tu-duy';
+import DanhMucLoaiHinhCauHoi from './quan-ly-danh-muc/loai-hinh-cau-hoi';
+import DanhMucThanhPhanNangLuc from './quan-ly-danh-muc/thanh-phan-nang-luc';
+import DanhMucDotThi from './quan-ly-danh-muc/danh-muc-dot-thi';
 
 
 
 interface CategoryAdminModuleProps {
-  currentTabKey: string; // 'danh-muc-mon-thi' | 'danh-muc-khoi-lop' | 'cap-do-tu-duy' | 'loai-hinh-cau-hoi'
+  currentTabKey: string; // 'danh-muc-mon-hoc' | 'danh-muc-khoi-lop' | 'cap-do-tu-duy' | 'loai-hinh-cau-hoi'
   onNavigateTab: (key: string) => void;
 }
 
@@ -199,7 +199,7 @@ export default function CategoryAdminModule({
     form.resetFields();
     
     // Set some nice default fields depending on the active tab
-    if (currentTabKey === 'danh-muc-mon-thi') {
+    if (currentTabKey === 'danh-muc-mon-hoc') {
       form.setFieldsValue({ department: 'Tự nhiên', status: 'active' });
     } else if (currentTabKey === 'danh-muc-khoi-lop') {
       form.setFieldsValue({ displayOrder: grades.length + 1, status: 'active' });
@@ -220,7 +220,7 @@ export default function CategoryAdminModule({
 
   const handleSaveForm = () => {
     form.validateFields().then(values => {
-      if (currentTabKey === 'danh-muc-mon-thi') {
+      if (currentTabKey === 'danh-muc-mon-hoc') {
         if (modalMode === 'create') {
           const newItem: SubjectItem = {
             id: `sub-${Date.now()}`,
@@ -302,7 +302,7 @@ export default function CategoryAdminModule({
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (currentTabKey === 'danh-muc-mon-thi') {
+    if (currentTabKey === 'danh-muc-mon-hoc') {
       const target = subjects.find(s => s.id === id);
       if (target && target.questionCount > 0) {
         message.error(`Không thể xóa môn học "${name}" vì có ${target.questionCount} câu hỏi đang liên kết hoạt động!`);
@@ -325,7 +325,7 @@ export default function CategoryAdminModule({
   const handleToggleStatus = (record: any) => {
     const updatedStatus = record.status === 'active' ? 'inactive' : 'active';
     
-    if (currentTabKey === 'danh-muc-mon-thi') {
+    if (currentTabKey === 'danh-muc-mon-hoc') {
       setSubjects(prev => prev.map(s => s.id === record.id ? { ...s, status: updatedStatus } : s));
     } else if (currentTabKey === 'danh-muc-khoi-lop') {
       setGrades(prev => prev.map(g => g.id === record.id ? { ...g, status: updatedStatus } : g));
@@ -342,7 +342,7 @@ export default function CategoryAdminModule({
   // Helper title renderer as string
   const getTabTitle = () => {
     switch (currentTabKey) {
-      case 'danh-muc-mon-thi': return 'Danh mục môn thi';
+      case 'danh-muc-mon-hoc': return 'Danh mục môn học';
       case 'danh-muc-khoi-lop': return 'Danh mục khối lớp';
       case 'cap-do-tu-duy': return 'Cấp độ tư duy đào tạo';
       case 'loai-hinh-cau-hoi': return 'Loại hình thiết kế câu hỏi';
@@ -352,7 +352,7 @@ export default function CategoryAdminModule({
 
   const getTabDescription = () => {
     switch (currentTabKey) {
-      case 'danh-muc-mon-thi': return 'Quản lý chuẩn hóa mã môn thi quốc gia, gán ghép khoa ban tự nhiên/xã hội và theo dõi trữ lượng tài nguyên ngân hàng.';
+      case 'danh-muc-mon-hoc': return 'Quản lý chuẩn hóa mã môn học quốc gia, gán ghép khoa ban tự nhiên/xã hội và theo dõi trữ lượng tài nguyên ngân hàng.';
       case 'danh-muc-khoi-lop': return 'Thiết lập danh mục các năm học, phân phối thứ tự đào tạo và gán nhãn phân cấp cho các đề thi học và khảo sát.';
       case 'cap-do-tu-duy': return 'Chuẩn hóa định danh 4 cấp bậc tư duy của thang đo Bloom mở rộng, cho điểm hệ số ma trận và gán mã nhận diện đồ họa.';
       case 'loai-hinh-cau-hoi': return 'Quản lý phương thức ra đề thi: trắc nghiệm (MCQ), trắc nghiệm đúng sai, tự luận đáp số và quy đổi trọng số tự động.';
@@ -366,9 +366,9 @@ export default function CategoryAdminModule({
       {/* ========================================================== */}
       {/* VIEW PANEL 1: SUBJECTS MANAGEMENT                          */}
       {/* ========================================================== */}
-      {currentTabKey === 'danh-muc-mon-thi' && (
+      {currentTabKey === 'danh-muc-mon-hoc' && (
         <div className="animate-in fade-in duration-300">
-          <DanhMucMonThi />
+          <DanhMucMonHoc />
         </div>
       )}
 
@@ -467,7 +467,7 @@ export default function CategoryAdminModule({
           </Row>
 
           {/* Conditional parameters fields depending on active categorization key */}
-          {currentTabKey === 'danh-muc-mon-thi' && (
+          {currentTabKey === 'danh-muc-mon-hoc' && (
             <Form.Item
               name="department"
               label={<span className="text-[11px] font-bold text-slate-700">Phân loại tổ khoa ban</span>}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, Button, ConfigProvider } from 'antd';
 import type { ChuDeType } from './index';
-import { mockMonThi, mockKhoiLop } from './index';
+import { mockMonHoc, mockKhoiLop } from './index';
 
 const { TextArea } = Input;
 
@@ -10,21 +10,21 @@ export interface CreateChuDeModalProps {
   onClose: () => void;
   onSave?: (values: any) => Promise<boolean | 'duplicate_code'> | boolean | 'duplicate_code';
   allData: ChuDeType[];
-  monThis?: { Id: string; Ma: string; Ten: string }[];
+  monHocs?: { Id: string; Ma: string; Ten: string }[];
   khoiLops?: { Id: string; Ma: string; Ten: string }[];
   onDuplicateCode?: () => void;
 }
 
-export default function CreateChuDeModal({ open, onClose, onSave, allData, monThis = [], khoiLops = [], onDuplicateCode }: CreateChuDeModalProps) {
+export default function CreateChuDeModal({ open, onClose, onSave, allData, monHocs = [], khoiLops = [], onDuplicateCode }: CreateChuDeModalProps) {
   const [form] = Form.useForm();
   const cap = Form.useWatch('Cap', form);
-  const monThiId = Form.useWatch('IdMonThi', form);
+  const monHocId = Form.useWatch('IdMonHoc', form);
   const khoiLopId = Form.useWatch('IdKhoiLop', form);
 
-  // Lọc chủ đề cha (Parent) theo Môn thi (và Khối lớp nếu đã chọn)
+  // Lọc chủ đề cha (Parent) theo Môn học (và Khối lớp nếu đã chọn)
   const filteredParents = allData.filter(
     (item) =>
-      item.IdMonThi === monThiId &&
+      item.IdMonHoc === monHocId &&
       (!khoiLopId || item.IdKhoiLop === khoiLopId) &&
       !item.ParentId
   );
@@ -38,9 +38,9 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
   const handleParentChange = (parentId: string) => {
     const parent = allData.find(p => p.Id === parentId);
     if (parent) {
-      // Auto fill mon thi và khoi lop từ chủ đề cha
+      // Auto fill mon hoc và khoi lop từ chủ đề cha
       form.setFieldsValue({
-        IdMonThi: parent.IdMonThi,
+        IdMonHoc: parent.IdMonHoc,
         IdKhoiLop: parent.IdKhoiLop,
       });
     }
@@ -114,14 +114,14 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
         >
           <div className="grid grid-cols-2 gap-x-6">
             <Form.Item
-              name="IdMonThi"
+              name="IdMonHoc"
               label={<span className="text-gray-700 font-medium text-[15px]">Môn học</span>}
               rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
             >
               <Select
                 placeholder="Chọn môn học"
                 className="h-[42px] text-base"
-                options={(monThis.length > 0 ? monThis : mockMonThi).map(m => ({ value: m.Id, label: m.Ten }))}
+                options={(monHocs.length > 0 ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
                 onChange={() => {
                   form.setFieldsValue({ ParentId: undefined });
                 }}
@@ -171,7 +171,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monTh
                   className="h-[42px] text-base"
                   options={filteredParents.map(p => ({ value: p.Id, label: p.Ten }))}
                   onChange={handleParentChange}
-                  disabled={!monThiId}
+                  disabled={!monHocId}
                 />
               </Form.Item>
             )}

@@ -8,7 +8,7 @@ import DeleteChuDeModal from './delete';
 import DetailChuDeModal from './detail';
 import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
-import { topicsApi, dmMonThiApi, dmKhoiLopApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
 
@@ -17,7 +17,7 @@ export interface ChuDeType {
   ParentId: string | null;
   Ma: string;
   Ten: string;
-  IdMonThi: string;
+  IdMonHoc: string;
   IdKhoiLop: string;
   TrangThai: number; // 0: Tạo mới, 1: Chờ thẩm định, 2: Đã thẩm định, 3: Từ chối
   IdNguoiTao: string;
@@ -28,13 +28,13 @@ export interface ChuDeType {
   ThoiGianThamDinh: string | null;
   NoiDungThamDinh: string | null;
   GhiChu: string | null;
-  MonThiName?: string;
+  MonHocName?: string;
   KhoiLopName?: string;
   children?: ChuDeType[];
 }
 
 // Fallback mocks if needed for typescript type exports
-export const mockMonThi = [
+export const mockMonHoc = [
   { Id: 'mon-01', Ma: 'MATH', Ten: 'Toán học' },
   { Id: 'mon-02', Ma: 'PHYS', Ten: 'Vật lý' },
 ];
@@ -82,7 +82,7 @@ export default function ChuDeCauHoi() {
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const [monThis, setMonThis] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
+  const [monHocs, setMonHocs] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
   const [khoiLops, setKhoiLops] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -90,10 +90,26 @@ export default function ChuDeCauHoi() {
 
   // Filters
   const [searchTen, setSearchTen] = useState('');
-  const [filterMonThi, setFilterMonThi] = useState<string>('');
+  const [filterMonHoc, setFilterMonHoc] = useState<string>('');
   const [filterKhoiLop, setFilterKhoiLop] = useState<string[]>([]);
+  const [filterParentTopic, setFilterParentTopic] = useState<string>('Tất cả');
   const [filterStatus, setFilterStatus] = useState<any>('Tất cả');
   const [filterDates, setFilterDates] = useState<any>(null);
+
+  const parentTopicsOptions = useMemo(() => {
+    const parents = rawData
+      .filter((item: any) => !item.parent_id)
+      .filter((item: any) => {
+        const matchMonHoc = !filterMonHoc || item.subject_id === filterMonHoc;
+        const matchKhoiLop = filterKhoiLop.length === 0 || filterKhoiLop.includes(item.grade_id);
+        return matchMonHoc && matchKhoiLop;
+      });
+    return parents.map((p: any) => ({ value: p.id, label: p.name }));
+  }, [rawData, filterMonHoc, filterKhoiLop]);
+
+  useEffect(() => {
+    setFilterParentTopic('Tất cả');
+  }, [filterMonHoc, filterKhoiLop]);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -109,19 +125,19 @@ export default function ChuDeCauHoi() {
   const fetchFilters = async () => {
     try {
       const [mtRes, klRes] = await Promise.all([
-        dmMonThiApi.list(),
-        dmKhoiLopApi.list()
+        subjectCategoryApi.list(),
+        gradeLevelApi.list()
       ]);
-      const mappedMonThi = mtRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
+      const mappedMonHoc = mtRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
       const mappedKhoiLop = klRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
-      setMonThis(mappedMonThi);
+      setMonHocs(mappedMonHoc);
       setKhoiLops(mappedKhoiLop);
-      if (mappedMonThi.length > 0) {
-        setFilterMonThi('');
+      if (mappedMonHoc.length > 0) {
+        setFilterMonHoc('');
       }
     } catch (e: any) {
       console.error(e);
-      message.error('Không thể tải bộ lọc Môn thi / Khối lớp!');
+      message.error('Không thể tải bộ lọc Môn học / Khối lớp!');
     }
   };
 
@@ -180,14 +196,78 @@ export default function ChuDeCauHoi() {
     setIsLichSuModalOpen(true);
   };
 
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
+  const getSubTopicIdsRecursive = (topicIds: string[]): string[] => {
+    const result = new Set<string>(topicIds);
+    const queue = [...topicIds];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId) continue;
+      const children = rawData.filter(item => item.parent_id === currentId);
+      children.forEach(child => {
+        if (!result.has(child.id)) {
+          result.add(child.id);
+          queue.push(child.id);
+        }
+      });
+    }
+    return Array.from(result);
+  };
+
+  const getDescendantKeys = (record: ChuDeType): React.Key[] => {
+    const keys: React.Key[] = [];
+    const recurse = (node: ChuDeType) => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          keys.push(child.Id);
+          recurse(child);
+        });
+      }
+    };
+    recurse(record);
+    return keys;
+  };
+
+  const handleSelect = (record: ChuDeType, selected: boolean) => {
+    const descendantKeys = getDescendantKeys(record);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        const keysToAdd = [record.Id, ...descendantKeys];
+        keysToAdd.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        const keysToRemove = [record.Id, ...descendantKeys];
+        return prev.filter(key => !keysToRemove.includes(key));
+      }
+    });
+  };
+
+  const handleSelectAll = (selected: boolean, selectedRows: ChuDeType[], changeRows: ChuDeType[]) => {
+    const changeRowKeys: React.Key[] = changeRows.map(row => row.Id);
+    setSelectedRowKeys(prev => {
+      if (selected) {
+        const next = [...prev];
+        changeRowKeys.forEach(key => {
+          if (!next.includes(key)) {
+            next.push(key);
+          }
+        });
+        return next;
+      } else {
+        return prev.filter(key => !changeRowKeys.includes(key));
+      }
+    });
   };
 
   const rowSelection = {
     selectedRowKeys,
-    onChange: onSelectChange,
-    checkStrictly: false,
+    onSelect: handleSelect,
+    onSelectAll: handleSelectAll,
+    checkStrictly: true,
   };
 
   const getTrangThaiTag = (trangThai: number) => {
@@ -240,7 +320,7 @@ export default function ChuDeCauHoi() {
       ParentId: item.parent_id,
       Ma: item.code,
       Ten: item.name,
-      IdMonThi: item.subject_id,
+      IdMonHoc: item.subject_id,
       IdKhoiLop: item.grade_id,
       TrangThai: item.status,
       IdNguoiTao: item.created_by || 'user1',
@@ -251,7 +331,7 @@ export default function ChuDeCauHoi() {
       ThoiGianThamDinh: item.approved_at,
       NoiDungThamDinh: item.approval_note,
       GhiChu: item.note,
-      MonThiName: item.subject_name || '',
+      MonHocName: item.subject_name || '',
       KhoiLopName: item.grade_name || '',
     }));
 
@@ -260,10 +340,12 @@ export default function ChuDeCauHoi() {
         item.Ten.toLowerCase().includes(searchTen.toLowerCase()) || 
         item.Ma.toLowerCase().includes(searchTen.toLowerCase());
       
-      const matchMonThi = !filterMonThi || item.IdMonThi === filterMonThi;
+      const matchMonHoc = !filterMonHoc || item.IdMonHoc === filterMonHoc;
       const matchKhoiLop = filterKhoiLop.length === 0 || filterKhoiLop.includes(item.IdKhoiLop);
       const matchStatus = filterStatus === 'Tất cả' || item.TrangThai === filterStatus;
       
+      const matchParent = filterParentTopic === 'Tất cả' || item.Id === filterParentTopic || item.ParentId === filterParentTopic;
+
       let matchDate = true;
       if (filterDates && filterDates[0] && filterDates[1] && item.ThoiGianTao) {
         const itemTime = new Date(item.ThoiGianTao).getTime();
@@ -272,11 +354,11 @@ export default function ChuDeCauHoi() {
         matchDate = itemTime >= start && itemTime <= end;
       }
       
-      return matchTen && matchMonThi && matchKhoiLop && matchStatus && matchDate;
+      return matchTen && matchMonHoc && matchKhoiLop && matchStatus && matchDate && matchParent;
     });
 
     return buildTopicTree(filteredFlat);
-  }, [rawData, searchTen, filterMonThi, filterKhoiLop, filterStatus, filterDates]);
+  }, [rawData, searchTen, filterMonHoc, filterKhoiLop, filterStatus, filterDates, filterParentTopic]);
 
   const columns: ColumnsType<ChuDeType> = [
     {
@@ -292,8 +374,8 @@ export default function ChuDeCauHoi() {
     },
     {
       title: 'Môn học',
-      dataIndex: 'MonThiName',
-      key: 'MonThiName',
+      dataIndex: 'MonHocName',
+      key: 'MonHocName',
       width: 120,
     },
     {
@@ -366,9 +448,9 @@ export default function ChuDeCauHoi() {
         },
       }}
     >
-      <div className="p-6 flex flex-col gap-8 bg-white min-h-[calc(100vh-200px)]">
+      <div className="flex flex-col gap-6">
         {/* Search Section */}
-        <div className="flex flex-col gap-4 border-b border-gray-200 pb-8 transition-all duration-300">
+        <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 transition-all duration-300">
           <div
             className="flex items-center gap-2 cursor-pointer text-[#1e3a8a] font-semibold text-lg select-none w-fit"
             onClick={() => setIsSearchExpanded(!isSearchExpanded)}
@@ -379,7 +461,7 @@ export default function ChuDeCauHoi() {
 
           {isSearchExpanded && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">Tên chủ đề/tiểu mục</label>
                   <Input 
@@ -392,15 +474,15 @@ export default function ChuDeCauHoi() {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-600 text-sm font-medium">
-                    Môn thi <span className="text-red-500">*</span>
+                    Môn học <span className="text-red-500">*</span>
                   </label>
                   <Select
-                    value={filterMonThi}
-                    onChange={setFilterMonThi}
+                    value={filterMonHoc}
+                    onChange={setFilterMonHoc}
                     className="h-10 w-full"
                     options={[
                       { value: '', label: 'Tất cả' },
-                      ...monThis.map(m => ({ value: m.Id, label: m.Ten }))
+                      ...monHocs.map(m => ({ value: m.Id, label: m.Ten }))
                     ]}
                   />
                 </div>
@@ -419,13 +501,15 @@ export default function ChuDeCauHoi() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Ngày tạo</label>
-                  <RangePicker
-                    className="h-10 w-full text-sm"
-                    placeholder={['Bắt đầu', 'Kết thúc']}
-                    format="DD/MM/YYYY"
-                    value={filterDates}
-                    onChange={setFilterDates}
+                  <label className="text-gray-600 text-sm font-medium">Chủ đề</label>
+                  <Select
+                    value={filterParentTopic}
+                    onChange={setFilterParentTopic}
+                    className="h-10 w-full"
+                    options={[
+                      { value: 'Tất cả', label: 'Tất cả' },
+                      ...parentTopicsOptions
+                    ]}
                   />
                 </div>
 
@@ -444,6 +528,17 @@ export default function ChuDeCauHoi() {
                     ]}
                   />
                 </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-gray-600 text-sm font-medium">Ngày tạo</label>
+                  <RangePicker
+                    className="h-10 w-full text-sm"
+                    placeholder={['Bắt đầu', 'Kết thúc']}
+                    format="DD/MM/YYYY"
+                    value={filterDates}
+                    onChange={setFilterDates}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -452,7 +547,14 @@ export default function ChuDeCauHoi() {
         {/* Results Section */}
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
+              {selectedRowKeys.length > 0 && (
+                <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> chủ đề/tiểu mục
+                </span>
+              )}
+            </div>
             <Space>
               <Button
                 type="primary"
@@ -502,7 +604,7 @@ export default function ChuDeCauHoi() {
         <CreateKhoiLopModalWrapper 
           open={isCreateModalOpen} 
           onClose={() => setIsCreateModalOpen(false)} 
-          monThis={monThis.filter(m => m.IsActive !== false)}
+          monHocs={monHocs.filter(m => m.IsActive !== false)}
           khoiLops={khoiLops.filter(k => k.IsActive !== false)}
           onSave={async (values: any) => {
             try {
@@ -510,7 +612,7 @@ export default function ChuDeCauHoi() {
                 parent_id: values.ParentId || null,
                 code: values.Ma,
                 name: values.Ten,
-                subject_id: values.IdMonThi,
+                subject_id: values.IdMonHoc,
                 grade_id: values.IdKhoiLop,
                 status: 0,
                 note: values.GhiChu || '',
@@ -531,14 +633,14 @@ export default function ChuDeCauHoi() {
               return false;
             }
           }}
-          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonHoc: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
         />
 
         <UpdateChuDeModal
           open={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           record={selectedRecord}
-          monThis={monThis}
+          monHocs={monHocs}
           khoiLops={khoiLops}
           onSave={async (values) => {
             try {
@@ -546,7 +648,7 @@ export default function ChuDeCauHoi() {
                 parent_id: values.ParentId || null,
                 code: values.Ma,
                 name: values.Ten,
-                subject_id: values.IdMonThi,
+                subject_id: values.IdMonHoc,
                 grade_id: values.IdKhoiLop,
                 note: values.GhiChu || '',
               });
@@ -566,7 +668,7 @@ export default function ChuDeCauHoi() {
               return false;
             }
           }}
-          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonHoc: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note }))}
         />
 
         <DeleteChuDeModal
@@ -604,14 +706,19 @@ export default function ChuDeCauHoi() {
           onConfirm={async () => {
             try {
               if (isMultipleAction) {
-                for (const key of selectedRowKeys) {
-                  await topicsApi.submit(key.toString());
-                }
+                const allIdsToSubmit = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
+                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
                 message.success('Đã gửi thẩm định các chủ đề được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
-                await topicsApi.submit(selectedRecord.Id);
-                message.success(`Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`);
+                const allIdsToSubmit = getSubTopicIdsRecursive([selectedRecord.Id]);
+                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                const hasChildren = allIdsToSubmit.length > 1;
+                message.success(
+                  hasChildren
+                    ? `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                    : `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`
+                );
               }
               setIsGuiThamDinhModalOpen(false);
               fetchTopics();
@@ -631,7 +738,7 @@ export default function ChuDeCauHoi() {
           open={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           record={selectedRecord}
-          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonThi: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note, MonThiName: i.subject_name || '', KhoiLopName: i.grade_name || '' }))}
+          allData={rawData.map(i => ({ Id: i.id, ParentId: i.parent_id, Ma: i.code, Ten: i.name, IdMonHoc: i.subject_id, IdKhoiLop: i.grade_id, TrangThai: i.status, IdNguoiTao: i.created_by, ThoiGianTao: i.created_at, IdNguoiGui: i.submitted_by, ThoiGianGui: i.submitted_at, IdNguoiThamDinh: i.approved_by, ThoiGianThamDinh: i.approved_at, NoiDungThamDinh: i.approval_note, GhiChu: i.note, MonHocName: i.subject_name || '', KhoiLopName: i.grade_name || '' }))}
         />
       </div>
     </ConfigProvider>

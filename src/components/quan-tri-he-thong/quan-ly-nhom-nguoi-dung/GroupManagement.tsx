@@ -9,7 +9,8 @@ import {
   Divider,
   Form,
   Input,
-  Popconfirm
+  Popconfirm,
+  Table
 } from 'antd';
 import {
   SettingOutlined,
@@ -78,6 +79,45 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
   const [form] = Form.useForm();
 
+  const logSecurityAction = async (action: string, level: string, details: string) => {
+    try {
+      const logRes = await axios.post(`${API_URL}/auth/audit-logs`, {
+        user: 'admin_panel',
+        action,
+        level,
+        ip: '',
+        details
+      });
+      if (logRes.data.success && logRes.data.data) {
+        setSecurityLogs(prev => [logRes.data.data, ...prev]);
+      }
+    } catch (err) {
+      console.error('Lỗi khi ghi log bảo mật:', err);
+    }
+  };
+
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [activeGroupForMembers, setActiveGroupForMembers] = useState<UserGroup | null>(null);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  const handleOpenMembersModal = async (group: UserGroup) => {
+    setActiveGroupForMembers(group);
+    setIsMembersModalOpen(true);
+    setLoadingMembers(true);
+    try {
+      const res = await axios.get(`${API_URL}/auth/groups/${group.id}/members`);
+      if (res.data.success) {
+        setGroupMembers(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching members:', err);
+      message.error('Không thể tải danh sách thành viên.');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
   // System available modular permissions mapped visually
   const SYSTEM_PERMISSION_SCOPES = [
     {
@@ -120,6 +160,56 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
     setActiveGroupForPermissions(group);
     setSelectedPermissions(group.permissions);
     setIsGroupModalOpen(true);
+  };
+
+  const renderGroupPermissions = (group: UserGroup) => {
+    const perms = group.permissions || [];
+    if (perms.length === 0) return <span className="text-slate-400 italic text-[10px]">Chưa được cấp quyền</span>;
+
+    // Check if has ALL permissions
+    let checkedCount = 0;
+    let totalCount = 0;
+    SYSTEM_PERMISSION_SCOPES.forEach(scope => {
+      scope.items.forEach(item => {
+        totalCount++;
+        if (perms.includes(item.key) || perms.includes('system.*') || perms.some(p => p.endsWith('.*') && item.key.startsWith(p.replace('.*', '')))) {
+          checkedCount++;
+        }
+      });
+    });
+
+    if (checkedCount === totalCount) {
+      return (
+        <span className="bg-blue-50 border border-blue-200 text-blue-700 px-2 py-1 rounded-md font-black text-[10px] tracking-wide block">
+          🌟 ALL QUYỀN (TOÀN QUYỀN HỆ THỐNG)
+        </span>
+      );
+    }
+
+    return perms.map(p => {
+      let label = p;
+      if (p === 'system.*') {
+        label = 'Toàn quyền: Quản trị hệ thống & Bảo mật';
+      } else if (p.endsWith('.*')) {
+        const prefix = p.replace('.*', '');
+        const scope = SYSTEM_PERMISSION_SCOPES.find(s => s.items.some(i => i.key.startsWith(prefix)));
+        if (scope) label = `Toàn quyền: ${scope.category}`;
+      } else {
+        for (const scope of SYSTEM_PERMISSION_SCOPES) {
+          const item = scope.items.find(i => i.key === p);
+          if (item) {
+            label = item.label;
+            break;
+          }
+        }
+      }
+
+      return (
+        <span key={p} className="bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px] block truncate max-w-full" title={label}>
+          {label}
+        </span>
+      );
+    });
   };
 
   const handleAddGroup = () => {
@@ -222,18 +312,11 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
           details: `Đã sửa đổi ma trận vai trò, quyền hạn của nhóm: "${activeGroupForPermissions.name}"`
         });
 
-        setSecurityLogs(prev => [
-          {
-            id: `sec-${Date.now()}`,
-            user: 'admin_panel',
-            action: 'Thay đổi ma trận phân quyền',
-            timestamp: new Date().toISOString(),
-            level: 'danger',
-            ip: '127.0.0.1',
-            details: `Đã thiết lập lại ${selectedPermissions.length} quyền khả dụng cho nhóm ${activeGroupForPermissions.name}.`
-          },
-          ...prev
-        ]);
+        await logSecurityAction(
+          'Thay đổi ma trận phân quyền',
+          'danger',
+          `Đã thiết lập lại ${selectedPermissions.length} quyền khả dụng cho nhóm ${activeGroupForPermissions.name}.`
+        );
 
         message.success(`Cập nhật thành công quyền hạn cho nhóm "${activeGroupForPermissions.name}"`);
         setIsGroupModalOpen(false);
@@ -306,19 +389,18 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
                 {group.description}
               </p>
 
-              <div className="flex justify-between items-center bg-slate-50 border rounded-xl p-2.5 select-none">
-                <span className="text-slate-400 text-[11px]">Số lượng nhân viên gán:</span>
-                <strong className="text-slate-800">{group.memberCount} Thành viên</strong>
+              <div 
+                className="flex justify-between items-center bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors cursor-pointer rounded-xl p-2.5 select-none"
+                onClick={() => handleOpenMembersModal(group)}
+              >
+                <span className="text-blue-600 text-[11px] font-semibold flex items-center gap-1.5"><TeamOutlined /> Số lượng nhân viên gán:</span>
+                <strong className="text-blue-800">{group.memberCount} Thành viên (Xem danh sách)</strong>
               </div>
 
               <div className="space-y-1.5 select-none">
                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest block">Quyền gán hạn khả dụng:</span>
                 <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto pr-1">
-                  {group.permissions.map(p => (
-                    <span key={p} className="bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded-md font-mono text-[9px] tracking-wide block">
-                      {p}
-                    </span>
-                  ))}
+                  {renderGroupPermissions(group)}
                 </div>
               </div>
 
@@ -457,6 +539,58 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
             </Form.Item>
           </Form>
         </div>
+      </Modal>
+
+      <Modal
+        title={
+          <div className="border-b pb-2 flex items-center gap-1.5 select-none">
+            <TeamOutlined className="text-blue-900" />
+            <span className="font-extrabold uppercase text-[12px] text-slate-800">
+              DANH SÁCH THÀNH VIÊN: {activeGroupForMembers?.name}
+            </span>
+          </div>
+        }
+        open={isMembersModalOpen}
+        onCancel={() => setIsMembersModalOpen(false)}
+        footer={null}
+        centered
+        width={700}
+      >
+        <Table 
+          dataSource={groupMembers}
+          loading={loadingMembers}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+          className="mt-4"
+          columns={[
+            {
+              title: 'Tài khoản',
+              dataIndex: 'username',
+              key: 'username',
+              render: (text) => <strong className="text-blue-600">{text}</strong>
+            },
+            {
+              title: 'Họ tên',
+              dataIndex: 'fullName',
+              key: 'fullName',
+            },
+            {
+              title: 'Email',
+              dataIndex: 'email',
+              key: 'email',
+            },
+            {
+              title: 'Trạng thái',
+              dataIndex: 'status',
+              key: 'status',
+              render: (status) => (
+                <Tag color={status === 'active' ? 'green' : 'red'} className="font-bold">
+                  {status === 'active' ? 'Hoạt động' : 'Đã khóa'}
+                </Tag>
+              )
+            }
+          ]}
+        />
       </Modal>
     </div>
   );

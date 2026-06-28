@@ -30,7 +30,7 @@ export default function DeleteSubjectCategoryModal({
         <div className="text-[17px] text-slate-800 pt-1">
           {isMultiple
             ? `Bạn có chắc chắn xóa ${multipleCount || 0} bản ghi đã chọn?`
-            : `Bạn có chắc chắn xóa môn thi "${itemName || ''}"?`}
+            : `Bạn có chắc chắn xóa môn học "${itemName || ''}"?`}
         </div>
       </div>
       <div className="flex justify-center gap-4 border-t border-gray-200 pt-5">

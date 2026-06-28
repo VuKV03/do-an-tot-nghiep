@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from 'antd';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
 import {
   SafetyCertificateOutlined,
   UserOutlined,
@@ -25,15 +28,29 @@ export default function SystemAdminModule({
   auditLogs,
   onAddAuditLog
 }: SystemAdminModuleProps) {
-  // Hardcoded security logging details to look fully realistic and rich
-  const [securityLogs, setSecurityLogs] = useState([
-    { id: 'sec-1', user: 'system_daemon', action: 'Bật tính năng TLS 256-bit', timestamp: '2026-06-17T12:00:00Z', level: 'info', ip: '10.0.4.15', details: 'Hệ thống tự động kích hoạt bảo mật kênh truyền HTTPS.' },
-    { id: 'sec-2', user: 'dungnt', action: 'Đăng nhập hệ thống', timestamp: '2026-06-17T11:45:00Z', level: 'success', ip: '192.168.1.12', details: 'Xác thực thành công thông qua tên người dùng và mật khẩu.' },
-    { id: 'sec-3', user: '113.161.42.10', action: 'Thử mật khẩu sai (Brute-Force)', timestamp: '2026-06-17T10:12:00Z', level: 'warning', ip: '113.161.42.10', details: 'Tài khoản admin liên tục đăng nhập sai 3 lần từ địa chỉ lạ.' },
-    { id: 'sec-4', user: 'trangpt', action: 'Cấu hình lại chính sách bảo mật', timestamp: '2026-06-17T09:30:00Z', level: 'info', ip: '192.168.1.5', details: 'Tăng độ dài ký tự tối thiểu từ 6 lên 8 chữ số.' },
-    { id: 'sec-5', user: 'system_scheduler', action: 'Sao lưu cơ sở dữ liệu định kỳ', timestamp: '2026-06-17T00:00:00Z', level: 'success', ip: 'localhost', details: 'Đã hoàn tất sao lưu 2.450 câu hỏi & 12 ma trận đề lên Cloud Storage.' },
-    { id: 'sec-6', user: 'hai_lh', action: 'Thay đổi nhóm quyền', timestamp: '2026-06-16T15:20:00Z', level: 'danger', ip: '192.168.1.20', details: 'Phát hiện thiết lập gán quyền ghi đè sai mục tiêu cho cán bộ thẩm định.' }
-  ]);
+  // Fetch real security logs from backend
+  const [securityLogs, setSecurityLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/auth/audit-logs`);
+        if (res.data.success && res.data.data.length > 0) {
+          setSecurityLogs(res.data.data);
+        } else {
+          // Fallback initial state if empty
+          setSecurityLogs([
+            { id: 'sec-1', user: 'system_daemon', action: 'Bật tính năng TLS 256-bit', timestamp: '2026-06-17T12:00:00Z', level: 'info', ip: '10.0.4.15', details: 'Hệ thống tự động kích hoạt bảo mật kênh truyền HTTPS.' }
+          ]);
+        }
+      } catch (err) {
+        console.error('Error fetching audit logs:', err);
+      }
+    };
+    if (currentTabKey === 'chinh-sach-bao-mat') {
+      fetchLogs();
+    }
+  }, [currentTabKey]);
 
   return (
     <div className="space-y-6" id="system-admin-overall-module">
