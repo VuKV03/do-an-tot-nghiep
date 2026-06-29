@@ -13,10 +13,18 @@ class QuestionBase(BaseModel):
     level: str = "medium"
     options: Optional[List[str]] = None
     correctAnswer: str
+    code: Optional[str] = None
+    topicId: Optional[str] = None
+    parentId: Optional[str] = None
+    subjectId: Optional[str] = None
+    gradeId: Optional[str] = None
+    competencyComponentId: Optional[str] = None
+    status: Optional[int] = 1
+    approvedNote: Optional[str] = ""
 
 
 class QuestionResponse(QuestionBase):
-    pass
+    id: str
 
 
 # ─── Exam Schemas ────────────────────────────────────────────────────

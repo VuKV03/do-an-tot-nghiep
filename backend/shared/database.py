@@ -3,6 +3,11 @@ Shared async database engine and session factory.
 Used by Exam Service, Analytics Service, and Auth Service.
 """
 import asyncio
+import sys
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 # pyrefly: ignore [missing-import]

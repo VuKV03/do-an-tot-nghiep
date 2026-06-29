@@ -304,25 +304,32 @@ async def seed_demo_data():
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     print("=" * 60)
-    print("🔧 [Exam Service] Khởi động trên Port 8001...")
+    print("[Exam Service] Starting on Port 8001...")
     await ensure_database_exists()
-    
-    # Drop table to force recreate with correct schema
-    # from backend.shared.database import engine
-    # from sqlalchemy import text
-    # try:
-    #     async with engine.begin() as conn:
-    #         print("[Exam Service] Dropping matrix_configs table if exists to update schema...")
-    #         await conn.execute(text("DROP TABLE IF EXISTS matrix_configs;"))
-    # except Exception as e:
-    #     print(f"[Exam Service] Error dropping matrix_configs: {e}")
 
     await init_tables()
+    
+    # DEBUG: Describe columns of questions and exams tables
+    from sqlalchemy import text
+    from backend.shared.database import engine
+    try:
+        async with engine.begin() as conn:
+            for table in ["questions", "exams"]:
+                res = await conn.execute(text(f"DESCRIBE {table};"))
+                rows = res.fetchall()
+                print("==================================")
+                print(f"[DEBUG] columns in {table} table:")
+                for r in rows:
+                    print(repr(r))
+                print("==================================")
+    except Exception as e:
+        print(f"[DEBUG] Error describing tables: {e}")
+
     await seed_demo_data()
-    print("✅ [Exam Service] Sẵn sàng phục vụ!")
+    print("[Exam Service] Ready!")
     print("=" * 60)
     yield
-    print("[Exam Service] Đang tắt...")
+    print("[Exam Service] Shutting down...")
 
 
 app = FastAPI(

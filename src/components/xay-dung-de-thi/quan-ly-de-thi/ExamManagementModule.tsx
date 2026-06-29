@@ -50,17 +50,19 @@ interface ExamManagementModuleProps {
 
 export default function ExamManagementModule({ onNavigateTab }: ExamManagementModuleProps) {
   // Tabs: 'exam_variants' | 'exam_roots' | 'exam_packages'
-  const [activeTab, setActiveTab] = useState<'exam_variants' | 'exam_roots' | 'exam_packages'>('exam_variants');
+  const [activeTab, setActiveTab] = useState<'exam_roots' | 'exam_review'>('exam_roots');
 
   // Core Data States
   const [exams, setExams] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Filters for Exams (Tab 1 & 2)
+  // Filters for Exams
   const [examSearch, setExamSearch] = useState('');
   const [examSubject, setExamSubject] = useState('all');
   const [examGrade, setExamGrade] = useState('all');
+  const [examMatrix, setExamMatrix] = useState('all');
+  const [examCreator, setExamCreator] = useState('all');
   const [examStatus, setExamStatus] = useState('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
@@ -133,23 +135,17 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   const filteredExamRoots = useMemo(() => {
     return exams.filter(e => {
-      // loai=3: root / matrix / manual
       const isRoot = e.source !== 'ai';
-      const matchesSearch = e.name.toLowerCase().includes(examSearch.toLowerCase()) || e.code.toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = (e.name || '').toLowerCase().includes(examSearch.toLowerCase()) || (e.code || '').toLowerCase().includes(examSearch.toLowerCase());
       const matchesSubject = examSubject === 'all' || e.subject === examSubject;
-      const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
-      return isRoot && matchesSearch && matchesSubject && matchesGrade && matchesStatus;
+      return isRoot && matchesSearch && matchesSubject && matchesStatus;
     });
-  }, [exams, examSearch, examSubject, examGrade, examStatus]);
+  }, [exams, examSearch, examSubject, examStatus]);
 
-  const filteredPackages = useMemo(() => {
-    return packages.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(pkgSearch.toLowerCase()) || p.code.toLowerCase().includes(pkgSearch.toLowerCase());
-      const matchesSubject = pkgSubject === 'all' || p.subject === pkgSubject;
-      return matchesSearch && matchesSubject;
-    });
-  }, [packages, pkgSearch, pkgSubject]);
+  const filteredExamReview = useMemo(() => {
+    return exams.filter(e => e.status === 'pending' || e.status === '2');
+  }, [exams]);
 
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
@@ -403,44 +399,33 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           </p>
         </div>
 
-        {/* Tab switcher buttons */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-0.5 shrink-0">
-          <Button
-            type={activeTab === 'exam_variants' ? 'primary' : 'text'}
-            size="small"
-            onClick={() => { setActiveTab('exam_variants'); setSelectedExamIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${
-              activeTab === 'exam_variants' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Đề hoán vị / riêng lẻ ({filteredExamVariants.length})
-          </Button>
-          <Button
-            type={activeTab === 'exam_roots' ? 'primary' : 'text'}
-            size="small"
+        {/* Tab switcher - 2 tabs theo image1 */}
+        <div className="flex border-b border-slate-200 gap-0 shrink-0 -mb-5">
+          <button
             onClick={() => { setActiveTab('exam_roots'); setSelectedExamIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${
-              activeTab === 'exam_roots' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              activeTab === 'exam_roots'
+                ? 'border-[#2c3e9e] text-[#2c3e9e] bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-700 bg-transparent'
             }`}
           >
-            Đề gốc ({filteredExamRoots.length})
-          </Button>
-          <Button
-            type={activeTab === 'exam_packages' ? 'primary' : 'text'}
-            size="small"
-            onClick={() => { setActiveTab('exam_packages'); setSelectedPkgIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${
-              activeTab === 'exam_packages' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+            Đề gốc
+          </button>
+          <button
+            onClick={() => { setActiveTab('exam_review'); setSelectedExamIds([]); }}
+            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              activeTab === 'exam_review'
+                ? 'border-[#2c3e9e] text-[#2c3e9e] bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-700 bg-transparent'
             }`}
           >
-            Gói đề thi ({packages.length})
-          </Button>
+            Thẩm định/phản biện đề
+          </button>
         </div>
       </div>
 
       {/* Advanced Filters Panel */}
-      {activeTab !== 'exam_packages' ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
           <div
             className="flex items-center gap-2 cursor-pointer mb-4 w-fit group"
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
@@ -453,47 +438,57 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
           {isFiltersExpanded && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+              <div className="grid grid-cols-3 gap-x-4 gap-y-3 text-xs mb-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Từ khóa tìm kiếm</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Mã/tên đề</label>
                   <Input
-                    placeholder="Nhập tên đề, mã đề..."
+                    placeholder="Nhập"
                     className="rounded border-slate-300 text-xs"
                     value={examSearch}
                     onChange={e => setExamSearch(e.target.value)}
                     allowClear
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
                   <Select
                     value={examSubject}
                     onChange={setExamSubject}
-                    className="w-full text-xs font-semibold"
-                    options={[{ value: 'all', label: 'Tất cả môn' }, ...SUBJECTS]}
+                    className="w-full text-xs"
+                    options={[{ value: 'all', label: 'Tất cả' }, ...SUBJECTS]}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Ma trận đề thi</label>
                   <Select
-                    value={examGrade}
-                    onChange={setExamGrade}
-                    className="w-full text-xs font-semibold"
-                    options={[{ value: 'all', label: 'Tất cả khối' }, ...GRADES]}
+                    value={examMatrix}
+                    onChange={setExamMatrix}
+                    className="w-full text-xs"
+                    options={[{ value: 'all', label: 'Tất cả' }, { value: 'ma-tran-01', label: 'Ma trận đề 01' }, { value: 'ma-tran-02', label: 'Ma trận đề 02' }]}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái duyệt</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Người tạo</label>
+                  <Select
+                    value={examCreator}
+                    onChange={setExamCreator}
+                    className="w-full text-xs"
+                    options={[{ value: 'all', label: 'Tất cả' }, ...SYSTEM_USERS.map(u => ({ value: u.id, label: u.fullName }))]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Ngày tạo</label>
+                  <RangePicker size="small" className="w-full" placeholder={['Bắt đầu', 'Kết thúc']} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
                   <Select
                     value={examStatus}
                     onChange={setExamStatus}
-                    className="w-full text-xs font-semibold"
+                    className="w-full text-xs"
                     options={[
-                      { value: 'all', label: 'Tất cả trạng thái' },
-                      { value: 'draft', label: 'Lưu nháp' },
+                      { value: 'all', label: 'Chờ thẩm định' },
+                      { value: 'draft', label: 'Tạo mới' },
                       { value: 'pending', label: 'Chờ thẩm định' },
                       { value: 'approved', label: 'Đã thẩm định' },
                       { value: 'rejected', label: 'Từ chối' }
@@ -501,9 +496,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                   />
                 </div>
               </div>
-
-              {/* Tìm kiếm button */}
-              <div className="flex justify-center mt-5">
+              <div className="flex justify-center">
                 <Button
                   type="primary"
                   className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded px-8 hover:bg-[#243590] cursor-pointer"
@@ -515,47 +508,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
             </div>
           )}
         </div>
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Tên/Mã gói tuyển tập</label>
-              <Input
-                placeholder="Tra cứu tên gói..."
-                className="rounded border-slate-300 text-xs"
-                value={pkgSearch}
-                onChange={e => setPkgSearch(e.target.value)}
-                allowClear
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
-              <Select
-                value={pkgSubject}
-                onChange={setPkgSubject}
-                className="w-full text-xs font-semibold"
-                options={[{ value: 'all', label: 'Tất cả môn' }, ...SUBJECTS]}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Đợt thi khảo sát</label>
-              <Select
-                value={pkgPeriod}
-                onChange={setPkgPeriod}
-                className="w-full text-xs font-semibold"
-                options={[
-                  { value: 'all', label: 'Tất cả đợt thi' },
-                  { value: 'hk1', label: 'Học kì I' },
-                  { value: 'hk2', label: 'Học kì II' },
-                  { value: 'thpt', label: 'Ôn thi Tốt nghiệp THPT' }
-                ]}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Results Board */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
@@ -566,37 +518,31 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           </h3>
           
           <Space size={8}>
-            {activeTab === 'exam_variants' && (
-              <Button
-                type="primary"
-                icon={<ThunderboltOutlined className="text-amber-400 animate-pulse" />}
-                onClick={() => setIsTuDongOpen(true)}
-                className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer shrink-0"
-              >
-                Tự động sinh đề AI
-              </Button>
-            )}
-
             {activeTab === 'exam_roots' && (
               <>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => {
-                    // Create single exam (typeAdd: true)
-                    setSelectedExam(null);
-                    setIsDeRiengLeOpen(true);
-                  }}
+                  onClick={() => setIsTuDongOpen(true)}
                   className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
                 >
-                  Thêm mới đề
+                  Thêm mới theo ma trận
                 </Button>
                 <Button
-                  icon={<FileExcelOutlined />}
-                  onClick={handleExportExcel}
-                  className="border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold text-xs rounded cursor-pointer"
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => { setSelectedExam(null); setIsDeRiengLeOpen(true); }}
+                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
                 >
-                  Xuất Excel
+                  Thêm mới thủ công
+                </Button>
+                <Button
+                  icon={<SafetyCertificateOutlined />}
+                  disabled={selectedExamIds.length === 0}
+                  onClick={() => selectedExamIds.length > 0 && handleOpenReview(filteredExamRoots.find(e => e.id === selectedExamIds[0])!)}
+                  className="border-slate-300 text-slate-700 font-semibold text-xs rounded cursor-pointer"
+                >
+                  Gửi thẩm định
                 </Button>
                 <Button
                   danger
@@ -604,19 +550,17 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                   disabled={selectedExamIds.length === 0}
                   className="font-semibold text-xs rounded cursor-pointer"
                 >
-                  Xóa nhiều {selectedExamIds.length > 0 ? `(${selectedExamIds.length})` : ''}
+                  Xóa
                 </Button>
               </>
             )}
-
-            {activeTab === 'exam_packages' && (
+            {activeTab === 'exam_review' && (
               <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setIsAddGoiDeOpen(true)}
-                className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                icon={<FileExcelOutlined />}
+                onClick={handleExportExcel}
+                className="border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold text-xs rounded cursor-pointer"
               >
-                Tạo gói đề & hoán vị
+                Xuất Excel
               </Button>
             )}
           </Space>
@@ -629,113 +573,75 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
               <Spin indicator={<SyncOutlined className="text-2xl" spin />} />
               <p className="text-xs text-slate-400 font-bold mt-2">Đang tải tài liệu...</p>
             </div>
-          ) : activeTab === 'exam_variants' && filteredExamVariants.length === 0 ? (
-            <Empty description="Không có đề hoán vị / riêng lẻ nào." className="py-12" />
-          ) : activeTab === 'exam_roots' && filteredExamRoots.length === 0 ? (
-            <Empty description="Không có đề gốc nào." className="py-12" />
-          ) : activeTab === 'exam_packages' && filteredPackages.length === 0 ? (
-            <Empty description="Không có gói tuyển tập đề thi nào." className="py-12" />
+          ) : (activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).length === 0 ? (
+            <Empty description="Không có đề thi nào." className="py-12" />
           ) : (
             <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  {activeTab !== 'exam_packages' && (
-                    <th className="py-3.5 px-4 text-center w-10">
-                      <input
-                        type="checkbox"
-                        className="cursor-pointer accent-[#2c3e9e]"
-                        checked={
-                          activeTab === 'exam_variants'
-                            ? filteredExamVariants.length > 0 && filteredExamVariants.every(e => selectedExamIds.includes(e.id))
-                            : filteredExamRoots.length > 0 && filteredExamRoots.every(e => selectedExamIds.includes(e.id))
-                        }
-                        onChange={() => {
-                          const currentList = activeTab === 'exam_variants' ? filteredExamVariants : filteredExamRoots;
-                          const allSelected = currentList.every(e => selectedExamIds.includes(e.id));
-                          if (allSelected) {
-                            setSelectedExamIds(prev => prev.filter(id => !currentList.map(e => e.id).includes(id)));
-                          } else {
-                            setSelectedExamIds(prev => Array.from(new Set([...prev, ...currentList.map(e => e.id)])));
-                          }
-                        }}
-                      />
-                    </th>
-                  )}
-                  <th className="py-3.5 px-4 text-center w-14 font-semibold">STT</th>
-                  <th className="py-3.5 px-4 text-left font-semibold">Mã đề / Gói</th>
-                  <th className="py-3.5 px-4 text-left font-semibold">Tên tiêu đề</th>
-                  <th className="py-3.5 px-4 text-left font-semibold">Môn & Khối</th>
-                  {activeTab !== 'exam_packages' ? (
-                    <>
-                      <th className="py-3.5 px-4 text-center font-semibold">Tổng câu hỏi</th>
-                      <th className="py-3.5 px-4 text-center font-semibold">Thời lượng</th>
-                      <th className="py-3.5 px-4 text-center font-semibold">Người tạo / Ngày</th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="py-3.5 px-4 text-center font-semibold">Đề gốc</th>
-                      <th className="py-3.5 px-4 text-center font-semibold">Đề hoán vị</th>
-                      <th className="py-3.5 px-4 text-center font-semibold">Lượt tải</th>
-                    </>
-                  )}
-                  <th className="py-3.5 px-4 text-center font-semibold">Trạng thái</th>
-                  <th className="py-3.5 px-4 text-right font-semibold">Hành động</th>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
+                  <th className="py-3 px-3 text-center w-10">
+                    <input
+                      type="checkbox"
+                      className="cursor-pointer accent-[#2c3e9e]"
+                      checked={filteredExamRoots.length > 0 && filteredExamRoots.every(e => selectedExamIds.includes(e.id))}
+                      onChange={() => {
+                        const allSelected = filteredExamRoots.every(e => selectedExamIds.includes(e.id));
+                        if (allSelected) setSelectedExamIds(prev => prev.filter(id => !filteredExamRoots.map(e => e.id).includes(id)));
+                        else setSelectedExamIds(prev => Array.from(new Set([...prev, ...filteredExamRoots.map(e => e.id)])));
+                      }}
+                    />
+                  </th>
+                  <th className="py-3 px-3 text-center w-12 font-semibold">STT</th>
+                  <th className="py-3 px-3 text-left font-semibold">Mã đề</th>
+                  <th className="py-3 px-3 text-left font-semibold">Tên đề thi</th>
+                  <th className="py-3 px-3 text-center font-semibold">Môn thi</th>
+                  <th className="py-3 px-3 text-center font-semibold">Ma trận đề</th>
+                  <th className="py-3 px-3 text-center font-semibold">Tổng điểm</th>
+                  <th className="py-3 px-3 text-center font-semibold">Số câu hỏi</th>
+                  <th className="py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)</th>
+                  <th className="py-3 px-3 text-center font-semibold">Ngày tạo</th>
+                  <th className="py-3 px-3 text-center font-semibold">Trạng thái</th>
+                  <th className="py-3 px-3 text-center font-semibold">Trạng thái do AI tạo</th>
+                  <th className="py-3 px-3 text-center font-semibold">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {activeTab === 'exam_variants' &&
-                  filteredExamVariants.map((row, idx) => (
+                {(activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).map((row, idx) => (
                     <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${selectedExamIds.includes(row.id) ? 'bg-blue-50/30' : ''}`}>
-                      <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          className="cursor-pointer accent-[#2c3e9e]"
+                      <td className="py-2.5 px-3 text-center">
+                        <input type="checkbox" className="cursor-pointer accent-[#2c3e9e]"
                           checked={selectedExamIds.includes(row.id)}
-                          onChange={() => setSelectedExamIds(prev => prev.includes(row.id) ? prev.filter(id => id !== row.id) : [...prev, row.id])}
-                        />
+                          onChange={() => setSelectedExamIds(prev => prev.includes(row.id) ? prev.filter(id => id !== row.id) : [...prev, row.id])} />
                       </td>
-                      <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">
-                          {row.code}
-                        </span>
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-[11px]">{idx + 1}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">{row.code}</span>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{row.name}</strong>
-                          <span className="text-[10px] text-slate-400 max-w-sm block truncate mt-0.5 font-medium">
-                            {row.description || 'Không kèm tóm tắt mô tả.'}
-                          </span>
-                        </div>
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-slate-800 text-[11px] max-w-[160px] truncate">{row.name}</div>
+                        <div className="text-[10px] text-slate-400 truncate max-w-[160px]">{row.description || ''}</div>
                       </td>
-                      <td className="py-3 px-4">
-                        <Space size={4}>
-                          <Tag color="blue" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.subject}</Tag>
-                          <Tag color="purple" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.grade}</Tag>
-                        </Space>
+                      <td className="py-2.5 px-3 text-center">
+                        <Tag color="blue" className="rounded-md font-bold text-[9px] m-0 border-transparent">{row.subject}</Tag>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-mono font-bold bg-slate-50 px-2 py-0.5 rounded border text-slate-750">{row.totalQuestions} câu</span>
+                      <td className="py-2.5 px-3 text-center text-[11px] text-slate-500">{row.matrixName || 'Ma trận đề 01'}</td>
+                      <td className="py-2.5 px-3 text-center font-bold text-[11px]">{row.totalScore || '10.00'}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="font-mono bg-slate-50 px-2 py-0.5 rounded border text-[11px]">{row.totalQuestions || 0}</span>
                       </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-650">{row.duration} phút</td>
-                      <td className="py-3 px-4 text-left">
-                        <div className="text-[10px] text-slate-500 font-semibold">{row.creator || 'Hội đồng khảo thí'}</div>
-                        <div className="text-[9px] text-slate-400 mt-0.5">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</div>
+                      <td className="py-2.5 px-3 text-center font-semibold text-[11px]">{row.duration || 90}</td>
+                      <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : '20/10/2006'}</td>
+                      <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        {row.source === 'ai'
+                          ? <span className="inline-block bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded font-bold text-[9px]">AI</span>
+                          : <span className="inline-block bg-slate-50 text-slate-400 border px-2 py-0.5 rounded font-bold text-[9px]">—</span>}
                       </td>
-                      <td className="py-3 px-4 text-center">{getStatusTag(row.status)}</td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={4}>
-                          <Tooltip title="Xem nội dung đề">
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<EyeOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => {
-                                setSelectedExam(row);
-                                setIsDeRiengLeOpen(true);
-                              }}
-                              className="cursor-pointer"
-                            />
+                      <td className="py-2.5 px-3 text-center">
+                        <Space size={2}>
+                          <Tooltip title="Chỉnh sửa">
+                            <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />}
+                              onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
                           </Tooltip>
                           <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
                             <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
@@ -745,137 +651,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                     </tr>
                   ))}
 
-                {activeTab === 'exam_roots' &&
-                  filteredExamRoots.map((row, idx) => (
-                    <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${selectedExamIds.includes(row.id) ? 'bg-blue-50/30' : ''}`}>
-                      <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          className="cursor-pointer accent-[#2c3e9e]"
-                          checked={selectedExamIds.includes(row.id)}
-                          onChange={() => setSelectedExamIds(prev => prev.includes(row.id) ? prev.filter(id => id !== row.id) : [...prev, row.id])}
-                        />
-                      </td>
-                      <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">
-                          {row.code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{row.name}</strong>
-                          <span className="text-[10px] text-slate-400 max-w-sm block truncate mt-0.5 font-medium">
-                            {row.description || 'Không kèm tóm tắt mô tả.'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Space size={4}>
-                          <Tag color="blue" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.subject}</Tag>
-                          <Tag color="purple" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.grade}</Tag>
-                        </Space>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-mono font-bold bg-slate-50 px-2 py-0.5 rounded border text-slate-750">{row.totalQuestions} câu</span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-650">{row.duration} phút</td>
-                      <td className="py-3 px-4 text-left">
-                        <div className="text-[10px] text-slate-500 font-semibold">{row.creator || 'Hội đồng khảo thí'}</div>
-                        <div className="text-[9px] text-slate-400 mt-0.5">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</div>
-                      </td>
-                      <td className="py-3 px-4 text-center">{getStatusTag(row.status)}</td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={4}>
-                          <Tooltip title="Xem trước và Chỉnh sửa">
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<EditOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => {
-                                setSelectedExam(row);
-                                setIsDeRiengLeOpen(true);
-                              }}
-                              className="cursor-pointer"
-                            />
-                          </Tooltip>
-                          <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
-                            <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
-                          </Dropdown>
-                        </Space>
-                      </td>
-                    </tr>
-                  ))}
 
-                {activeTab === 'exam_packages' &&
-                  filteredPackages.map((row, idx) => (
-                    <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">
-                          {row.code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <strong className="text-slate-800 text-[12px]">{row.name}</strong>
-                          <span className="text-[10px] text-slate-400 max-w-sm block truncate mt-0.5 font-medium">
-                            {row.description || 'Gói tuyển tập không kèm theo nhận xét.'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Space size={4}>
-                          <Tag color="geekblue" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.subject}</Tag>
-                          <Tag color="orange" className="rounded-md font-bold text-[9px] uppercase m-0 border-transparent">{row.grade}</Tag>
-                        </Space>
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-600">
-                        {/* original exam ids linked count */}
-                        {row.examsCount ? Math.ceil(row.examsCount / 4) : 1} Đề gốc
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-mono font-bold bg-slate-50 px-2 py-0.5 rounded border text-slate-800">
-                          {row.examsCount || 0} Đề
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-550">{row.downloadsCount || 0} lượt</td>
-                      <td className="py-3 px-4 text-center">
-                        <span onClick={() => handleTogglePkgStatus(row)} className="cursor-pointer select-none">
-                          {row.status === 'active' ? (
-                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded font-bold text-[9px]">
-                              🟢 HOẠT ĐỘNG
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded font-bold text-[9px]">
-                              🔴 TẠM KHÓA
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Space size={4}>
-                          <Popconfirm
-                            title="Xác nhận giải tán gói đề này?"
-                            onConfirm={() => handleDeletePackage(row.id, row.name)}
-                            okText="Có"
-                            cancelText="Không"
-                            okButtonProps={{ danger: true }}
-                          >
-                            <Tooltip title="Giải tán gói đề">
-                              <Button
-                                size="small"
-                                type="text"
-                                danger
-                                icon={<DeleteOutlined />}
-                                className="cursor-pointer"
-                              />
-                            </Tooltip>
-                          </Popconfirm>
-                        </Space>
-                      </td>
-                    </tr>
-                  ))}
               </tbody>
             </table>
           )}

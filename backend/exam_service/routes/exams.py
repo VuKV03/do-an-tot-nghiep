@@ -21,6 +21,19 @@ from backend.exam_service.schemas import (
 
 router = APIRouter(prefix="/exams", tags=["Exams"])
 
+from sqlalchemy import text
+
+@router.get("/debug-db")
+async def debug_db(db: AsyncSession = Depends(get_db)):
+    try:
+        res = await db.execute(text("DESCRIBE questions;"))
+        rows = res.fetchall()
+        columns = [dict(zip(res.keys(), r)) for r in rows]
+        return {"success": True, "columns": columns}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 
 def _parse_options(options_str: str | None) -> list[str]:
     if not options_str:
@@ -49,11 +62,20 @@ def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
         source=exam.source or "manual",
         questions=[
             QuestionResponse(
+                id=q.id,
                 text=q.text,
                 type=q.type or "single",
                 level=q.level or "medium",
                 options=_parse_options(q.options),
                 correctAnswer=q.correctAnswer,
+                code=q.code or "",
+                topicId=q.topicId or "",
+                parentId=q.parentId or "",
+                subjectId=q.subjectId or "",
+                gradeId=q.gradeId or "",
+                competencyComponentId=q.competencyComponentId or "",
+                status=q.status or 1,
+                approvedNote=q.approvedNote or "",
             )
             for q in questions
         ],
@@ -115,6 +137,14 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
             level=q.level,
             options=json.dumps(q.options or [], ensure_ascii=False),
             correctAnswer=q.correctAnswer,
+            code=q.code or f"Q-{exam_code}-{i+1}",
+            topicId=q.topicId or None,
+            parentId=q.parentId or None,
+            subjectId=q.subjectId or None,
+            gradeId=q.gradeId or None,
+            competencyComponentId=q.competencyComponentId or None,
+            status=q.status or 1,
+            approvedNote=q.approvedNote or "",
         )
         db.add(question)
         questions.append(question)
@@ -155,6 +185,14 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
                 level=q.level,
                 options=json.dumps(q.options or [], ensure_ascii=False),
                 correctAnswer=q.correctAnswer,
+                code=q.code or f"Q-{exam.code}-{i+1}",
+                topicId=q.topicId or None,
+                parentId=q.parentId or None,
+                subjectId=q.subjectId or None,
+                gradeId=q.gradeId or None,
+                competencyComponentId=q.competencyComponentId or None,
+                status=q.status or 1,
+                approvedNote=q.approvedNote or "",
             )
             db.add(question)
             new_questions.append(question)

@@ -35,15 +35,24 @@ class Question(Base):
     __tablename__ = "questions"
 
     id = Column(String(255), primary_key=True)
-    examId = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=False)
-    text = Column(Text, nullable=False)
-    type = Column(String(50), default="single")
-    level = Column(String(50), default="medium")
+    code = Column(String(100), nullable=True)
+    examId = Column("exam_id", String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=False)
+    text = Column("content", Text, nullable=False)
+    type = Column("type_id", String(50), default="single")
+    level = Column("level_id", String(50), default="medium")
     options = Column(Text)  # JSON string of options array
-    correctAnswer = Column(String(255), nullable=False)
+    correctAnswer = Column("correct_answer", String(255), nullable=False)
+    topicId = Column("topic_id", String(36), ForeignKey("topics.id", ondelete="SET NULL"), nullable=True)
+    parentId = Column("parent_id", String(36), nullable=True)
+    subjectId = Column("subject_id", String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True)
+    gradeId = Column("grade_id", String(36), ForeignKey("grade_levels.id", ondelete="SET NULL"), nullable=True)
+    competencyComponentId = Column("competency_component_id", String(36), nullable=True)
+    status = Column("status", Integer, default=1)
+    approvedNote = Column("approved_note", Text, default="")
 
     # Relationship
     exam = relationship("Exam", back_populates="questions")
+
 
 
 class Package(Base):
