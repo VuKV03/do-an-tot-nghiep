@@ -386,42 +386,33 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   ];
 
   return (
-    <div className="space-y-6" id="exam-management-layout-facade">
-      {/* Module Title & Tab Switcher */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-lg p-5 shadow-xs select-none">
-        <div className="space-y-1">
-          <h2 className="text-[#1a3c8b] font-bold text-base m-0 flex items-center gap-2">
-            <SlidersOutlined className="text-[#1a3c8b]" />
-            QUẢN LÝ ĐỀ THI & GÓI ĐỀ THI QUỐC GIA
-          </h2>
-          <p className="text-xs text-slate-400 font-medium">
-            Tổ chức đề gốc, quản lý đề hoán vị và đóng gói tuyển tập đề kiểm tra tích hợp Gemini AI.
-          </p>
-        </div>
-
-        {/* Tab switcher - 2 tabs theo image1 */}
-        <div className="flex border-b border-slate-200 gap-0 shrink-0 -mb-5">
-          <button
-            onClick={() => { setActiveTab('exam_roots'); setSelectedExamIds([]); }}
-            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-              activeTab === 'exam_roots'
-                ? 'border-[#2c3e9e] text-[#2c3e9e] bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-700 bg-transparent'
+    <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="exam-management-layout-facade">
+      {/* Tab Headers */}
+      <div className="flex gap-1 border-b border-gray-300 relative select-none">
+        <button
+          onClick={() => { setActiveTab('exam_roots'); setSelectedExamIds([]); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_roots'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
-          >
-            Đề gốc
-          </button>
-          <button
-            onClick={() => { setActiveTab('exam_review'); setSelectedExamIds([]); }}
-            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-              activeTab === 'exam_review'
-                ? 'border-[#2c3e9e] text-[#2c3e9e] bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-700 bg-transparent'
+          style={{
+            borderBottomColor: activeTab === 'exam_roots' ? '#eff6ff' : undefined
+          }}
+        >
+          Đề gốc
+        </button>
+        <button
+          onClick={() => { setActiveTab('exam_review'); setSelectedExamIds([]); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_review'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
-          >
-            Thẩm định/phản biện đề
-          </button>
-        </div>
+          style={{
+            borderBottomColor: activeTab === 'exam_review' ? '#eff6ff' : undefined
+          }}
+        >
+          Thẩm định/phản biện đề
+        </button>
       </div>
 
       {/* Advanced Filters Panel */}

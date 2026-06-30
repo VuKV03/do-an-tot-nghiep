@@ -442,40 +442,33 @@ export default function MatrixConfigModule() {
   }
 
   return (
-    <div className="space-y-6" id="matrix-module-facade">
-      {/* Module Title & Tab Switcher */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-lg p-5 shadow-xs select-none">
-        <div className="space-y-1">
-          <h2 className="text-[#1a3c8b] font-bold text-base m-0 flex items-center gap-2">
-            <ProjectOutlined className="text-[#1a3c8b]" />
-            QUẢN LÝ MA TRẬN ĐỀ
-          </h2>
-          <p className="text-xs text-slate-400 font-medium">
-            Thiết lập ma trận câu hỏi, cấu trúc đề thi và quản lý quy trình thẩm định ma trận đề đặc tả.
-          </p>
-        </div>
-
-        {/* Tab switcher buttons */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-0.5 shrink-0">
-          <Button
-            type={activeTab === 'list' ? 'primary' : 'text'}
-            size="small"
-            onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${activeTab === 'list' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-              }`}
-          >
-            Ma trận đề
-          </Button>
-          <Button
-            type={activeTab === 'evaluation' ? 'primary' : 'text'}
-            size="small"
-            onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
-            className={`text-xs font-semibold rounded py-1 px-3.5 border-transparent ${activeTab === 'evaluation' ? 'bg-[#2c3e9e] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-              }`}
-          >
-            Thẩm định/phản biện ma trận đề
-          </Button>
-        </div>
+    <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="matrix-module-facade">
+      {/* Tab Headers */}
+      <div className="flex gap-1 border-b border-gray-300 relative select-none">
+        <button
+          onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            }`}
+          style={{
+            borderBottomColor: activeTab === 'list' ? '#eff6ff' : undefined
+          }}
+        >
+          Ma trận đề
+        </button>
+        <button
+          onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'evaluation'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            }`}
+          style={{
+            borderBottomColor: activeTab === 'evaluation' ? '#eff6ff' : undefined
+          }}
+        >
+          Thẩm định ma trận đề
+        </button>
       </div>
 
       {activeTab === 'list' ? (
