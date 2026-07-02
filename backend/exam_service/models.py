@@ -230,6 +230,21 @@ class TopicHistory(Base):
     # topic = relationship("Topic", backref="histories")
 
 
+# ─── Lịch sử câu hỏi (question_histories) ───────────────────────────
+class QuestionHistory(Base):
+    __tablename__ = "question_histories"
+
+    id = Column(String(36), primary_key=True)
+    question_id = Column(
+        String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False
+    )
+    actor = Column(String(255), nullable=True)
+    action = Column(String(50), nullable=False)                   # action: 'Thêm mới', 'Sửa', 'Xóa', 'Gửi thẩm định', 'Đồng ý', 'Từ chối'
+    timestamp = Column(String(50), nullable=False)
+    note = Column(Text, default="")
+
+
+
 # ─── Cấu hình môn học (subject_configs) ──────────────────────────────
 class SubjectConfig(Base):
     __tablename__ = "subject_configs"

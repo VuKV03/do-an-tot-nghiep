@@ -18,7 +18,8 @@ from sqlalchemy import select, func, text
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
     SubjectCategory, CognitiveLevel, QuestionType,  # category models
-    CompetencyComponent, GradeLevel, ExamPeriod, Topic, SubjectConfig
+    CompetencyComponent, GradeLevel, ExamPeriod, Topic, SubjectConfig,
+    QuestionHistory
 )
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
