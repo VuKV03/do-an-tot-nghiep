@@ -42,7 +42,8 @@ import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
-import Login from './components/Login';
+import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
+import Login from './components/dang-nhap-dang-ky/Login';
 
 const { Header, Sider, Content } = Layout;
 
@@ -350,7 +351,7 @@ export default function App() {
         );
       case 'quan-ly-de-thi-goi-de':
         return (
-          <ExamPackageModule
+          <ExamManagementModule
             onNavigateTab={(key) => setActiveMenuKey(key)}
           />
         );
@@ -408,6 +409,7 @@ export default function App() {
     switch (activeMenuKey) {
       case 'dashboard': return 'Bảng tổng quan điều khiển';
       case 'quan-ly-ma-tran-de': return 'Xây dựng đề thi/ Quản lý ma trận đề';
+      case 'quan-ly-de-thi-goi-de': return 'Xây dựng đề thi / Quản lý đề thi & gói đề';
       case 'ngan-hang-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Ngân hàng câu hỏi';
       case 'chu-de-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Chủ đề câu hỏi';
       case 'thong-ke-nhch': return 'Quản lý ngân hàng câu hỏi / Thống kê NHCH';

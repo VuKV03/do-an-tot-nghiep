@@ -4,19 +4,20 @@ Auth routes — Login, Register, User management.
 import time
 from datetime import datetime
 # pyrefly: ignore [missing-import]
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select
+from sqlalchemy import select, func
 # pyrefly: ignore [missing-import]
 from passlib.context import CryptContext
 
 from backend.shared.database import get_db
-from backend.auth_service.models import User, UserGroup
+from backend.auth_service.models import User, UserGroup, SecurityPolicy, AuditLog
 from backend.auth_service.schemas import (
     LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest,
-    GroupCreateRequest, GroupUpdateRequest, GroupResponse
+    GroupCreateRequest, GroupUpdateRequest, GroupResponse,
+    SecurityPolicyUpdate, SecurityPolicyResponse, AuditLogCreate, AuditLogResponse
 )
 from backend.auth_service.jwt_handler import create_access_token, create_refresh_token
 
@@ -193,9 +194,35 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách nhóm người dùng."""
     result = await db.execute(select(UserGroup))
     groups = result.scalars().all()
+    
+    role_map = {
+        "GRP_ADMIN": "admin",
+        "GRP_TEACHER": "teacher",
+        "GRP_STUDENT": "student",
+        "GRP_REVIEWER": "reviewer"
+    }
+    
+    response_data = []
+    for g in groups:
+        mapped_role = role_map.get(g.code)
+        fallback_role = g.code.split('_')[-1].lower() if '_' in g.code else g.code.lower()
+        
+        count_result = await db.execute(
+            select(func.count(User.id)).where(
+                (User.role == g.code) | 
+                (User.role == mapped_role) | 
+                (User.role == fallback_role)
+            )
+        )
+        actual_count = count_result.scalar()
+        
+        g_dict = parse_group_permissions(g)
+        g_dict["memberCount"] = actual_count
+        response_data.append(g_dict)
+        
     return {
         "success": True,
-        "data": [parse_group_permissions(g) for g in groups],
+        "data": response_data,
     }
 
 @router.post("/groups", status_code=201)
@@ -245,11 +272,31 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
     if body.permissions is not None:
         group.permissions = json.dumps(body.permissions)
         
-    await db.commit()
+    role_map = {
+        "GRP_ADMIN": "admin",
+        "GRP_TEACHER": "teacher",
+        "GRP_STUDENT": "student",
+        "GRP_REVIEWER": "reviewer"
+    }
+    mapped_role = role_map.get(group.code)
+    fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
+    
+    count_result = await db.execute(
+        select(func.count(User.id)).where(
+            (User.role == group.code) | 
+            (User.role == mapped_role) | 
+            (User.role == fallback_role)
+        )
+    )
+    actual_count = count_result.scalar()
+    
+    g_dict = parse_group_permissions(group)
+    g_dict["memberCount"] = actual_count
+    
     return {
         "success": True,
         "message": "Cập nhật thông tin thành công!",
-        "group": parse_group_permissions(group)
+        "group": g_dict
     }
 
 @router.delete("/groups/{group_id}")
@@ -269,4 +316,133 @@ async def delete_group(group_id: str, db: AsyncSession = Depends(get_db)):
     return {
         "success": True,
         "message": "Đã xóa nhóm thành công!"
+    }
+
+@router.get("/groups/{group_id}/members")
+async def list_group_members(group_id: str, db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách người dùng thuộc nhóm."""
+    result = await db.execute(select(UserGroup).where(UserGroup.id == group_id))
+    group = result.scalar_one_or_none()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Nhóm không tồn tại.")
+        
+    # Map group code to role
+    role_map = {
+        "GRP_ADMIN": "admin",
+        "GRP_TEACHER": "teacher",
+        "GRP_STUDENT": "student",
+        "GRP_REVIEWER": "reviewer"
+    }
+    mapped_role = role_map.get(group.code)
+    fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
+    
+    # Find users whose role matches the group code or mapped role
+    user_result = await db.execute(
+        select(User).where(
+            (User.role == group.code) | 
+            (User.role == mapped_role) | 
+            (User.role == fallback_role)
+        )
+    )
+    users = user_result.scalars().all()
+    
+    return {
+        "success": True,
+        "data": [UserResponse.model_validate(u).model_dump() for u in users]
+    }
+
+# ----------------- SECURITY POLICY & AUDIT LOGS -----------------
+
+@router.get("/security/policy")
+async def get_security_policy(db: AsyncSession = Depends(get_db)):
+    """Lấy cấu hình chính sách bảo mật."""
+    result = await db.execute(select(SecurityPolicy).where(SecurityPolicy.id == "default"))
+    policy = result.scalar_one_or_none()
+    
+    if not policy:
+        # Create default if not exists
+        policy = SecurityPolicy(id="default", updatedAt=datetime.utcnow().isoformat() + "Z")
+        db.add(policy)
+        await db.commit()
+        await db.refresh(policy)
+        
+    return {
+        "success": True,
+        "data": SecurityPolicyResponse.model_validate(policy).model_dump()
+    }
+
+@router.put("/security/policy")
+async def update_security_policy(body: SecurityPolicyUpdate, db: AsyncSession = Depends(get_db)):
+    """Cập nhật cấu hình chính sách bảo mật."""
+    result = await db.execute(select(SecurityPolicy).where(SecurityPolicy.id == "default"))
+    policy = result.scalar_one_or_none()
+    
+    if not policy:
+        policy = SecurityPolicy(id="default", updatedAt=datetime.utcnow().isoformat() + "Z")
+        db.add(policy)
+        
+    if body.minPasswordLength is not None:
+        policy.minPasswordLength = body.minPasswordLength
+    if body.requireUpperCase is not None:
+        policy.requireUpperCase = body.requireUpperCase
+    if body.requireSpecialChar is not None:
+        policy.requireSpecialChar = body.requireSpecialChar
+    if body.passwordExpiryDays is not None:
+        policy.passwordExpiryDays = body.passwordExpiryDays
+    if body.sessionTimeoutMinutes is not None:
+        policy.sessionTimeoutMinutes = body.sessionTimeoutMinutes
+    if body.maxLoginFailures is not None:
+        policy.maxLoginFailures = body.maxLoginFailures
+    if body.enableCaptchaOnFail is not None:
+        policy.enableCaptchaOnFail = body.enableCaptchaOnFail
+    if body.enable2FAForAdmin is not None:
+        policy.enable2FAForAdmin = body.enable2FAForAdmin
+        
+    policy.updatedAt = datetime.utcnow().isoformat() + "Z"
+    await db.commit()
+    await db.refresh(policy)
+    
+    return {
+        "success": True,
+        "message": "Cập nhật chính sách bảo mật thành công!",
+        "data": SecurityPolicyResponse.model_validate(policy).model_dump()
+    }
+
+@router.get("/audit-logs")
+async def list_audit_logs(db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách nhật ký bảo mật."""
+    result = await db.execute(select(AuditLog).order_by(AuditLog.timestamp.desc()))
+    logs = result.scalars().all()
+    return {
+        "success": True,
+        "data": [AuditLogResponse.model_validate(log).model_dump() for log in logs]
+    }
+
+@router.post("/audit-logs", status_code=201)
+async def create_audit_log(body: AuditLogCreate, request: Request, db: AsyncSession = Depends(get_db)):
+    """Tạo mới nhật ký bảo mật."""
+    
+    # Capture real client IP
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+        
+    log = AuditLog(
+        id=f"log-{int(time.time() * 1000)}",
+        user=body.user,
+        action=body.action,
+        timestamp=datetime.utcnow().isoformat() + "Z",
+        level=body.level or "info",
+        ip=body.ip if body.ip and body.ip != "127.0.0.1" else client_ip,
+        details=body.details
+    )
+    db.add(log)
+    await db.commit()
+    await db.refresh(log)
+    return {
+        "success": True,
+        "message": "Đã ghi nhật ký",
+        "data": AuditLogResponse.model_validate(log).model_dump()
     }

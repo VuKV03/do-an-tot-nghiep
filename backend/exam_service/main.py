@@ -457,7 +457,7 @@ async def seed_demo_data():
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     print("=" * 60)
-    print("🔧 [Exam Service] Khởi động trên Port 8001...")
+    print("[Exam Service] Starting on Port 8001...")
     await ensure_database_exists()
     
     # Drop old subject_config table if exists
@@ -472,11 +472,28 @@ async def lifespan(app: FastAPI):
         print(f"[Exam Service] Error dropping old subject_config: {e}")
 
     await init_tables()
+    
+    # DEBUG: Describe columns of questions and exams tables
+    from sqlalchemy import text
+    from backend.shared.database import engine
+    try:
+        async with engine.begin() as conn:
+            for table in ["questions", "exams"]:
+                res = await conn.execute(text(f"DESCRIBE {table};"))
+                rows = res.fetchall()
+                print("==================================")
+                print(f"[DEBUG] columns in {table} table:")
+                for r in rows:
+                    print(repr(r))
+                print("==================================")
+    except Exception as e:
+        print(f"[DEBUG] Error describing tables: {e}")
+
     await seed_demo_data()
-    print("✅ [Exam Service] Sẵn sàng phục vụ!")
+    print("[Exam Service] Ready!")
     print("=" * 60)
     yield
-    print("[Exam Service] Đang tắt...")
+    print("[Exam Service] Shutting down...")
 
 
 app = FastAPI(

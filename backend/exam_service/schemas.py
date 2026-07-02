@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic schemas for request/response validation — Exam Service.
 """
 # pyrefly: ignore [missing-import]

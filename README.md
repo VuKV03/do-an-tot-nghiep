@@ -25,6 +25,14 @@
 
 ---
 
+## 🌟 Cập nhật mới nhất (Recent Updates)
+
+- **Cấu trúc Component**: Đã tổ chức lại thư mục, đưa các thành phần Đăng nhập/Đăng ký vào thư mục chuyên biệt `components/dang-nhap-dang-ky` để dễ quản lý.
+- **Refactor Phân hệ Quản trị**: Chuyển đổi quản lý trạng thái của module "Chính sách bảo mật" (Security Policy) và "Nhật ký hệ thống" sang dạng Local State độc lập trên Frontend, tối ưu hóa quá trình lưu trữ thay đổi và chuẩn hóa địa chỉ IP cục bộ về định dạng `127.0.0.1`.
+- **Giao diện (UI/UX)**: Khôi phục lại giao diện form nhập liệu Đăng nhập/Đăng ký theo form mẫu chuẩn, đồng thời khắc phục lỗi màu sắc khiến nút Đăng nhập bị ẩn trong chế độ Tối (Dark Mode). Cải thiện tính năng click xem danh sách thành viên chi tiết bên trong tab Quản lý nhóm người dùng.
+
+---
+
 ## 🏗️ Kiến trúc hệ thống
 
 Dự án được xây dựng dựa trên kiến trúc Microservices thuần túy sử dụng Python 3.11+ kết hợp FastAPI, kết nối trực tiếp với cơ sở dữ liệu MySQL/TiDB và trao đổi thông tin thông qua Gateway trung tâm.

@@ -21,6 +21,28 @@ from backend.exam_service.schemas import (
 
 router = APIRouter(prefix="/exams", tags=["Exams"])
 
+from sqlalchemy import text
+
+@router.get("/debug-db")
+async def debug_db(db: AsyncSession = Depends(get_db)):
+    try:
+        res = await db.execute(text("DESCRIBE questions;"))
+        rows = res.fetchall()
+        columns = [dict(zip(res.keys(), r)) for r in rows]
+        return {"success": True, "columns": columns}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _parse_options(options_str: str | None) -> list[str]:
+    if not options_str:
+        return []
+    try:
+        parsed = json.loads(options_str) if isinstance(options_str, str) else options_str
+        return parsed if isinstance(parsed, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
 
 def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
     return ExamResponse(

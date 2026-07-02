@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
 import { 
   Button, 
   Switch, 
@@ -47,34 +50,81 @@ export default function SecurityPolicy({
   const [maxLoginFailures, setMaxLoginFailures] = useState(5);
   const [enableCaptchaOnFail, setEnableCaptchaOnFail] = useState(true);
   const [enable2FAForAdmin, setEnable2FAForAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Security Audit Logs filter
   const [securitySearchKey, setSecuritySearchKey] = useState('');
   const [securityFilterLevel, setSecurityFilterLevel] = useState<string>('all');
 
-  const handleSaveSecurityPolicies = () => {
-    message.success('Đã áp dụng các quy chuẩn chính sách bảo mật thế hệ mới lên toàn phân hệ!');
-    
-    onAddAuditLog({
-      id: `log-sec-${Date.now()}`,
-      user: 'Quản trị viên',
-      action: 'Thay đổi an ninh lõi',
-      timestamp: new Date().toISOString(),
-      details: `Độ dài MK tối thiểu: ${minPasswordLength}, Expiry: ${passwordExpiryDays} ngày, Timeout: ${sessionTimeoutMinutes} phút, 2FA: ${enable2FAForAdmin ? 'BẬT' : 'TẮT'}`
-    });
+  useEffect(() => {
+    const fetchPolicy = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/auth/security/policy`);
+        if (res.data.success && res.data.data) {
+          const policy = res.data.data;
+          setMinPasswordLength(policy.minPasswordLength ?? 8);
+          setRequireUpperCase(policy.requireUpperCase ?? true);
+          setRequireSpecialChar(policy.requireSpecialChar ?? true);
+          setPasswordExpiryDays(policy.passwordExpiryDays ?? 90);
+          setSessionTimeoutMinutes(policy.sessionTimeoutMinutes ?? 30);
+          setMaxLoginFailures(policy.maxLoginFailures ?? 5);
+          setEnableCaptchaOnFail(policy.enableCaptchaOnFail ?? true);
+          setEnable2FAForAdmin(policy.enable2FAForAdmin ?? false);
+        }
+      } catch (err) {
+        console.error('Error fetching security policy:', err);
+      }
+    };
+    fetchPolicy();
+  }, []);
 
-    setSecurityLogs(prev => [
-      {
-        id: `sec-${Date.now()}`,
-        user: 'admin_panel',
+  const handleSaveSecurityPolicies = async () => {
+    setLoading(true);
+    try {
+      // 1. Gửi cấu hình thật lên BE
+      await axios.put(`${API_URL}/auth/security/policy`, {
+        minPasswordLength,
+        requireUpperCase,
+        requireSpecialChar,
+        passwordExpiryDays,
+        sessionTimeoutMinutes,
+        maxLoginFailures,
+        enableCaptchaOnFail,
+        enable2FAForAdmin
+      });
+
+      message.success('Đã áp dụng các quy chuẩn chính sách bảo mật thế hệ mới lên toàn phân hệ!');
+      
+      const details = `Độ dài tối thiểu MK: ${minPasswordLength}; 2FA cho quản trị viên: ${enable2FAForAdmin ? 'BẬT' : 'TẮT'}`;
+
+      // 2. Gửi API ghi log bảo mật (BE sẽ tự động bắt IP thật của thiết bị)
+      const logRes = await axios.post(`${API_URL}/auth/audit-logs`, {
+        user: 'Quản trị viên',
         action: 'Cập nhật an ninh hệ thống',
-        timestamp: new Date().toISOString(),
         level: 'info',
-        ip: '127.0.0.1',
-        details: `Độ dài tối thiểu MK: ${minPasswordLength}; 2FA cho quản trị viên: ${enable2FAForAdmin ? 'BẬT' : 'TẮT'}`
-      },
-      ...prev
-    ]);
+        ip: '', // Để trống để BE tự gán ip thực tế
+        details: details
+      });
+
+      if (logRes.data.success && logRes.data.data) {
+        setSecurityLogs(prev => [logRes.data.data, ...prev]);
+      }
+      
+      // General app audit log if needed
+      onAddAuditLog({
+        id: `log-sec-${Date.now()}`,
+        user: 'Quản trị viên',
+        action: 'Thay đổi an ninh lõi',
+        timestamp: new Date().toISOString(),
+        details: details
+      });
+
+    } catch (error: any) {
+      console.error('Error saving security policy:', error);
+      message.error(error.response?.data?.detail || 'Có lỗi xảy ra khi lưu thay đổi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Filter Security logs
@@ -82,7 +132,7 @@ export default function SecurityPolicy({
     return securityLogs.filter(log => {
       const matchSearch = log.user.toLowerCase().includes(securitySearchKey.toLowerCase()) ||
                           log.action.toLowerCase().includes(securitySearchKey.toLowerCase()) ||
-                          log.details.toLowerCase().includes(securitySearchKey.toLowerCase());
+                          (log.details && log.details.toLowerCase().includes(securitySearchKey.toLowerCase()));
       const matchLevel = securityFilterLevel === 'all' || log.level === securityFilterLevel;
       return matchSearch && matchLevel;
     });
@@ -211,6 +261,7 @@ export default function SecurityPolicy({
         <Button
           type="primary"
           block
+          loading={loading}
           icon={<SafetyCertificateOutlined />}
           onClick={handleSaveSecurityPolicies}
           className="bg-[#002147] border-transparent text-white font-extrabold text-xs rounded-xl hover:opacity-90 py-4 cursor-pointer select-none"
@@ -292,7 +343,7 @@ export default function SecurityPolicy({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-slate-400 text-[9.5px] font-bold bg-slate-150 px-1 rounded">{log.ip}</span>
+                    <span className="font-mono text-slate-400 text-[9.5px] font-bold bg-slate-150 px-1 rounded">{log.ip || "N/A"}</span>
                     {log.level === 'success' && <Badge color="green" />}
                     {log.level === 'info' && <Badge color="blue" />}
                     {log.level === 'warning' && <Badge color="gold" />}

@@ -59,6 +59,23 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm] = Form.useForm();
 
+  const logSecurityAction = async (action: string, level: string, details: string) => {
+    try {
+      const logRes = await axios.post(`${API_URL}/auth/audit-logs`, {
+        user: 'admin_panel',
+        action,
+        level,
+        ip: '',
+        details
+      });
+      if (logRes.data.success && logRes.data.data) {
+        setSecurityLogs(prev => [logRes.data.data, ...prev]);
+      }
+    } catch (err) {
+      console.error('Lỗi khi ghi log bảo mật:', err);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -141,18 +158,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             });
 
             // Add to security log
-            setSecurityLogs(prev => [
-              {
-                id: `sec-${Date.now()}`,
-                user: 'admin_panel',
-                action: 'Tạo tài khoản cán bộ',
-                timestamp: new Date().toISOString(),
-                level: 'success',
-                ip: '127.0.0.1',
-                details: `Thêm mới tài khoản chuyên viên ${values.fullName} thành công.`
-              },
-              ...prev
-            ]);
+            await logSecurityAction(
+              'Tạo tài khoản cán bộ',
+              'success',
+              `Thêm mới tài khoản chuyên viên ${values.fullName} thành công.`
+            );
 
             message.success(`Kích hoạt thành công tài khoản cán bộ: ${values.fullName}`);
             Modal.success({
@@ -211,18 +221,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           details: `Đã thu hồi tài khoản của: ${user.fullName} (@${user.username})`
         });
 
-        setSecurityLogs(prev => [
-          {
-            id: `sec-${Date.now()}`,
-            user: 'admin_panel',
-            action: 'Xóa tài khoản',
-            timestamp: new Date().toISOString(),
-            level: 'warning',
-            ip: '127.0.0.1',
-            details: `Đã xóa tài khoản @${user.username} khỏi hệ thống theo yêu cầu của hội đồng.`
-          },
-          ...prev
-        ]);
+        await logSecurityAction(
+          'Xóa tài khoản',
+          'warning',
+          `Đã xóa tài khoản @${user.username} khỏi hệ thống theo yêu cầu của hội đồng.`
+        );
 
         message.success(`Đã gỡ quyền truy cập của cán bộ: ${user.fullName}`);
       }
@@ -246,18 +249,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
         message.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
 
-        setSecurityLogs(prev => [
-          {
-            id: `sec-${Date.now()}`,
-            user: 'admin_panel',
-            action: `${statusText} tài khoản`,
-            timestamp: new Date().toISOString(),
-            level: newStatus === 'active' ? 'success' : 'danger',
-            ip: '127.0.0.1',
-            details: `Cập nhật trạng thái người dùng @${user.username} thành ${newStatus === 'active' ? 'Hoạt động' : 'Tạm khóa'}.`
-          },
-          ...prev
-        ]);
+        await logSecurityAction(
+          `${statusText} tài khoản`,
+          newStatus === 'active' ? 'success' : 'danger',
+          `Cập nhật trạng thái người dùng @${user.username} thành ${newStatus === 'active' ? 'Hoạt động' : 'Tạm khóa'}.`
+        );
       }
     } catch (err: any) {
       console.error('Error toggling user status:', err);
@@ -299,18 +295,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           centered: true
         });
 
-        setSecurityLogs(prev => [
-          {
-            id: `sec-${Date.now()}`,
-            user: 'admin_panel',
-            action: 'Reset Mật khẩu',
-            timestamp: new Date().toISOString(),
-            level: 'warning',
-            ip: '127.0.0.1',
-            details: `Yêu cầu làm mới khóa an toàn định danh cho người dùng @${user.username}.`
-          },
-          ...prev
-        ]);
+        await logSecurityAction(
+          'Reset Mật khẩu',
+          'warning',
+          `Yêu cầu làm mới khóa an toàn định danh cho người dùng @${user.username}.`
+        );
       }
     } catch (err: any) {
       console.error('Error resetting password:', err);
