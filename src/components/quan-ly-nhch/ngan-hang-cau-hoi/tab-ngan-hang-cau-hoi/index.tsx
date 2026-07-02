@@ -4,6 +4,7 @@ import type { MenuProps } from 'antd';
 import CreateQuestionModal from './manual-create';
 import DeleteConfirmModal from './delete';
 import SendReviewConfirmModal from './send-review';
+import QuestionDetailModal from './detail';
 import ThamDinhCauHoiTab from '../tham-dinh-cau-hoi';
 import QuestionHistoryModal from '../history';
 import {
@@ -21,7 +22,8 @@ import {
   LoadingOutlined,
   SendOutlined,
   MoreOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../../data';
@@ -90,6 +92,10 @@ export default function QuestionBankModule({
 
   // History modal state
   const [historyQuestion, setHistoryQuestion] = useState<Question | null>(null);
+
+  // Detail modal state
+  const [detailQuestion, setDetailQuestion] = useState<Question | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // Subjects dropdown
   const subjectDropdownOptions = useMemo(() => SUBJECTS, []);
@@ -486,6 +492,7 @@ export default function QuestionBankModule({
       align: 'center' as const,
       render: (_: any, record: Question) => {
         const canEdit = record.status === 'draft';
+        const showEye = record.status === 'pending' || record.status === 'approved';
 
         const menuItems: MenuProps['items'] = [];
 
@@ -523,6 +530,20 @@ export default function QuestionBankModule({
 
         return (
           <div className="flex items-center justify-center gap-1.5">
+            {showEye && (
+              <Tooltip title="Xem chi tiết">
+                <Button
+                  type="text"
+                  icon={<EyeOutlined className="text-blue-600 text-xs" />}
+                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                  onClick={() => {
+                    setDetailQuestion(record);
+                    setIsDetailOpen(true);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
             {canEdit && (
               <Tooltip title="Chỉnh sửa">
                 <Button
@@ -889,6 +910,7 @@ export default function QuestionBankModule({
               className: "pr-4 pb-4 pt-4 text-xs font-medium",
               style: { justifyContent: 'flex-end', margin: '16px 0 0 calc(100% - 400px)' }
             }}
+            scroll={{ x: 'max-content' }}
             className="border-none text-xs rounded-2xl"
           />
         </div>
@@ -1059,6 +1081,16 @@ export default function QuestionBankModule({
         question={historyQuestion}
         mode="ngan-hang"
         onClose={() => setHistoryQuestion(null)}
+      />
+
+      {/* Detail Modal */}
+      <QuestionDetailModal
+        open={isDetailOpen}
+        question={detailQuestion}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailQuestion(null);
+        }}
       />
 
       {/* CUSTOM CONFIRMATION POPUPS */}

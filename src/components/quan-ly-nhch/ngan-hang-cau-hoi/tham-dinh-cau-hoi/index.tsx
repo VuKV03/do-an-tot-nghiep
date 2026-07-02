@@ -720,6 +720,7 @@ export default function ThamDinhCauHoiTab({
                 className: 'pr-4 pb-4 pt-4 text-xs font-medium',
                 locale: { items_per_page: '/ trang' }
               }}
+              scroll={{ x: 'max-content' }}
               className="border-none text-xs rounded-2xl"
               locale={{ emptyText: 'Không có câu hỏi nào cần thẩm định' }}
             />
