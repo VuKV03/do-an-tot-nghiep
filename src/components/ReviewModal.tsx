@@ -40,8 +40,11 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
         return <Tag color="success">Đã thẩm định</Tag>;
       case 'pending':
         return <Tag color="warning">Chờ thẩm định</Tag>;
+      case 'rejected':
+        return <Tag color="error">Từ chối</Tag>;
+      case 'draft':
       default:
-        return <Tag color="default">Lưu nháp</Tag>;
+        return <Tag color="default">Tạo mới</Tag>;
     }
   };
 

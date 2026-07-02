@@ -71,6 +71,8 @@ def _map_status(status_val) -> str:
         return "approved"
     if status_val == 1:
         return "pending"
+    if status_val == -1:
+        return "rejected"
     return "draft"
 
 
@@ -341,13 +343,13 @@ async def approve_bank_question(question_id: str, db: AsyncSession = Depends(get
 
 @router.post("/{question_id}/reject")
 async def reject_bank_question(question_id: str, db: AsyncSession = Depends(get_db)):
-    """Từ chối câu hỏi (status → 0 draft)."""
+    """Từ chối câu hỏi (status → -1 rejected)."""
     stmt = select(Question).where(Question.id == question_id)
     res = await db.execute(stmt)
     question = res.scalar_one_or_none()
     if not question:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
 
-    question.status = 0
+    question.status = -1
     await db.commit()
     return {"success": True, "message": "Đã từ chối câu hỏi!"}

@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Tree, Select, Input, Button, Table, Tag, Space, message, Modal, Radio, Form, Spin, Divider, Tooltip, notification, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import CreateQuestionModal from './manual-create';
+import UpdateQuestionModal from './update';
 import DeleteConfirmModal from './delete';
 import SendReviewConfirmModal from './send-review';
 import QuestionDetailModal from './detail';
 import ThamDinhCauHoiTab from '../tham-dinh-cau-hoi';
 import QuestionHistoryModal from '../history';
+import ReviewModal from '../../../ReviewModal';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -105,6 +107,10 @@ export default function QuestionBankModule({
   // Detail modal state
   const [detailQuestion, setDetailQuestion] = useState<Question | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Update modal state
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [updateQuestion, setUpdateQuestion] = useState<Question | null>(null);
 
   // Fetch subjects, grades, and topics from API
   const fetchFiltersAndTopics = useCallback(async () => {
@@ -466,23 +472,62 @@ export default function QuestionBankModule({
     setIsDeleteOpen(false);
   };
 
-  const handleSendReviewConfirm = () => {
+  const handleSendReviewConfirm = async () => {
     if (pendingSendReviewQuestion) {
-      const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
-      onUpdateQuestion?.(updated);
-      message.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
+      try {
+        await bankQuestionApi.submit(pendingSendReviewQuestion.id);
+        const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
+        onUpdateQuestion?.(updated);
+        message.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
+        fetchQuestions();
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi gửi thẩm định');
+      }
       setPendingSendReviewQuestion(null);
     } else if (selectedRowKeys.length > 0) {
-      selectedRowKeys.forEach((key) => {
-        const quest = dbQuestions.find((q) => q.id === key);
-        if (quest && quest.status === 'draft') {
-          onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
+      try {
+        for (const key of selectedRowKeys) {
+          const quest = dbQuestions.find((q) => q.id === key);
+          if (quest && (quest.status === 'draft' || quest.status === 'rejected')) {
+            await bankQuestionApi.submit(quest.id);
+            onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
+          }
         }
-      });
-      message.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
+        message.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
+        fetchQuestions();
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi gửi thẩm định');
+      }
       setSelectedRowKeys([]);
     }
     setIsSendReviewOpen(false);
+  };
+
+  // Review Modal State & Handlers
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [selectedReviewQuestion, setSelectedReviewQuestion] = useState<Question | null>(null);
+
+  const handleOpenReviewInternal = (q: Question) => {
+    setSelectedReviewQuestion(q);
+    setIsReviewOpen(true);
+  };
+
+  const handleApproveQuestion = async (id: string, feedback: string) => {
+    try {
+      await bankQuestionApi.approve(id);
+      fetchQuestions();
+    } catch (e: any) {
+      message.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
+    }
+  };
+
+  const handleRejectQuestion = async (id: string, feedback: string) => {
+    try {
+      await bankQuestionApi.reject(id);
+      fetchQuestions();
+    } catch (e: any) {
+      message.error(e.message || 'Lỗi khi từ chối câu hỏi');
+    }
   };
 
   const tableColumns = [
@@ -569,11 +614,17 @@ export default function QuestionBankModule({
                 Chờ thẩm định
               </span>
             );
+          case 'rejected':
+            return (
+              <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+                Từ chối
+              </span>
+            );
           case 'draft':
           default:
             return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-700 font-bold text-[10px]">
-                Từ chối
+              <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
+                Tạo mới
               </span>
             );
         }
@@ -590,6 +641,13 @@ export default function QuestionBankModule({
           return (
             <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
               Đã thẩm định
+            </span>
+          );
+        }
+        if (record.status === 'rejected') {
+          return (
+            <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+              Từ chối
             </span>
           );
         }
@@ -614,8 +672,8 @@ export default function QuestionBankModule({
       width: 100,
       align: 'center' as const,
       render: (_: any, record: Question) => {
-        const canEdit = record.status === 'draft';
-        const showEye = record.status === 'pending' || record.status === 'approved';
+        const canEdit = record.status === 'draft' || record.status === 'rejected';
+        const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
 
         const menuItems: MenuProps['items'] = [];
 
@@ -674,7 +732,8 @@ export default function QuestionBankModule({
                   icon={<EditOutlined className="text-blue-600 text-xs" />}
                   className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
                   onClick={() => {
-                    message.info(`Xem thông tin câu hỏi ${record.code}. Tính năng chỉnh sửa đang được phát triển.`);
+                    setUpdateQuestion(record);
+                    setIsUpdateOpen(true);
                   }}
                   style={{ cursor: 'pointer' }}
                 />
@@ -1250,12 +1309,51 @@ export default function QuestionBankModule({
         selectedCount={selectedRowKeys.length}
       />
 
+      <UpdateQuestionModal
+        open={isUpdateOpen}
+        onClose={() => {
+          setIsUpdateOpen(false);
+          setUpdateQuestion(null);
+        }}
+        onSave={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        onSendReview={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        initialType="single"
+        subject={selectedSubject}
+        grade={selectedGrade}
+        selectedTopicKey={selectedTopicKey}
+        topicTreeData={topicTreeData}
+        initialQuestion={updateQuestion || undefined}
+      />
+
+      <ReviewModal
+        visible={isReviewOpen}
+        onClose={() => {
+          setIsReviewOpen(false);
+          setSelectedReviewQuestion(null);
+        }}
+        question={selectedReviewQuestion}
+        onApprove={handleApproveQuestion}
+        onReject={handleRejectQuestion}
+      />
+
         </div>
       ) : (
         <ThamDinhCauHoiTab
           questions={dbQuestions}
           onUpdateQuestion={onUpdateQuestion}
-          onOpenReview={onOpenReview}
+          onOpenReview={handleOpenReviewInternal}
+          apiSubjects={apiSubjects}
+          apiGrades={apiGrades}
+          allTopicsRaw={allTopicsRaw}
+          topicsLoading={topicsLoading}
+          onApproveQuestion={handleApproveQuestion}
+          onRejectQuestion={handleRejectQuestion}
         />
       )}
     </div>
