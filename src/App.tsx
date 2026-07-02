@@ -32,7 +32,7 @@ import {
   ProfileOutlined
 } from '@ant-design/icons';
 import { Question, MatrixConfig, AuditLog, SystemUser } from './types';
-import { INITIAL_QUESTIONS, INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
+import { INITIAL_MATRICES, MOCK_AUDIT_LOGS } from './data';
 import DashboardOverview from './components/DashboardOverview';
 import QuestionBankModule from './components/quan-ly-nhch/ngan-hang-cau-hoi/tab-ngan-hang-cau-hoi';
 import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
@@ -67,7 +67,9 @@ export default function App() {
   }, []);
 
   // Core Global States
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
+  // NOTE: Questions are now fetched inside QuestionBankModule directly from the API.
+  // This state is kept for DashboardOverview stats (will be refactored later).
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [matrices, setMatrices] = useState<MatrixConfig[]>(INITIAL_MATRICES);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
 
@@ -326,7 +328,6 @@ export default function App() {
       case 'ngan-hang-cau-hoi':
         return (
           <QuestionBankModule
-            questions={questions}
             onAddQuestion={handleAddQuestion}
             onUpdateQuestion={handleUpdateQuestion}
             onDeleteQuestion={handleDeleteQuestion}

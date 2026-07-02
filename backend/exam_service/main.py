@@ -32,6 +32,7 @@ from backend.exam_service.routes.grade_levels import router as grade_levels_rout
 from backend.exam_service.routes.exam_periods import router as exam_periods_router
 from backend.exam_service.routes.topics import router as topics_router
 from backend.exam_service.routes.questions import router as questions_router
+from backend.exam_service.routes.bank_questions import router as bank_questions_router
 
 
 async def seed_demo_data():
@@ -473,6 +474,20 @@ async def lifespan(app: FastAPI):
 
     await init_tables()
     
+    # Migration: add 'status' column to old questions table if not exists
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM questions LIKE 'status'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE questions ADD COLUMN status INT DEFAULT 0;"
+                ))
+                print("[Exam Service] ✅ Added 'status' column to questions table.")
+            else:
+                print("[Exam Service] ✅ 'status' column already exists in questions table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding status column: {e}")
+    
     # DEBUG: Describe columns of questions and exams tables
     try:
         async with engine.begin() as conn:
@@ -526,6 +541,7 @@ app.include_router(grade_levels_router)
 app.include_router(exam_periods_router)
 app.include_router(topics_router)
 app.include_router(questions_router)
+app.include_router(bank_questions_router)
 
 
 @app.get("/health")

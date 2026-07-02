@@ -431,3 +431,75 @@ export const questionApi = {
       data: { id: string } & Record<string, unknown>;
     }>('/questions/', { method: 'POST', body: JSON.stringify(body) }),
 };
+
+// ─── Bank Questions API ───────────────────────────────────────────────────────
+
+/** Câu hỏi ngân hàng — đọc từ bảng questions (JOIN exams) */
+export interface BankQuestionAPI {
+  id: string;
+  code: string;
+  text: string;
+  type: 'single' | 'multiple' | 'true_false' | 'short';
+  level: 'nhan_biet' | 'thong_hieu' | 'van_dung' | 'van_dung_cao';
+  status: 'approved' | 'pending' | 'draft';
+  subject: string;
+  grade: string;
+  topicId: string | null;
+  topicName: string;
+  subTopicName: string | null;
+  options: string[];
+  correctAnswer: string;
+  creator: string;
+  createdAt: string;
+  examId?: string | null;
+}
+
+export interface BankQuestionCreateAPI {
+  text: string;
+  type: string;
+  level: string;
+  subject: string;
+  grade: string;
+  examId?: string | null;
+  options?: string[] | null;
+  correctAnswer?: string | null;
+  status?: string;
+}
+
+export const bankQuestionApi = {
+  list: () =>
+    apiFetch<{ success: boolean; count: number; data: BankQuestionAPI[] }>(
+      '/bank-questions/',
+    ),
+  create: (body: BankQuestionCreateAPI) =>
+    apiFetch<{ success: boolean; message: string; data: BankQuestionAPI }>(
+      '/bank-questions/',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  update: (id: string, body: Partial<BankQuestionCreateAPI>) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/${id}`,
+      { method: 'PUT', body: JSON.stringify(body) },
+    ),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/${id}`,
+      { method: 'DELETE' },
+    ),
+  submit: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/${id}/submit`,
+      { method: 'POST' },
+    ),
+  approve: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/${id}/approve`,
+      { method: 'POST' },
+    ),
+  reject: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/${id}/reject`,
+      { method: 'POST' },
+    ),
+};
+
