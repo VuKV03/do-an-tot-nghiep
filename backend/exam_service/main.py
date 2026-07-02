@@ -12,7 +12,9 @@ from fastapi import FastAPI
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.shared.database import ensure_database_exists, init_tables, async_session
+from backend.shared.database import ensure_database_exists, init_tables, async_session, engine
+# pyrefly: ignore [missing-import]
+from sqlalchemy import select, func, text
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
     SubjectCategory, CognitiveLevel, QuestionType,  # category models
@@ -32,8 +34,6 @@ from backend.exam_service.routes.topics import router as topics_router
 async def seed_demo_data():
     """Nạp dữ liệu mẫu nếu database trống."""
     async with async_session() as db:
-        # pyrefly: ignore [missing-import]
-        from sqlalchemy import select, func
         
         # Build dynamic mappings for foreign keys to prevent IntegrityError
         # Fetch subjects
@@ -461,9 +461,6 @@ async def lifespan(app: FastAPI):
     await ensure_database_exists()
     
     # Drop old subject_config table if exists
-    from backend.shared.database import engine
-    # pyrefly: ignore [missing-import]
-    from sqlalchemy import text
     try:
         async with engine.begin() as conn:
             print("[Exam Service] Dropping old subject_config table if exists...")
@@ -474,8 +471,6 @@ async def lifespan(app: FastAPI):
     await init_tables()
     
     # DEBUG: Describe columns of questions and exams tables
-    from sqlalchemy import text
-    from backend.shared.database import engine
     try:
         async with engine.begin() as conn:
             for table in ["questions", "exams"]:

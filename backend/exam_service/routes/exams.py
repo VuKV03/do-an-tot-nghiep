@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, text
 
 from backend.shared.database import get_db
 from backend.exam_service.models import Exam, Question
@@ -21,7 +21,6 @@ from backend.exam_service.schemas import (
 
 router = APIRouter(prefix="/exams", tags=["Exams"])
 
-from sqlalchemy import text
 
 @router.get("/debug-db")
 async def debug_db(db: AsyncSession = Depends(get_db)):
