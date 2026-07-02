@@ -1,9 +1,14 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import {
-  Modal, Form, Select, Input, Button, Checkbox, message
-} from 'antd';
+import { Modal, Form, Select, Input, Button, Checkbox, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Question, QuestionType, CognitiveLevel, TopicNode, TrueFalseStatement } from '../../../../types';
+import {
+  Question,
+  QuestionType,
+  CognitiveLevel,
+  TopicNode,
+  TrueFalseStatement,
+} from '../../../../types';
+import { questionApi } from '../../../../services/danhMucApi.ts';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +64,6 @@ const DEFAULT_ANSWERS: AnswerRow[] = [
   { id: 4, content: '', isCorrect: false },
 ];
 
-
 const SIDEBAR_ITEMS: { value: QuestionType; label: string; icon: string }[] = [
   { value: 'single', label: 'Phương án trắc nghiệm', icon: '▤' },
   { value: 'true_false', label: 'Đúng sai', icon: '✓✗' },
@@ -76,11 +80,16 @@ const LEVEL_OPTIONS = [
 
 const getSubQuestionTypeLabel = (type: string) => {
   switch (type) {
-    case 'single': return 'Một lựa chọn';
-    case 'multiple': return 'Đa lựa chọn';
-    case 'true_false': return 'Đúng sai';
-    case 'short': return 'Trả lời ngắn';
-    default: return 'Một lựa chọn';
+    case 'single':
+      return 'Một lựa chọn';
+    case 'multiple':
+      return 'Đa lựa chọn';
+    case 'true_false':
+      return 'Đúng sai';
+    case 'short':
+      return 'Trả lời ngắn';
+    default:
+      return 'Một lựa chọn';
   }
 };
 
@@ -99,30 +108,40 @@ export default function CreateQuestionModal({
 }: CreateQuestionModalProps) {
   const [form] = Form.useForm();
   const [subQuestionForm] = Form.useForm();
-  
+
   // State quản lý loại câu hỏi hiện tại
   const [questionType, setQuestionType] = useState<QuestionType>('single');
-  
+
   // State câu hỏi trắc nghiệm (single)
-  const [answers, setAnswers] = useState<AnswerRow[]>(DEFAULT_ANSWERS.map((a) => ({ ...a })));
-  
+  const [answers, setAnswers] = useState<AnswerRow[]>(
+    DEFAULT_ANSWERS.map((a) => ({ ...a })),
+  );
+
   // State câu hỏi Đúng/Sai (true_false)
-  const [statements, setStatements] = useState<Omit<TrueFalseStatement, 'id'>[]>([]);
-  
+  const [statements, setStatements] = useState<
+    Omit<TrueFalseStatement, 'id'>[]
+  >([]);
+
   // State danh sách câu hỏi con trong Câu hỏi nhóm (multiple)
   const [subQuestions, setSubQuestions] = useState<SubQuestionRow[]>([
     { id: 1, text: 'Câu hỏi 01', type: 'single', link: '1' },
     { id: 2, text: 'Câu hỏi 02', type: 'single', link: '2' },
-    { id: 3, text: 'Câu hỏi 03', type: 'multiple' }
+    { id: 3, text: 'Câu hỏi 03', type: 'multiple' },
   ]);
 
   // State điều khiển Modal thêm/sửa câu hỏi con
   const [subQuestionModalOpen, setSubQuestionModalOpen] = useState(false);
-  const [editingSubQuestionId, setEditingSubQuestionId] = useState<number | null>(null);
+  const [editingSubQuestionId, setEditingSubQuestionId] = useState<
+    number | null
+  >(null);
   const [subFormTopicKey, setSubFormTopicKey] = useState<string | null>(null);
-  const [subQuestionType, setSubQuestionType] = useState<'single' | 'multiple' | 'true_false' | 'short'>('single');
-  const [subAnswers, setSubAnswers] = useState<AnswerRow[]>(DEFAULT_ANSWERS.map((a) => ({ ...a })));
-  
+  const [subQuestionType, setSubQuestionType] = useState<
+    'single' | 'multiple' | 'true_false' | 'short'
+  >('single');
+  const [subAnswers, setSubAnswers] = useState<AnswerRow[]>(
+    DEFAULT_ANSWERS.map((a) => ({ ...a })),
+  );
+
   /** Key của chủ đề đang được chọn trong form (để lọc tiểu mục) */
   const [formTopicKey, setFormTopicKey] = useState<string | null>(null);
 
@@ -168,7 +187,7 @@ export default function CreateQuestionModal({
     setSubQuestions([
       { id: 1, text: 'Câu hỏi 01', type: 'single', link: '1' },
       { id: 2, text: 'Câu hỏi 02', type: 'single', link: '2' },
-      { id: 3, text: 'Câu hỏi 03', type: 'multiple' }
+      { id: 3, text: 'Câu hỏi 03', type: 'multiple' },
     ]);
 
     let defaultTopicKey: string | null = null;
@@ -183,13 +202,16 @@ export default function CreateQuestionModal({
         // Đang chọn chủ đề cha
         defaultTopicKey = selectedTopicKey;
         // Chọn tiểu mục đầu tiên nếu có
-        const parentNode = topicTreeData.find((t) => t.key === selectedTopicKey);
+        const parentNode = topicTreeData.find(
+          (t) => t.key === selectedTopicKey,
+        );
         defaultSubTopicKey = (parentNode?.children?.[0]?.key as string) ?? null;
       }
     } else {
       // Không có gì được chọn → lấy node đầu tiên
       defaultTopicKey = (topicTreeData[0]?.key as string) ?? null;
-      defaultSubTopicKey = (topicTreeData[0]?.children?.[0]?.key as string) ?? null;
+      defaultSubTopicKey =
+        (topicTreeData[0]?.children?.[0]?.key as string) ?? null;
     }
 
     setFormTopicKey(defaultTopicKey);
@@ -207,13 +229,25 @@ export default function CreateQuestionModal({
     const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
       topicId: defaultTopicKey || '',
       topicName: '',
-      level: (i === 0 ? 'nhan_biet' : i === 1 ? 'thong_hieu' : i === 2 ? 'van_dung' : 'van_dung') as CognitiveLevel,
-      nangLuc: i === 0 ? `Nhận biết${suffix}` : i === 1 ? `Thông hiểu${suffix}` : i === 2 ? `Vận dụng${suffix}` : `Vận dụng${suffix}`,
+      level: (i === 0
+        ? 'nhan_biet'
+        : i === 1
+          ? 'thong_hieu'
+          : i === 2
+            ? 'van_dung'
+            : 'van_dung') as CognitiveLevel,
+      nangLuc:
+        i === 0
+          ? `Nhận biết${suffix}`
+          : i === 1
+            ? `Thông hiểu${suffix}`
+            : i === 2
+              ? `Vận dụng${suffix}`
+              : `Vận dụng${suffix}`,
       content: '',
       isCorrect: i === 0 || i === 1 || i === 3,
     }));
     setStatements(initialStatements);
-
   }, [open, selectedTopicKey, topicTreeData, subject, form]);
 
   // ── Answers helpers ────────────────────────────────────────────────────────
@@ -222,7 +256,9 @@ export default function CreateQuestionModal({
   }, []);
 
   const updateContent = (id: number, content: string) =>
-    setAnswers((prev) => prev.map((a) => (a.id === id ? { ...a, content } : a)));
+    setAnswers((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, content } : a)),
+    );
 
   const toggleCorrect = (id: number) => {
     // Luôn là single correct ở phương án trắc nghiệm
@@ -230,8 +266,12 @@ export default function CreateQuestionModal({
   };
 
   const addRow = () => {
-    const newId = answers.length > 0 ? Math.max(...answers.map((a) => a.id)) + 1 : 1;
-    setAnswers((prev) => [...prev, { id: newId, content: '', isCorrect: false }]);
+    const newId =
+      answers.length > 0 ? Math.max(...answers.map((a) => a.id)) + 1 : 1;
+    setAnswers((prev) => [
+      ...prev,
+      { id: newId, content: '', isCorrect: false },
+    ]);
   };
 
   const removeRow = (id: number) => {
@@ -240,9 +280,12 @@ export default function CreateQuestionModal({
   };
 
   // ── Statements helpers (cho Đúng / Sai) ───────────────────────────────────
-  const updateStatementRow = (index: number, fields: Partial<Omit<TrueFalseStatement, 'id'>>) => {
+  const updateStatementRow = (
+    index: number,
+    fields: Partial<Omit<TrueFalseStatement, 'id'>>,
+  ) => {
     setStatements((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, ...fields } : item))
+      prev.map((item, idx) => (idx === index ? { ...item, ...fields } : item)),
     );
   };
 
@@ -273,33 +316,38 @@ export default function CreateQuestionModal({
   };
 
   // ── Build Question object ──────────────────────────────────────────────────
-  const buildQuestion = (values: any, status: 'draft' | 'pending'): Question => {
+  const buildQuestion = (
+    values: any,
+    status: 'draft' | 'pending',
+  ): Question => {
     if (questionType === 'true_false') {
-      const formattedStatements: TrueFalseStatement[] = statements.map((st, idx) => {
-        let matchedTitle = '';
-        const parentTopic = topicTreeData.find((t) => t.key === st.topicId);
-        if (parentTopic) {
-          matchedTitle = parentTopic.title;
-        } else {
-          for (const topic of topicTreeData) {
-            const sub = topic.children?.find((c) => c.key === st.topicId);
-            if (sub) {
-              matchedTitle = sub.title;
-              break;
+      const formattedStatements: TrueFalseStatement[] = statements.map(
+        (st, idx) => {
+          let matchedTitle = '';
+          const parentTopic = topicTreeData.find((t) => t.key === st.topicId);
+          if (parentTopic) {
+            matchedTitle = parentTopic.title;
+          } else {
+            for (const topic of topicTreeData) {
+              const sub = topic.children?.find((c) => c.key === st.topicId);
+              if (sub) {
+                matchedTitle = sub.title;
+                break;
+              }
             }
           }
-        }
 
-        return {
-          id: idx + 1,
-          topicId: st.topicId,
-          topicName: matchedTitle,
-          level: st.level,
-          nangLuc: st.nangLuc,
-          content: st.content,
-          isCorrect: st.isCorrect,
-        };
-      });
+          return {
+            id: idx + 1,
+            topicId: st.topicId,
+            topicName: matchedTitle,
+            level: st.level,
+            nangLuc: st.nangLuc,
+            content: st.content,
+            isCorrect: st.isCorrect,
+          };
+        },
+      );
 
       const correctAnswerStr = formattedStatements
         .map((st) => `${st.id}. ${st.isCorrect ? 'Đúng' : 'Sai'}`)
@@ -326,7 +374,9 @@ export default function CreateQuestionModal({
       };
     } else {
       const parentNode = topicTreeData.find((t) => t.key === values.chuDe);
-      const subNode = parentNode?.children?.find((c) => c.key === values.tieuMuc);
+      const subNode = parentNode?.children?.find(
+        (c) => c.key === values.tieuMuc,
+      );
 
       const qObj: Question = {
         id: `q-custom-${Date.now()}`,
@@ -363,33 +413,47 @@ export default function CreateQuestionModal({
   };
 
   const handleSave = () => {
-    form.validateFields().then((values) => {
-      if (questionType === 'true_false') {
-        if (!validateStatements()) return;
-      }
-      const q = buildQuestion(values, 'draft');
-      onSave(q);
-      message.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
-      handleClose();
-    });
+    void persistQuestion('draft');
   };
 
   const handleSendReview = () => {
-    form.validateFields().then((values) => {
-      if (questionType === 'true_false') {
-        if (!validateStatements()) return;
+    void persistQuestion('pending');
+  };
+
+  const persistQuestion = async (status: 'draft' | 'pending') => {
+    try {
+      const values = await form.validateFields();
+      if (questionType === 'true_false' && !validateStatements()) {
+        return;
       }
-      const q = buildQuestion(values, 'pending');
-      onSendReview(q);
-      message.success('Đã gửi câu hỏi đi thẩm định!');
+
+      const q = buildQuestion(values, status);
+      const { id: _localId, ...payload } = q;
+      const response = await questionApi.create(payload as any);
+      const savedQuestion = { ...q, id: response.data.id || q.id };
+
+      if (status === 'draft') {
+        onSave(savedQuestion);
+        message.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
+      } else {
+        onSendReview(savedQuestion);
+        message.success('Đã gửi câu hỏi đi thẩm định!');
+      }
       handleClose();
-    });
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      message.error(error?.message || 'Lỗi khi lưu câu hỏi!');
+    }
   };
 
   // Subtopic options theo chủ đề đang chọn trong form (cho các loại không phải Đúng/Sai)
-  const subTopicOptions = topicTreeData
-    .find((t) => t.key === formTopicKey)
-    ?.children?.map((c) => ({ value: c.key as string, label: c.title as string })) ?? [];
+  const subTopicOptions =
+    topicTreeData
+      .find((t) => t.key === formTopicKey)
+      ?.children?.map((c) => ({
+        value: c.key as string,
+        label: c.title as string,
+      })) ?? [];
 
   return (
     <Modal
@@ -398,26 +462,29 @@ export default function CreateQuestionModal({
       forceRender
       onCancel={handleClose}
       footer={null}
-      width="96vw"
+      width='96vw'
       style={{ maxWidth: 1600, top: 15 }}
       centered={false}
       styles={{ body: { padding: 0 } }}
     >
       {/* ── Header ── */}
-      <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-200 bg-white">
-        <PlusOutlined className="text-[#002147] text-xl" />
-        <span className="font-extrabold uppercase text-slate-800 text-[18px] tracking-wide">
+      <div className='flex items-center gap-2 px-5 py-3 border-b border-slate-200 bg-white'>
+        <PlusOutlined className='text-[#002147] text-xl' />
+        <span className='font-extrabold uppercase text-slate-800 text-[18px] tracking-wide'>
           Thêm mới câu hỏi thủ công
         </span>
       </div>
 
       {/* ── Body ── */}
       <div
-        className="flex"
-        style={{ minHeight: 'calc(100vh - 150px)', maxHeight: 'calc(100vh - 150px)' }}
+        className='flex'
+        style={{
+          minHeight: 'calc(100vh - 150px)',
+          maxHeight: 'calc(100vh - 150px)',
+        }}
       >
         {/* LEFT SIDEBAR - Cố định bên trái */}
-        <div className="w-56 flex-shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col py-2 overflow-y-auto">
+        <div className='w-56 flex-shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col py-2 overflow-y-auto'>
           {SIDEBAR_ITEMS.map((item) => (
             <button
               key={item.value}
@@ -434,66 +501,79 @@ export default function CreateQuestionModal({
               }`}
               style={{ cursor: 'pointer' }}
             >
-              <span className="text-xl leading-none opacity-80">{item.icon}</span>
-              <span className="text-[15px] leading-tight">{item.label}</span>
+              <span className='text-xl leading-none opacity-80'>
+                {item.icon}
+              </span>
+              <span className='text-[15px] leading-tight'>{item.label}</span>
             </button>
           ))}
         </div>
 
         {/* RIGHT FORM - Đẩy form ra xa sidebar bằng inline style padding */}
-        <div className="flex-1 overflow-y-auto bg-white" style={{ padding: '12px 24px 12px 48px' }}>
-          <Form form={form} layout="vertical">
-            
+        <div
+          className='flex-1 overflow-y-auto bg-white'
+          style={{ padding: '12px 24px 12px 48px' }}
+        >
+          <Form form={form} layout='vertical'>
             {/* ── Phần 1: Phân loại câu hỏi (Chỉ hiển thị cho TN Đơn, TN Nhóm, Điền khuyết, Câu hỏi nhóm) ── */}
             {questionType !== 'true_false' && (
-              <div className="mb-1.5 animate-in fade-in duration-200">
-                <div className="text-[17px] font-bold text-blue-700 mb-1.5">Thông tin câu hỏi</div>
+              <div className='mb-1.5 animate-in fade-in duration-200'>
+                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
+                  Thông tin câu hỏi
+                </div>
 
                 {/* Nếu là Câu hỏi nhóm */}
                 {questionType === 'multiple' ? (
-                  <div className="grid grid-cols-2 gap-3 mb-1">
+                  <div className='grid grid-cols-2 gap-3 mb-1'>
                     <Form.Item
                       label={
-                        <span className="text-[15px] font-bold text-slate-700">
-                          Loại câu hỏi nhóm <span className="text-red-500">*</span>
+                        <span className='text-[15px] font-bold text-slate-700'>
+                          Loại câu hỏi nhóm{' '}
+                          <span className='text-red-500'>*</span>
                         </span>
                       }
-                      name="groupType"
-                      rules={[{ required: true, message: 'Vui lòng chọn loại câu hỏi nhóm!' }]}
-                      className="mb-0"
-                      initialValue="lien_ket"
+                      name='groupType'
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Vui lòng chọn loại câu hỏi nhóm!',
+                        },
+                      ]}
+                      className='mb-0'
+                      initialValue='lien_ket'
                       style={{ marginBottom: '4px' }}
                     >
                       <Select
-                        size="large"
-                        className="w-full text-base font-medium"
-                        placeholder="Chọn loại câu hỏi nhóm"
+                        size='large'
+                        className='w-full text-base font-medium'
+                        placeholder='Chọn loại câu hỏi nhóm'
                         options={[
                           { value: 'lien_ket', label: 'Liên kết trước sau' },
                           { value: 'doc_lap', label: 'Câu độc lập' },
-                          { value: 'ket_hop', label: 'Kết hợp' }
+                          { value: 'ket_hop', label: 'Kết hợp' },
                         ]}
                       />
                     </Form.Item>
                   </div>
                 ) : (
                   /* Nếu là các loại TN Đơn, Điền khuyết */
-                  <div className="grid grid-cols-2 gap-3 mb-1">
+                  <div className='grid grid-cols-2 gap-3 mb-1'>
                     <Form.Item
                       label={
-                        <span className="text-[15px] font-bold text-slate-700">
-                          Thành phần năng lực <span className="text-red-500">*</span>
+                        <span className='text-[15px] font-bold text-slate-700'>
+                          Thành phần năng lực{' '}
+                          <span className='text-red-500'>*</span>
                         </span>
                       }
-                      name="nangLuc"
+                      name='nangLuc'
                       rules={[{ required: true, message: 'Vui lòng chọn!' }]}
-                      className="mb-0"
+                      className='mb-0'
                       style={{ marginBottom: '4px' }}
                     >
                       <Select
-                        size="large"
-                        className="w-full text-base font-medium"
-                        placeholder="Chọn"
+                        size='large'
+                        className='w-full text-base font-medium'
+                        placeholder='Chọn'
                         options={[
                           { value: 'Hiểu', label: 'Hiểu' },
                           { value: 'Nhận biết', label: 'Nhận biết' },
@@ -505,19 +585,19 @@ export default function CreateQuestionModal({
 
                     <Form.Item
                       label={
-                        <span className="text-[15px] font-bold text-slate-700">
-                          Cấp độ tư duy <span className="text-red-500">*</span>
+                        <span className='text-[15px] font-bold text-slate-700'>
+                          Cấp độ tư duy <span className='text-red-500'>*</span>
                         </span>
                       }
-                      name="level"
+                      name='level'
                       rules={[{ required: true, message: 'Vui lòng chọn!' }]}
-                      className="mb-0"
+                      className='mb-0'
                       style={{ marginBottom: '4px' }}
                     >
                       <Select
-                        size="large"
-                        className="w-full text-base font-medium"
-                        placeholder="Chọn"
+                        size='large'
+                        className='w-full text-base font-medium'
+                        placeholder='Chọn'
                         options={[
                           { value: 'nhan_biet', label: 'Nhận biết' },
                           { value: 'thong_hieu', label: 'Thông hiểu' },
@@ -530,22 +610,24 @@ export default function CreateQuestionModal({
                 )}
 
                 {/* Dòng 2: Chủ đề · Tiểu mục (dùng chung cho các loại có phân loại chung, giảm margins dọc xuống tối đa) */}
-                <div className="grid grid-cols-2 gap-3 mt-1 mb-1">
+                <div className='grid grid-cols-2 gap-3 mt-1 mb-1'>
                   <Form.Item
                     label={
-                      <span className="text-[15px] font-bold text-slate-700">
-                        Chủ đề <span className="text-red-500">*</span>
+                      <span className='text-[15px] font-bold text-slate-700'>
+                        Chủ đề <span className='text-red-500'>*</span>
                       </span>
                     }
-                    name="chuDe"
-                    rules={[{ required: true, message: 'Vui lòng chọn chủ đề!' }]}
-                    className="mb-0"
+                    name='chuDe'
+                    rules={[
+                      { required: true, message: 'Vui lòng chọn chủ đề!' },
+                    ]}
+                    className='mb-0'
                     style={{ marginBottom: '4px' }}
                   >
                     <Select
-                      size="large"
-                      className="w-full text-base font-medium"
-                      placeholder="-- Chọn chủ đề --"
+                      size='large'
+                      className='w-full text-base font-medium'
+                      placeholder='-- Chọn chủ đề --'
                       options={topicTreeData.map((t) => ({
                         value: t.key as string,
                         label: t.title as string,
@@ -559,19 +641,21 @@ export default function CreateQuestionModal({
 
                   <Form.Item
                     label={
-                      <span className="text-[15px] font-bold text-slate-700">
-                        Tiểu mục chủ đề <span className="text-red-500">*</span>
+                      <span className='text-[15px] font-bold text-slate-700'>
+                        Tiểu mục chủ đề <span className='text-red-500'>*</span>
                       </span>
                     }
-                    name="tieuMuc"
-                    rules={[{ required: true, message: 'Vui lòng chọn tiểu mục!' }]}
-                    className="mb-0"
+                    name='tieuMuc'
+                    rules={[
+                      { required: true, message: 'Vui lòng chọn tiểu mục!' },
+                    ]}
+                    className='mb-0'
                     style={{ marginBottom: '4px' }}
                   >
                     <Select
-                      size="large"
-                      className="w-full text-base font-medium"
-                      placeholder="-- Chọn tiểu mục --"
+                      size='large'
+                      className='w-full text-base font-medium'
+                      placeholder='-- Chọn tiểu mục --'
                       options={subTopicOptions}
                       disabled={subTopicOptions.length === 0}
                     />
@@ -582,48 +666,54 @@ export default function CreateQuestionModal({
 
             {/* ── Phần Đúng/Sai: Cấu hình chung chỉ hiện Đảo câu hỏi ở trên ── */}
             {questionType === 'true_false' && (
-              <div className="mb-1.5 animate-in fade-in duration-200">
-                <div className="text-[17px] font-bold text-blue-700 mb-1.5">Thông tin câu hỏi</div>
-                <div className="grid grid-cols-3 gap-3 mb-1">
+              <div className='mb-1.5 animate-in fade-in duration-200'>
+                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
+                  Thông tin câu hỏi
                 </div>
+                <div className='grid grid-cols-3 gap-3 mb-1'></div>
               </div>
             )}
 
             {/* ── Phần 2: Đề bài / Nội dung chính (Dùng chung cho tất cả, giảm rows từ 6 xuống 4, mb-1.5) ── */}
-            <div className="mb-1.5">
+            <div className='mb-1.5'>
               <Form.Item
                 label={
-                  <span className="text-[15px] font-bold text-slate-700">
-                    Nội dung câu hỏi <span className="text-red-500">*</span>
+                  <span className='text-[15px] font-bold text-slate-700'>
+                    Nội dung câu hỏi <span className='text-red-500'>*</span>
                   </span>
                 }
-                name="text"
-                rules={[{ required: true, message: 'Vui lòng nhập nội dung câu hỏi!' }]}
-                className="mb-0"
+                name='text'
+                rules={[
+                  {
+                    required: true,
+                    message: 'Vui lòng nhập nội dung câu hỏi!',
+                  },
+                ]}
+                className='mb-0'
                 style={{ marginBottom: '6px' }}
               >
-                <div className="border border-slate-300 rounded-lg overflow-hidden">
+                <div className='border border-slate-300 rounded-lg overflow-hidden'>
                   {/* Toolbar giả lập */}
-                  <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50">
+                  <div className='flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50'>
                     {['H1', 'H2'].map((t) => (
                       <button
                         key={t}
-                        type="button"
-                        className="px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                        type='button'
+                        className='px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors'
                         style={{ cursor: 'pointer' }}
                       >
                         {t}
                       </button>
                     ))}
-                    <span className="w-px h-4 bg-slate-300 mx-1" />
-                    <select className="text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium">
+                    <span className='w-px h-4 bg-slate-300 mx-1' />
+                    <select className='text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium'>
                       <option>Sans Serif</option>
                     </select>
-                    <span className="w-px h-4 bg-slate-300 mx-1" />
-                    <select className="text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium">
+                    <span className='w-px h-4 bg-slate-300 mx-1' />
+                    <select className='text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium'>
                       <option>Normal</option>
                     </select>
-                    <span className="w-px h-4 bg-slate-300 mx-1" />
+                    <span className='w-px h-4 bg-slate-300 mx-1' />
                     {[
                       { t: 'B', cls: 'font-black' },
                       { t: 'I', cls: 'italic' },
@@ -632,41 +722,43 @@ export default function CreateQuestionModal({
                     ].map(({ t, cls }) => (
                       <button
                         key={t}
-                        type="button"
+                        type='button'
                         className={`px-1.5 py-0.5 text-[13px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors ${cls}`}
                         style={{ cursor: 'pointer' }}
                       >
                         {t}
                       </button>
                     ))}
-                    <span className="w-px h-4 bg-slate-300 mx-1" />
+                    <span className='w-px h-4 bg-slate-300 mx-1' />
                     {['"', '≡', '⊟', '≔'].map((t, i) => (
                       <button
                         key={i}
-                        type="button"
-                        className="px-1.5 py-0.5 text-[13px] text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                        type='button'
+                        className='px-1.5 py-0.5 text-[13px] text-slate-600 hover:bg-slate-200 rounded transition-colors'
                         style={{ cursor: 'pointer' }}
                       >
                         {t}
                       </button>
                     ))}
-                    <span className="w-px h-4 bg-slate-300 mx-1" />
-                    {['🔗', '🖼', '▣', 'Tx', 'Σ', '⊞', '🔊', '🎤'].map((t, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className="px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors"
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                    <span className='w-px h-4 bg-slate-300 mx-1' />
+                    {['🔗', '🖼', '▣', 'Tx', 'Σ', '⊞', '🔊', '🎤'].map(
+                      (t, i) => (
+                        <button
+                          key={i}
+                          type='button'
+                          className='px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors'
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {t}
+                        </button>
+                      ),
+                    )}
                   </div>
-                  <Form.Item name="text" noStyle>
+                  <Form.Item name='text' noStyle>
                     <Input.TextArea
-                      placeholder="Nhập nội dung câu hỏi..."
+                      placeholder='Nhập nội dung câu hỏi...'
                       rows={4}
-                      className="border-0 rounded-none text-base resize-none"
+                      className='border-0 rounded-none text-base resize-none'
                       style={{ boxShadow: 'none', fontSize: '15px' }}
                     />
                   </Form.Item>
@@ -678,53 +770,61 @@ export default function CreateQuestionModal({
 
             {/* 3.1. Phương án trắc nghiệm */}
             {questionType === 'single' && (
-              <div className="mt-2 animate-in fade-in duration-200">
-                <div className="text-[17px] font-bold text-blue-700 mb-1.5">Thông tin câu trả lời</div>
+              <div className='mt-2 animate-in fade-in duration-200'>
+                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
+                  Thông tin câu trả lời
+                </div>
 
-                <table className="w-full border-collapse text-base">
+                <table className='w-full border-collapse text-base'>
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]">STT</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold text-[15px]">
-                        Nội dung trả lời <span className="text-red-500">*</span>
+                    <tr className='border-b border-slate-200 bg-slate-50/50'>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]'>
+                        STT
                       </th>
-                      <th className="text-center py-2 px-3 text-slate-600 font-bold w-28 text-[15px]">
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold text-[15px]'>
+                        Nội dung trả lời <span className='text-red-500'>*</span>
+                      </th>
+                      <th className='text-center py-2 px-3 text-slate-600 font-bold w-28 text-[15px]'>
                         Đáp án đúng
                       </th>
-                      <th className="w-10" />
+                      <th className='w-10' />
                     </tr>
                   </thead>
                   <tbody>
                     {answers.map((ans, idx) => (
                       <tr
                         key={ans.id}
-                        className="border-b border-slate-100 hover:bg-slate-50 group"
+                        className='border-b border-slate-100 hover:bg-slate-50 group'
                       >
-                        <td className="py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]">{idx + 1}</td>
-                        <td className="py-2.5 px-3 align-middle">
+                        <td className='py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]'>
+                          {idx + 1}
+                        </td>
+                        <td className='py-2.5 px-3 align-middle'>
                           <Input
-                            size="large"
+                            size='large'
                             value={ans.content}
-                            onChange={(e) => updateContent(ans.id, e.target.value)}
+                            onChange={(e) =>
+                              updateContent(ans.id, e.target.value)
+                            }
                             placeholder={`Lựa chọn trả lời ${idx + 1}`}
-                            className="text-base rounded-lg font-medium"
+                            className='text-base rounded-lg font-medium'
                           />
                         </td>
-                        <td className="py-2.5 px-3 text-center align-middle">
+                        <td className='py-2.5 px-3 text-center align-middle'>
                           <Checkbox
                             checked={ans.isCorrect}
                             onChange={() => toggleCorrect(ans.id)}
                             style={{ transform: 'scale(1.1)' }}
                           />
                         </td>
-                        <td className="py-2.5 px-3 align-middle">
+                        <td className='py-2.5 px-3 align-middle'>
                           {answers.length > 2 && (
                             <button
-                              type="button"
+                              type='button'
                               onClick={() => removeRow(ans.id)}
-                              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all text-xl leading-none"
+                              className='opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all text-xl leading-none'
                               style={{ cursor: 'pointer' }}
-                              title="Xóa dòng"
+                              title='Xóa dòng'
                             >
                               ×
                             </button>
@@ -735,14 +835,14 @@ export default function CreateQuestionModal({
                   </tbody>
                 </table>
 
-                <div className="mt-2">
+                <div className='mt-2'>
                   <button
-                    type="button"
+                    type='button'
                     onClick={addRow}
-                    className="text-[15px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors"
+                    className='text-[15px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors'
                     style={{ cursor: 'pointer' }}
                   >
-                    <PlusOutlined className="text-xs" /> Thêm lựa chọn
+                    <PlusOutlined className='text-xs' /> Thêm lựa chọn
                   </button>
                 </div>
               </div>
@@ -750,22 +850,25 @@ export default function CreateQuestionModal({
 
             {/* 3.2. Điền số trả lời ngắn */}
             {questionType === 'short' && (
-              <div className="mt-2 animate-in fade-in duration-200">
-                <div className="text-[17px] font-bold text-blue-700 mb-1.5">Đáp án tự luận</div>
+              <div className='mt-2 animate-in fade-in duration-200'>
+                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
+                  Đáp án tự luận
+                </div>
                 <Form.Item
                   label={
-                    <span className="text-[15px] font-bold text-slate-700">
-                      Đáp án / từ khóa chấm điểm <span className="text-red-500">*</span>
+                    <span className='text-[15px] font-bold text-slate-700'>
+                      Đáp án / từ khóa chấm điểm{' '}
+                      <span className='text-red-500'>*</span>
                     </span>
                   }
-                  name="correctAnswer"
+                  name='correctAnswer'
                   rules={[{ required: true, message: 'Vui lòng nhập đáp án!' }]}
                   style={{ marginBottom: '8px' }}
                 >
                   <Input.TextArea
                     rows={3}
-                    placeholder="Nhập nội dung đáp án hoặc từ khóa để chấm điểm tự luận..."
-                    className="rounded-lg text-base font-medium"
+                    placeholder='Nhập nội dung đáp án hoặc từ khóa để chấm điểm tự luận...'
+                    className='rounded-lg text-base font-medium'
                     style={{ fontSize: '15px' }}
                   />
                 </Form.Item>
@@ -774,77 +877,116 @@ export default function CreateQuestionModal({
 
             {/* 3.3. Đúng / Sai */}
             {questionType === 'true_false' && (
-              <div className="mt-2 animate-in fade-in duration-200">
-                <div className="text-[17px] font-bold text-blue-700 mb-1.5">Thông tin câu trả lời Đúng / Sai</div>
+              <div className='mt-2 animate-in fade-in duration-200'>
+                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
+                  Thông tin câu trả lời Đúng / Sai
+                </div>
 
-                <table className="w-full border-collapse text-base">
+                <table className='w-full border-collapse text-base'>
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]">STT</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-60 text-[15px]">Chủ đề</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-44 text-[15px]">Mức độ</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-52 text-[15px]">Thành phần năng lực</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold text-[15px]">Nội dung trả lời</th>
-                      <th className="text-center py-2 px-3 text-slate-600 font-bold w-24 text-[15px]">Đáp án đúng</th>
+                    <tr className='border-b border-slate-200 bg-slate-50/50'>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]'>
+                        STT
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-60 text-[15px]'>
+                        Chủ đề
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-44 text-[15px]'>
+                        Mức độ
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-52 text-[15px]'>
+                        Thành phần năng lực
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold text-[15px]'>
+                        Nội dung trả lời
+                      </th>
+                      <th className='text-center py-2 px-3 text-slate-600 font-bold w-24 text-[15px]'>
+                        Đáp án đúng
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {statements.map((ans, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]">{idx + 1}</td>
-                        
+                      <tr
+                        key={idx}
+                        className='border-b border-slate-100 hover:bg-slate-50'
+                      >
+                        <td className='py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]'>
+                          {idx + 1}
+                        </td>
+
                         {/* Dropdown Chủ đề */}
-                        <td className="py-2.5 px-2">
+                        <td className='py-2.5 px-2'>
                           <Select
-                            size="large"
-                            className="w-full text-base font-medium"
+                            size='large'
+                            className='w-full text-base font-medium'
                             options={flattenedTopics}
                             value={ans.topicId || undefined}
-                            placeholder="Chọn chủ đề"
-                            onChange={(val) => updateStatementRow(idx, { topicId: val })}
+                            placeholder='Chọn chủ đề'
+                            onChange={(val) =>
+                              updateStatementRow(idx, { topicId: val })
+                            }
                             dropdownMatchSelectWidth={false}
                           />
                         </td>
 
                         {/* Dropdown Mức độ câu hỏi */}
-                        <td className="py-2.5 px-2">
+                        <td className='py-2.5 px-2'>
                           <Select
-                            size="large"
-                            className="w-full text-base font-medium"
+                            size='large'
+                            className='w-full text-base font-medium'
                             options={LEVEL_OPTIONS}
                             value={ans.level}
-                            onChange={(val) => updateStatementRow(idx, { level: val })}
+                            onChange={(val) =>
+                              updateStatementRow(idx, { level: val })
+                            }
                           />
                         </td>
 
                         {/* Dropdown Thành phần năng lực */}
-                        <td className="py-2.5 px-2">
+                        <td className='py-2.5 px-2'>
                           <Select
-                            size="large"
-                            className="w-full text-base font-medium"
+                            size='large'
+                            className='w-full text-base font-medium'
                             options={nangLucOptions}
                             value={ans.nangLuc}
-                            onChange={(val) => updateStatementRow(idx, { nangLuc: val })}
+                            onChange={(val) =>
+                              updateStatementRow(idx, { nangLuc: val })
+                            }
                             dropdownMatchSelectWidth={false}
                           />
                         </td>
 
                         {/* Ô nhập Nội dung câu trả lời */}
-                        <td className="py-2.5 px-2">
+                        <td className='py-2.5 px-2'>
                           <Input
-                            size="large"
+                            size='large'
                             value={ans.content}
-                            onChange={(e) => updateStatementRow(idx, { content: e.target.value })}
-                            placeholder={idx === 0 ? '# Ý trả lời thứ 1' : idx === 1 ? 'Ý trả lời thứ 2' : 'Nhập'}
-                            className="text-base rounded-lg h-9 font-medium"
+                            onChange={(e) =>
+                              updateStatementRow(idx, {
+                                content: e.target.value,
+                              })
+                            }
+                            placeholder={
+                              idx === 0
+                                ? '# Ý trả lời thứ 1'
+                                : idx === 1
+                                  ? 'Ý trả lời thứ 2'
+                                  : 'Nhập'
+                            }
+                            className='text-base rounded-lg h-9 font-medium'
                           />
                         </td>
 
                         {/* Checkbox Đáp án đúng */}
-                        <td className="py-2.5 px-2 text-center align-middle">
+                        <td className='py-2.5 px-2 text-center align-middle'>
                           <Checkbox
                             checked={ans.isCorrect}
-                            onChange={(e) => updateStatementRow(idx, { isCorrect: e.target.checked })}
+                            onChange={(e) =>
+                              updateStatementRow(idx, {
+                                isCorrect: e.target.checked,
+                              })
+                            }
                             style={{ transform: 'scale(1.1)' }}
                           />
                         </td>
@@ -857,45 +999,70 @@ export default function CreateQuestionModal({
 
             {/* 3.4. Câu hỏi nhóm */}
             {questionType === 'multiple' && (
-              <div className="mt-2 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="text-[17px] font-bold text-blue-700">Thông tin câu trả lời</div>
+              <div className='mt-2 animate-in fade-in duration-200'>
+                <div className='flex items-center justify-between mb-1.5'>
+                  <div className='text-[17px] font-bold text-blue-700'>
+                    Thông tin câu trả lời
+                  </div>
                   <Button
-                    type="primary"
+                    type='primary'
                     icon={<PlusOutlined />}
                     onClick={() => {
                       setEditingSubQuestionId(null);
                       subQuestionForm.resetFields();
                       setSubQuestionModalOpen(true);
                     }}
-                    className="bg-blue-600 border-transparent text-white rounded-lg hover:bg-blue-700 flex items-center justify-center h-9 w-9"
+                    className='bg-blue-600 border-transparent text-white rounded-lg hover:bg-blue-700 flex items-center justify-center h-9 w-9'
                     style={{ cursor: 'pointer' }}
                   />
                 </div>
 
-                <table className="w-full border-collapse text-base">
+                <table className='w-full border-collapse text-base'>
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-16 text-[15px]">STT</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold text-[15px]">Nội dung câu hỏi</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-44 text-[15px]">Loại câu hỏi</th>
-                      <th className="text-left py-2 px-3 text-slate-600 font-bold w-32 text-[15px]">Liên kết</th>
-                      <th className="text-center py-2 px-3 text-slate-600 font-bold w-28 text-[15px]">Thao tác</th>
+                    <tr className='border-b border-slate-200 bg-slate-50/50'>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-16 text-[15px]'>
+                        STT
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold text-[15px]'>
+                        Nội dung câu hỏi
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-44 text-[15px]'>
+                        Loại câu hỏi
+                      </th>
+                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-32 text-[15px]'>
+                        Liên kết
+                      </th>
+                      <th className='text-center py-2 px-3 text-slate-600 font-bold w-28 text-[15px]'>
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {subQuestions.map((sub, idx) => (
-                      <tr key={sub.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2.5 px-3 text-slate-500 font-mono align-middle text-[15px]">{idx + 1}</td>
-                        <td className="py-2.5 px-3 text-slate-800 font-semibold align-middle text-[15px]">{sub.text}</td>
-                        <td className="py-2.5 px-3 text-slate-600 align-middle text-[15px]">{getSubQuestionTypeLabel(sub.type)}</td>
-                        <td className="py-2.5 px-3 text-slate-600 align-middle text-[15px]">{sub.link || '-'}</td>
-                        <td className="py-2.5 px-3 text-center align-middle">
-                          <div className="flex items-center justify-center gap-2">
+                      <tr
+                        key={sub.id}
+                        className='border-b border-slate-100 hover:bg-slate-50'
+                      >
+                        <td className='py-2.5 px-3 text-slate-500 font-mono align-middle text-[15px]'>
+                          {idx + 1}
+                        </td>
+                        <td className='py-2.5 px-3 text-slate-800 font-semibold align-middle text-[15px]'>
+                          {sub.text}
+                        </td>
+                        <td className='py-2.5 px-3 text-slate-600 align-middle text-[15px]'>
+                          {getSubQuestionTypeLabel(sub.type)}
+                        </td>
+                        <td className='py-2.5 px-3 text-slate-600 align-middle text-[15px]'>
+                          {sub.link || '-'}
+                        </td>
+                        <td className='py-2.5 px-3 text-center align-middle'>
+                          <div className='flex items-center justify-center gap-2'>
                             <Button
-                              type="text"
-                              icon={<EditOutlined className="text-blue-600 text-lg" />}
-                              className="flex items-center justify-center hover:bg-blue-50 w-9 h-9 rounded border-slate-200 border"
+                              type='text'
+                              icon={
+                                <EditOutlined className='text-blue-600 text-lg' />
+                              }
+                              className='flex items-center justify-center hover:bg-blue-50 w-9 h-9 rounded border-slate-200 border'
                               onClick={() => {
                                 setEditingSubQuestionId(sub.id);
                                 subQuestionForm.setFieldsValue({
@@ -908,12 +1075,16 @@ export default function CreateQuestionModal({
                               style={{ cursor: 'pointer' }}
                             />
                             <Button
-                              type="text"
+                              type='text'
                               danger
-                              icon={<DeleteOutlined className="text-red-500 text-lg" />}
-                              className="flex items-center justify-center hover:bg-red-50 w-9 h-9 rounded border-red-200 border"
+                              icon={
+                                <DeleteOutlined className='text-red-500 text-lg' />
+                              }
+                              className='flex items-center justify-center hover:bg-red-50 w-9 h-9 rounded border-red-200 border'
                               onClick={() => {
-                                setSubQuestions((prev) => prev.filter((item) => item.id !== sub.id));
+                                setSubQuestions((prev) =>
+                                  prev.filter((item) => item.id !== sub.id),
+                                );
                               }}
                               style={{ cursor: 'pointer' }}
                             />
@@ -925,32 +1096,36 @@ export default function CreateQuestionModal({
                 </table>
               </div>
             )}
-
           </Form>
         </div>
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex items-center justify-center gap-3 px-6 py-3 border-t border-slate-200 bg-white">
-        <Button onClick={handleClose} className="rounded-lg text-base font-bold px-6 h-9">
+      <div className='flex items-center justify-center gap-3 px-6 py-3 border-t border-slate-200 bg-white'>
+        <Button
+          onClick={handleClose}
+          className='rounded-lg text-base font-bold px-6 h-9'
+        >
           Đóng
         </Button>
         <Button
-          className="rounded-lg text-base font-bold px-6 border-blue-400 text-blue-600 hover:bg-blue-50 h-9"
-          onClick={() => message.info('Chức năng xem thử đang được phát triển.')}
+          className='rounded-lg text-base font-bold px-6 border-blue-400 text-blue-600 hover:bg-blue-50 h-9'
+          onClick={() =>
+            message.info('Chức năng xem thử đang được phát triển.')
+          }
         >
           Xem thử
         </Button>
         <Button
-          type="primary"
-          className="rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9"
+          type='primary'
+          className='rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9'
           onClick={handleSave}
         >
           Lưu
         </Button>
         <Button
-          type="primary"
-          className="rounded-lg text-base font-bold px-6 bg-[#002147] border-[#002147] hover:bg-slate-800 h-9"
+          type='primary'
+          className='rounded-lg text-base font-bold px-6 bg-[#002147] border-[#002147] hover:bg-slate-800 h-9'
           onClick={handleSendReview}
         >
           Gửi thẩm định
@@ -968,16 +1143,21 @@ export default function CreateQuestionModal({
         styles={{ body: { padding: 0 } }}
       >
         {/* Header modal con */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <span className="text-[17px] font-extrabold text-slate-800">
-            {editingSubQuestionId ? 'Chỉnh sửa câu hỏi thành phần' : 'Thêm mới câu hỏi thành phần'}
+        <div className='flex items-center justify-between px-6 py-4 border-b border-slate-200'>
+          <span className='text-[17px] font-extrabold text-slate-800'>
+            {editingSubQuestionId
+              ? 'Chỉnh sửa câu hỏi thành phần'
+              : 'Thêm mới câu hỏi thành phần'}
           </span>
         </div>
 
-        <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 175px)' }}>
+        <div
+          className='px-6 py-4 overflow-y-auto'
+          style={{ maxHeight: 'calc(100vh - 175px)' }}
+        >
           <Form
             form={subQuestionForm}
-            layout="vertical"
+            layout='vertical'
             onValuesChange={(changed) => {
               if (changed.type) setSubQuestionType(changed.type);
               if (changed.chuDecon) {
@@ -987,20 +1167,28 @@ export default function CreateQuestionModal({
             }}
           >
             {/* ── Thông tin câu hỏi thành phần ── */}
-            <div className="text-[15px] font-bold text-blue-700 mb-3">Thông tin câu hỏi thành phần</div>
+            <div className='text-[15px] font-bold text-blue-700 mb-3'>
+              Thông tin câu hỏi thành phần
+            </div>
 
             {/* Hàng 1: Loại câu hỏi | Chủ đề | Tiểu mục chủ đề */}
-            <div className="grid grid-cols-3 gap-3 mb-1">
+            <div className='grid grid-cols-3 gap-3 mb-1'>
               <Form.Item
-                name="type"
-                label={<span className="text-[14px] font-semibold text-slate-700">Loại câu hỏi <span className="text-red-500">*</span></span>}
-                rules={[{ required: true, message: 'Vui lòng chọn loại câu hỏi!' }]}
-                initialValue="single"
+                name='type'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Loại câu hỏi <span className='text-red-500'>*</span>
+                  </span>
+                }
+                rules={[
+                  { required: true, message: 'Vui lòng chọn loại câu hỏi!' },
+                ]}
+                initialValue='single'
                 style={{ marginBottom: '8px' }}
               >
                 <Select
-                  size="large"
-                  className="w-full text-base font-medium"
+                  size='large'
+                  className='w-full text-base font-medium'
                   options={[
                     { value: 'single', label: 'Câu kéo thả' },
                     { value: 'multiple', label: 'Đa lựa chọn' },
@@ -1012,14 +1200,18 @@ export default function CreateQuestionModal({
               </Form.Item>
 
               <Form.Item
-                name="chuDecon"
-                label={<span className="text-[14px] font-semibold text-slate-700">Chủ đề</span>}
+                name='chuDecon'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Chủ đề
+                  </span>
+                }
                 style={{ marginBottom: '8px' }}
               >
                 <Select
-                  size="large"
-                  className="w-full text-base font-medium"
-                  placeholder="Rời rạc"
+                  size='large'
+                  className='w-full text-base font-medium'
+                  placeholder='Rời rạc'
                   options={topicTreeData.map((t) => ({
                     value: t.key as string,
                     label: t.title as string,
@@ -1032,18 +1224,25 @@ export default function CreateQuestionModal({
               </Form.Item>
 
               <Form.Item
-                name="tieuMuccon"
-                label={<span className="text-[14px] font-semibold text-slate-700">Tiểu mục chủ đề</span>}
+                name='tieuMuccon'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Tiểu mục chủ đề
+                  </span>
+                }
                 style={{ marginBottom: '8px' }}
               >
                 <Select
-                  size="large"
-                  className="w-full text-base font-medium"
-                  placeholder="Biến ngẫu nhiên rời rạc"
+                  size='large'
+                  className='w-full text-base font-medium'
+                  placeholder='Biến ngẫu nhiên rời rạc'
                   options={
                     topicTreeData
                       .find((t) => t.key === subFormTopicKey)
-                      ?.children?.map((c) => ({ value: c.key as string, label: c.title as string })) ?? []
+                      ?.children?.map((c) => ({
+                        value: c.key as string,
+                        label: c.title as string,
+                      })) ?? []
                   }
                   disabled={!subFormTopicKey}
                 />
@@ -1051,17 +1250,21 @@ export default function CreateQuestionModal({
             </div>
 
             {/* Hàng 2: Cấp độ tư duy | Thứ tự liên kết | Thành phần năng lực */}
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className='grid grid-cols-3 gap-3 mb-3'>
               <Form.Item
-                name="level"
-                label={<span className="text-[14px] font-semibold text-slate-700">Cấp độ tư duy <span className="text-red-500">*</span></span>}
+                name='level'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Cấp độ tư duy <span className='text-red-500'>*</span>
+                  </span>
+                }
                 rules={[{ required: true, message: 'Vui lòng chọn cấp độ!' }]}
-                initialValue="thong_hieu"
+                initialValue='thong_hieu'
                 style={{ marginBottom: '8px' }}
               >
                 <Select
-                  size="large"
-                  className="w-full text-base font-medium"
+                  size='large'
+                  className='w-full text-base font-medium'
                   options={[
                     { value: 'nhan_biet', label: 'Biết' },
                     { value: 'thong_hieu', label: 'Hiểu' },
@@ -1072,25 +1275,39 @@ export default function CreateQuestionModal({
               </Form.Item>
 
               <Form.Item
-                name="link"
-                label={<span className="text-[14px] font-semibold text-slate-700">Thứ tự liên kết nhóm câu hỏi <span className="text-red-500">*</span></span>}
+                name='link'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Thứ tự liên kết nhóm câu hỏi{' '}
+                    <span className='text-red-500'>*</span>
+                  </span>
+                }
                 rules={[{ required: true, message: 'Vui lòng nhập thứ tự!' }]}
-                initialValue="1"
+                initialValue='1'
                 style={{ marginBottom: '8px' }}
               >
-                <Input size="large" className="w-full text-base font-medium" />
+                <Input size='large' className='w-full text-base font-medium' />
               </Form.Item>
 
               <Form.Item
-                name="nangLuc"
-                label={<span className="text-[14px] font-semibold text-slate-700">Thành phần năng lực <span className="text-red-500">*</span></span>}
-                rules={[{ required: true, message: 'Vui lòng chọn thành phần năng lực!' }]}
-                initialValue="Nhận thức Toán"
+                name='nangLuc'
+                label={
+                  <span className='text-[14px] font-semibold text-slate-700'>
+                    Thành phần năng lực <span className='text-red-500'>*</span>
+                  </span>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message: 'Vui lòng chọn thành phần năng lực!',
+                  },
+                ]}
+                initialValue='Nhận thức Toán'
                 style={{ marginBottom: '8px' }}
               >
                 <Select
-                  size="large"
-                  className="w-full text-base font-medium"
+                  size='large'
+                  className='w-full text-base font-medium'
                   options={nangLucOptions}
                 />
               </Form.Item>
@@ -1098,37 +1315,62 @@ export default function CreateQuestionModal({
 
             {/* Nội dung câu hỏi */}
             <Form.Item
-              name="text"
-              label={<span className="text-[14px] font-semibold text-slate-700">Nội dung câu hỏi <span className="text-red-500">*</span></span>}
-              rules={[{ required: true, message: 'Vui lòng nhập nội dung câu hỏi!' }]}
+              name='text'
+              label={
+                <span className='text-[14px] font-semibold text-slate-700'>
+                  Nội dung câu hỏi <span className='text-red-500'>*</span>
+                </span>
+              }
+              rules={[
+                { required: true, message: 'Vui lòng nhập nội dung câu hỏi!' },
+              ]}
               style={{ marginBottom: '16px' }}
             >
-              <div className="border border-slate-300 rounded-lg overflow-hidden">
+              <div className='border border-slate-300 rounded-lg overflow-hidden'>
                 {/* Toolbar giả lập */}
-                <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50">
+                <div className='flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50'>
                   {['H1', 'H2'].map((t) => (
-                    <button key={t} type="button"
-                      className="px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors"
-                      style={{ cursor: 'pointer' }}>{t}</button>
+                    <button
+                      key={t}
+                      type='button'
+                      className='px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors'
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {t}
+                    </button>
                   ))}
-                  <span className="w-px h-4 bg-slate-300 mx-1" />
-                  {[{ t: 'B', cls: 'font-black' }, { t: 'I', cls: 'italic' }, { t: 'U', cls: 'underline' }].map(({ t, cls }) => (
-                    <button key={t} type="button"
+                  <span className='w-px h-4 bg-slate-300 mx-1' />
+                  {[
+                    { t: 'B', cls: 'font-black' },
+                    { t: 'I', cls: 'italic' },
+                    { t: 'U', cls: 'underline' },
+                  ].map(({ t, cls }) => (
+                    <button
+                      key={t}
+                      type='button'
                       className={`px-1.5 py-0.5 text-[13px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors ${cls}`}
-                      style={{ cursor: 'pointer' }}>{t}</button>
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {t}
+                    </button>
                   ))}
-                  <span className="w-px h-4 bg-slate-300 mx-1" />
+                  <span className='w-px h-4 bg-slate-300 mx-1' />
                   {['🔗', '🖼', 'Σ'].map((t, i) => (
-                    <button key={i} type="button"
-                      className="px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors"
-                      style={{ cursor: 'pointer' }}>{t}</button>
+                    <button
+                      key={i}
+                      type='button'
+                      className='px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors'
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {t}
+                    </button>
                   ))}
                 </div>
-                <Form.Item name="text" noStyle>
+                <Form.Item name='text' noStyle>
                   <Input.TextArea
-                    placeholder="Nhập"
+                    placeholder='Nhập'
                     rows={4}
-                    className="border-0 rounded-none text-base resize-none"
+                    className='border-0 rounded-none text-base resize-none'
                     style={{ boxShadow: 'none', fontSize: '15px' }}
                   />
                 </Form.Item>
@@ -1136,43 +1378,65 @@ export default function CreateQuestionModal({
             </Form.Item>
 
             {/* ── Thông tin câu trả lời ── */}
-            <div className="text-[15px] font-bold text-blue-700 mb-2">Thông tin câu trả lời</div>
+            <div className='text-[15px] font-bold text-blue-700 mb-2'>
+              Thông tin câu trả lời
+            </div>
 
-            <table className="w-full border-collapse text-base">
+            <table className='w-full border-collapse text-base'>
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 px-3 text-slate-600 font-bold w-12 text-[14px]">STT</th>
-                  <th className="text-left py-2 px-3 text-slate-600 font-bold text-[14px]">
-                    Nội dung trả lời <span className="text-red-500">*</span>
+                <tr className='border-b border-slate-200'>
+                  <th className='text-left py-2 px-3 text-slate-600 font-bold w-12 text-[14px]'>
+                    STT
                   </th>
-                  <th className="text-center py-2 px-3 text-slate-600 font-bold w-28 text-[14px]">Đáp án đúng</th>
+                  <th className='text-left py-2 px-3 text-slate-600 font-bold text-[14px]'>
+                    Nội dung trả lời <span className='text-red-500'>*</span>
+                  </th>
+                  <th className='text-center py-2 px-3 text-slate-600 font-bold w-28 text-[14px]'>
+                    Đáp án đúng
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {subAnswers.map((ans, idx) => (
-                  <tr key={ans.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2.5 px-3 text-slate-400 font-mono align-middle text-[14px]">{idx + 1}</td>
-                    <td className="py-2.5 px-3 align-middle">
+                  <tr
+                    key={ans.id}
+                    className='border-b border-slate-100 hover:bg-slate-50'
+                  >
+                    <td className='py-2.5 px-3 text-slate-400 font-mono align-middle text-[14px]'>
+                      {idx + 1}
+                    </td>
+                    <td className='py-2.5 px-3 align-middle'>
                       <Input
-                        size="large"
+                        size='large'
                         value={ans.content}
                         onChange={(e) =>
                           setSubAnswers((prev) =>
-                            prev.map((a) => (a.id === ans.id ? { ...a, content: e.target.value } : a))
+                            prev.map((a) =>
+                              a.id === ans.id
+                                ? { ...a, content: e.target.value }
+                                : a,
+                            ),
                           )
                         }
                         placeholder={`Lựa chọn trả lời ${String(idx + 1).padStart(2, '0')}`}
-                        className="text-base rounded-lg font-medium"
+                        className='text-base rounded-lg font-medium'
                       />
                     </td>
-                    <td className="py-2.5 px-3 text-center align-middle">
+                    <td className='py-2.5 px-3 text-center align-middle'>
                       <Checkbox
                         checked={ans.isCorrect}
                         onChange={() =>
                           setSubAnswers((prev) =>
                             subQuestionType === 'single'
-                              ? prev.map((a) => ({ ...a, isCorrect: a.id === ans.id }))
-                              : prev.map((a) => (a.id === ans.id ? { ...a, isCorrect: !a.isCorrect } : a))
+                              ? prev.map((a) => ({
+                                  ...a,
+                                  isCorrect: a.id === ans.id,
+                                }))
+                              : prev.map((a) =>
+                                  a.id === ans.id
+                                    ? { ...a, isCorrect: !a.isCorrect }
+                                    : a,
+                                ),
                           )
                         }
                         style={{ transform: 'scale(1.1)' }}
@@ -1183,49 +1447,68 @@ export default function CreateQuestionModal({
               </tbody>
             </table>
 
-            <div className="mt-2">
+            <div className='mt-2'>
               <button
-                type="button"
+                type='button'
                 onClick={() => {
-                  const newId = subAnswers.length > 0 ? Math.max(...subAnswers.map((a) => a.id)) + 1 : 1;
-                  setSubAnswers((prev) => [...prev, { id: newId, content: '', isCorrect: false }]);
+                  const newId =
+                    subAnswers.length > 0
+                      ? Math.max(...subAnswers.map((a) => a.id)) + 1
+                      : 1;
+                  setSubAnswers((prev) => [
+                    ...prev,
+                    { id: newId, content: '', isCorrect: false },
+                  ]);
                 }}
-                className="text-[14px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors"
+                className='text-[14px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition-colors'
                 style={{ cursor: 'pointer' }}
               >
-                <PlusOutlined className="text-xs" /> Thêm lựa chọn
+                <PlusOutlined className='text-xs' /> Thêm lựa chọn
               </button>
             </div>
           </Form>
         </div>
 
         {/* Footer modal con */}
-        <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-slate-200">
+        <div className='flex items-center justify-center gap-3 px-6 py-4 border-t border-slate-200'>
           <Button
             onClick={() => setSubQuestionModalOpen(false)}
-            className="rounded-lg text-base font-bold px-6 h-9"
+            className='rounded-lg text-base font-bold px-6 h-9'
           >
             Đóng
           </Button>
           <Button
-            type="primary"
-            className="rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9"
+            type='primary'
+            className='rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9'
             onClick={() => {
               subQuestionForm.validateFields().then((values) => {
                 if (editingSubQuestionId) {
                   setSubQuestions((prev) =>
                     prev.map((item) =>
                       item.id === editingSubQuestionId
-                        ? { ...item, text: values.text, type: values.type, link: values.link }
-                        : item
-                    )
+                        ? {
+                            ...item,
+                            text: values.text,
+                            type: values.type,
+                            link: values.link,
+                          }
+                        : item,
+                    ),
                   );
                   message.success('Cập nhật câu hỏi con thành công!');
                 } else {
-                  const newId = subQuestions.length > 0 ? Math.max(...subQuestions.map((s) => s.id)) + 1 : 1;
+                  const newId =
+                    subQuestions.length > 0
+                      ? Math.max(...subQuestions.map((s) => s.id)) + 1
+                      : 1;
                   setSubQuestions((prev) => [
                     ...prev,
-                    { id: newId, text: values.text, type: values.type, link: values.link }
+                    {
+                      id: newId,
+                      text: values.text,
+                      type: values.type,
+                      link: values.link,
+                    },
                   ]);
                   message.success('Thêm câu hỏi con thành công!');
                 }

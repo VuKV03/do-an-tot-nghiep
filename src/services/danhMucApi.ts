@@ -4,6 +4,8 @@
  * Base URL: http://localhost:8001
  */
 
+import type { Question, QuestionType, CognitiveLevel } from '../types';
+
 const BASE_URL = 'http://localhost:8001';
 
 // ─── Generic helpers ───────────────────────────────────────────────────────
@@ -398,4 +400,34 @@ export const topicsApi = {
     apiFetch<{ success: boolean; count: number; data: any[] }>(
       `/topics/${id}/history`,
     ),
+};
+
+// ─── Questions API ────────────────────────────────────────────────────────
+
+export interface QuestionCreateAPI {
+  text: string;
+  type: QuestionType;
+  level: CognitiveLevel;
+  subject: string;
+  grade: string;
+  topicId?: string | null;
+  topicName?: string | null;
+  subTopicName?: string | null;
+  options?: string[];
+  correctAnswer?: string | string[];
+  statements?: unknown[];
+  creator?: string;
+  createdAt?: string;
+  status?: 'draft' | 'pending' | 'approved';
+  lineNumber?: number;
+  examId?: string | null;
+}
+
+export const questionApi = {
+  create: (body: Omit<QuestionCreateAPI, 'createdAt'>) =>
+    apiFetch<{
+      success: boolean;
+      message: string;
+      data: { id: string } & Record<string, unknown>;
+    }>('/questions/', { method: 'POST', body: JSON.stringify(body) }),
 };

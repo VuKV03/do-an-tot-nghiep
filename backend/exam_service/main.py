@@ -31,6 +31,7 @@ from backend.exam_service.routes.competency_components import router as competen
 from backend.exam_service.routes.grade_levels import router as grade_levels_router
 from backend.exam_service.routes.exam_periods import router as exam_periods_router
 from backend.exam_service.routes.topics import router as topics_router
+from backend.exam_service.routes.questions import router as questions_router
 
 
 async def seed_demo_data():
@@ -524,6 +525,7 @@ app.include_router(competency_components_router)
 app.include_router(grade_levels_router)
 app.include_router(exam_periods_router)
 app.include_router(topics_router)
+app.include_router(questions_router)
 
 
 @app.get("/health")

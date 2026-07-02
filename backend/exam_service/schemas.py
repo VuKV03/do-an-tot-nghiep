@@ -34,6 +34,25 @@ class QuestionResponse(QuestionBase):
     model_config = {"from_attributes": True}
 
 
+class QuestionManualCreate(BaseModel):
+    text: str
+    type: Literal['single', 'multiple', 'true_false', 'short']
+    level: Literal['nhan_biet', 'thong_hieu', 'van_dung', 'van_dung_cao']
+    subject: str
+    grade: str
+    topicId: Optional[str] = None
+    topicName: Optional[str] = None
+    subTopicName: Optional[str] = None
+    options: Optional[List[str]] = None
+    correctAnswer: Optional[str | List[str]] = None
+    statements: Optional[list] = None
+    creator: Optional[str] = None
+    createdAt: Optional[str] = None
+    status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'
+    lineNumber: Optional[int] = 1
+    examId: Optional[str] = None
+
+
 # ─── Exam Schemas ────────────────────────────────────────────────────
 class ExamCreate(BaseModel):
     name: str
