@@ -24,6 +24,7 @@ from backend.exam_service.models import (
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
 from backend.exam_service.routes.subject_categories import router as subject_categories_router
+from backend.exam_service.routes.subject_configs import router as subject_configs_router
 from backend.exam_service.routes.cognitive_levels import router as cognitive_levels_router
 from backend.exam_service.routes.question_types import router as question_types_router
 from backend.exam_service.routes.competency_components import router as competency_components_router
@@ -516,6 +517,7 @@ app.include_router(matrix_configs_router)
 
 # Category routes
 app.include_router(subject_categories_router)
+app.include_router(subject_configs_router)
 app.include_router(cognitive_levels_router)
 app.include_router(question_types_router)
 app.include_router(competency_components_router)
