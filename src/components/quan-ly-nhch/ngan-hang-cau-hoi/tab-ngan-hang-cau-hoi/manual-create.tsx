@@ -59,24 +59,6 @@ const DEFAULT_ANSWERS: AnswerRow[] = [
   { id: 4, content: '', isCorrect: false },
 ];
 
-const DAo_OPTIONS = [
-  {
-    value: 'dao_ca',
-    label: 'Có đảo vị trí lệnh hỏi và có đảo đáp án của mỗi lệnh hỏi',
-  },
-  {
-    value: 'dao_vi_tri',
-    label: 'Có đảo vị trí lệnh hỏi và không đảo đáp án của mỗi lệnh hỏi',
-  },
-  {
-    value: 'dao_dap_an',
-    label: 'Không đảo vị trí lệnh hỏi và có đảo đáp án mỗi lệnh hỏi',
-  },
-  {
-    value: 'khong_dao',
-    label: 'Không đảo vị trí lệnh hỏi và không đảo đáp án mỗi lệnh hỏi',
-  },
-];
 
 const SIDEBAR_ITEMS: { value: QuestionType; label: string; icon: string }[] = [
   { value: 'single', label: 'Phương án trắc nghiệm', icon: '▤' },
@@ -425,7 +407,7 @@ export default function CreateQuestionModal({
       <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-200 bg-white">
         <PlusOutlined className="text-[#002147] text-xl" />
         <span className="font-extrabold uppercase text-slate-800 text-[18px] tracking-wide">
-          Thêm mới câu hỏi
+          Thêm mới câu hỏi thủ công
         </span>
       </div>
 
@@ -458,9 +440,9 @@ export default function CreateQuestionModal({
           ))}
         </div>
 
-        {/* RIGHT FORM - p-3 để giảm padding dọc tối đa */}
-        <div className="flex-1 overflow-y-auto bg-white">
-          <Form form={form} layout="vertical" className="p-3 px-6">
+        {/* RIGHT FORM - Đẩy form ra xa sidebar bằng inline style padding */}
+        <div className="flex-1 overflow-y-auto bg-white" style={{ padding: '12px 24px 12px 48px' }}>
+          <Form form={form} layout="vertical">
             
             {/* ── Phần 1: Phân loại câu hỏi (Chỉ hiển thị cho TN Đơn, TN Nhóm, Điền khuyết, Câu hỏi nhóm) ── */}
             {questionType !== 'true_false' && (
@@ -493,33 +475,14 @@ export default function CreateQuestionModal({
                         ]}
                       />
                     </Form.Item>
-
-                    <Form.Item
-                      label={
-                        <span className="text-[15px] font-bold text-slate-700">
-                          Đảo câu hỏi <span className="text-red-500">*</span>
-                        </span>
-                      }
-                      name="daoCauHoi"
-                      rules={[{ required: true, message: 'Vui lòng chọn!' }]}
-                      className="mb-0"
-                      style={{ marginBottom: '4px' }}
-                    >
-                      <Select
-                        size="large"
-                        className="w-full text-base font-medium"
-                        placeholder="Chọn đảo câu hỏi"
-                        options={DAo_OPTIONS}
-                      />
-                    </Form.Item>
                   </div>
                 ) : (
                   /* Nếu là các loại TN Đơn, Điền khuyết */
-                  <div className="grid grid-cols-3 gap-3 mb-1">
+                  <div className="grid grid-cols-2 gap-3 mb-1">
                     <Form.Item
                       label={
                         <span className="text-[15px] font-bold text-slate-700">
-                          Thành phân năng lực <span className="text-red-500">*</span>
+                          Thành phần năng lực <span className="text-red-500">*</span>
                         </span>
                       }
                       name="nangLuc"
@@ -561,25 +524,6 @@ export default function CreateQuestionModal({
                           { value: 'van_dung', label: 'Vận dụng' },
                           { value: 'van_dung_cao', label: 'Vận dụng cao' },
                         ]}
-                      />
-                    </Form.Item>
-
-                    <Form.Item
-                      label={
-                        <span className="text-[15px] font-bold text-slate-700">
-                          Đảo câu hỏi <span className="text-red-500">*</span>
-                        </span>
-                      }
-                      name="daoCauHoi"
-                      rules={[{ required: true, message: 'Vui lòng chọn!' }]}
-                      className="mb-0"
-                      style={{ marginBottom: '4px' }}
-                    >
-                      <Select
-                        size="large"
-                        className="w-full text-base font-medium"
-                        placeholder="Chọn đảo câu hỏi"
-                        options={DAo_OPTIONS}
                       />
                     </Form.Item>
                   </div>
@@ -641,24 +585,6 @@ export default function CreateQuestionModal({
               <div className="mb-1.5 animate-in fade-in duration-200">
                 <div className="text-[17px] font-bold text-blue-700 mb-1.5">Thông tin câu hỏi</div>
                 <div className="grid grid-cols-3 gap-3 mb-1">
-                  <Form.Item
-                    label={
-                      <span className="text-[15px] font-bold text-slate-700">
-                        Đảo câu hỏi <span className="text-red-500">*</span>
-                      </span>
-                    }
-                    name="daoCauHoi"
-                    rules={[{ required: true, message: 'Vui lòng chọn!' }]}
-                    className="mb-0 col-span-1"
-                    style={{ marginBottom: '4px' }}
-                  >
-                    <Select
-                      size="large"
-                      className="w-full text-base font-medium"
-                      placeholder="Chọn đảo câu hỏi"
-                      options={DAo_OPTIONS}
-                    />
-                  </Form.Item>
                 </div>
               </div>
             )}

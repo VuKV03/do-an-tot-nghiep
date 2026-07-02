@@ -4,7 +4,9 @@ Tables: exams, questions, packages, dm_mon_hoc, dm_cap_do_tu_duy,
         dm_loai_hinh_cau_hoi, dm_thanh_phan_nang_luc, dm_khoi_lop
 """
 # pyrefly: ignore [missing-import]
-from sqlalchemy import Column, String, Integer, Float, Text, ForeignKey, Boolean
+from sqlalchemy import Column, String, Integer, Float, Text, ForeignKey, Boolean, Numeric
+# pyrefly: ignore [missing-import]
+from sqlalchemy.dialects.mysql import LONGTEXT, DATETIME
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 from backend.shared.database import Base
@@ -34,13 +36,28 @@ class Exam(Base):
 class Question(Base):
     __tablename__ = "questions"
 
-    id = Column(String(255), primary_key=True)
-    examId = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=False)
-    text = Column(Text, nullable=False)
-    type = Column(String(50), default="single")
-    level = Column(String(50), default="medium")
-    options = Column(Text)  # JSON string of options array
-    correctAnswer = Column(String(255), nullable=False)
+    id = Column(String(36), primary_key=True)
+    code = Column(String(100), nullable=True)
+    content = Column(Text, nullable=False)
+    options = Column(Text, nullable=True)
+    correct_answer = Column(Text, nullable=True)
+    
+    # Foreign keys
+    topic_id = Column(String(36), ForeignKey("topics.id", ondelete="SET NULL"), nullable=True)
+    parent_id = Column(String(36), nullable=True)
+    subject_id = Column(String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True)
+    grade_id = Column(String(36), ForeignKey("grade_levels.id", ondelete="SET NULL"), nullable=True)
+    level_id = Column(String(36), ForeignKey("cognitive_levels.id", ondelete="SET NULL"), nullable=True)
+    type_id = Column(String(36), ForeignKey("question_types.id", ondelete="SET NULL"), nullable=True)
+    competency_component_id = Column(String(36), ForeignKey("competency_components.id", ondelete="SET NULL"), nullable=True)
+    
+    # Optional relation to exams (to maintain compatibility)
+    exam_id = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=True)
+    
+    line_number = Column(Integer, default=1)
+    status = Column(Integer, default=0)
+    status_ai = Column(Integer, default=0)
+    approved_note = Column(Text, default="")
 
     # Relationship
     exam = relationship("Exam", back_populates="questions")
@@ -210,3 +227,43 @@ class TopicHistory(Base):
 
     # Relationship to Topic (optional but good to have)
     # topic = relationship("Topic", backref="histories")
+
+
+# ─── Cấu hình môn học (subject_configs) ──────────────────────────────
+class SubjectConfig(Base):
+    __tablename__ = "subject_configs"
+
+    id = Column(String(36), primary_key=True)
+    type_id_p1 = Column(String(36), ForeignKey("question_types.id", ondelete="SET NULL"), nullable=True)
+    type_id_p2 = Column(String(36), ForeignKey("question_types.id", ondelete="SET NULL"), nullable=True)
+    type_id_p3 = Column(String(36), ForeignKey("question_types.id", ondelete="SET NULL"), nullable=True)
+    subject_id = Column(String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True)
+    content_p1 = Column(LONGTEXT, nullable=True)
+    content_p2 = Column(LONGTEXT, nullable=True)
+    content_p3 = Column(LONGTEXT, nullable=True)
+    p1_from = Column(Integer, nullable=True)
+    p1_to = Column(Integer, nullable=True)
+    p2_from = Column(Integer, nullable=True)
+    p2_to = Column(Integer, nullable=True)
+    p3_from = Column(Integer, nullable=True)
+    p3_to = Column(Integer, nullable=True)
+    points_for_a_correct_answers_p1 = Column(Numeric(65, 30), nullable=True)
+    points_for_1_correct_idea = Column(Numeric(65, 30), nullable=True)
+    points_for_2_correct_idea = Column(Numeric(65, 30), nullable=True)
+    points_for_3_correct_idea = Column(Numeric(65, 30), nullable=True)
+    points_for_4_correct_idea = Column(Numeric(65, 30), nullable=True)
+    points_for_a_correct_answers_p3 = Column(Numeric(65, 30), nullable=True)
+    questions_number = Column(Integer, nullable=True)
+    number_to_create = Column(Integer, nullable=True)
+    scale = Column(Integer, nullable=True)
+    time = Column(Integer, nullable=True)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DATETIME(fsp=6), nullable=False)
+    updated_by = Column(String(255), nullable=True)
+    updated_at = Column(DATETIME(fsp=6), nullable=True)
+
+    # Relationships
+    subject = relationship("SubjectCategory")
+    type_p1 = relationship("QuestionType", foreign_keys=[type_id_p1])
+    type_p2 = relationship("QuestionType", foreign_keys=[type_id_p2])
+    type_p3 = relationship("QuestionType", foreign_keys=[type_id_p3])

@@ -16,7 +16,7 @@ from backend.shared.database import ensure_database_exists, init_tables, async_s
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
     SubjectCategory, CognitiveLevel, QuestionType,  # category models
-    CompetencyComponent, GradeLevel, ExamPeriod, Topic
+    CompetencyComponent, GradeLevel, ExamPeriod, Topic, SubjectConfig
 )
 from backend.exam_service.routes.exams import router as exams_router
 from backend.exam_service.routes.packages import router as packages_router
@@ -34,6 +34,76 @@ async def seed_demo_data():
     async with async_session() as db:
         # pyrefly: ignore [missing-import]
         from sqlalchemy import select, func
+        
+        # Build dynamic mappings for foreign keys to prevent IntegrityError
+        # Fetch subjects
+        subj_res = await db.execute(select(SubjectCategory))
+        subj_map = {}
+        for s in subj_res.scalars().all():
+            subj_map[s.name.lower()] = s.id
+            subj_map[s.code.lower()] = s.id
+
+        # Fetch grades
+        grade_res = await db.execute(select(GradeLevel))
+        grade_map = {}
+        for g in grade_res.scalars().all():
+            grade_map[g.name.lower()] = g.id
+            grade_map[g.code.lower()] = g.id
+            name_clean = g.name.lower().replace("lớp", "").replace("khối", "").strip()
+            grade_map[name_clean] = g.id
+
+        # Fetch levels
+        level_res = await db.execute(select(CognitiveLevel))
+        level_map = {}
+        for l in level_res.scalars().all():
+            level_map[l.name.lower()] = l.id
+            level_map[l.code.lower()] = l.id
+
+        # Fetch types
+        type_res = await db.execute(select(QuestionType))
+        type_map = {}
+        for t in type_res.scalars().all():
+            type_map[t.name.lower()] = t.id
+            type_map[t.code.lower()] = t.id
+
+        def get_subject_id(subject_name: str) -> str | None:
+            if not subject_name:
+                return None
+            name_lower = subject_name.lower()
+            if "toán" in name_lower:
+                return subj_map.get("toán") or subj_map.get("math") or subj_map.get("to")
+            elif "văn" in name_lower:
+                return subj_map.get("văn") or subj_map.get("ngữ văn") or subj_map.get("lit") or subj_map.get("va")
+            elif "anh" in name_lower:
+                return subj_map.get("tiếng anh") or subj_map.get("english") or subj_map.get("eng") or subj_map.get("n1")
+            return subj_map.get(name_lower)
+
+        def get_grade_id(grade_name: str) -> str | None:
+            if not grade_name:
+                return None
+            name_lower = grade_name.lower().replace("lớp", "").replace("khối", "").strip()
+            return grade_map.get(name_lower) or grade_map.get(grade_name.lower())
+
+        def get_level_id(level_name: str) -> str | None:
+            if not level_name:
+                return None
+            name_lower = level_name.lower()
+            if name_lower in ["easy", "nhận biết", "nhan biet", "l1", "vv"]:
+                return level_map.get("nhận biết") or level_map.get("l1") or level_map.get("vv")
+            elif name_lower in ["medium", "hiểu", "thông hiểu", "thong hieu", "l2", "zz"]:
+                return level_map.get("thông hiểu") or level_map.get("l2") or level_map.get("zz")
+            elif name_lower in ["hard", "vận dụng", "van dung", "l3", "xx"]:
+                return level_map.get("vận dụng") or level_map.get("l3") or level_map.get("xx")
+            return level_map.get(name_lower)
+
+        def get_type_id(type_name: str) -> str | None:
+            if not type_name:
+                return None
+            name_lower = type_name.lower()
+            if name_lower in ["single", "trắc nghiệm một đáp án", "trắc nghiệm", "tn"]:
+                return type_map.get("trắc nghiệm") or type_map.get("single") or type_map.get("tn") or type_map.get("lhch-01")
+            return type_map.get(name_lower)
+
         result = await db.execute(select(func.count()).select_from(Exam))
         exam_count = result.scalar()
 
@@ -107,17 +177,100 @@ async def seed_demo_data():
                 for i, q in enumerate(questions_data):
                     question = Question(
                         id=f"q-{ts}-{exam_data['id']}-{i}",
-                        examId=exam_data["id"],
-                        text=q["text"],
-                        type=q["type"],
-                        level=q["level"],
+                        exam_id=exam_data["id"],
+                        code=f"Q-{str(ts)[-6:]}-{exam_data['id'][-1]}-{i}",
+                        content=q["text"],
                         options=json.dumps(q["options"], ensure_ascii=False),
-                        correctAnswer=q["correctAnswer"],
+                        correct_answer=q["correctAnswer"],
+                        subject_id=get_subject_id(exam_data["subject"]),
+                        grade_id=get_grade_id(exam_data["grade"]),
+                        level_id=get_level_id(q["level"]),
+                        type_id=get_type_id(q["type"]),
+                        line_number=i + 1,
+                        status=2,
+                        status_ai=2 if exam_data.get("source") == "ai" else 0,
+                        approved_note="Seed data",
                     )
                     db.add(question)
 
             await db.commit()
             print("[Exam Service] ✅ Đã nạp đề thi mẫu và câu hỏi mẫu thành công.")
+
+        # Check and seed questions if empty but exams exist
+        result_q = await db.execute(select(func.count()).select_from(Question))
+        q_count = result_q.scalar()
+        if q_count == 0 and exam_count > 0:
+            print("[Exam Service] Bảng questions trống nhưng exams đã tồn tại. Đang nạp câu hỏi mẫu cho exams...")
+            ts = int(time.time() * 1000)
+            
+            # Seed questions for exam-1
+            exam1_questions = [
+                {"text": "Hàm số y = x^3 - 3x có bao nhiêu điểm cực trị?", "level": "easy", "options": ["0", "1", "2", "3"], "correctAnswer": "C"},
+                {"text": "Tích phân từ 0 đến 1 của e^x dx bằng?", "level": "easy", "options": ["e", "e - 1", "e + 1", "1"], "correctAnswer": "B"},
+            ]
+            for i, q in enumerate(exam1_questions):
+                db.add(Question(
+                    id=f"q-{ts}-exam-1-{i}",
+                    exam_id="exam-1",
+                    code=f"Q-{str(ts)[-6:]}-1-{i}",
+                    content=q["text"],
+                    options=json.dumps(q["options"], ensure_ascii=False),
+                    correct_answer=q["correctAnswer"],
+                    subject_id=get_subject_id("Toán học"),
+                    grade_id=get_grade_id("Khối 12"),
+                    level_id=get_level_id(q["level"]),
+                    type_id=get_type_id("single"),
+                    line_number=i + 1,
+                    status=2,
+                    status_ai=0,
+                    approved_note="Seed data",
+                ))
+
+            # Seed questions for exam-2
+            exam2_questions = [
+                {"text": "Chủ đề bao trùm tác phẩm Vội vàng của Xuân Diệu là gì?", "level": "medium", "options": ["Lòng căm thù giặc sâu sắc", "Lòng yêu cuộc sống trần thế cuồng nhiệt", "Nỗi sầu muộn u uẩn", "Ý chí cách mạng"], "correctAnswer": "B"},
+            ]
+            for i, q in enumerate(exam2_questions):
+                db.add(Question(
+                    id=f"q-{ts}-exam-2-{i}",
+                    exam_id="exam-2",
+                    code=f"Q-{str(ts)[-6:]}-2-{i}",
+                    content=q["text"],
+                    options=json.dumps(q["options"], ensure_ascii=False),
+                    correct_answer=q["correctAnswer"],
+                    subject_id=get_subject_id("Ngữ văn"),
+                    grade_id=get_grade_id("Khối 11"),
+                    level_id=get_level_id(q["level"]),
+                    type_id=get_type_id("single"),
+                    line_number=i + 1,
+                    status=2,
+                    status_ai=0,
+                    approved_note="Seed data",
+                ))
+
+            # Seed questions for exam-3
+            exam3_questions = [
+                {"text": "If I ________ rich, I would buy a high-performance computer.", "level": "easy", "options": ["am", "was", "were", "would be"], "correctAnswer": "C"},
+            ]
+            for i, q in enumerate(exam3_questions):
+                db.add(Question(
+                    id=f"q-{ts}-exam-3-{i}",
+                    exam_id="exam-3",
+                    code=f"Q-{str(ts)[-6:]}-3-{i}",
+                    content=q["text"],
+                    options=json.dumps(q["options"], ensure_ascii=False),
+                    correct_answer=q["correctAnswer"],
+                    subject_id=get_subject_id("Tiếng Anh"),
+                    grade_id=get_grade_id("Khối 10"),
+                    level_id=get_level_id(q["level"]),
+                    type_id=get_type_id("single"),
+                    line_number=i + 1,
+                    status=2,
+                    status_ai=2,
+                    approved_note="Seed data",
+                ))
+            await db.commit()
+            print("[Exam Service] ✅ Đã bổ sung câu hỏi mẫu thành công.")
 
         # Seed packages
         result2 = await db.execute(select(func.count()).select_from(Package))
@@ -307,15 +460,16 @@ async def lifespan(app: FastAPI):
     print("🔧 [Exam Service] Khởi động trên Port 8001...")
     await ensure_database_exists()
     
-    # Drop table to force recreate with correct schema
-    # from backend.shared.database import engine
-    # from sqlalchemy import text
-    # try:
-    #     async with engine.begin() as conn:
-    #         print("[Exam Service] Dropping matrix_configs table if exists to update schema...")
-    #         await conn.execute(text("DROP TABLE IF EXISTS matrix_configs;"))
-    # except Exception as e:
-    #     print(f"[Exam Service] Error dropping matrix_configs: {e}")
+    # Drop old subject_config table if exists
+    from backend.shared.database import engine
+    # pyrefly: ignore [missing-import]
+    from sqlalchemy import text
+    try:
+        async with engine.begin() as conn:
+            print("[Exam Service] Dropping old subject_config table if exists...")
+            await conn.execute(text("DROP TABLE IF EXISTS subject_config;"))
+    except Exception as e:
+        print(f"[Exam Service] Error dropping old subject_config: {e}")
 
     await init_tables()
     await seed_demo_data()

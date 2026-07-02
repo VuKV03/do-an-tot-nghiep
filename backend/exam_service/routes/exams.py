@@ -22,16 +22,6 @@ from backend.exam_service.schemas import (
 router = APIRouter(prefix="/exams", tags=["Exams"])
 
 
-def _parse_options(options_str: str | None) -> list[str]:
-    if not options_str:
-        return []
-    try:
-        parsed = json.loads(options_str) if isinstance(options_str, str) else options_str
-        return parsed if isinstance(parsed, list) else []
-    except (json.JSONDecodeError, TypeError):
-        return []
-
-
 def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
     return ExamResponse(
         id=exam.id,
@@ -49,11 +39,23 @@ def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
         source=exam.source or "manual",
         questions=[
             QuestionResponse(
-                text=q.text,
-                type=q.type or "single",
-                level=q.level or "medium",
-                options=_parse_options(q.options),
-                correctAnswer=q.correctAnswer,
+                id=q.id,
+                code=q.code,
+                content=q.content,
+                options=q.options,
+                correct_answer=q.correct_answer,
+                topic_id=q.topic_id,
+                parent_id=q.parent_id,
+                subject_id=q.subject_id,
+                grade_id=q.grade_id,
+                level_id=q.level_id,
+                type_id=q.type_id,
+                competency_component_id=q.competency_component_id,
+                line_number=q.line_number or 1,
+                status=q.status or 0,
+                status_ai=q.status_ai or 0,
+                approved_note=q.approved_note or "",
+                exam_id=q.exam_id,
             )
             for q in questions
         ],
@@ -69,10 +71,11 @@ async def list_exams(db: AsyncSession = Depends(get_db)):
     q_result = await db.execute(select(Question))
     all_questions = q_result.scalars().all()
 
-    # Group questions by examId
+    # Group questions by exam_id
     questions_by_exam: dict[str, list[Question]] = {}
     for q in all_questions:
-        questions_by_exam.setdefault(q.examId, []).append(q)
+        if q.exam_id:
+            questions_by_exam.setdefault(q.exam_id, []).append(q)
 
     data = [
         _build_exam_response(e, questions_by_exam.get(e.id, []))
@@ -109,12 +112,22 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
     for i, q in enumerate(body.questions or []):
         question = Question(
             id=f"q-{int(time.time() * 1000)}-{i}",
-            examId=exam_id,
-            text=q.text,
-            type=q.type,
-            level=q.level,
-            options=json.dumps(q.options or [], ensure_ascii=False),
-            correctAnswer=q.correctAnswer,
+            exam_id=exam_id,
+            code=q.code or f"Q-{str(int(time.time()))[-6:].upper()}-{i}",
+            content=q.content,
+            options=q.options,
+            correct_answer=q.correct_answer,
+            topic_id=q.topic_id,
+            parent_id=q.parent_id,
+            subject_id=q.subject_id,
+            grade_id=q.grade_id,
+            level_id=q.level_id,
+            type_id=q.type_id,
+            competency_component_id=q.competency_component_id,
+            line_number=q.line_number or (i + 1),
+            status=q.status or 0,
+            status_ai=q.status_ai or 0,
+            approved_note=q.approved_note or "",
         )
         db.add(question)
         questions.append(question)
@@ -144,17 +157,27 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
 
     # Update questions if provided
     if body.questions is not None:
-        await db.execute(delete(Question).where(Question.examId == exam_id))
+        await db.execute(delete(Question).where(Question.exam_id == exam_id))
         new_questions: list[Question] = []
         for i, q in enumerate(body.questions):
             question = Question(
                 id=f"q-{int(time.time() * 1000)}-{i}",
-                examId=exam_id,
-                text=q.text,
-                type=q.type,
-                level=q.level,
-                options=json.dumps(q.options or [], ensure_ascii=False),
-                correctAnswer=q.correctAnswer,
+                exam_id=exam_id,
+                code=q.code or f"Q-{str(int(time.time()))[-6:].upper()}-{i}",
+                content=q.content,
+                options=q.options,
+                correct_answer=q.correct_answer,
+                topic_id=q.topic_id,
+                parent_id=q.parent_id,
+                subject_id=q.subject_id,
+                grade_id=q.grade_id,
+                level_id=q.level_id,
+                type_id=q.type_id,
+                competency_component_id=q.competency_component_id,
+                line_number=q.line_number or (i + 1),
+                status=q.status or 0,
+                status_ai=q.status_ai or 0,
+                approved_note=q.approved_note or "",
             )
             db.add(question)
             new_questions.append(question)
@@ -164,7 +187,7 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
     await db.refresh(exam)
 
     # Fetch updated questions
-    q_result = await db.execute(select(Question).where(Question.examId == exam_id))
+    q_result = await db.execute(select(Question).where(Question.exam_id == exam_id))
     questions = q_result.scalars().all()
 
     return {
