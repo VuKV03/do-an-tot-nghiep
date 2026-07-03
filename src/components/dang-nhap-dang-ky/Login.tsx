@@ -198,7 +198,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <GlobalOutlined className="text-slate-950 text-2xl font-bold" />
             </div>
             <div>
-              <h1 className="text-white text-lg font-black tracking-widest uppercase my-0 leading-none">SmartTest NHCH</h1>
+              <h1 className="text-white text-lg font-black tracking-widest uppercase my-0 leading-none">PM QUẢN LÝ NHCH</h1>
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1.5 block">Hệ thống Quản lý đề thi Quốc gia</span>
             </div>
           </div>

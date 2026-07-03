@@ -285,7 +285,7 @@ export default function QuestionHistoryModal({
             {modalTitle}
           </span>
         }
-        destroyOnClose
+        destroyOnHidden
         styles={{ body: { padding: '20px 24px 8px' } }}
       >
         {/* ── Search section ───────────────────── */}

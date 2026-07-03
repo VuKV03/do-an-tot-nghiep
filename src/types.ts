@@ -76,6 +76,16 @@ export interface MatrixConfig {
   rows: MatrixRow[];
 }
 
+export interface UserGroup {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  permissions: string[];
+  status?: 'active' | 'inactive';
+}
+
 export interface SystemUser {
   id: string;
   username: string;
@@ -83,6 +93,7 @@ export interface SystemUser {
   email: string;
   role: 'admin' | 'teacher' | 'reviewer';
   status: 'active' | 'inactive';
+  groups?: UserGroup[];
 }
 
 export interface AuditLog {

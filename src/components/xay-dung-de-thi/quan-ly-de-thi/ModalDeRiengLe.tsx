@@ -329,7 +329,7 @@ export default function ModalDeRiengLe({
       centered
       width={1000}
       bodyStyle={{ padding: 0 }}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="flex" style={{ minHeight: 500 }}>
         {/* ======= SIDEBAR TRÁI ======= */}

@@ -1,31 +1,29 @@
 import asyncio
-# pyrefly: ignore [missing-import]
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-# pyrefly: ignore [missing-import]
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+from backend.shared.database import async_session
 from sqlalchemy import text
-from backend.shared.config import db_config
-from backend.shared.database import get_db, async_session, engine
-from backend.auth_service.models import User
-from backend.auth_service.main import pwd_context
-import time
-from datetime import datetime
 
-async def test_insert():
-    async with async_session() as db:
-        user = User(
-            id=f"u-test-{int(time.time() * 1000)}",
-            username="test_insert_user",
-            email="test@example.com",
-            fullName="Test Insert",
-            password_hash="fakehash",
-            role="teacher",
-            status="active",
-            createdAt=datetime.utcnow().isoformat() + "Z",
-        )
-        db.add(user)
-        print("Before commit")
-        await db.commit()
-        print("After commit")
-
-if __name__ == "__main__":
-    asyncio.run(test_insert())
+async def test():
+    async with async_session() as session:
+        result = await session.execute(text("SELECT id, username, role FROM users WHERE username='ngan'"))
+        users = result.fetchall()
+        print('User:', users)
+        
+        if not users:
+            print("User ngan not found")
+            return
+            
+        user_id = users[0][0]
+        
+        result2 = await session.execute(text(f"SELECT * FROM user_group_members WHERE user_id='{user_id}'"))
+        members = result2.fetchall()
+        print('Members:', members)
+        
+        for m in members:
+            group_id = m[1] # group_id
+            result3 = await session.execute(text(f"SELECT id, name, permissions FROM user_groups WHERE id='{group_id}'"))
+            print('Group:', result3.fetchall())
+        
+asyncio.run(test())
