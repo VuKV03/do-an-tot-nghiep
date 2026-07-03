@@ -8,7 +8,7 @@ import {
   TopicNode,
   TrueFalseStatement,
 } from '../../../../types';
-import { questionApi } from '../../../../services/danhMucApi.ts';
+import { questionApi, subjectCategoryApi, gradeLevelApi, competencyComponentApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +108,42 @@ export default function CreateQuestionModal({
 }: CreateQuestionModalProps) {
   const [form] = Form.useForm();
   const [subQuestionForm] = Form.useForm();
+
+  const [competencyOptions, setCompetencyOptions] = useState<{ value: string; label: string }[]>([]);
+  const [cognitiveLevelOptions, setCognitiveLevelOptions] = useState<{ value: string; label: string }[]>(LEVEL_OPTIONS);
+
+  useEffect(() => {
+    async function loadDynamicOptions() {
+      try {
+        const subRes = await subjectCategoryApi.list();
+        const foundSub = subRes.data.find((s) => s.name === subject);
+        const subjectId = foundSub ? foundSub.id : undefined;
+
+        const gradeRes = await gradeLevelApi.list();
+        const foundGrade = gradeRes.data.find((g) => g.name === grade);
+        const gradeId = foundGrade ? foundGrade.id : undefined;
+
+        const compRes = await competencyComponentApi.list(subjectId ? { subject_id: subjectId } : undefined);
+        setCompetencyOptions(compRes.data.map((c) => ({ value: c.id, label: c.name })));
+
+        const cogRes = await cognitiveLevelApi.list({ subject_id: subjectId, grade_id: gradeId });
+        const mapLevelCode = (code: string) => {
+          const c = code.toLowerCase();
+          if (['vv', 'l1', 'nhan_biet'].includes(c)) return 'nhan_biet';
+          if (['zz', 'l2', 'thong_hieu'].includes(c)) return 'thong_hieu';
+          if (['xx', 'l3', 'van_dung'].includes(c)) return 'van_dung';
+          if (['vdc', 'l4', 'van_dung_cao'].includes(c)) return 'van_dung_cao';
+          return 'nhan_biet';
+        };
+        setCognitiveLevelOptions(cogRes.data.map((c) => ({ value: mapLevelCode(c.code), label: c.name })));
+      } catch (err) {
+        console.error('Failed to load dynamic options', err);
+      }
+    }
+    if (open) {
+      loadDynamicOptions();
+    }
+  }, [subject, grade, open]);
 
   // State quản lý loại câu hỏi hiện tại
   const [questionType, setQuestionType] = useState<QuestionType>('single');
@@ -384,6 +420,7 @@ export default function CreateQuestionModal({
         text: values.text,
         type: questionType,
         level: (values.level || 'nhan_biet') as CognitiveLevel,
+        nangLucId: values.nangLuc || undefined,
         status,
         subject,
         grade,
@@ -429,7 +466,11 @@ export default function CreateQuestionModal({
 
       const q = buildQuestion(values, status);
       const { id: _localId, ...payload } = q;
-      const response = await questionApi.create(payload as any);
+      const apiPayload = {
+        ...payload,
+        competencyComponentId: q.nangLucId,
+      };
+      const response = await questionApi.create(apiPayload as any);
       const savedQuestion = { ...q, id: response.data.id || q.id };
 
       if (status === 'draft') {
@@ -574,12 +615,7 @@ export default function CreateQuestionModal({
                         size='large'
                         className='w-full text-base font-medium'
                         placeholder='Chọn'
-                        options={[
-                          { value: 'Hiểu', label: 'Hiểu' },
-                          { value: 'Nhận biết', label: 'Nhận biết' },
-                          { value: 'Vận dụng', label: 'Vận dụng' },
-                          { value: 'Vận dụng cao', label: 'Vận dụng cao' },
-                        ]}
+                        options={competencyOptions}
                       />
                     </Form.Item>
 
@@ -598,12 +634,7 @@ export default function CreateQuestionModal({
                         size='large'
                         className='w-full text-base font-medium'
                         placeholder='Chọn'
-                        options={[
-                          { value: 'nhan_biet', label: 'Nhận biết' },
-                          { value: 'thong_hieu', label: 'Thông hiểu' },
-                          { value: 'van_dung', label: 'Vận dụng' },
-                          { value: 'van_dung_cao', label: 'Vận dụng cao' },
-                        ]}
+                        options={cognitiveLevelOptions}
                       />
                     </Form.Item>
                   </div>

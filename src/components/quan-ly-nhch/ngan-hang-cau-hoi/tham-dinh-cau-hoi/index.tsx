@@ -38,6 +38,7 @@ interface ThamDinhCauHoiProps {
   topicsLoading?: boolean;
   onApproveQuestion?: (id: string, comment: string) => void;
   onRejectQuestion?: (id: string, comment: string) => void;
+  onBulkReviewQuestions?: (ids: string[], verdict: 'approve' | 'reject', comment: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -235,6 +236,100 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
   );
 }
 
+interface BulkReviewModalProps {
+  visible: boolean;
+  count: number;
+  onClose: () => void;
+  onConfirm: (verdict: 'approve' | 'reject', comment: string) => void;
+}
+
+function BulkReviewModal({ visible, count, onClose, onConfirm }: BulkReviewModalProps) {
+  const [verdict, setVerdict]     = useState<'approve' | 'reject' | null>(null);
+  const [comment, setComment]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = () => {
+    if (!verdict) { message.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    setSubmitting(true);
+    setTimeout(() => {
+      onConfirm(verdict, comment);
+      setVerdict(null);
+      setComment('');
+      setSubmitting(false);
+      onClose();
+    }, 600);
+  };
+
+  const handleCancel = () => { setVerdict(null); setComment(''); onClose(); };
+
+  return (
+    <Modal
+      open={visible}
+      onCancel={handleCancel}
+      footer={null}
+      width={540}
+      title={
+        <span className="text-[#002147] font-black text-sm tracking-tight">
+          Thẩm định nhiều câu hỏi
+        </span>
+      }
+      destroyOnClose
+      styles={{ body: { padding: '20px 24px 8px' } }}
+    >
+      <div className="text-[#1a4f9c] font-bold text-sm mb-4">
+        Thẩm định nhanh {count} câu hỏi
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 mb-4 space-y-4">
+        <div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+            KẾT QUẢ THẨM ĐỊNH
+          </div>
+          <Radio.Group value={verdict} onChange={(e) => setVerdict(e.target.value)} className="flex gap-4">
+            <Radio value="approve">
+              <span className="text-emerald-700 font-bold text-xs flex items-center gap-1">
+                <span className="inline-flex items-center justify-center w-4 h-4 bg-emerald-500 text-white rounded text-[10px] font-black leading-none">✓</span>
+                Đồng ý / Thông qua
+              </span>
+            </Radio>
+            <Radio value="reject">
+              <span className="text-rose-600 font-bold text-xs flex items-center gap-1">
+                <span className="inline-flex items-center justify-center w-4 h-4 bg-rose-500 text-white rounded text-[10px] font-black leading-none">✗</span>
+                Từ chối
+              </span>
+            </Radio>
+          </Radio.Group>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
+          <Input.TextArea
+            rows={3}
+            placeholder="Nhập nhận xét thẩm định..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="text-xs rounded border-slate-300"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2 pb-1">
+        <Button onClick={handleCancel} className="text-xs font-bold border-slate-300 h-9 px-6 rounded cursor-pointer" style={{ cursor: 'pointer' }}>
+          Huỷ
+        </Button>
+        <Button
+          type="primary"
+          loading={submitting}
+          onClick={handleSubmit}
+          className="bg-[#1a4f9c] text-white font-bold text-xs h-9 px-8 rounded cursor-pointer"
+          style={{ cursor: 'pointer' }}
+        >
+          Xác nhận thẩm định
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,6 +344,7 @@ export default function ThamDinhCauHoiTab({
   topicsLoading = false,
   onApproveQuestion,
   onRejectQuestion,
+  onBulkReviewQuestions,
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
@@ -280,6 +376,7 @@ export default function ThamDinhCauHoiTab({
   const [selectedRowKeys, setSelectedRowKeys]   = useState<React.Key[]>([]);
   const [reviewQuestion, setReviewQuestion]     = useState<Question | null>(null);
   const [historyQuestion, setHistoryQuestion]   = useState<Question | null>(null);
+  const [isBulkReviewOpen, setIsBulkReviewOpen] = useState(false);
 
   // ── Derived: topic tree ────────────────────────
   const subjectDropdownOptions = useMemo(
@@ -399,8 +496,7 @@ export default function ThamDinhCauHoiTab({
       message.warning('Vui lòng chọn ít nhất một câu hỏi để thẩm định!');
       return;
     }
-    const first = questions.find((q) => q.id === selectedRowKeys[0]);
-    if (first) setReviewQuestion(first);
+    setIsBulkReviewOpen(true);
   };
 
   const handleApprove = (q: Question, _comment: string) => {
@@ -825,6 +921,35 @@ export default function ThamDinhCauHoiTab({
           } else {
             onUpdateQuestion({ ...q, status: 'draft' });
           }
+        }}
+      />
+
+      {/* ── Bulk review modal ── */}
+      <BulkReviewModal
+        visible={isBulkReviewOpen}
+        count={selectedRowKeys.length}
+        onClose={() => setIsBulkReviewOpen(false)}
+        onConfirm={(verdict, comment) => {
+          if (onBulkReviewQuestions) {
+            onBulkReviewQuestions(
+              selectedRowKeys.map((k) => String(k)),
+              verdict,
+              comment
+            );
+          } else {
+            // fallback local update
+            selectedRowKeys.forEach((key) => {
+              const q = questions.find((item) => item.id === key);
+              if (q) {
+                onUpdateQuestion({
+                  ...q,
+                  status: (verdict === 'approve' ? 'approved' : 'rejected') as QuestionStatus
+                });
+              }
+            });
+            message.success(`Đã thẩm định ${selectedRowKeys.length} câu hỏi!`);
+          }
+          setSelectedRowKeys([]);
         }}
       />
 

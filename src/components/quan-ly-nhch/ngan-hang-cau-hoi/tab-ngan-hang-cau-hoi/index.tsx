@@ -159,10 +159,13 @@ export default function QuestionBankModule({
           topicId: q.topicId || '',
           topicName: q.topicName || '',
           subTopicName: q.subTopicName || '',
+          nangLucId: q.nangLucId,
+          nangLuc: q.nangLuc || '',
           options: q.options || [],
           correctAnswer: q.correctAnswer || '',
           creator: q.creator || '',
           createdAt: q.createdAt || new Date().toISOString(),
+          feedback: q.feedback || '',
         }));
         setDbQuestions(mapped);
       }
@@ -514,7 +517,7 @@ export default function QuestionBankModule({
 
   const handleApproveQuestion = async (id: string, feedback: string) => {
     try {
-      await bankQuestionApi.approve(id);
+      await bankQuestionApi.approve(id, feedback);
       fetchQuestions();
     } catch (e: any) {
       message.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
@@ -523,10 +526,19 @@ export default function QuestionBankModule({
 
   const handleRejectQuestion = async (id: string, feedback: string) => {
     try {
-      await bankQuestionApi.reject(id);
+      await bankQuestionApi.reject(id, feedback);
       fetchQuestions();
     } catch (e: any) {
       message.error(e.message || 'Lỗi khi từ chối câu hỏi');
+    }
+  };
+
+  const handleBulkReviewQuestions = async (ids: string[], verdict: 'approve' | 'reject', comment: string) => {
+    try {
+      await bankQuestionApi.bulkReview(ids, verdict, comment);
+      fetchQuestions();
+    } catch (e: any) {
+      message.error(e.message || 'Lỗi khi thẩm định câu hỏi');
     }
   };
 
@@ -1354,6 +1366,7 @@ export default function QuestionBankModule({
           topicsLoading={topicsLoading}
           onApproveQuestion={handleApproveQuestion}
           onRejectQuestion={handleRejectQuestion}
+          onBulkReviewQuestions={handleBulkReviewQuestions}
         />
       )}
     </div>

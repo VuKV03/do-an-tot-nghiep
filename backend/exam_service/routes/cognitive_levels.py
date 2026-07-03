@@ -39,8 +39,14 @@ def _to_response(obj: CognitiveLevel) -> CognitiveLevelResponse:
 
 
 @router.get("/", response_model=CognitiveLevelListResponse)
-async def list_cognitive_levels(db: AsyncSession = Depends(get_db)):
+async def list_cognitive_levels(
+    subject_id: str | None = None,
+    grade_id: str | None = None,
+    db: AsyncSession = Depends(get_db)
+):
     """Lấy danh sách tất cả cấp độ tư duy."""
+    # Note: cognitive_levels table currently doesn't have subject_id or grade_id columns to filter by.
+    # Returning all items for now.
     result = await db.execute(select(CognitiveLevel).order_by(CognitiveLevel.created_at.desc()))
     items = result.scalars().all()
     data = [_to_response(i) for i in items]
