@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Input, Select, Button, Tree, Radio, InputNumber, Spin, message, Tooltip, Empty } from 'antd';
+import { Input, Select, Button, Tree, InputNumber, Spin, message, Tooltip, Empty } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const getShortCode = (ma: string, ten: string) => {
@@ -16,7 +16,53 @@ import {
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
-import { subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+import { subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+
+const countKey = (topicId: string, levelId: string | null, typeId: string | null, competencyId: string | null) =>
+  `${topicId}|${levelId}|${typeId}|${competencyId}`;
+
+const countKeyNoCompetency = (topicId: string, levelId: string | null, typeId: string | null) =>
+  `${topicId}|${levelId}|${typeId}`;
+
+interface QuestionCountMaps {
+  exact: Map<string, number>;
+  noCompetency: Map<string, number>;
+}
+
+const EMPTY_COUNT_MAPS: QuestionCountMaps = { exact: new Map(), noCompetency: new Map() };
+
+// Câu hỏi chưa gắn "Thành phần năng lực" (competency_component_id = null trong ngân hàng câu hỏi
+// — hiện luồng thêm câu hỏi chưa hỗ trợ chọn năng lực) được cộng vào MỌI cột năng lực cùng
+// chủ đề/mức độ/loại câu hỏi thay vì bị loại vì không khớp cột nào.
+const sumQuestionCount = (
+  maps: QuestionCountMaps,
+  topicId: string, levelId: string | null, typeId: string | null, competencyId: string | null,
+): number => {
+  const exact = maps.exact.get(countKey(topicId, levelId, typeId, competencyId)) ?? 0;
+  const fallback = maps.noCompetency.get(countKeyNoCompetency(topicId, levelId, typeId)) ?? 0;
+  return exact + fallback;
+};
+
+const fetchQuestionCounts = async (topicIds: string[]): Promise<QuestionCountMaps> => {
+  const exact = new Map<string, number>();
+  const noCompetency = new Map<string, number>();
+  const ids = Array.from(new Set(topicIds.filter(Boolean)));
+  if (ids.length === 0) return { exact, noCompetency };
+  try {
+    const res = await bankQuestionApi.countByTopic(ids);
+    (res.data || []).forEach(row => {
+      if (row.competency_component_id) {
+        exact.set(countKey(row.topic_id, row.level_id, row.type_id, row.competency_component_id), row.count);
+      } else {
+        const key = countKeyNoCompetency(row.topic_id, row.level_id, row.type_id);
+        noCompetency.set(key, (noCompetency.get(key) ?? 0) + row.count);
+      }
+    });
+  } catch (err) {
+    console.error('Lỗi khi đếm số câu hỏi trong ngân hàng theo chủ đề:', err);
+  }
+  return { exact, noCompetency };
+};
 
 const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
   const map: { [key: string]: ChuDeNode } = {};
@@ -57,7 +103,6 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   const [monHocId, setMonHocId] = useState<string | null>(null);
   const [maMatran, setMaMatran] = useState('');
   const [tenMatran, setTenMatran] = useState('');
-  const [loai, setLoai] = useState<number>(1); // 1=Thủ công
   const [isChangingSubject, setIsChangingSubject] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -67,6 +112,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   const [checkedKeys, setCheckedKeys] = useState<{ checked: React.Key[]; halfChecked: React.Key[] }>({ checked: [], halfChecked: [] });
   const [searchValue, setSearchValue] = useState('');
   const [obj, setObj] = useState<MaTranData[]>([]);
+  const checkRequestSeqRef = React.useRef(0);
 
   // --- Step 1: Chọn Môn ---
   const changeMonHoc = async (value: string) => {
@@ -253,8 +299,18 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
           const keys = ds.map((row: any) => row.don_vi_id);
           setCheckedKeys({ checked: keys, halfChecked: [] });
 
-          // Populate matrix structure
+          // Populate matrix structure (dùng tạm tong_so_cau đã lưu, sẽ làm mới ngay bên dưới)
           setObj(ds);
+
+          // Làm mới tong_so_cau theo dữ liệu Ngân hàng câu hỏi hiện tại (không dùng số cũ đã đóng băng lúc lưu)
+          const countMap = await fetchQuestionCounts(keys);
+          setObj(prev => prev.map((row: MaTranData) => ({
+            ...row,
+            ds_loai_cau_hoi: row.ds_loai_cau_hoi.map(cell => ({
+              ...cell,
+              tong_so_cau: sumQuestionCount(countMap, row.don_vi_id, cell.muc_do_id, cell.loai_cau_hoi_id, cell.nang_luc_id ?? null),
+            })),
+          })));
         } else {
           message.error(res.message || 'Lỗi khi tải chi tiết ma trận.');
         }
@@ -320,18 +376,17 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     nangLuc: CaiDatMaTran['ds_dm_thanh_phan_nang_luc'],
     mucDo: CaiDatMaTran['ds_dm_muc_do'],
     loaiCH: CaiDatMaTran['ds_loai_cau_hoi'],
+    countMaps: QuestionCountMaps = EMPTY_COUNT_MAPS,
   ): MaTranData[] => {
     return items.map(({ child, parent }) => {
       const dsCH: ItemMaTranData[] = [];
       loaiCH.forEach(lch => {
         nangLuc.forEach(nl => {
           mucDo.forEach(md => {
-            const found = child.ds_cau_hoi?.find(
-              q => q.muc_do_id === md.id && q.loai_cau_hoi_id === lch.loai_cau_hoi_id && q.nang_luc_id === nl.id
-            );
+            const tongSoCau = sumQuestionCount(countMaps, child.id, md.id, lch.loai_cau_hoi_id, nl.id);
             dsCH.push({
               muc_do_id: md.id, loai_cau_hoi_id: lch.loai_cau_hoi_id, nang_luc_id: nl.id,
-              so_cau: 0, tong_so_cau: found?.so_luong ?? 0, diem: lch.diem,
+              so_cau: 0, tong_so_cau: tongSoCau, diem: lch.diem,
             });
           });
         });
@@ -345,7 +400,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     });
   };
 
-  const onCheck: TreeProps['onCheck'] = (checkedKeysVal, info: any) => {
+  const onCheck: TreeProps['onCheck'] = async (checkedKeysVal, info: any) => {
     if (!caiDat) return;
     let ids: React.Key[] = [];
     let nextCheckedKeys: { checked: React.Key[]; halfChecked: React.Key[] } = { checked: [], halfChecked: [] };
@@ -360,52 +415,18 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
 
     setCheckedKeys(nextCheckedKeys);
     const found = layTatCaId(ids, dataChuDe);
-    const newData = taoDanhSachMaTran(found, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
+
+    const seq = ++checkRequestSeqRef.current;
+    const countMap = await fetchQuestionCounts(found.map(f => f.child.id));
+    if (seq !== checkRequestSeqRef.current) return; // có lượt tick mới hơn đã tới sau, bỏ kết quả cũ này
+
+    const newData = taoDanhSachMaTran(found, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi, countMap);
     setObj(prev => {
       const kept = prev.filter(r => ids.includes(r.don_vi_id));
       newData.forEach(item => { if (!kept.some(e => e.don_vi_id === item.don_vi_id)) kept.push(item); });
       kept.sort((a, b) => (a.noi_dung_kien_thuc || '').localeCompare(b.noi_dung_kien_thuc || '') || a.don_vi_kien_thuc.localeCompare(b.don_vi_kien_thuc));
       return [...kept];
     });
-  };
-
-  // --- Sinh ma trận ngẫu nhiên ---
-  const handleAutoGenerateMatrix = () => {
-    if (!caiDat || dataChuDe.length === 0) return;
-    const pairs: { child: ChuDeNode; parent: ChuDeNode }[] = [];
-    dataChuDe.forEach(parent => {
-      if (parent.children && parent.children.length > 0) {
-        parent.children.forEach(child => {
-          pairs.push({ child, parent });
-        });
-      } else {
-        pairs.push({ child: parent, parent });
-      }
-    });
-    if (pairs.length === 0) return;
-    const selectedPairs = pairs.slice(0, Math.min(pairs.length, 3));
-    const selectedKeys = selectedPairs.map(p => p.child.id);
-    setCheckedKeys({ checked: selectedKeys, halfChecked: [] });
-    const generatedData = taoDanhSachMaTran(selectedPairs, caiDat.ds_dm_thanh_phan_nang_luc, caiDat.ds_dm_muc_do, caiDat.ds_loai_cau_hoi);
-    generatedData.forEach((row, rIdx) => {
-      row.ds_loai_cau_hoi.forEach((cell) => {
-        const lchConfig = caiDat.ds_loai_cau_hoi.find(x => x.loai_cau_hoi_id === cell.loai_cau_hoi_id);
-        const codeUpper = (lchConfig?.dm_loai_cau_hoi?.ma || '').toUpperCase();
-
-        if (codeUpper === 'TN') {
-          cell.so_cau = 4;
-        } else if (codeUpper === 'TLN') {
-          cell.so_cau = rIdx === 1 ? 1 : 2;
-        } else if (codeUpper === 'DS') {
-          cell.so_cau = rIdx === 1 ? 2 : 1;
-        }
-        cell.diem = cell.diem || (lchConfig ? lchConfig.diem : 0.25);
-      });
-      const totalDiem = row.ds_loai_cau_hoi.reduce((s, c) => s + (c.so_cau || 0) * (c.diem || 0), 0);
-      row.ti_le = totalDiem.toFixed(2);
-    });
-    setObj(generatedData);
-    message.success('Đã tự động phân bổ câu hỏi ngẫu nhiên chuẩn 10 điểm!');
   };
 
   // --- Bước 10: Nhập số câu ---
@@ -530,7 +551,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
       {/* Thông tin chung */}
       <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
         <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0 mb-4">Thông tin chung</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
             <Select placeholder="Chọn môn học" className="w-full text-xs" loading={monHocList.length === 0}
@@ -545,13 +566,6 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
             <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận <span className="text-red-500">*</span></label>
             <Input placeholder="Nhập tên" className="text-xs" value={tenMatran} onChange={e => setTenMatran(e.target.value)} />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Loại</label>
-            <Radio.Group value={loai} onChange={e => setLoai(e.target.value)} className="text-xs">
-              <Radio value={1} className="text-xs">Thủ công</Radio>
-              <Radio value={2} className="text-xs">Ngẫu nhiên</Radio>
-            </Radio.Group>
-          </div>
         </div>
       </div>
 
@@ -564,24 +578,10 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
               <div className="px-4 py-3 border-b border-slate-200">
                 <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-2">Chọn chủ đề</h3>
                 <Input size="small" placeholder="Tìm kiếm..." prefix={<SearchOutlined className="text-slate-400" />}
-                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear
-                  disabled={loai === 2} />
+                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear />
               </div>
               <div className="p-3 overflow-y-auto" style={{ maxHeight: 500 }}>
-                {loai === 2 ? (
-                  <div className="space-y-4 p-2 text-xs">
-                    <div className="text-slate-500 font-medium leading-relaxed bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-amber-800">
-                      Chế độ sinh ngẫu nhiên sẽ tự động phân bổ câu hỏi từ Ngân hàng câu hỏi theo cấu trúc chuẩn.
-                    </div>
-                    <Button
-                      type="primary"
-                      onClick={handleAutoGenerateMatrix}
-                      className="w-full bg-[#2c3e9e] hover:bg-[#243590] border-transparent text-white font-semibold rounded text-xs py-1.5 cursor-pointer"
-                    >
-                      Tự động phân bổ câu hỏi
-                    </Button>
-                  </div>
-                ) : dataChuDeSelect.length > 0 ? (
+                {dataChuDeSelect.length > 0 ? (
                   <Tree checkable blockNode treeData={treeData}
                     onCheck={onCheck} checkedKeys={checkedKeys}
                     className="text-xs" />

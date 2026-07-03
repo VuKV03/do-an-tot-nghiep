@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
@@ -164,6 +164,43 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
         })
 
     return {"success": True, "count": len(data), "data": data}
+
+
+@router.get("/count-by-topic")
+async def count_bank_questions_by_topic(
+    topic_ids: str,
+    status: int = 2,  # mặc định chỉ đếm câu đã duyệt
+    db: AsyncSession = Depends(get_db)
+):
+    """Đếm số câu hỏi trong ngân hàng, group theo topic/mức độ/loại câu hỏi/năng lực."""
+    ids = [t for t in topic_ids.split(",") if t]
+    if not ids:
+        return {"success": True, "data": []}
+
+    stmt = (
+        select(
+            Question.topic_id,
+            Question.level_id,
+            Question.type_id,
+            Question.competency_component_id,
+            func.count(Question.id).label("count"),
+        )
+        .where(Question.topic_id.in_(ids))
+        .where(Question.status == status)
+        .group_by(Question.topic_id, Question.level_id, Question.type_id, Question.competency_component_id)
+    )
+    result = await db.execute(stmt)
+    data = [
+        {
+            "topic_id": r.topic_id,
+            "level_id": r.level_id,
+            "type_id": r.type_id,
+            "competency_component_id": r.competency_component_id,
+            "count": r.count,
+        }
+        for r in result.all()
+    ]
+    return {"success": True, "data": data}
 
 
 @router.post("/", status_code=201)
