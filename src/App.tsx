@@ -49,7 +49,7 @@ const { Header, Sider, Content } = Layout;
 
 export default function App() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeMenuKey, setActiveMenuKey] = useState<string>('dashboard');
+  const [activeMenuKey, setActiveMenuKey] = useState<string>('ngan-hang-cau-hoi');
 
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
 
@@ -263,7 +263,7 @@ export default function App() {
   // "Quản lý ngân hàng câu hỏi" -> sub-items: ["Chủ đề câu hỏi", "Ngân hàng câu hỏi", "Thống kê NHCH"]
   // "Quản trị hệ thống" -> sub-items: ["Quản lý người dùng", "Quản lý nhóm người dùng", "Chính sách bảo mật"]
   // "Quản trị danh mục" -> sub-items: ["Danh mục môn học", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
-  const menuItems = [
+  const rawMenuItems = React.useMemo(() => [
     // {
     //   key: 'dashboard',
     //   icon: <HomeOutlined />,
@@ -311,10 +311,130 @@ export default function App() {
         { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
       ]
     }
-  ];
+  ], []);
+
+  const hasPermission = React.useCallback((key: string) => {
+    if (currentUser?.role === 'admin') return true;
+    if (!currentUser?.groups || currentUser.groups.length === 0) return false;
+    
+    const userPerms = new Set<string>();
+    currentUser.groups.forEach(g => {
+      if (Array.isArray(g.permissions)) {
+        g.permissions.forEach(p => userPerms.add(p));
+      }
+    });
+
+    const permissionMap: Record<string, string[]> = {
+      'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+      'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
+      'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+      
+      'quan-ly-nhch': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
+      'chu-de-cau-hoi': ['questions.view'],
+      'ngan-hang-cau-hoi': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete'],
+      'thong-ke-nhch': ['questions.view'],
+      
+      'quan-tri-he-thong': ['system.users', 'system.groups', 'system.policies'],
+      'quan-ly-nguoi-dung': ['system.users'],
+      'quan-ly-nhom-nguoi-dung': ['system.groups'],
+      'chinh-sach-bao-mat': ['system.policies'],
+      
+      'quan-tri-danh-muc': ['system.categories'],
+      'danh-muc-mon-hoc': ['system.categories'],
+      'danh-muc-khoi-lop': ['system.categories'],
+      'cap-do-tu-duy': ['system.categories'],
+      'loai-hinh-cau-hoi': ['system.categories'],
+      'thanh-phan-nang-luc': ['system.categories'],
+      'danh-muc-dot-thi': ['system.categories']
+    };
+
+    const requiredPerms = permissionMap[key];
+    if (requiredPerms) {
+      return requiredPerms.some(p => userPerms.has(p));
+    }
+    
+    return false;
+  }, [currentUser]);
+
+  const menuItems = React.useMemo(() => {
+    const filterMenuByPermissions = (items: any[]): any[] => {
+      return items.reduce((acc, item) => {
+        if (item.children) {
+          const filteredChildren = filterMenuByPermissions(item.children);
+          if (filteredChildren.length > 0) {
+            acc.push({ ...item, children: filteredChildren });
+          }
+        } else {
+          if (hasPermission(item.key)) {
+            acc.push(item);
+          }
+        }
+        return acc;
+      }, []);
+    };
+    return filterMenuByPermissions(rawMenuItems);
+  }, [rawMenuItems, hasPermission]);
+
+  useEffect(() => {
+    if (currentUser && menuItems.length > 0) {
+      if (activeMenuKey !== 'dashboard' && !hasPermission(activeMenuKey)) {
+        const findFirstLeaf = (items: any[]): string | null => {
+          for (const item of items) {
+            if (item.children) {
+              const leaf = findFirstLeaf(item.children);
+              if (leaf) return leaf;
+            } else {
+              return item.key;
+            }
+          }
+          return null;
+        };
+        const first = findFirstLeaf(menuItems);
+        if (first) {
+          setActiveMenuKey(first);
+        } else {
+          setActiveMenuKey('no-access');
+        }
+      }
+    } else if (currentUser && menuItems.length === 0) {
+      setActiveMenuKey('no-access');
+    }
+  }, [currentUser, activeMenuKey, menuItems, hasPermission]);
 
   // Dynamic Content viewport rendering corresponding to active Tab
   const renderMainViewContent = () => {
+    if (activeMenuKey !== 'dashboard' && activeMenuKey !== 'no-access' && !hasPermission(activeMenuKey)) {
+      return (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-xs my-8 space-y-5 animate-in fade-in duration-300">
+          <div className="w-16 h-16 bg-red-50 border border-red-150 rounded-full flex items-center justify-center mx-auto">
+            <LockOutlined className="text-red-400 text-2xl" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-extrabold text-slate-800 uppercase tracking-wider">TRUY CẬP BỊ TỪ CHỐI</h3>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto font-medium">
+              Bạn không có quyền truy cập vào chức năng này. Vui lòng liên hệ quản trị viên để được cấp quyền.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeMenuKey === 'no-access') {
+      return (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-xs my-8 space-y-5 animate-in fade-in duration-300">
+          <div className="w-16 h-16 bg-slate-50 border border-slate-150 rounded-full flex items-center justify-center mx-auto">
+            <LockOutlined className="text-slate-400 text-2xl" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-extrabold text-slate-800 uppercase tracking-wider">KHÔNG CÓ QUYỀN TRUY CẬP</h3>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto font-medium">
+              Tài khoản của bạn chưa được phân quyền sử dụng bất kỳ chức năng nào trong hệ thống.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeMenuKey) {
       case 'dashboard':
         return (
@@ -540,7 +660,7 @@ export default function App() {
                   <GlobalOutlined className="text-white text-base animate-pulse" />
                 </div>
                 <div className="flex flex-col select-none overflow-hidden text-ellipsis whitespace-nowrap">
-                  <strong className="text-white text-xs font-black tracking-widest uppercase">SmartTest NHCH</strong>
+                  <strong className="text-white text-xs font-black tracking-widest uppercase">PM QUẢN LÝ NHCH</strong>
                   <span className="text-[9px] text-blue-200 uppercase font-semibold">Tài nguyên Quốc gia</span>
                 </div>
               </div>
@@ -625,8 +745,10 @@ export default function App() {
                   <span className="text-xs font-extrabold text-slate-100 leading-tight">
                     {currentUser?.fullName || currentUser?.username}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-bold block leading-none">
-                    {getRoleLabel(currentUser?.role)}
+                  <span className="text-[10px] text-slate-400 font-bold block leading-none truncate max-w-[120px]" title={currentUser?.groups?.map(g => g.name).join(', ') || getRoleLabel(currentUser?.role)}>
+                    {currentUser?.groups && currentUser.groups.length > 0 
+                      ? currentUser.groups.map(g => g.name).join(', ') 
+                      : getRoleLabel(currentUser?.role)}
                   </span>
                 </div>
               </div>
@@ -709,7 +831,9 @@ export default function App() {
               <h3 className="text-sm font-black text-slate-900 leading-tight">{currentUser?.fullName || currentUser?.username}</h3>
               <p className="text-slate-400 text-[11px] block mt-1">Tài khoản: {currentUser?.username}</p>
               <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase mt-2 inline-block">
-                {getRoleLabel(currentUser?.role)}
+                {currentUser?.groups && currentUser.groups.length > 0 
+                  ? currentUser.groups.map(g => g.name).join(', ') 
+                  : getRoleLabel(currentUser?.role)}
               </span>
             </div>
           </div>
@@ -750,9 +874,32 @@ export default function App() {
                   <span className="text-slate-400">Email:</span>
                   <strong className="text-slate-800">{currentUser?.email || 'Chưa cập nhật'}</strong>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Quyền truy cập:</span>
-                  <strong className="text-slate-800 uppercase text-[10px] tracking-wide">{currentUser?.role}</strong>
+                <div className="flex flex-col gap-1.5 pt-1.5">
+                  <span className="text-slate-400">Quyền truy cập & Nhóm:</span>
+                  {currentUser?.groups && currentUser.groups.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {currentUser.groups.map(g => (
+                         <Tooltip 
+                            title={
+                              <div className="text-xs">
+                                <div className="font-bold mb-1 border-b border-white/20 pb-1">Chi tiết phân quyền:</div>
+                                {g.permissions && g.permissions.length > 0 
+                                  ? g.permissions.join(', ')
+                                  : 'Không có quyền cụ thể'}
+                              </div>
+                            } 
+                            key={g.id}
+                            placement="top"
+                         >
+                           <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] px-2 py-0.5 rounded cursor-help uppercase font-bold">
+                             {g.name}
+                           </span>
+                         </Tooltip>
+                      ))}
+                    </div>
+                  ) : (
+                    <strong className="text-slate-800 uppercase text-[10px] tracking-wide">{currentUser?.role}</strong>
+                  )}
                 </div>
               </>
             )}

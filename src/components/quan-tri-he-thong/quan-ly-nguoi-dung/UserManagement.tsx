@@ -14,7 +14,11 @@ import {
   Empty,
   Tooltip,
   Row,
-  Col
+  Col,
+  Pagination,
+  DatePicker,
+  Radio,
+  Dropdown
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,12 +28,24 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SearchOutlined,
-  UsergroupAddOutlined
+  UsergroupAddOutlined,
+  QuestionCircleFilled,
+  MoreOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
+import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/danhMucApi';
 
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+
+interface UserGroup {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  permissions: string[];
+}
 
 interface SecurityLog {
   id: string;
@@ -49,15 +65,22 @@ interface UserManagementProps {
 export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserManagementProps) {
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userSearchText, setUserSearchText] = useState('');
+  const [searchUsername, setSearchUsername] = useState('');
+  const [searchFullName, setSearchFullName] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
-  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
 
   // Modals for Users
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [userModalMode, setUserModalMode] = useState<'create' | 'edit'>('create');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm] = Form.useForm();
+
+  const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
+  const [allGroups, setAllGroups] = useState<UserGroup[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<UserGroup[]>([]);
+  const [defaultGroupId, setDefaultGroupId] = useState<string | null>(null);
+  const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
+  const [tempSelectedGroupIds, setTempSelectedGroupIds] = useState<React.Key[]>([]);
 
   const logSecurityAction = async (action: string, level: string, details: string) => {
     try {
@@ -91,25 +114,47 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const res = await subjectCategoryApi.list();
+      if (res.data) setSubjects(res.data);
+    } catch (err) {
+      console.error('Error fetching subjects:', err);
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/groups`);
+      if (res.data && res.data.success) {
+        setAllGroups(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching groups:', err);
+    }
+  };
+
   React.useEffect(() => {
     fetchUsers();
+    fetchSubjects();
+    fetchGroups();
   }, []);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
-      const matchSearch = u.fullName.toLowerCase().includes(userSearchText.toLowerCase()) ||
-        u.username.toLowerCase().includes(userSearchText.toLowerCase()) ||
-        u.email.toLowerCase().includes(userSearchText.toLowerCase());
+      const matchUsername = u.username.toLowerCase().includes(searchUsername.toLowerCase());
+      const matchFullName = u.fullName.toLowerCase().includes(searchFullName.toLowerCase());
       const matchRole = userRoleFilter === 'all' || u.role === userRoleFilter;
-      const matchStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
-      return matchSearch && matchRole && matchStatus;
+      return matchUsername && matchFullName && matchRole;
     });
-  }, [users, userSearchText, userRoleFilter, userStatusFilter]);
+  }, [users, searchUsername, searchFullName, userRoleFilter]);
 
   const handleOpenCreateUser = () => {
     setUserModalMode('create');
     setEditingUserId(null);
     userForm.resetFields();
+    setSelectedGroups([]);
+    setDefaultGroupId(null);
     setIsUserModalOpen(true);
   };
 
@@ -121,8 +166,12 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       username: user.username,
       email: user.email,
       role: user.role,
-      status: user.status
+      status: user.status,
+      position: (user as any).position
     });
+    // Optional: Load user's selected groups/subjects if available in SystemUser
+    setSelectedGroups((user as any).groups || []);
+    setDefaultGroupId((user as any).groups && (user as any).groups.length > 0 ? (user as any).groups[0].id : null);
     setIsUserModalOpen(true);
   };
 
@@ -138,11 +187,18 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           }
 
           const res = await axios.post(`${API_URL}/auth/register`, {
-            username: values.username.toLowerCase().trim(),
+            username: values.username?.toLowerCase().trim() || `user_${Date.now()}`,
             email: values.email,
             fullName: values.fullName,
             password: tempPass,
-            role: values.role
+            role: values.role || 'user',
+            dateOfBirth: values.dateOfBirth,
+            phoneNumber: values.phoneNumber,
+            gender: values.gender,
+            subjects: values.subjects,
+            groups: selectedGroups.map(g => g.id),
+            defaultGroup: defaultGroupId,
+            position: values.position
           });
 
           if (res.data.success) {
@@ -181,8 +237,15 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           const res = await axios.put(`${API_URL}/auth/users/${editingUserId}`, {
             fullName: values.fullName,
             email: values.email,
-            role: values.role,
-            status: values.status
+            role: values.role || 'user',
+            status: values.status,
+            dateOfBirth: values.dateOfBirth,
+            phoneNumber: values.phoneNumber,
+            gender: values.gender,
+            subjects: values.subjects,
+            groups: selectedGroups.map(g => g.id),
+            defaultGroup: defaultGroupId,
+            position: values.position
           });
 
           if (res.data.success) {
@@ -309,189 +372,226 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
-      {/* Filters and Add user button */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+        <h1 className="text-[#1a3b70] text-lg font-bold uppercase m-0">Quản lý người dùng</h1>
+        <div className="w-5 h-5 bg-[#1a3b70] text-white rounded-full flex items-center justify-center font-bold text-xs cursor-pointer">
+          ?
+        </div>
+      </div>
 
-        <div className="flex flex-1 flex-col md:flex-row gap-3 w-full">
-          <div className="relative flex-1">
+      {/* Filters */}
+      <div className="bg-white rounded-lg p-5">
+        <h2 className="text-[#1a3b70] font-bold mb-4 text-sm">Tìm kiếm thông tin</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mã người dùng/ tên đăng nhập</label>
             <Input
-              placeholder="Tra cứu theo Họ và tên, tài khoản hoặc email..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              className="rounded-xl border-slate-200 text-xs font-semibold py-1.5"
-              value={userSearchText}
-              onChange={e => setUserSearchText(e.target.value)}
-              allowClear
+              placeholder="Nhập"
+              className="rounded text-sm py-1.5"
+              value={searchUsername}
+              onChange={e => setSearchUsername(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0">Vai trò:</span>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Họ và tên</label>
+            <Input
+              placeholder="Nhập"
+              className="rounded text-sm py-1.5"
+              value={searchFullName}
+              onChange={e => setSearchFullName(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nhóm người dùng</label>
             <Select
               value={userRoleFilter}
               onChange={setUserRoleFilter}
-              className="w-36 text-xs font-semibold"
+              className="w-full text-sm custom-select"
               options={[
-                { value: 'all', label: 'Tất cả các quyền' },
-                { value: 'admin', label: 'Quản trị viên (Admin)' },
-                { value: 'reviewer', label: 'Ban thẩm định (Reviewer)' },
-                { value: 'teacher', label: 'Giáo viên bộ môn (Teacher)' }
-              ]}
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0">Trực trạng:</span>
-            <Select
-              value={userStatusFilter}
-              onChange={setUserStatusFilter}
-              className="w-32 text-xs font-semibold"
-              options={[
-                { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'active', label: '🟢 Đang hoạt động' },
-                { value: 'inactive', label: '🔴 Tạm khóa' }
+                { value: 'all', label: 'Tất cả' },
+                { value: 'admin', label: 'Quản trị viên' },
+                { value: 'reviewer', label: 'Ban thẩm định' },
+                { value: 'teacher', label: 'Giáo viên bộ môn' }
               ]}
             />
           </div>
         </div>
 
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleOpenCreateUser}
-          className="bg-[#002147] border-transparent text-white font-black text-xs rounded-xl hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-        >
-          Thêm cán bộ mới
-        </Button>
+        <div className="flex justify-center mt-6">
+          <Button
+            type="primary"
+            className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8"
+          >
+            Tìm kiếm
+          </Button>
+        </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
-              <th className="py-3 px-4 text-left">Họ và tên cán bộ</th>
-              <th className="py-3 px-4 text-left">Định danh tài khoản</th>
-              <th className="py-3 px-4 text-left">Email công vụ</th>
-              <th className="py-3 px-4 text-center">Vai trò phân nhiệm</th>
-              <th className="py-3 px-4 text-center">Trạng thái định danh</th>
-              <th className="py-3 px-4 text-right">Hành động thực thi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center">
-                  Đang tải dữ liệu người dùng...
-                </td>
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mt-6">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="text-[#1a3b70] font-bold text-sm m-0">Kết quả tìm kiếm</h2>
+          <div className="flex gap-2">
+            <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleOpenCreateUser}>Thêm mới</Button>
+            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xóa</Button>
+            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
+                <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
+                <th className="py-3 px-4 text-center w-16">STT</th>
+                <th className="py-3 px-4 text-left">Mã người dùng<br/>/tên đăng nhập</th>
+                <th className="py-3 px-4 text-left">Họ và tên</th>
+                <th className="py-3 px-4 text-left">Nhóm người dùng</th>
+                <th className="py-3 px-4 text-left">Chức vụ</th>
+                <th className="py-3 px-4 text-center">Trạng thái</th>
+                <th className="py-3 px-4 text-center w-24">Thao tác</th>
               </tr>
-            ) : filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center">
-                  <Empty description="Không tìm thấy thông tin tài khoản cán bộ nào phù hợp." />
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map(u => (
-                <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-2.5 px-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-[#002147] font-black text-[11px] uppercase select-none">
-                        {u.fullName.split(' ').slice(-1)[0][0]}
-                      </div>
-                      <span className="font-bold text-slate-800 text-[12px]">{u.fullName}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <span className="font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
-                      @{u.username}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-4 font-semibold text-slate-600">
-                    {u.email}
-                  </td>
-                  <td className="py-2.5 px-4 text-center">
-                    {u.role === 'admin' && (
-                      <Tag className="bg-blue-50 border-blue-150 text-blue-900 rounded-md font-bold text-[9px] uppercase">
-                        ⚙️ Quản trị viên
-                      </Tag>
-                    )}
-                    {u.role === 'reviewer' && (
-                      <Tag className="bg-purple-50 border-purple-150 text-purple-900 rounded-md font-bold text-[9px] uppercase">
-                        🔍 Ban thẩm định
-                      </Tag>
-                    )}
-                    {u.role === 'teacher' && (
-                      <Tag className="bg-emerald-50 border-emerald-150 text-emerald-900 rounded-md font-bold text-[9px] uppercase">
-                        ✍️ Giáo viên soạn đề
-                      </Tag>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-4 text-center select-none">
-                    {u.status === 'active' ? (
-                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-100 rounded-md font-extrabold text-[10px]">
-                        🟢 ĐANG HOẠT ĐỘNG
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 border border-red-100 rounded-md font-extrabold text-[10px]">
-                        🔴 TẠM BỊ KHÓA
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-4 text-right">
-                    <Space size={6} className="justify-end">
-                      <Tooltip title="Chỉnh sửa tài khoản">
-                        <Button
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => handleOpenEditUser(u)}
-                          className="bg-slate-50 border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-slate-100 cursor-pointer"
-                        />
-                      </Tooltip>
-
-                      <Tooltip title="Nhập lại mật khẩu (Reset)">
-                        <Button
-                          size="small"
-                          icon={<KeyOutlined />}
-                          onClick={() => handleResetPassword(u)}
-                          className="bg-amber-50 border-amber-200 text-amber-700 rounded-lg text-xs hover:bg-amber-100 cursor-pointer"
-                        />
-                      </Tooltip>
-
-                      <Tooltip title={u.status === 'active' ? 'Khóa tạm thời tài khoản' : 'Mở khóa tài khoản'}>
-                        <Button
-                          size="small"
-                          icon={u.status === 'active' ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
-                          onClick={() => handleToggleUserStatus(u)}
-                          className={`rounded-lg text-xs cursor-pointer ${u.status === 'active'
-                            ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                            : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                        />
-                      </Tooltip>
-
-                      {/* Avoid listing self-deletion of 'dungnt' or 'trangpt' login sessions */}
-                      <Popconfirm
-                        title={`Bạn chắc chắn muốn hủy tài khoản của ${u.fullName} khỏi hệ thống?`}
-                        onConfirm={() => handleDeleteUser(u)}
-                        okText="Có, gỡ bỏ"
-                        cancelText="Hủy bỏ"
-                        disabled={u.username === 'trangpt' || u.username === 'dungnt'}
-                      >
-                        <Button
-                          size="small"
-                          danger
-                          disabled={u.username === 'trangpt' || u.username === 'dungnt'}
-                          icon={<DeleteOutlined />}
-                          className="bg-red-50 border-red-150 text-red-600 rounded-lg text-xs hover:bg-red-100 cursor-pointer disabled:opacity-50"
-                        />
-                      </Popconfirm>
-                    </Space>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-sm text-slate-500">
+                    Đang tải dữ liệu người dùng...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center">
+                    <Empty description="Không tìm thấy thông tin tài khoản cán bộ nào phù hợp." />
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((u, index) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 px-4">
+                      <input type="checkbox" className="rounded text-[#1e40af]" />
+                    </td>
+                    <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
+                    <td className="py-3 px-4 text-slate-600">{u.username}</td>
+                    <td className="py-3 px-4 text-slate-600">{u.fullName}</td>
+                    <td className="py-3 px-4 text-slate-600">
+                      {(u as any).groups && (u as any).groups.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {(u as any).groups.map((g: any) => (
+                            <span key={g.id} className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px]">
+                              {g.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic text-xs">Chưa phân nhóm</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600">{(u as any).position || 'Cán bộ'}</td>
+                    <td className="py-3 px-4 text-center">
+                      <Dropdown
+                        disabled={u.username === 'admin'}
+                        menu={{
+                          items: [
+                            { 
+                              key: 'active', 
+                              label: <span className="text-emerald-600 font-semibold text-xs">Đang hoạt động</span>, 
+                              onClick: () => { if(u.status !== 'active') handleToggleUserStatus(u); }
+                            },
+                            { 
+                              key: 'inactive', 
+                              label: <span className="text-red-500 font-semibold text-xs">Khóa</span>, 
+                              onClick: () => { if(u.status === 'active') handleToggleUserStatus(u); }
+                            }
+                          ]
+                        }}
+                        trigger={['click']}
+                      >
+                        <div className="cursor-pointer inline-flex items-center justify-center" title="Nhấp để thay đổi trạng thái">
+                          {u.status === 'active' ? (
+                            <span className="inline-flex items-center justify-center border border-emerald-500 text-emerald-600 px-3 py-1 rounded bg-white text-[11px] font-semibold w-28 hover:bg-emerald-50 transition-colors">
+                              Đang hoạt động <span className="ml-1 text-[8px]">▼</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center border border-red-300 text-red-500 px-3 py-1 rounded bg-red-50 text-[11px] font-semibold w-28 hover:bg-red-100 transition-colors">
+                              Khóa <span className="ml-1 text-[8px]">▼</span>
+                            </span>
+                          )}
+                        </div>
+                      </Dropdown>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <Space size={12}>
+                        <div 
+                          className="bg-blue-50 text-[#1e40af] p-1.5 rounded cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => handleOpenEditUser(u)}
+                        >
+                          <EditOutlined className="text-sm" />
+                        </div>
+                        <Dropdown
+                          menu={{
+                            items: [
+                              {
+                                key: 'reset_pwd',
+                                label: <span className="text-slate-600 font-medium text-xs">Khôi phục mật khẩu</span>,
+                                icon: <KeyOutlined className="text-slate-400" />,
+                                onClick: () => {
+                                  Modal.confirm({
+                                    title: 'Xác nhận khôi phục mật khẩu',
+                                    content: `Bạn có chắc chắn muốn khôi phục mật khẩu cho người dùng ${u.fullName} (@${u.username})?`,
+                                    okText: 'Đồng ý',
+                                    cancelText: 'Hủy',
+                                    onOk: () => handleResetPassword(u)
+                                  });
+                                }
+                              },
+                              {
+                                key: 'delete',
+                                label: <span className="text-red-500 font-medium text-xs">Xóa tài khoản</span>,
+                                icon: <DeleteOutlined className="text-red-500" />,
+                                disabled: u.username === 'admin',
+                                onClick: () => {
+                                  Modal.confirm({
+                                    title: 'Xác nhận xóa tài khoản',
+                                    content: `Bạn có chắc chắn muốn xóa tài khoản ${u.fullName} (@${u.username}) không? Hành động này không thể hoàn tác.`,
+                                    okText: 'Xóa',
+                                    okButtonProps: { danger: true },
+                                    cancelText: 'Hủy',
+                                    onOk: () => handleDeleteUser(u)
+                                  });
+                                }
+                              }
+                            ]
+                          }}
+                          trigger={['click']}
+                          placement="bottomRight"
+                        >
+                          <MoreOutlined className="text-[#1e40af] cursor-pointer text-lg hover:bg-slate-100 rounded p-0.5" />
+                        </Dropdown>
+                      </Space>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-white">
+          <div className="text-[11px] text-slate-500 font-semibold tracking-wide">
+            1 - {filteredUsers.length} / 1234 bản ghi
+          </div>
+          <Pagination 
+            size="small" 
+            total={1234} 
+            showSizeChanger 
+            showQuickJumper={false}
+            defaultPageSize={10}
+            pageSizeOptions={['10', '20', '50', '100']}
+            locale={{ items_per_page: '/ trang' }}
+          />
+        </div>
       </div>
 
       {/* Foot disclaimer memo */}
@@ -507,110 +607,257 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       {/* ============================================================== */}
       {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
       {/* ============================================================== */}
+      {/* ============================================================== */}
+      {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
+      {/* ============================================================== */}
       <Modal
         title={
-          <div className="border-b pb-2 flex items-center gap-1.5 select-none">
-            <UsergroupAddOutlined className="text-[#002147]" />
-            <span className="font-extrabold uppercase text-[12px] text-slate-800">
-              {userModalMode === 'create' ? 'KHỞI TẠO TÀI KHOẢN CÁN BỘ MỚI' : 'CHỈNH SỬA THÔNG TIN CÁN BỘ'}
-            </span>
+          <div className="text-xl font-bold text-slate-800">
+            {userModalMode === 'create' ? 'Thêm mới thông tin người dùng' : 'Chỉnh sửa thông tin người dùng'}
           </div>
         }
         open={isUserModalOpen}
         forceRender
         onCancel={() => setIsUserModalOpen(false)}
-        onOk={handleSaveUserForm}
-        okText={userModalMode === 'create' ? 'Kích hoạt tài khoản' : 'Lưu thay đổi'}
-        cancelText="Hủy bỏ"
+        footer={
+          <div className="flex justify-center gap-4 mt-6">
+            <Button 
+              key="back" 
+              onClick={() => setIsUserModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
+            >
+              Đóng
+            </Button>
+            <Button 
+              key="submit" 
+              type="primary" 
+              onClick={handleSaveUserForm} 
+              className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
+            >
+              Lưu
+            </Button>
+          </div>
+        }
         centered
-        width={480}
+        width={750}
+        closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
       >
         <Form
           form={userForm}
           layout="vertical"
-          className="pt-4 text-xs font-semibold"
-          initialValues={{ status: 'active', role: 'teacher' }}
+          className="mt-6"
+          initialValues={{ gender: 'Nam' }}
         >
-          <Form.Item
-            name="fullName"
-            label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Họ và tên cán bộ</span>}
-            rules={[{ required: true, message: 'Họ và tên không được bỏ trống!' }]}
-          >
-            <Input placeholder="Ví dụ: ThS. Nguyễn Văn A" className="rounded-xl border-slate-200 font-bold" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
+          {/* Thông tin người dùng */}
+          <div className="mb-6">
+            <h3 className="text-base font-bold text-slate-800 mb-4">Thông tin người dùng</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
               <Form.Item
-                name="username"
-                label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Tên tài khoản (Username)</span>}
-                rules={[
-                  { required: true, message: 'Vui lòng xác định tên tài khoản!' },
-                  { pattern: /^[a-zA-Z0-9_\.]+$/, message: 'Địa chỉ tài khoản chỉ bao gồm ký tự không dấu!' }
-                ]}
+                name="fullName"
+                label={<span className="text-sm text-slate-500 font-medium">Họ và tên <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
               >
-                <Input placeholder="Ví dụ: anhnv" disabled={userModalMode === 'edit'} className="rounded-xl border-slate-200 font-bold font-mono text-slate-800" />
+                <Input placeholder="Nhập" className="rounded py-1.5" />
               </Form.Item>
-            </Col>
 
-            <Col span={12}>
               <Form.Item
-                name="email"
-                label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Email công vụ nhận mã</span>}
-                rules={[
-                  { required: true, message: 'Email không được để trống!' },
-                  { type: 'email', message: 'Cấu trúc email không hợp lệ!' }
-                ]}
+                name="dateOfBirth"
+                label={<span className="text-sm text-slate-500 font-medium">Ngày sinh</span>}
               >
-                <Input placeholder="anhnv@school.edu.vn" className="rounded-xl border-slate-200 font-bold" />
+                <DatePicker placeholder="dd/mm/yyyy" format="DD/MM/YYYY" className="w-full rounded py-1.5" />
               </Form.Item>
-            </Col>
-          </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
               <Form.Item
-                name="role"
-                label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Vai trò phân nhiệm chính</span>}
-                rules={[{ required: true }]}
+                name="phoneNumber"
+                label={<span className="text-sm text-slate-500 font-medium">Số điện thoại</span>}
+              >
+                <Input placeholder="Nhập" className="rounded py-1.5" />
+              </Form.Item>
+
+              <Form.Item
+                name="gender"
+                label={<span className="text-sm text-slate-500 font-medium">Giới tính</span>}
               >
                 <Select
-                  className="font-bold text-xs"
                   options={[
-                    { value: 'admin', label: '⚙️ Quản trị viên' },
-                    { value: 'reviewer', label: '🔍 Cán bộ Thẩm định tốt nghiệp' },
-                    { value: 'teacher', label: '✍️ Giáo viên biên soạn đề' }
+                    { value: 'Nam', label: 'Nam' },
+                    { value: 'Nữ', label: 'Nữ' },
+                    { value: 'Khác', label: 'Khác' }
                   ]}
+                  className="rounded"
                 />
               </Form.Item>
-            </Col>
 
-            <Col span={12}>
               <Form.Item
-                name="status"
-                label={<span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">Trực hợp định danh</span>}
-                rules={[{ required: true }]}
+                name="position"
+                label={<span className="text-sm text-slate-500 font-medium">Chức vụ</span>}
               >
-                <Select
-                  className="font-bold text-xs"
-                  placeholder="Chọn trạng thái"
-                  options={[
-                    { value: 'active', label: '🟢 Đang hoạt động' },
-                    { value: 'inactive', label: '🔴 Tạm khóa tài khoản' }
-                  ]}
-                />
+                <Input placeholder="Nhập chức vụ" className="rounded py-1.5" />
               </Form.Item>
-            </Col>
-          </Row>
-
-          {userModalMode === 'create' && (
-            <div className="bg-blue-50/60 border border-blue-150 p-3 rounded-xl block mt-1">
-              <span className="text-[#002147] font-bold text-[11px] leading-relaxed block">
-                💡 Khi tạo người dùng mới, mật khẩu sẽ mặc định được gán tự động ngẫu nhiên mã khóa bám sát tiêu chí an toàn, và được gửi tự động về hòm thư công vụ đã đăng ký.
-              </span>
             </div>
-          )}
+
+            <Form.Item
+              name="email"
+              label={<span className="text-sm text-slate-500 font-medium">Email</span>}
+              rules={[
+                { type: 'email', message: 'Email không hợp lệ!' }
+              ]}
+              className="mt-2"
+            >
+              <Input placeholder="abc@xyz" className="rounded py-1.5" />
+            </Form.Item>
+
+            <Form.Item
+              name="subjects"
+              label={<span className="text-sm text-slate-500 font-medium">Môn học</span>}
+              className="mt-2"
+            >
+              <Select
+                mode="multiple"
+                placeholder="Chọn môn học"
+                options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                className="rounded"
+              />
+            </Form.Item>
+          </div>
+
+          {/* Nhóm người dùng */}
+          <div className="mb-2">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-bold text-slate-800 m-0">Nhóm người dùng</h3>
+              <Button 
+                type="primary" 
+                className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-medium rounded"
+                onClick={() => {
+                  setTempSelectedGroupIds(selectedGroups.map(g => g.id));
+                  setIsAddGroupModalOpen(true);
+                }}
+              >
+                Thêm nhóm người dùng
+              </Button>
+            </div>
+            
+            <Input 
+              prefix={<SearchOutlined className="text-slate-400" />} 
+              placeholder="Tìm kiếm theo mã nhóm, tên nhóm" 
+              className="rounded py-1.5 mb-4"
+            />
+
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm text-slate-700 table-auto">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left font-bold text-slate-800">
+                    <th className="py-3 px-4 w-24 text-center">Mặc định</th>
+                    <th className="py-3 px-4 w-16 text-center">STT</th>
+                    <th className="py-3 px-4 w-32">Mã nhóm</th>
+                    <th className="py-3 px-4">Tên nhóm</th>
+                    <th className="py-3 px-4 w-16"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {selectedGroups.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                        Chưa có nhóm người dùng nào được thêm.
+                      </td>
+                    </tr>
+                  ) : (
+                    selectedGroups.map((group, index) => (
+                      <tr key={group.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 text-center">
+                          <Radio 
+                            checked={defaultGroupId === group.id} 
+                            onChange={() => setDefaultGroupId(group.id)}
+                            className="custom-radio" 
+                          />
+                        </td>
+                        <td className="py-3 px-4 text-center">{index + 1}</td>
+                        <td className="py-3 px-4">{group.code}</td>
+                        <td className="py-3 px-4">{group.name}</td>
+                        <td className="py-3 px-4 text-center">
+                          <div 
+                            className="bg-red-50 text-red-500 p-1.5 rounded inline-flex cursor-pointer hover:bg-red-100"
+                            onClick={() => {
+                              const newGroups = selectedGroups.filter(g => g.id !== group.id);
+                              setSelectedGroups(newGroups);
+                              if (defaultGroupId === group.id) {
+                                setDefaultGroupId(newGroups.length > 0 ? newGroups[0].id : null);
+                              }
+                            }}
+                          >
+                            <DeleteOutlined />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div className="p-3 border-t border-slate-200 flex justify-between items-center bg-white text-xs text-slate-500">
+                <span>1 - {selectedGroups.length} / {selectedGroups.length} bản ghi</span>
+                <Pagination 
+                  size="small" 
+                  total={selectedGroups.length} 
+                  showSizeChanger={false}
+                  defaultPageSize={10}
+                />
+              </div>
+            </div>
+          </div>
         </Form>
+      </Modal>
+
+      {/* Modal Thêm nhóm người dùng */}
+      <Modal
+        title={<div className="text-xl font-bold text-slate-800">Chọn nhóm người dùng</div>}
+        open={isAddGroupModalOpen}
+        onCancel={() => setIsAddGroupModalOpen(false)}
+        width={600}
+        centered
+        footer={
+          <div className="flex justify-center gap-4 mt-6">
+            <Button 
+              onClick={() => setIsAddGroupModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
+            >
+              Hủy
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={() => {
+                const newlySelected = allGroups.filter(g => tempSelectedGroupIds.includes(g.id));
+                setSelectedGroups(newlySelected);
+                if (!defaultGroupId && newlySelected.length > 0) {
+                  setDefaultGroupId(newlySelected[0].id);
+                } else if (newlySelected.length === 0) {
+                  setDefaultGroupId(null);
+                } else if (defaultGroupId && !newlySelected.find(g => g.id === defaultGroupId)) {
+                  setDefaultGroupId(newlySelected[0].id);
+                }
+                setIsAddGroupModalOpen(false);
+              }}
+              className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
+            >
+              Xác nhận
+            </Button>
+          </div>
+        }
+      >
+        <Table
+          rowSelection={{
+            selectedRowKeys: tempSelectedGroupIds,
+            onChange: setTempSelectedGroupIds
+          }}
+          columns={[
+            { title: 'Mã nhóm', dataIndex: 'code', key: 'code', width: 120 },
+            { title: 'Tên nhóm', dataIndex: 'name', key: 'name' }
+          ]}
+          dataSource={allGroups}
+          rowKey="id"
+          size="middle"
+          className="mt-4"
+          pagination={{ pageSize: 5 }}
+        />
       </Modal>
 
     </div>
