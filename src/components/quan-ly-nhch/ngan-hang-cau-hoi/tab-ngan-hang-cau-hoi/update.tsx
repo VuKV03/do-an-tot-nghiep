@@ -8,7 +8,7 @@ import {
   TopicNode,
   TrueFalseStatement,
 } from '../../../../types';
-import { questionApi } from '../../../../services/danhMucApi.ts';
+import { questionApi, bankQuestionApi } from '../../../../services/danhMucApi.ts';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ interface SubQuestionRow {
   link?: string;
 }
 
-export interface CreateQuestionModalProps {
+export interface UpdateQuestionModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (q: Question) => void;
@@ -40,6 +40,7 @@ export interface CreateQuestionModalProps {
   selectedTopicKey: string | null;
   /** Toàn bộ cây chủ đề của môn học */
   topicTreeData: TopicNode[];
+  initialQuestion?: Question;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ const getSubQuestionTypeLabel = (type: string) => {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function CreateQuestionModal({
+export default function UpdateQuestionModal({
   open,
   onClose,
   onSave,
@@ -105,7 +106,8 @@ export default function CreateQuestionModal({
   grade,
   selectedTopicKey,
   topicTreeData,
-}: CreateQuestionModalProps) {
+  initialQuestion,
+}: UpdateQuestionModalProps) {
   const [form] = Form.useForm();
   const [subQuestionForm] = Form.useForm();
 
@@ -181,74 +183,119 @@ export default function CreateQuestionModal({
   useEffect(() => {
     if (!open) return;
 
-    // Reset form và set answers về mặc định
     form.resetFields();
-    setAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
-    setSubQuestions([
-      { id: 1, text: 'Câu hỏi 01', type: 'single', link: '1' },
-      { id: 2, text: 'Câu hỏi 02', type: 'single', link: '2' },
-      { id: 3, text: 'Câu hỏi 03', type: 'multiple' },
-    ]);
 
-    let defaultTopicKey: string | null = null;
-    let defaultSubTopicKey: string | null = null;
+    if (initialQuestion) {
+      setQuestionType(initialQuestion.type);
+      let defaultTopicKey: string | null = initialQuestion.topicId || null;
+      let defaultSubTopicKey: string | null = null;
 
-    if (selectedTopicKey) {
-      if (isSubTopicKey(topicTreeData, selectedTopicKey)) {
-        // Đang chọn tiểu mục → tìm parent
-        defaultSubTopicKey = selectedTopicKey;
-        defaultTopicKey = findParentTopicKey(topicTreeData, selectedTopicKey);
+      if (initialQuestion.topicId && isSubTopicKey(topicTreeData, initialQuestion.topicId)) {
+        defaultSubTopicKey = initialQuestion.topicId;
+        defaultTopicKey = findParentTopicKey(topicTreeData, initialQuestion.topicId);
+      }
+
+      setFormTopicKey(defaultTopicKey);
+      form.setFieldsValue({
+        chuDe: defaultTopicKey ?? undefined,
+        tieuMuc: defaultSubTopicKey ?? undefined,
+        text: initialQuestion.text,
+        level: initialQuestion.level,
+        correctAnswer: initialQuestion.type === 'short' ? initialQuestion.correctAnswer : undefined,
+      });
+
+      if (initialQuestion.type === 'single' || initialQuestion.type === 'multiple') {
+        const newAnswers = (initialQuestion.options || []).map((opt, i) => ({
+          id: i + 1,
+          content: opt,
+          isCorrect: Array.isArray(initialQuestion.correctAnswer) 
+            ? initialQuestion.correctAnswer.includes(opt) 
+            : initialQuestion.correctAnswer === opt,
+        }));
+        while (newAnswers.length < 4) {
+          newAnswers.push({ id: newAnswers.length + 1, content: '', isCorrect: false });
+        }
+        setAnswers(newAnswers);
+        setStatements([]);
+        setSubQuestions([]);
+      } else if (initialQuestion.type === 'true_false') {
+        const stmts = Array.from({ length: 4 }).map((_, i) => ({
+          topicId: initialQuestion.topicId || '',
+          topicName: initialQuestion.topicName || '',
+          level: 'nhan_biet' as CognitiveLevel,
+          nangLuc: 'Nhận biết',
+          content: (initialQuestion.options && initialQuestion.options[i]) || '',
+          isCorrect: initialQuestion.correctAnswer && initialQuestion.correctAnswer[i] === 'True',
+        }));
+        setStatements(stmts);
+        setAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
+        setSubQuestions([]);
       } else {
-        // Đang chọn chủ đề cha
-        defaultTopicKey = selectedTopicKey;
-        // Chọn tiểu mục đầu tiên nếu có
-        const parentNode = topicTreeData.find(
-          (t) => t.key === selectedTopicKey,
-        );
-        defaultSubTopicKey = (parentNode?.children?.[0]?.key as string) ?? null;
+        setAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
+        setStatements([]);
+        setSubQuestions([]);
       }
     } else {
-      // Không có gì được chọn → lấy node đầu tiên
-      defaultTopicKey = (topicTreeData[0]?.key as string) ?? null;
-      defaultSubTopicKey =
-        (topicTreeData[0]?.children?.[0]?.key as string) ?? null;
-    }
+      setAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
+      setSubQuestions([
+        { id: 1, text: 'Câu hỏi 01', type: 'single', link: '1' },
+        { id: 2, text: 'Câu hỏi 02', type: 'single', link: '2' },
+        { id: 3, text: 'Câu hỏi 03', type: 'multiple' },
+      ]);
 
-    setFormTopicKey(defaultTopicKey);
-    form.setFieldsValue({
-      chuDe: defaultTopicKey ?? undefined,
-      tieuMuc: defaultSubTopicKey ?? undefined,
-      daoCauHoi: undefined,
-      text: '',
-      correctAnswer: '',
-      groupType: 'lien_ket',
-    });
+      let defaultTopicKey: string | null = null;
+      let defaultSubTopicKey: string | null = null;
+
+      if (selectedTopicKey) {
+        if (isSubTopicKey(topicTreeData, selectedTopicKey)) {
+          defaultSubTopicKey = selectedTopicKey;
+          defaultTopicKey = findParentTopicKey(topicTreeData, selectedTopicKey);
+        } else {
+          defaultTopicKey = selectedTopicKey;
+          const parentNode = topicTreeData.find((t) => t.key === selectedTopicKey);
+          defaultSubTopicKey = parentNode?.children?.[0]?.key as string ?? null;
+        }
+      } else {
+        defaultTopicKey = topicTreeData[0]?.key as string ?? null;
+        defaultSubTopicKey = topicTreeData[0]?.children?.[0]?.key as string ?? null;
+      }
+
+      setFormTopicKey(defaultTopicKey);
+      form.setFieldsValue({
+        chuDe: defaultTopicKey ?? undefined,
+        tieuMuc: defaultSubTopicKey ?? undefined,
+        daoCauHoi: undefined,
+        text: '',
+        correctAnswer: '',
+        groupType: 'lien_ket',
+      });
 
     // Khởi tạo 4 dòng câu hỏi Đúng/Sai
     const suffix = subject ? ` ${subject.toLowerCase()}` : '';
-    const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
-      topicId: defaultTopicKey || '',
-      topicName: '',
-      level: (i === 0
-        ? 'nhan_biet'
-        : i === 1
-          ? 'thong_hieu'
-          : i === 2
-            ? 'van_dung'
-            : 'van_dung') as CognitiveLevel,
-      nangLuc:
-        i === 0
-          ? `Nhận biết${suffix}`
+      const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
+        topicId: defaultTopicKey || '',
+        topicName: '',
+        level: (i === 0
+          ? 'nhan_biet'
           : i === 1
-            ? `Thông hiểu${suffix}`
+            ? 'thong_hieu'
             : i === 2
-              ? `Vận dụng${suffix}`
-              : `Vận dụng${suffix}`,
-      content: '',
-      isCorrect: i === 0 || i === 1 || i === 3,
-    }));
-    setStatements(initialStatements);
-  }, [open, selectedTopicKey, topicTreeData, subject, form]);
+              ? 'van_dung'
+              : 'van_dung') as CognitiveLevel,
+        nangLuc:
+          i === 0
+            ? `Nhận biết${suffix}`
+            : i === 1
+              ? `Thông hiểu${suffix}`
+              : i === 2
+                ? `Vận dụng${suffix}`
+                : `Vận dụng${suffix}`,
+        content: '',
+        isCorrect: i === 0 || i === 1 || i === 3,
+      }));
+      setStatements(initialStatements);
+    }
+  }, [open, initialQuestion, selectedTopicKey, topicTreeData, subject, form]);
 
   // ── Answers helpers ────────────────────────────────────────────────────────
   const resetAnswers = useCallback(() => {
@@ -429,8 +476,15 @@ export default function CreateQuestionModal({
 
       const q = buildQuestion(values, status);
       const { id: _localId, ...payload } = q;
-      const response = await questionApi.create(payload as any);
-      const savedQuestion = { ...q, id: response.data.id || q.id };
+      
+      let savedQuestion = { ...q };
+      if (initialQuestion?.id) {
+        await bankQuestionApi.update(initialQuestion.id, payload as any);
+        savedQuestion.id = initialQuestion.id;
+      } else {
+        const response = await questionApi.create(payload as any);
+        savedQuestion.id = response.data.id || q.id;
+      }
 
       if (status === 'draft') {
         onSave(savedQuestion);
@@ -469,9 +523,9 @@ export default function CreateQuestionModal({
     >
       {/* ── Header ── */}
       <div className='flex items-center gap-2 px-5 py-3 border-b border-slate-200 bg-white'>
-        <PlusOutlined className='text-[#002147] text-xl' />
+        <EditOutlined className='text-[#002147] text-xl' />
         <span className='font-extrabold uppercase text-slate-800 text-[18px] tracking-wide'>
-          Thêm mới câu hỏi thủ công
+          Chỉnh sửa câu hỏi thủ công
         </span>
       </div>
 

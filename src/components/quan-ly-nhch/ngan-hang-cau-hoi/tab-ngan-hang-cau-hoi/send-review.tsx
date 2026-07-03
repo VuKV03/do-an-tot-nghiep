@@ -16,7 +16,7 @@ export default function SendReviewConfirmModal({
   recordName,
   selectedCount,
 }: SendReviewConfirmModalProps) {
-  const isMultiple = selectedCount && selectedCount > 1;
+  const isBulkAction = !recordName && selectedCount !== undefined && selectedCount > 0;
 
   return (
     <Modal
@@ -65,13 +65,13 @@ export default function SendReviewConfirmModal({
       }
     >
       <div className="text-slate-700 text-xs font-medium leading-relaxed">
-        {isMultiple ? (
+        {isBulkAction ? (
           <span>
-            Bạn có chắc chắn muốn gửi thẩm định/ phản biên {selectedCount} bản ghi câu hỏi ?
+            Bạn có chắc chắn muốn gửi thẩm định/ phản biện {selectedCount} bản ghi câu hỏi ?
           </span>
         ) : (
           <span>
-            Bạn có chắc chắn muốn gửi thẩm định/ phản biện bản ghi có tên “{recordName || 'Amy...'}”?
+            Bạn có chắc chắn muốn gửi thẩm định/ phản biện bản ghi câu hỏi có mã “{recordName || '.....'}”?
           </span>
         )}
       </div>

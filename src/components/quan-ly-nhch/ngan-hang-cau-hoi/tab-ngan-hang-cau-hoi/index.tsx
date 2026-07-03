@@ -1,11 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Tree, Select, Input, Button, Table, Tag, Space, message, Modal, Radio, Form, Spin, Divider, Tooltip, notification, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import CreateQuestionModal from './manual-create';
+import UpdateQuestionModal from './update';
 import DeleteConfirmModal from './delete';
 import SendReviewConfirmModal from './send-review';
+import QuestionDetailModal from './detail';
 import ThamDinhCauHoiTab from '../tham-dinh-cau-hoi';
 import QuestionHistoryModal from '../history';
+import ReviewModal from '../../../ReviewModal';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -21,21 +24,21 @@ import {
   LoadingOutlined,
   SendOutlined,
   MoreOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
-import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../../data';
+import { SUBJECTS, GRADES } from '../../../../data';
+import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi } from '../../../../services/danhMucApi.ts';
 
 interface QuestionBankModuleProps {
-  questions: Question[];
-  onAddQuestion: (q: Question) => void;
-  onUpdateQuestion: (q: Question) => void;
-  onDeleteQuestion: (id: string) => void;
-  onOpenReview: (q: Question) => void;
+  onAddQuestion?: (q: Question) => void;
+  onUpdateQuestion?: (q: Question) => void;
+  onDeleteQuestion?: (id: string) => void;
+  onOpenReview?: (q: Question) => void;
 }
 
 export default function QuestionBankModule({
-  questions,
   onAddQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
@@ -45,9 +48,19 @@ export default function QuestionBankModule({
   const [activeTab, setActiveTab] = useState<'bank' | 'review'>('bank');
 
   // Filters state
-  const [selectedSubject, setSelectedSubject] = useState<string>('Toán học');
-  const [selectedGrade, setSelectedGrade] = useState<string>('Khối 12');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
+
+  // API data for subject/grade dropdowns and topic tree
+  const [apiSubjects, setApiSubjects] = useState<{ value: string; label: string }[]>([]);
+  const [apiGrades, setApiGrades] = useState<{ value: string; label: string }[]>([]);
+  const [allTopicsRaw, setAllTopicsRaw] = useState<any[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+
+  // Questions from API
+  const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
 
   // Search filter query inputs
@@ -91,15 +104,135 @@ export default function QuestionBankModule({
   // History modal state
   const [historyQuestion, setHistoryQuestion] = useState<Question | null>(null);
 
-  // Subjects dropdown
-  const subjectDropdownOptions = useMemo(() => SUBJECTS, []);
-  // Grades dropdown
-  const gradeDropdownOptions = useMemo(() => GRADES, []);
+  // Detail modal state
+  const [detailQuestion, setDetailQuestion] = useState<Question | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Left column Topic Tree calculations dynamically filtered by current Subject selection
+  // Update modal state
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [updateQuestion, setUpdateQuestion] = useState<Question | null>(null);
+
+  // Fetch subjects, grades, and topics from API
+  const fetchFiltersAndTopics = useCallback(async () => {
+    setTopicsLoading(true);
+    try {
+      const [subRes, grRes, topRes] = await Promise.all([
+        subjectCategoryApi.list(),
+        gradeLevelApi.list(),
+        topicsApi.list(),
+      ]);
+      const subjectOptions = subRes.data.map((s: any) => ({ value: s.name, label: s.name }));
+      const gradeOptions = grRes.data.map((g: any) => ({ value: g.name, label: g.name }));
+      setApiSubjects(subjectOptions);
+      setApiGrades(gradeOptions);
+      setAllTopicsRaw(topRes.data);
+      // Set defaults to first available values
+      if (subjectOptions.length > 0 && !selectedSubject) {
+        setSelectedSubject(subjectOptions[0].value);
+      }
+      if (gradeOptions.length > 0 && !selectedGrade) {
+        setSelectedGrade(gradeOptions[0].value);
+      }
+    } catch (e) {
+      console.error('Không thể tải dữ liệu môn học / chủ đề:', e);
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, []);
+
+  // Fetch questions from bank API
+  const fetchQuestions = useCallback(async () => {
+    setQuestionsLoading(true);
+    try {
+      const res = await bankQuestionApi.list();
+      if (res.success && res.data) {
+        // Map API response to Question type
+        const mapped: Question[] = res.data.map((q) => ({
+          id: q.id,
+          code: q.code,
+          text: q.text,
+          type: q.type as any,
+          level: q.level as any,
+          status: q.status as any,
+          subject: q.subject,
+          grade: q.grade,
+          topicId: q.topicId || '',
+          topicName: q.topicName || '',
+          subTopicName: q.subTopicName || '',
+          options: q.options || [],
+          correctAnswer: q.correctAnswer || '',
+          creator: q.creator || '',
+          createdAt: q.createdAt || new Date().toISOString(),
+        }));
+        setDbQuestions(mapped);
+      }
+    } catch (e) {
+      console.error('Không thể tải câu hỏi từ ngân hàng:', e);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFiltersAndTopics();
+    fetchQuestions();
+  }, [fetchFiltersAndTopics, fetchQuestions]);
+
+
+  // Subjects dropdown: prefer API data, fallback to static
+  const subjectDropdownOptions = useMemo(
+    () => (apiSubjects.length > 0 ? apiSubjects : SUBJECTS),
+    [apiSubjects]
+  );
+  // Grades dropdown: prefer API data, fallback to static
+  const gradeDropdownOptions = useMemo(
+    () => (apiGrades.length > 0 ? apiGrades : GRADES),
+    [apiGrades]
+  );
+
+  // Build topic tree from API data filtered by selected subject & grade
   const topicTreeData = useMemo(() => {
-    return TOPICS_TREE[selectedSubject] || [];
-  }, [selectedSubject]);
+    // Filter topics matching selected subject (and optionally grade)
+    const filtered = allTopicsRaw.filter((t: any) => {
+      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
+      const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
+      return matchSubject && matchGrade;
+    });
+
+    // Only show approved topics (status === 2) in the tree
+    const approved = filtered.filter((t: any) => t.status === 2);
+
+    // Build tree structure
+    const map: { [id: string]: any } = {};
+    const roots: any[] = [];
+
+    approved.forEach((t: any) => {
+      map[t.id] = { key: t.id, title: t.name, children: [] };
+    });
+
+    approved.forEach((t: any) => {
+      const node = map[t.id];
+      if (t.parent_id && map[t.parent_id]) {
+        map[t.parent_id].children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    // Remove empty children arrays
+    const clean = (nodes: any[]) => {
+      nodes.forEach((n) => {
+        if (n.children && n.children.length === 0) {
+          delete n.children;
+        } else if (n.children) {
+          clean(n.children);
+        }
+      });
+    };
+    clean(roots);
+
+    return roots;
+  }, [allTopicsRaw, selectedSubject, selectedGrade]);
 
   // Handle tree node selection
   const handleSelectTopicNode = (selectedKeys: any[], info: any) => {
@@ -110,12 +243,12 @@ export default function QuestionBankModule({
     }
   };
 
-  // Perform filtering of questions
+  // Perform filtering of questions (using DB-fetched data)
   const filteredQuestions = useMemo(() => {
-    return questions.filter((q) => {
-      // 1. Filter by subject
-      if (q.subject !== selectedSubject) return false;
-      // 2. Filter by grade (if not "Tất cả")
+    return dbQuestions.filter((q) => {
+      // 1. Filter by subject (skip if no subject selected yet)
+      if (selectedSubject && q.subject !== selectedSubject) return false;
+      // 2. Filter by grade (if not empty)
       if (selectedGrade && q.grade !== selectedGrade) return false;
       // 3. Filter by selected topic (tree node) if any is selected
       if (selectedTopicKey) {
@@ -151,7 +284,7 @@ export default function QuestionBankModule({
 
       return true;
     });
-  }, [questions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData]);
+  }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData]);
 
   const handleSearchAction = () => {
     setAppliedFilters({
@@ -315,8 +448,8 @@ export default function QuestionBankModule({
         createdAt: new Date().toISOString()
       };
 
-      onAddQuestion(importQ1);
-      onAddQuestion(importQ2);
+      onAddQuestion?.(importQ1);
+      onAddQuestion?.(importQ2);
       setIsImportOpen(false);
       message.success('Nhập tệp tin hoàn tất! Đã thêm thành công 02 câu hỏi mới vào ngân hàng.');
     }, 1500);
@@ -324,36 +457,77 @@ export default function QuestionBankModule({
 
   const handleDeleteConfirm = () => {
     if (pendingDeleteQuestion) {
-      onDeleteQuestion(pendingDeleteQuestion.id);
+      onDeleteQuestion?.(pendingDeleteQuestion.id);
+      fetchQuestions(); // refresh from API
       message.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
       setPendingDeleteQuestion(null);
     } else if (selectedRowKeys.length > 0) {
       selectedRowKeys.forEach((key) => {
-        onDeleteQuestion(key as string);
+        onDeleteQuestion?.(key as string);
       });
+      fetchQuestions(); // refresh from API
       message.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
       setSelectedRowKeys([]);
     }
     setIsDeleteOpen(false);
   };
 
-  const handleSendReviewConfirm = () => {
+  const handleSendReviewConfirm = async () => {
     if (pendingSendReviewQuestion) {
-      const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
-      onUpdateQuestion(updated);
-      message.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
+      try {
+        await bankQuestionApi.submit(pendingSendReviewQuestion.id);
+        const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
+        onUpdateQuestion?.(updated);
+        message.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
+        fetchQuestions();
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi gửi thẩm định');
+      }
       setPendingSendReviewQuestion(null);
     } else if (selectedRowKeys.length > 0) {
-      selectedRowKeys.forEach((key) => {
-        const quest = questions.find((q) => q.id === key);
-        if (quest && quest.status === 'draft') {
-          onUpdateQuestion({ ...quest, status: 'pending' as QuestionStatus });
+      try {
+        for (const key of selectedRowKeys) {
+          const quest = dbQuestions.find((q) => q.id === key);
+          if (quest && (quest.status === 'draft' || quest.status === 'rejected')) {
+            await bankQuestionApi.submit(quest.id);
+            onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
+          }
         }
-      });
-      message.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
+        message.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
+        fetchQuestions();
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi gửi thẩm định');
+      }
       setSelectedRowKeys([]);
     }
     setIsSendReviewOpen(false);
+  };
+
+  // Review Modal State & Handlers
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [selectedReviewQuestion, setSelectedReviewQuestion] = useState<Question | null>(null);
+
+  const handleOpenReviewInternal = (q: Question) => {
+    setSelectedReviewQuestion(q);
+    setIsReviewOpen(true);
+  };
+
+  const handleApproveQuestion = async (id: string, feedback: string) => {
+    try {
+      await bankQuestionApi.approve(id);
+      fetchQuestions();
+    } catch (e: any) {
+      message.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
+    }
+  };
+
+  const handleRejectQuestion = async (id: string, feedback: string) => {
+    try {
+      await bankQuestionApi.reject(id);
+      fetchQuestions();
+    } catch (e: any) {
+      message.error(e.message || 'Lỗi khi từ chối câu hỏi');
+    }
   };
 
   const tableColumns = [
@@ -440,11 +614,17 @@ export default function QuestionBankModule({
                 Chờ thẩm định
               </span>
             );
+          case 'rejected':
+            return (
+              <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+                Từ chối
+              </span>
+            );
           case 'draft':
           default:
             return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-700 font-bold text-[10px]">
-                Từ chối
+              <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
+                Tạo mới
               </span>
             );
         }
@@ -461,6 +641,13 @@ export default function QuestionBankModule({
           return (
             <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
               Đã thẩm định
+            </span>
+          );
+        }
+        if (record.status === 'rejected') {
+          return (
+            <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+              Từ chối
             </span>
           );
         }
@@ -485,7 +672,8 @@ export default function QuestionBankModule({
       width: 100,
       align: 'center' as const,
       render: (_: any, record: Question) => {
-        const canEdit = record.status === 'draft';
+        const canEdit = record.status === 'draft' || record.status === 'rejected';
+        const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
 
         const menuItems: MenuProps['items'] = [];
 
@@ -523,6 +711,20 @@ export default function QuestionBankModule({
 
         return (
           <div className="flex items-center justify-center gap-1.5">
+            {showEye && (
+              <Tooltip title="Xem chi tiết">
+                <Button
+                  type="text"
+                  icon={<EyeOutlined className="text-blue-600 text-xs" />}
+                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                  onClick={() => {
+                    setDetailQuestion(record);
+                    setIsDetailOpen(true);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
             {canEdit && (
               <Tooltip title="Chỉnh sửa">
                 <Button
@@ -530,7 +732,8 @@ export default function QuestionBankModule({
                   icon={<EditOutlined className="text-blue-600 text-xs" />}
                   className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
                   onClick={() => {
-                    message.info(`Xem thông tin câu hỏi ${record.code}. Tính năng chỉnh sửa đang được phát triển.`);
+                    setUpdateQuestion(record);
+                    setIsUpdateOpen(true);
                   }}
                   style={{ cursor: 'pointer' }}
                 />
@@ -629,21 +832,23 @@ export default function QuestionBankModule({
         {/* Tree Menu Subjects/Topics */}
         <div className="flex-1 mt-4 overflow-y-auto pr-1">
           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cây chủ đề môn học</label>
-          {topicTreeData.length > 0 ? (
-            <Tree
-              showLine={{ showLeafIcon: false }}
-              blockNode
-              defaultExpandAll
-              onSelect={handleSelectTopicNode}
-              treeData={topicTreeData}
-              selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
-              className="text-xs font-medium text-slate-700 bg-transparent"
-            />
-          ) : (
-            <div className="text-center py-8 text-slate-400 text-xs font-medium">
-              Chưa có chủ đề định nghĩa cho môn học này
-            </div>
-          )}
+          <Spin spinning={topicsLoading} size="small">
+            {topicTreeData.length > 0 ? (
+              <Tree
+                showLine={{ showLeafIcon: false }}
+                blockNode
+                defaultExpandAll
+                onSelect={handleSelectTopicNode}
+                treeData={topicTreeData}
+                selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
+                className="text-xs font-medium text-slate-700 bg-transparent"
+              />
+            ) : (
+              <div className="text-center py-8 text-slate-400 text-xs font-medium">
+                {topicsLoading ? 'Đang tải chủ đề...' : 'Chưa có chủ đề đã thẩm định cho môn học này'}
+              </div>
+            )}
+          </Spin>
         </div>
 
         <div className="pt-3 border-t border-slate-100 flex gap-2">
@@ -879,6 +1084,7 @@ export default function QuestionBankModule({
             dataSource={filteredQuestions}
             columns={tableColumns}
             rowKey="id"
+            loading={questionsLoading}
             rowSelection={{
               selectedRowKeys,
               onChange: (keys) => setSelectedRowKeys(keys),
@@ -889,6 +1095,7 @@ export default function QuestionBankModule({
               className: "pr-4 pb-4 pt-4 text-xs font-medium",
               style: { justifyContent: 'flex-end', margin: '16px 0 0 calc(100% - 400px)' }
             }}
+            scroll={{ x: 'max-content' }}
             className="border-none text-xs rounded-2xl"
           />
         </div>
@@ -899,8 +1106,16 @@ export default function QuestionBankModule({
         open={activeModalType !== null}
         initialType={activeModalType || 'single'}
         onClose={() => setActiveModalType(null)}
-        onSave={onAddQuestion}
-        onSendReview={onAddQuestion}
+        onSave={(q: Question) => {
+          onAddQuestion?.(q);
+          fetchQuestions(); // refresh from API
+          setActiveModalType(null);
+        }}
+        onSendReview={(q: Question) => {
+          onAddQuestion?.(q);
+          fetchQuestions(); // refresh from API
+          setActiveModalType(null);
+        }}
         subject={selectedSubject}
         grade={selectedGrade}
         selectedTopicKey={selectedTopicKey}
@@ -1061,6 +1276,16 @@ export default function QuestionBankModule({
         onClose={() => setHistoryQuestion(null)}
       />
 
+      {/* Detail Modal */}
+      <QuestionDetailModal
+        open={isDetailOpen}
+        question={detailQuestion}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailQuestion(null);
+        }}
+      />
+
       {/* CUSTOM CONFIRMATION POPUPS */}
       <DeleteConfirmModal
         open={isDeleteOpen}
@@ -1084,12 +1309,51 @@ export default function QuestionBankModule({
         selectedCount={selectedRowKeys.length}
       />
 
+      <UpdateQuestionModal
+        open={isUpdateOpen}
+        onClose={() => {
+          setIsUpdateOpen(false);
+          setUpdateQuestion(null);
+        }}
+        onSave={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        onSendReview={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        initialType="single"
+        subject={selectedSubject}
+        grade={selectedGrade}
+        selectedTopicKey={selectedTopicKey}
+        topicTreeData={topicTreeData}
+        initialQuestion={updateQuestion || undefined}
+      />
+
+      <ReviewModal
+        visible={isReviewOpen}
+        onClose={() => {
+          setIsReviewOpen(false);
+          setSelectedReviewQuestion(null);
+        }}
+        question={selectedReviewQuestion}
+        onApprove={handleApproveQuestion}
+        onReject={handleRejectQuestion}
+      />
+
         </div>
       ) : (
         <ThamDinhCauHoiTab
-          questions={questions}
+          questions={dbQuestions}
           onUpdateQuestion={onUpdateQuestion}
-          onOpenReview={onOpenReview}
+          onOpenReview={handleOpenReviewInternal}
+          apiSubjects={apiSubjects}
+          apiGrades={apiGrades}
+          allTopicsRaw={allTopicsRaw}
+          topicsLoading={topicsLoading}
+          onApproveQuestion={handleApproveQuestion}
+          onRejectQuestion={handleRejectQuestion}
         />
       )}
     </div>

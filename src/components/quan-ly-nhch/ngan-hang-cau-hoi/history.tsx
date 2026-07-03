@@ -260,7 +260,7 @@ export default function QuestionHistoryModal({
   const modalTitle =
     mode === 'tham-dinh'
       ? 'Lịch sử thẩm định câu hỏi'
-      : 'Lịch sử chỉnh sửa, thẩm định, phân tích câu hỏi';
+      : 'Lịch sử chỉnh sửa, thẩm định câu hỏi';
 
   return (
     <ConfigProvider

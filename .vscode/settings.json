@@ -1,1 +1,10 @@
+<<<<<<< HEAD
 {}
+=======
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "pylance.linting.pylintEnabled": false,
+  "python.analysis.typeCheckingMode": "off"
+}
+>>>>>>> ff56cf8caec75c7a5fd6990af7fd15a2f88b7cdd

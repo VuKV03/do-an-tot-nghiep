@@ -1,0 +1,173 @@
+"""
+Question creation routes — bảng questions
+POST /questions/
+"""
+import json
+import time
+from datetime import datetime
+
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter, Depends, HTTPException
+# pyrefly: ignore [missing-import]
+from sqlalchemy import select
+# pyrefly: ignore [missing-import]
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic
+from backend.exam_service.schemas import QuestionManualCreate, QuestionResponse
+from backend.shared.database import get_db
+
+router = APIRouter(prefix="/questions", tags=["Questions"])
+
+
+def _now() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _as_json(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _normalize_subject(subject_name: str | None) -> str | None:
+    if not subject_name:
+        return None
+    return subject_name.strip().lower()
+
+
+def _status_to_int(status: str | None) -> int:
+    if status == 'approved':
+        return 2
+    if status == 'pending':
+        return 1
+    return 0
+
+
+@router.post("/", status_code=201)
+async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends(get_db)):
+    subject_key = _normalize_subject(body.subject)
+    grade_key = (body.grade or '').strip().lower().replace('khối', '').replace('lớp', '').strip()
+    level_key = (body.level or '').strip().lower()
+    type_key = (body.type or '').strip().lower()
+    print(f"Body received: {body}")
+    print(f"Creating question with subject: {subject_key}, grade: {grade_key}, level: {level_key}, type: {type_key}")
+    subject_result = await db.execute(select(SubjectCategory).where(SubjectCategory.name.ilike(f"%{body.subject}%") | SubjectCategory.code.ilike(f"%{body.subject}%")))
+    print(f"Subject query result: {subject_result}")
+    subject = subject_result.scalar_one_or_none()
+    print(f"Subject found: {subject}")
+    if not subject and subject_key:
+        subject_result = await db.execute(select(SubjectCategory).where(SubjectCategory.name.ilike(f"%{subject_key}%")))
+        subject = subject_result.scalar_one_or_none()
+
+    grade_result = await db.execute(select(GradeLevel).where(GradeLevel.name.ilike(f"%{body.grade}%") | GradeLevel.code.ilike(f"%{body.grade}%")))
+    grade = grade_result.scalar_one_or_none()
+    if not grade and grade_key:
+        grade_result = await db.execute(select(GradeLevel).where(GradeLevel.name.ilike(f"%{grade_key}%")))
+        grade = grade_result.scalar_one_or_none()
+
+    level_result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code.ilike(level_key) | CognitiveLevel.name.ilike(level_key)))
+    level = level_result.scalar_one_or_none()
+
+    type_lookup = {
+        'single': ['single', 'tn', 'trắc nghiệm', 'trắc nghiệm một đáp án', 'trắc nghiệm một lựa chọn'],
+        'multiple': ['multiple', 'multi', 'tnn', 'trắc nghiệm nhiều đáp án'],
+        'true_false': ['true_false', 'truefalse', 'ds', 'đúng sai', 'đúng / sai'],
+        'short': ['short', 'tl', 'tự luận', 'trả lời ngắn'],
+    }
+    matched_aliases = type_lookup.get(type_key, [type_key])
+    type_result = await db.execute(select(QuestionType).where(QuestionType.code.ilike(type_key) | QuestionType.name.ilike(type_key)))
+    question_type = type_result.scalar_one_or_none()
+    if not question_type:
+        for alias in matched_aliases:
+            type_result = await db.execute(select(QuestionType).where(QuestionType.code.ilike(alias) | QuestionType.name.ilike(alias)))
+            question_type = type_result.scalar_one_or_none()
+            if question_type:
+                break
+
+    if not subject or not grade:
+        print(f"Subject: {subject}, Grade: {grade}, Level: {level}, Type: {question_type}")
+        raise HTTPException(status_code=400, detail="Không tìm thấy môn học hoặc khối lớp tương ứng trong danh mục.")
+    if not level or not question_type:
+        raise HTTPException(status_code=400, detail="Không tìm thấy cấp độ tư duy hoặc loại câu hỏi tương ứng trong danh mục.")
+
+    topic_id = None
+    parent_id = None
+    if body.topicId:
+        topic_result = await db.execute(
+            select(Topic).where(Topic.id == body.topicId)
+        )
+        topic = topic_result.scalar_one_or_none()
+
+        if not topic:
+            topic_result = await db.execute(
+                select(Topic).where(Topic.code == body.topicId)
+            )
+            topic = topic_result.scalar_one_or_none()
+
+        if not topic and body.subTopicName:
+            topic_result = await db.execute(
+                select(Topic).where(Topic.name.ilike(f"%{body.subTopicName}%"))
+            )
+            topic = topic_result.scalar_one_or_none()
+
+        if not topic and body.topicName:
+            topic_result = await db.execute(
+                select(Topic).where(Topic.name.ilike(f"%{body.topicName}%"))
+            )
+            topic = topic_result.scalar_one_or_none()
+
+        if topic:
+            topic_id = topic.id
+            parent_id = topic.parent_id
+
+    question_id = f"q-{int(time.time() * 1000)}"
+    question = Question(
+        id=question_id,
+        code=f"Q-{str(int(time.time()))[-6:].upper()}",
+        content=body.text,
+        options=_as_json(body.options),
+        correct_answer=_as_json(body.correctAnswer),
+        topic_id=topic_id,
+        parent_id=parent_id,
+        subject_id=subject.id,
+        grade_id=grade.id,
+        level_id=level.id,
+        type_id=question_type.id,
+        competency_component_id=None,
+        exam_id=body.examId,
+        line_number=body.lineNumber or 1,
+        status=_status_to_int(body.status),
+        status_ai=0,
+        approved_note="",
+    )
+
+    db.add(question)
+    await db.commit()
+    await db.refresh(question)
+
+    return {
+        "success": True,
+        "message": "Thêm câu hỏi thủ công thành công!",
+        "data": QuestionResponse(
+            id=question.id,
+            code=question.code or "",
+            content=question.content,
+            options=question.options,
+            correct_answer=question.correct_answer,
+            topic_id=question.topic_id,
+            parent_id=question.parent_id,
+            subject_id=question.subject_id,
+            grade_id=question.grade_id,
+            level_id=question.level_id,
+            type_id=question.type_id,
+            competency_component_id=question.competency_component_id,
+            line_number=question.line_number or 1,
+            status=question.status or 0,
+            status_ai=question.status_ai or 0,
+            approved_note=question.approved_note or "",
+            exam_id=question.exam_id,
+        ),
+    }

@@ -32,6 +32,12 @@ interface ThamDinhCauHoiProps {
   questions: Question[];
   onUpdateQuestion: (q: Question) => void;
   onOpenReview: (q: Question) => void;
+  apiSubjects?: { value: string; label: string }[];
+  apiGrades?: { value: string; label: string }[];
+  allTopicsRaw?: any[];
+  topicsLoading?: boolean;
+  onApproveQuestion?: (id: string, comment: string) => void;
+  onRejectQuestion?: (id: string, comment: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,11 +90,17 @@ function StatusBadge({ status }: { status: QuestionStatus }) {
           Chờ thẩm định
         </span>
       );
-    case 'draft':
-    default:
+    case 'rejected':
       return (
         <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px] whitespace-nowrap">
           Từ chối
+        </span>
+      );
+    case 'draft':
+    default:
+      return (
+        <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px] whitespace-nowrap">
+          Tạo mới
         </span>
       );
   }
@@ -230,18 +242,24 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
 export default function ThamDinhCauHoiTab({
   questions,
   onUpdateQuestion,
-  onOpenReview
+  onOpenReview,
+  apiSubjects = [],
+  apiGrades = [],
+  allTopicsRaw = [],
+  topicsLoading = false,
+  onApproveQuestion,
+  onRejectQuestion,
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
-  const [selectedSubject, setSelectedSubject]     = useState<string>('Toán học');
-  const [selectedGrade, setSelectedGrade]         = useState<string>('Khối 12');
+  const [selectedSubject, setSelectedSubject]     = useState<string>('');
+  const [selectedGrade, setSelectedGrade]         = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey]   = useState<string | null>(null);
   const [topicSearch, setTopicSearch]             = useState('');
 
   // ── Filter inputs ──────────────────────────────
   const [filterKeyword, setFilterKeyword] = useState('');
-  const [filterGrades, setFilterGrades]   = useState<string[]>(['Khối 12']);
+  const [filterGrades, setFilterGrades]   = useState<string[]>([]);
   const [filterType, setFilterType]       = useState<QuestionType | 'all'>('all');
   const [filterLevel, setFilterLevel]     = useState<CognitiveLevel | 'all'>('all');
   const [filterStatus, setFilterStatus]   = useState<QuestionStatus | 'all'>('pending');
@@ -251,7 +269,7 @@ export default function ThamDinhCauHoiTab({
   // Applied after "Tìm kiếm" button
   const [applied, setApplied] = useState({
     keyword: '',
-    grades:  ['Khối 12'] as string[],
+    grades:  [] as string[],
     type:    'all' as QuestionType | 'all',
     level:   'all' as CognitiveLevel | 'all',
     status:  'pending' as QuestionStatus | 'all',
@@ -264,20 +282,82 @@ export default function ThamDinhCauHoiTab({
   const [historyQuestion, setHistoryQuestion]   = useState<Question | null>(null);
 
   // ── Derived: topic tree ────────────────────────
-  const topicTreeData = useMemo<TopicNode[]>(() => {
-    const raw: TopicNode[] = TOPICS_TREE[selectedSubject] || [];
-    if (!topicSearch.trim()) return raw;
+  const subjectDropdownOptions = useMemo(
+    () => (apiSubjects.length > 0 ? apiSubjects : SUBJECTS),
+    [apiSubjects]
+  );
+  const gradeDropdownOptions = useMemo(
+    () => (apiGrades.length > 0 ? apiGrades : GRADES),
+    [apiGrades]
+  );
+
+  const topicTreeData = useMemo(() => {
+    if (allTopicsRaw.length === 0) return [];
+    
+    // Filter topics matching selected subject (and optionally grade)
+    const filtered = allTopicsRaw.filter((t: any) => {
+      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
+      const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
+      return matchSubject && matchGrade;
+    });
+
+    // Only show approved topics (status === 2)
+    const approved = filtered.filter((t: any) => t.status === 2);
+
+    const map: { [id: string]: any } = {};
+    const roots: any[] = [];
+
+    approved.forEach((t: any) => {
+      map[t.id] = { key: t.id, title: t.name, children: [] };
+    });
+
+    approved.forEach((t: any) => {
+      const node = map[t.id];
+      if (t.parent_id && map[t.parent_id]) {
+        map[t.parent_id].children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const clean = (nodes: any[]) => {
+      nodes.forEach((n) => {
+        if (n.children && n.children.length === 0) {
+          delete n.children;
+        } else if (n.children) {
+          clean(n.children);
+        }
+      });
+    };
+    clean(roots);
+
+    if (!topicSearch.trim()) return roots;
     const kw = topicSearch.toLowerCase();
-    return raw.filter(
-      (node) =>
-        node.title.toLowerCase().includes(kw) ||
-        node.children?.some((c) => c.title.toLowerCase().includes(kw))
-    );
-  }, [selectedSubject, topicSearch]);
+    
+    const filterTree = (nodes: any[]): any[] => {
+      return nodes.reduce((acc, node) => {
+        const match = node.title.toLowerCase().includes(kw);
+        let children = [];
+        if (node.children) {
+          children = filterTree(node.children);
+        }
+        if (match || children.length > 0) {
+          acc.push({ ...node, children: children.length > 0 ? children : undefined });
+        }
+        return acc;
+      }, []);
+    };
+
+    return filterTree(roots);
+  }, [allTopicsRaw, selectedSubject, selectedGrade, topicSearch]);
+
 
   // ── Derived: filtered questions ────────────────
   const filteredQuestions = useMemo(() => {
-    return questions.filter((q) => {
+    // Only show pending, approved, and rejected in review tab
+    const relevantQuestions = questions.filter(q => q.status === 'pending' || q.status === 'approved' || q.status === 'rejected');
+
+    return relevantQuestions.filter((q) => {
       if (q.subject !== selectedSubject) return false;
       if (selectedTopicKey) {
         const isChild = topicTreeData.some((t) =>
@@ -309,9 +389,9 @@ export default function ThamDinhCauHoiTab({
   };
 
   const handleReset = () => {
-    setFilterKeyword(''); setFilterGrades(['Khối 12']); setFilterType('all');
+    setFilterKeyword(''); setFilterGrades([]); setFilterType('all');
     setFilterLevel('all'); setFilterStatus('pending'); setFilterDates(null);
-    setApplied({ keyword: '', grades: ['Khối 12'], type: 'all', level: 'all', status: 'pending', dates: null });
+    setApplied({ keyword: '', grades: [], type: 'all', level: 'all', status: 'pending', dates: null });
   };
 
   const handleBulkReview = () => {
@@ -497,7 +577,7 @@ export default function ThamDinhCauHoiTab({
                 id="tham-dinh-select-subject"
                 value={selectedSubject}
                 onChange={(val) => { setSelectedSubject(val); setSelectedTopicKey(null); }}
-                options={SUBJECTS}
+                options={subjectDropdownOptions}
                 className="w-full text-xs font-bold"
               />
             </div>
@@ -510,7 +590,7 @@ export default function ThamDinhCauHoiTab({
                 id="tham-dinh-select-grade"
                 value={selectedGrade}
                 onChange={setSelectedGrade}
-                options={GRADES}
+                options={gradeDropdownOptions}
                 className="w-full text-xs font-bold"
               />
             </div>
@@ -645,7 +725,7 @@ export default function ThamDinhCauHoiTab({
                         { value: 'all',      label: 'Tất cả' },
                         { value: 'pending',  label: 'Chờ thẩm định' },
                         { value: 'approved', label: 'Đã thẩm định' },
-                        { value: 'draft',    label: 'Từ chối' }
+                        { value: 'rejected', label: 'Từ chối' }
                       ]}
                     />
                   </div>
@@ -720,6 +800,7 @@ export default function ThamDinhCauHoiTab({
                 className: 'pr-4 pb-4 pt-4 text-xs font-medium',
                 locale: { items_per_page: '/ trang' }
               }}
+              scroll={{ x: 'max-content' }}
               className="border-none text-xs rounded-2xl"
               locale={{ emptyText: 'Không có câu hỏi nào cần thẩm định' }}
             />
@@ -731,8 +812,20 @@ export default function ThamDinhCauHoiTab({
       <ReviewDetailModal
         question={reviewQuestion}
         onClose={() => setReviewQuestion(null)}
-        onApprove={handleApprove}
-        onReject={handleReject}
+        onApprove={(q, c) => {
+          if (onApproveQuestion) {
+            onApproveQuestion(q.id, c);
+          } else {
+            onUpdateQuestion({ ...q, status: 'approved' });
+          }
+        }}
+        onReject={(q, c) => {
+          if (onRejectQuestion) {
+            onRejectQuestion(q.id, c);
+          } else {
+            onUpdateQuestion({ ...q, status: 'draft' });
+          }
+        }}
       />
 
       {/* ── History modal ── */}

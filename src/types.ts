@@ -2,7 +2,7 @@ export type QuestionType = 'single' | 'multiple' | 'true_false' | 'short';
 
 export type CognitiveLevel = 'nhan_biet' | 'thong_hieu' | 'van_dung' | 'van_dung_cao';
 
-export type QuestionStatus = 'approved' | 'pending' | 'draft';
+export type QuestionStatus = 'approved' | 'pending' | 'draft' | 'rejected';
 
 export interface TrueFalseStatement {
   id: number;

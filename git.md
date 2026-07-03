@@ -14,7 +14,7 @@ git push
 
 git pull origin develop
 
-**B4: merge vào nhánh develop**
+**B4: merge vào nhánh develop khi code xong bat dau merge code**
 
 git checkout develop
 
@@ -23,3 +23,5 @@ git pull origin develop
 git merge vukv
 
 git push origin develop
+
+ 

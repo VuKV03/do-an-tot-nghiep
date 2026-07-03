@@ -1,30 +1,56 @@
-"""
+﻿"""
 Pydantic schemas for request/response validation — Exam Service.
 """
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
+from datetime import datetime
+from decimal import Decimal
 
 
 # ─── Question Schemas ────────────────────────────────────────────────
 class QuestionBase(BaseModel):
-    text: str
-    type: str = "single"
-    level: str = "medium"
-    options: Optional[List[str]] = None
-    correctAnswer: str
     code: Optional[str] = None
-    topicId: Optional[str] = None
-    parentId: Optional[str] = None
-    subjectId: Optional[str] = None
-    gradeId: Optional[str] = None
-    competencyComponentId: Optional[str] = None
-    status: Optional[int] = 1
-    approvedNote: Optional[str] = ""
+    content: str
+    options: Optional[str] = None
+    correct_answer: Optional[str] = None
+    topic_id: Optional[str] = None
+    parent_id: Optional[str] = None
+    subject_id: Optional[str] = None
+    grade_id: Optional[str] = None
+    level_id: Optional[str] = None
+    type_id: Optional[str] = None
+    competency_component_id: Optional[str] = None
+    line_number: Optional[int] = 1
+    status: Optional[int] = 0
+    status_ai: Optional[int] = 0
+    approved_note: Optional[str] = ""
+    exam_id: Optional[str] = None
 
 
 class QuestionResponse(QuestionBase):
     id: str
+
+    model_config = {"from_attributes": True}
+
+
+class QuestionManualCreate(BaseModel):
+    text: str
+    type: Literal['single', 'multiple', 'true_false', 'short']
+    level: Literal['nhan_biet', 'thong_hieu', 'van_dung', 'van_dung_cao']
+    subject: str
+    grade: str
+    topicId: Optional[str] = None
+    topicName: Optional[str] = None
+    subTopicName: Optional[str] = None
+    options: Optional[List[str]] = None
+    correctAnswer: Optional[str | List[str]] = None
+    statements: Optional[list] = None
+    creator: Optional[str] = None
+    createdAt: Optional[str] = None
+    status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'
+    lineNumber: Optional[int] = 1
+    examId: Optional[str] = None
 
 
 # ─── Exam Schemas ────────────────────────────────────────────────────
@@ -416,3 +442,77 @@ class TopicHistoryListResponse(BaseModel):
     success: bool = True
     count: int
     data: List[TopicHistoryResponse]
+
+
+# ─── Cấu hình môn học (subject_configs) ─────────────────────────────────────────
+class SubjectConfigBase(BaseModel):
+    type_id_p1: Optional[str] = None
+    type_id_p2: Optional[str] = None
+    type_id_p3: Optional[str] = None
+    subject_id: Optional[str] = None
+    content_p1: Optional[str] = None
+    content_p2: Optional[str] = None
+    content_p3: Optional[str] = None
+    p1_from: Optional[int] = None
+    p1_to: Optional[int] = None
+    p2_from: Optional[int] = None
+    p2_to: Optional[int] = None
+    p3_from: Optional[int] = None
+    p3_to: Optional[int] = None
+    points_for_a_correct_answers_p1: Optional[Decimal] = None
+    points_for_1_correct_idea: Optional[Decimal] = None
+    points_for_2_correct_idea: Optional[Decimal] = None
+    points_for_3_correct_idea: Optional[Decimal] = None
+    points_for_4_correct_idea: Optional[Decimal] = None
+    points_for_a_correct_answers_p3: Optional[Decimal] = None
+    questions_number: Optional[int] = None
+    number_to_create: Optional[int] = None
+    scale: Optional[int] = None
+    time: Optional[int] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+class SubjectConfigCreate(SubjectConfigBase):
+    pass
+
+
+class SubjectConfigUpdate(BaseModel):
+    type_id_p1: Optional[str] = None
+    type_id_p2: Optional[str] = None
+    type_id_p3: Optional[str] = None
+    subject_id: Optional[str] = None
+    content_p1: Optional[str] = None
+    content_p2: Optional[str] = None
+    content_p3: Optional[str] = None
+    p1_from: Optional[int] = None
+    p1_to: Optional[int] = None
+    p2_from: Optional[int] = None
+    p2_to: Optional[int] = None
+    p3_from: Optional[int] = None
+    p3_to: Optional[int] = None
+    points_for_a_correct_answers_p1: Optional[Decimal] = None
+    points_for_1_correct_idea: Optional[Decimal] = None
+    points_for_2_correct_idea: Optional[Decimal] = None
+    points_for_3_correct_idea: Optional[Decimal] = None
+    points_for_4_correct_idea: Optional[Decimal] = None
+    points_for_a_correct_answers_p3: Optional[Decimal] = None
+    questions_number: Optional[int] = None
+    number_to_create: Optional[int] = None
+    scale: Optional[int] = None
+    time: Optional[int] = None
+    updated_by: Optional[str] = None
+
+
+class SubjectConfigResponse(SubjectConfigBase):
+    id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class SubjectConfigListResponse(BaseModel):
+    success: bool = True
+    count: int
+    data: List[SubjectConfigResponse]

@@ -174,8 +174,8 @@ export default function QuestionReviewModule({
           case 'draft':
           default:
             return (
-              <span className="px-2.5 py-0.5 rounded border border-rose-455 text-rose-500 bg-rose-50 text-[11px] font-bold">
-                Từ chối / Nháp
+              <span className="px-2.5 py-0.5 rounded border border-slate-300 text-slate-600 bg-slate-50 text-[11px] font-bold">
+                Tạo mới
               </span>
             );
         }
@@ -321,7 +321,7 @@ export default function QuestionReviewModule({
                       { value: 'all', label: 'Tất cả' },
                       { value: 'pending', label: 'Chờ thẩm định' },
                       { value: 'approved', label: 'Đã thẩm định' },
-                      { value: 'draft', label: 'Từ chối / Nháp' }
+                      { value: 'draft', label: 'Tạo mới' }
                     ]}
                   />
                 </div>
