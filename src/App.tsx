@@ -264,11 +264,11 @@ export default function App() {
   // "Quản trị hệ thống" -> sub-items: ["Quản lý người dùng", "Quản lý nhóm người dùng", "Chính sách bảo mật"]
   // "Quản trị danh mục" -> sub-items: ["Danh mục môn học", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
   const menuItems = [
-    {
-      key: 'dashboard',
-      icon: <HomeOutlined />,
-      label: 'Bảng điều khiển Tổng quan',
-    },
+    // {
+    //   key: 'dashboard',
+    //   icon: <HomeOutlined />,
+    //   label: 'Bảng điều khiển Tổng quan',
+    // },
     {
       key: 'xay-dung-de',
       icon: <ProjectOutlined />,
@@ -600,7 +600,7 @@ export default function App() {
 
           {/* Right Actions container */}
           <div className="flex items-center gap-4">
-            <Badge count={2} size="small" id="notification-bell-badge">
+            {/* <Badge count={2} size="small" id="notification-bell-badge">
               <Button
                 type="text"
                 shape="circle"
@@ -609,7 +609,7 @@ export default function App() {
                 onClick={() => message.info('Bạn đang có 2 thông báo thẩm định mới đang chờ phê duyệt chuyên môn.')}
                 icon={<span className="text-xs">🔔</span>}
               />
-            </Badge>
+            </Badge> */}
 
             {/* Drodown logged-in user details */}
             <Dropdown menu={userMenuItems} trigger={['click']} placement="bottomRight">
