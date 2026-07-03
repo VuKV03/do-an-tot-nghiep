@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pydantic schemas for request/response validation — Exam Service.
 """
 # pyrefly: ignore [missing-import]
@@ -46,6 +46,7 @@ class QuestionManualCreate(BaseModel):
     options: Optional[List[str]] = None
     correctAnswer: Optional[str | List[str]] = None
     statements: Optional[list] = None
+    competencyComponentId: Optional[str] = None
     creator: Optional[str] = None
     createdAt: Optional[str] = None
     status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'

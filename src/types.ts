@@ -26,6 +26,8 @@ export interface Question {
   topicId: string;
   topicName: string;
   subTopicName?: string;
+  nangLucId?: string;
+  nangLuc?: string;
   options?: string[]; // for single and multiple options
   correctAnswer?: string | string[]; // for single/multiple/true_false/short answers
   statements?: TrueFalseStatement[]; // for true_false questions with statement-level metadata

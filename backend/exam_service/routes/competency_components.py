@@ -42,11 +42,19 @@ def _to_response(obj: CompetencyComponent) -> CompetencyComponentResponse:
 
 
 @router.get("/", response_model=CompetencyComponentListResponse)
-async def list_competency_components(db: AsyncSession = Depends(get_db)):
+async def list_competency_components(
+    subject_id: str | None = None,
+    grade_id: str | None = None,
+    db: AsyncSession = Depends(get_db)
+):
     """Lấy danh sách tất cả thành phần năng lực."""
-    result = await db.execute(
-        select(CompetencyComponent).order_by(CompetencyComponent.created_at.desc())
-    )
+    query = select(CompetencyComponent)
+    if subject_id:
+        query = query.where(CompetencyComponent.subject_id == subject_id)
+    # Note: competency_components table currently doesn't have a grade_id column to filter by.
+    query = query.order_by(CompetencyComponent.created_at.desc())
+    
+    result = await db.execute(query)
     items = result.scalars().all()
     data = [_to_response(i) for i in items]
     return CompetencyComponentListResponse(success=True, count=len(data), data=data)
