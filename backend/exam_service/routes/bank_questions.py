@@ -4,6 +4,7 @@ Using SQLAlchemy ORM to query the `questions` table and its associated tables.
 """
 import json
 import time
+import uuid
 from typing import Optional, List
 from datetime import datetime, timezone
 
@@ -23,10 +24,23 @@ from backend.exam_service.models import (
     GradeLevel,
     CognitiveLevel,
     QuestionType,
-    Topic
+    Topic,
+    CompetencyComponent,
+    QuestionHistory
 )
 
 router = APIRouter(prefix="/bank-questions", tags=["Bank Questions"])
+
+
+class QuestionReviewRequest(BaseModel):
+    comment: Optional[str] = ""
+
+
+class BulkReviewRequest(BaseModel):
+    ids: List[str]
+    verdict: str  # "approve" or "reject"
+    comment: Optional[str] = ""
+
 
 
 def _now() -> str:
@@ -86,6 +100,7 @@ class BankQuestionCreate(BaseModel):
     options: Optional[List[str]] = None
     correctAnswer: Optional[str | List[str]] = None
     status: Optional[str] = "draft"
+    competencyComponentId: Optional[str] = None
 
 
 class BankQuestionUpdate(BaseModel):
@@ -95,6 +110,7 @@ class BankQuestionUpdate(BaseModel):
     options: Optional[List[str]] = None
     correctAnswer: Optional[str | List[str]] = None
     status: Optional[str] = None
+    competencyComponentId: Optional[str] = None
 
 
 @router.get("/")
@@ -107,13 +123,16 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             GradeLevel.name.label("grade_name"),
             Topic.name.label("topic_name"),
             CognitiveLevel.code.label("level_code"),
-            QuestionType.code.label("type_code")
+            QuestionType.code.label("type_code"),
+            Question.competency_component_id,
+            CompetencyComponent.name.label("competency_name")
         )
         .outerjoin(SubjectCategory, Question.subject_id == SubjectCategory.id)
         .outerjoin(GradeLevel, Question.grade_id == GradeLevel.id)
         .outerjoin(Topic, Question.topic_id == Topic.id)
         .outerjoin(CognitiveLevel, Question.level_id == CognitiveLevel.id)
         .outerjoin(QuestionType, Question.type_id == QuestionType.id)
+        .outerjoin(CompetencyComponent, Question.competency_component_id == CompetencyComponent.id)
         .order_by(Question.id.desc())
     )
     
@@ -121,7 +140,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
     rows = result.all()
 
     data = []
-    for q, subj_name, grade_name, topic_name, level_code, type_code in rows:
+    for q, subj_name, grade_name, topic_name, level_code, type_code, comp_id, comp_name in rows:
         # Parse options
         opts = []
         if q.options:
@@ -156,11 +175,14 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "topicId": q.topic_id or "",
             "topicName": topic_name or "",
             "subTopicName": "",
+            "nangLucId": comp_id,
+            "nangLuc": comp_name or "",
             "options": opts,
             "correctAnswer": correct_ans,
             "creator": "Hội đồng Chuyên môn",
             "createdAt": _now(),
             "examId": q.exam_id,
+            "feedback": q.approved_note or "",
         })
 
     return {"success": True, "count": len(data), "data": data}
@@ -232,6 +254,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         grade_id=grade.id if grade else None,
         level_id=level.id if level else None,
         type_id=qtype.id if qtype else None,
+        competency_component_id=body.competencyComponentId,
         exam_id=exam_id,
         status=status_int,
         line_number=1,
@@ -294,6 +317,8 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
         question.correct_answer = json.dumps(body.correctAnswer, ensure_ascii=False) if isinstance(body.correctAnswer, list) else str(body.correctAnswer)
     if body.status is not None:
         question.status = {"approved": 2, "pending": 1, "draft": 0}.get(body.status, 0)
+    if body.competencyComponentId is not None:
+        question.competency_component_id = body.competencyComponentId
 
     await db.commit()
     return {"success": True, "message": "Cập nhật câu hỏi thành công!"}
@@ -327,8 +352,37 @@ async def submit_bank_question(question_id: str, db: AsyncSession = Depends(get_
     return {"success": True, "message": "Đã gửi câu hỏi đi thẩm định!"}
 
 
+@router.post("/bulk-review")
+async def bulk_review_bank_questions(body: BulkReviewRequest, db: AsyncSession = Depends(get_db)):
+    """Thẩm định nhanh hàng loạt câu hỏi."""
+    stmt = select(Question).where(Question.id.in_(body.ids))
+    res = await db.execute(stmt)
+    questions = res.scalars().all()
+    
+    status_val = 2 if body.verdict == "approve" else -1
+    action_label = "Đồng ý" if body.verdict == "approve" else "Từ chối"
+    
+    for question in questions:
+        question.status = status_val
+        question.approved_note = body.comment or ""
+        
+        # Log QuestionHistory
+        history_obj = QuestionHistory(
+            id=str(uuid.uuid4()),
+            question_id=question.id,
+            actor="admin",
+            action=action_label,
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            note=body.comment or (f"{action_label} thẩm định hàng loạt")
+        )
+        db.add(history_obj)
+        
+    await db.commit()
+    return {"success": True, "message": f"Đã thẩm định thành công {len(questions)} câu hỏi!"}
+
+
 @router.post("/{question_id}/approve")
-async def approve_bank_question(question_id: str, db: AsyncSession = Depends(get_db)):
+async def approve_bank_question(question_id: str, body: QuestionReviewRequest = QuestionReviewRequest(), db: AsyncSession = Depends(get_db)):
     """Phê duyệt câu hỏi (status → 2)."""
     stmt = select(Question).where(Question.id == question_id)
     res = await db.execute(stmt)
@@ -337,12 +391,25 @@ async def approve_bank_question(question_id: str, db: AsyncSession = Depends(get
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
 
     question.status = 2
+    question.approved_note = body.comment or ""
+    
+    # Log QuestionHistory
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor="admin",
+        action="Đồng ý",
+        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        note=body.comment or "Đồng ý thẩm định"
+    )
+    db.add(history_obj)
+    
     await db.commit()
     return {"success": True, "message": "Đã phê duyệt câu hỏi!"}
 
 
 @router.post("/{question_id}/reject")
-async def reject_bank_question(question_id: str, db: AsyncSession = Depends(get_db)):
+async def reject_bank_question(question_id: str, body: QuestionReviewRequest = QuestionReviewRequest(), db: AsyncSession = Depends(get_db)):
     """Từ chối câu hỏi (status → -1 rejected)."""
     stmt = select(Question).where(Question.id == question_id)
     res = await db.execute(stmt)
@@ -351,5 +418,18 @@ async def reject_bank_question(question_id: str, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
 
     question.status = -1
+    question.approved_note = body.comment or ""
+    
+    # Log QuestionHistory
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor="admin",
+        action="Từ chối",
+        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        note=body.comment or "Từ chối thẩm định"
+    )
+    db.add(history_obj)
+    
     await db.commit()
     return {"success": True, "message": "Đã từ chối câu hỏi!"}

@@ -170,10 +170,15 @@ export const subjectConfigApi = {
 // ─── CognitiveLevel API ───────────────────────────────────────────────────
 
 export const cognitiveLevelApi = {
-  list: () =>
-    apiFetch<{ success: boolean; count: number; data: CognitiveLevelAPI[] }>(
-      '/cognitive-levels/',
-    ),
+  list: (params?: { subject_id?: string; grade_id?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.subject_id) query.append('subject_id', params.subject_id);
+    if (params?.grade_id) query.append('grade_id', params.grade_id);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return apiFetch<{ success: boolean; count: number; data: CognitiveLevelAPI[] }>(
+      `/cognitive-levels/${queryString}`,
+    );
+  },
   create: (body: Omit<CognitiveLevelAPI, 'id' | 'created_at' | 'updated_at'>) =>
     apiFetch<{ success: boolean; message: string; data: CognitiveLevelAPI }>(
       '/cognitive-levels/',
@@ -222,12 +227,17 @@ export const questionTypeApi = {
 // ─── CompetencyComponent API ──────────────────────────────────────────────
 
 export const competencyComponentApi = {
-  list: () =>
-    apiFetch<{
+  list: (params?: { subject_id?: string; grade_id?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.subject_id) query.append('subject_id', params.subject_id);
+    if (params?.grade_id) query.append('grade_id', params.grade_id);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return apiFetch<{
       success: boolean;
       count: number;
       data: CompetencyComponentAPI[];
-    }>('/competency-components/'),
+    }>(`/competency-components/${queryString}`);
+  },
   create: (
     body: Omit<CompetencyComponentAPI, 'id' | 'created_at' | 'updated_at'>,
   ) =>
@@ -451,7 +461,10 @@ export interface BankQuestionAPI {
   correctAnswer: string;
   creator: string;
   createdAt: string;
+  nangLucId?: string;
+  nangLuc?: string;
   examId?: string | null;
+  feedback?: string;
 }
 
 export interface BankQuestionCreateAPI {
@@ -491,15 +504,20 @@ export const bankQuestionApi = {
       `/bank-questions/${id}/submit`,
       { method: 'POST' },
     ),
-  approve: (id: string) =>
+  approve: (id: string, comment?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/approve`,
-      { method: 'POST' },
+      { method: 'POST', body: comment !== undefined ? JSON.stringify({ comment }) : undefined },
     ),
-  reject: (id: string) =>
+  reject: (id: string, comment?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/reject`,
-      { method: 'POST' },
+      { method: 'POST', body: comment !== undefined ? JSON.stringify({ comment }) : undefined },
+    ),
+  bulkReview: (ids: string[], verdict: 'approve' | 'reject', comment?: string) =>
+    apiFetch<{ success: boolean; message: string }>(
+      `/bank-questions/bulk-review`,
+      { method: 'POST', body: JSON.stringify({ ids, verdict, comment }) },
     ),
 };
 
