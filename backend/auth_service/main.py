@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select, func
 
 from backend.shared.database import ensure_database_exists, init_tables, async_session
-from backend.auth_service.models import User, UserGroup
+from backend.auth_service.models import User, UserGroup, Permission, GroupPermission
 from backend.auth_service.routes.auth import router as auth_router
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -69,7 +69,6 @@ async def seed_admin_user():
                 name="Quản trị hệ thống",
                 description="Nhóm có toàn quyền quản trị hệ thống và người dùng.",
                 memberCount=1,
-                permissions=json.dumps(["system.*", "questions.*", "matrix.*", "exams.*"]),
                 createdAt=datetime.utcnow().isoformat() + "Z",
             )
             db.add(admin_group)
@@ -80,11 +79,59 @@ async def seed_admin_user():
                 name="Giáo viên",
                 description="Nhóm giáo viên có thể quản lý câu hỏi và đề thi.",
                 memberCount=1,
-                permissions=json.dumps(["questions.view", "questions.create", "matrix.create", "exams.create", "exams.view"]),
                 createdAt=datetime.utcnow().isoformat() + "Z",
             )
             db.add(teacher_group)
             
+            await db.commit()
+
+            # Create default permissions
+            default_perms = [
+                # Wildcards
+                {"code": "system.*", "name": "Tất cả quyền hệ thống", "module": "Hệ thống"},
+                {"code": "questions.*", "name": "Tất cả quyền câu hỏi", "module": "Ngân hàng câu hỏi"},
+                {"code": "matrix.*", "name": "Tất cả quyền ma trận", "module": "Ma trận & Đề thi"},
+                {"code": "exams.*", "name": "Tất cả quyền đề thi", "module": "Ma trận & Đề thi"},
+                # Quản lý Ngân hàng câu hỏi
+                {"code": "questions.view", "name": "Xem danh sách & chi tiết câu hỏi công khai", "module": "Quản lý Ngân hàng câu hỏi"},
+                {"code": "questions.create", "name": "Thêm mới câu hỏi & Nhập từ Word/Excel", "module": "Quản lý Ngân hàng câu hỏi"},
+                {"code": "questions.edit", "name": "Biên sửa thông tin câu hỏi chưa kiểm duyệt", "module": "Quản lý Ngân hàng câu hỏi"},
+                {"code": "questions.delete", "name": "Hạ tải & Xóa vĩnh viễn câu hỏi khỏi ngân hàng", "module": "Quản lý Ngân hàng câu hỏi"},
+                # Thẩm định & Chất lượng
+                {"code": "questions.approve", "name": "Duyệt câu hỏi vào Ngân hàng chính thức", "module": "Thẩm định & Chất lượng chuyên môn"},
+                {"code": "questions.review", "name": "Phản hồi, chấm điểm đóng góp nội dung", "module": "Thẩm định & Chất lượng chuyên môn"},
+                # Cấu trúc ma trận & Đề thi
+                {"code": "matrix.view", "name": "Xem danh sách ma trận đề thi", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "matrix.create", "name": "Tạo mới mẫu ma trận phân bổ câu hỏi", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "matrix.edit", "name": "Chỉnh sửa, phân bố tỉ lệ các câu tự động", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "matrix.delete", "name": "Xóa ma trận cấu hình đề", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "exams.view", "name": "Xem, tải file Word đề thi và đáp án", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "exams.create", "name": "Sinh ngẫu nhiên đề thi & tráo vị trí đề", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "exams.edit", "name": "Biên tập lại đề thi", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                {"code": "exams.delete", "name": "Xóa đề thi", "module": "Cấu trúc ma trận & Đề kiểm thi"},
+                # Quản trị hệ thống & Bảo mật
+                {"code": "system.categories", "name": "Quản lý danh mục dùng chung", "module": "Quản trị hệ thống & Bảo mật"},
+                {"code": "system.users", "name": "Quản lý thông tin tài khoản cán bộ", "module": "Quản trị hệ thống & Bảo mật"},
+                {"code": "system.groups", "name": "Phân vai trò và điều chỉnh nhóm người dùng", "module": "Quản trị hệ thống & Bảo mật"},
+                {"code": "system.policies", "name": "Thay đổi chính sách bảo mật", "module": "Quản trị hệ thống & Bảo mật"},
+            ]
+            for p in default_perms:
+                existing_p = await db.execute(select(Permission).where(Permission.code == p["code"]))
+                if not existing_p.scalar_one_or_none():
+                    db.add(Permission(id=f"p-{int(time.time() * 1000)}-{p['code']}", code=p["code"], name=p["name"], module=p["module"]))
+            await db.commit()
+
+            # Assign permissions to groups
+            admin_perms = ["system.*", "questions.*", "matrix.*", "exams.*"]
+            for p in admin_perms:
+                p_id = (await db.execute(select(Permission.id).where(Permission.code == p))).scalar_one()
+                db.add(GroupPermission(id=f"gp-{int(time.time() * 1000)}-{p_id}", group_id=admin_group.id, permission_id=p_id))
+            
+            teacher_perms = ["questions.view", "questions.create", "matrix.create", "exams.create", "exams.view"]
+            for p in teacher_perms:
+                p_id = (await db.execute(select(Permission.id).where(Permission.code == p))).scalar_one()
+                db.add(GroupPermission(id=f"gp-{int(time.time() * 1000)}-{p_id}", group_id=teacher_group.id, permission_id=p_id))
+
             await db.commit()
             print("[Auth Service] Da tao nhom GRP_ADMIN va GRP_TEACHER.")
 
