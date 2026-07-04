@@ -382,7 +382,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       {/* Filters */}
       <div className="bg-white rounded-lg p-5">
         <h2 className="text-[#1a3b70] font-bold mb-4 text-sm">Tìm kiếm thông tin</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mã người dùng/ tên đăng nhập</label>
@@ -446,7 +446,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
                 <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
                 <th className="py-3 px-4 text-center w-16">STT</th>
-                <th className="py-3 px-4 text-left">Mã người dùng<br/>/tên đăng nhập</th>
+                <th className="py-3 px-4 text-left">Mã người dùng<br />/tên đăng nhập</th>
                 <th className="py-3 px-4 text-left">Họ và tên</th>
                 <th className="py-3 px-4 text-left">Nhóm người dùng</th>
                 <th className="py-3 px-4 text-left">Chức vụ</th>
@@ -495,15 +495,15 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                         disabled={u.username === 'admin'}
                         menu={{
                           items: [
-                            { 
-                              key: 'active', 
-                              label: <span className="text-emerald-600 font-semibold text-xs">Đang hoạt động</span>, 
-                              onClick: () => { if(u.status !== 'active') handleToggleUserStatus(u); }
+                            {
+                              key: 'active',
+                              label: <span className="text-emerald-600 font-semibold text-xs">Đang hoạt động</span>,
+                              onClick: () => { if (u.status !== 'active') handleToggleUserStatus(u); }
                             },
-                            { 
-                              key: 'inactive', 
-                              label: <span className="text-red-500 font-semibold text-xs">Khóa</span>, 
-                              onClick: () => { if(u.status === 'active') handleToggleUserStatus(u); }
+                            {
+                              key: 'inactive',
+                              label: <span className="text-red-500 font-semibold text-xs">Khóa</span>,
+                              onClick: () => { if (u.status === 'active') handleToggleUserStatus(u); }
                             }
                           ]
                         }}
@@ -524,7 +524,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                     </td>
                     <td className="py-3 px-4 text-center">
                       <Space size={12}>
-                        <div 
+                        <div
                           className="bg-blue-50 text-[#1e40af] p-1.5 rounded cursor-pointer hover:bg-blue-100 transition-colors"
                           onClick={() => handleOpenEditUser(u)}
                         >
@@ -580,12 +580,12 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-white">
           <div className="text-[11px] text-slate-500 font-semibold tracking-wide">
-            1 - {filteredUsers.length} / 1234 bản ghi
+            1 - {filteredUsers.length} / {filteredUsers.length} bản ghi
           </div>
-          <Pagination 
-            size="small" 
-            total={1234} 
-            showSizeChanger 
+          <Pagination
+            size="small"
+            total={filteredUsers.length}
+            showSizeChanger
             showQuickJumper={false}
             defaultPageSize={10}
             pageSizeOptions={['10', '20', '50', '100']}
@@ -621,17 +621,17 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
         onCancel={() => setIsUserModalOpen(false)}
         footer={
           <div className="flex justify-center gap-4 mt-6">
-            <Button 
-              key="back" 
-              onClick={() => setIsUserModalOpen(false)} 
+            <Button
+              key="back"
+              onClick={() => setIsUserModalOpen(false)}
               className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
             >
               Đóng
             </Button>
-            <Button 
-              key="submit" 
-              type="primary" 
-              onClick={handleSaveUserForm} 
+            <Button
+              key="submit"
+              type="primary"
+              onClick={handleSaveUserForm}
               className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
             >
               Lưu
@@ -725,8 +725,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           <div className="mb-2">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-bold text-slate-800 m-0">Nhóm người dùng</h3>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-medium rounded"
                 onClick={() => {
                   setTempSelectedGroupIds(selectedGroups.map(g => g.id));
@@ -736,10 +736,10 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 Thêm nhóm người dùng
               </Button>
             </div>
-            
-            <Input 
-              prefix={<SearchOutlined className="text-slate-400" />} 
-              placeholder="Tìm kiếm theo mã nhóm, tên nhóm" 
+
+            <Input
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Tìm kiếm theo mã nhóm, tên nhóm"
               className="rounded py-1.5 mb-4"
             />
 
@@ -765,17 +765,17 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                     selectedGroups.map((group, index) => (
                       <tr key={group.id} className="hover:bg-slate-50">
                         <td className="py-3 px-4 text-center">
-                          <Radio 
-                            checked={defaultGroupId === group.id} 
+                          <Radio
+                            checked={defaultGroupId === group.id}
                             onChange={() => setDefaultGroupId(group.id)}
-                            className="custom-radio" 
+                            className="custom-radio"
                           />
                         </td>
                         <td className="py-3 px-4 text-center">{index + 1}</td>
                         <td className="py-3 px-4">{group.code}</td>
                         <td className="py-3 px-4">{group.name}</td>
                         <td className="py-3 px-4 text-center">
-                          <div 
+                          <div
                             className="bg-red-50 text-red-500 p-1.5 rounded inline-flex cursor-pointer hover:bg-red-100"
                             onClick={() => {
                               const newGroups = selectedGroups.filter(g => g.id !== group.id);
@@ -795,9 +795,9 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               </table>
               <div className="p-3 border-t border-slate-200 flex justify-between items-center bg-white text-xs text-slate-500">
                 <span>1 - {selectedGroups.length} / {selectedGroups.length} bản ghi</span>
-                <Pagination 
-                  size="small" 
-                  total={selectedGroups.length} 
+                <Pagination
+                  size="small"
+                  total={selectedGroups.length}
                   showSizeChanger={false}
                   defaultPageSize={10}
                 />
@@ -816,14 +816,14 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
         centered
         footer={
           <div className="flex justify-center gap-4 mt-6">
-            <Button 
-              onClick={() => setIsAddGroupModalOpen(false)} 
+            <Button
+              onClick={() => setIsAddGroupModalOpen(false)}
               className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
             >
               Hủy
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               onClick={() => {
                 const newlySelected = allGroups.filter(g => tempSelectedGroupIds.includes(g.id));
                 setSelectedGroups(newlySelected);

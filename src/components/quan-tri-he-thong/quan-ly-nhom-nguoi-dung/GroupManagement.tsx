@@ -31,6 +31,71 @@ import { AuditLog } from '../../../types';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+
+const MENU_STRUCTURE = [
+  {
+    key: 'xay-dung-de',
+    label: 'Xây dựng đề thi',
+    children: [
+      { key: 'quan-ly-ma-tran-de', label: 'Quản lý ma trận đề' },
+      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề thi & gói đề' }
+    ]
+  },
+  {
+    key: 'quan-ly-nhch',
+    label: 'Quản lý ngân hàng câu hỏi',
+    children: [
+      { key: 'chu-de-cau-hoi', label: 'Chủ đề câu hỏi' },
+      { key: 'ngan-hang-cau-hoi', label: 'Ngân hàng câu hỏi' },
+      { key: 'thong-ke-nhch', label: 'Thống kê NHCH' }
+    ]
+  },
+  {
+    key: 'quan-tri-he-thong',
+    label: 'Quản trị hệ thống',
+    children: [
+      { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
+      { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
+      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
+    ]
+  },
+  {
+    key: 'quan-tri-danh-muc',
+    label: 'Quản trị danh mục',
+    children: [
+      { key: 'danh-muc-mon-hoc', label: 'Danh mục môn học' },
+      { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
+      { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
+      { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
+      { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
+      { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
+    ]
+  }
+];
+
+const PERMISSION_MAP: Record<string, string[]> = {
+  'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+  'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
+  'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+  
+  'quan-ly-nhch': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
+  'chu-de-cau-hoi': ['questions.view', 'questions.approve', 'questions.review'],
+  'ngan-hang-cau-hoi': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
+  'thong-ke-nhch': ['questions.view', 'questions.approve', 'questions.review'],
+  
+  'quan-tri-he-thong': ['system.users', 'system.groups', 'system.policies'],
+  'quan-ly-nguoi-dung': ['system.users'],
+  'quan-ly-nhom-nguoi-dung': ['system.groups'],
+  'chinh-sach-bao-mat': ['system.policies'],
+  
+  'quan-tri-danh-muc': ['system.categories'],
+  'danh-muc-mon-hoc': ['system.categories'],
+  'danh-muc-khoi-lop': ['system.categories'],
+  'cap-do-tu-duy': ['system.categories'],
+  'loai-hinh-cau-hoi': ['system.categories'],
+  'thanh-phan-nang-luc': ['system.categories'],
+  'danh-muc-dot-thi': ['system.categories']
+};
 interface SecurityLog {
   id: string;
   user: string;
@@ -80,6 +145,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
 
   React.useEffect(() => {
     fetchGroups();
+    fetchPermissions();
   }, []);
 
   const filteredGroups = useMemo(() => {
@@ -93,6 +159,37 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [activeGroupForPermissions, setActiveGroupForPermissions] = useState<UserGroup | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+  const accessibleMenus = useMemo(() => {
+    const hasAccess = (key: string) => {
+      if (selectedPermissions.includes('system.*')) return true;
+      const requiredPerms = PERMISSION_MAP[key];
+      if (requiredPerms) {
+        return requiredPerms.some(p => 
+          selectedPermissions.includes(p) || selectedPermissions.some(vp => vp.endsWith('.*') && p.startsWith(vp.replace('.*', '')))
+        );
+      }
+      return false;
+    };
+
+    const filterMenu = (items: any[]): any[] => {
+      return items.reduce((acc, item) => {
+        if (item.children) {
+          const filteredChildren = filterMenu(item.children);
+          if (filteredChildren.length > 0) {
+            acc.push({ ...item, children: filteredChildren });
+          }
+        } else {
+          if (hasAccess(item.key)) {
+            acc.push(item);
+          }
+        }
+        return acc;
+      }, []);
+    };
+
+    return filterMenu(MENU_STRUCTURE);
+  }, [selectedPermissions]);
 
   const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
@@ -153,43 +250,29 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
     }
   };
 
-  // System available modular permissions mapped visually
-  const SYSTEM_PERMISSION_SCOPES = [
-    {
-      category: 'Quản lý Ngân hàng câu hỏi',
-      items: [
-        { key: 'questions.view', label: 'Xem danh sách & chi tiết câu hỏi công khai' },
-        { key: 'questions.create', label: 'Thêm mới câu hỏi & Nhập từ Word/Excel' },
-        { key: 'questions.edit', label: 'Biên sửa thông tin câu hỏi chưa kiểm duyệt' },
-        { key: 'questions.delete', label: 'Hạ tải & Xóa vĩnh viễn câu hỏi khỏi ngân hàng' }
-      ]
-    },
-    {
-      category: 'Thẩm định & Chất lượng chuyên môn',
-      items: [
-        { key: 'questions.approve', label: 'Duyệt câu hỏi vào Ngân hàng chính thức' },
-        { key: 'questions.review', label: 'Phản hồi, chấm điểm đóng góp nội dung giáo nghệ' }
-      ]
-    },
-    {
-      category: 'Cấu trúc ma trận & Đề kiểm thi',
-      items: [
-        { key: 'matrix.create', label: 'Tạo mới mẫu ma trận phân bổ câu hỏi' },
-        { key: 'matrix.edit', label: 'Chỉnh sửa, phân bố tỉ lệ các câu tự động' },
-        { key: 'matrix.delete', label: 'Xóa ma trận cấu hình đề' },
-        { key: 'exams.create', label: 'Sinh ngẫu nhiên đề thi & tráo vị trí đề tự động' },
-        { key: 'exams.view', label: 'Xem, tải file Word đề thi và đáp án chi tiết' }
-      ]
-    },
-    {
-      category: 'Quản trị hệ thống & Bảo mật',
-      items: [
-        { key: 'system.users', label: 'Quản lý thông tin tài khoản cán bộ' },
-        { key: 'system.groups', label: 'Phân vai trò và điều chỉnh nhóm người dùng' },
-        { key: 'system.policies', label: 'Thay đổi chính sách bảo mật và hạn mức vận hành' }
-      ]
+  const [SYSTEM_PERMISSION_SCOPES, setSYSTEM_PERMISSION_SCOPES] = useState<{category: string, items: {key: string, label: string}[]}[]>([]);
+
+  const fetchPermissions = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/permissions`);
+      if (res.data.success) {
+        const grouped: Record<string, {key: string, label: string}[]> = {};
+        res.data.data.forEach((p: {code: string, name: string, module: string}) => {
+          if (!grouped[p.module]) {
+            grouped[p.module] = [];
+          }
+          grouped[p.module].push({ key: p.code, label: p.name });
+        });
+        const formatted = Object.keys(grouped).map(k => ({
+          category: k,
+          items: grouped[k]
+        }));
+        setSYSTEM_PERMISSION_SCOPES(formatted);
+      }
+    } catch (err) {
+      console.error('Error fetching permissions:', err);
     }
-  ];
+  };
 
   const handleOpenPermissionEditor = (group: UserGroup) => {
     setActiveGroupForPermissions(group);
@@ -527,11 +610,11 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-white">
           <div className="text-[11px] text-slate-500 font-semibold tracking-wide">
-            1 - {filteredGroups.length} / 1234 bản ghi
+            1 - {filteredGroups.length} / {filteredGroups.length} bản ghi
           </div>
           <Pagination 
             size="small" 
-            total={1234} 
+            total={filteredGroups.length} 
             showSizeChanger 
             showQuickJumper={false}
             defaultPageSize={10}
@@ -570,7 +653,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
           </div>
         }
         centered
-        width={600}
+        width={1000}
         closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
       >
         {activeGroupForPermissions && (
@@ -585,73 +668,102 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
               )}
             </div>
 
-            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
-              {SYSTEM_PERMISSION_SCOPES.map(scope => {
-                const categoryKeys = scope.items.map(item => item.key);
-                const isAllChecked = categoryKeys.every(key => 
-                  selectedPermissions.includes(key) || 
-                  selectedPermissions.includes('system.*') || 
-                  selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
-                );
-                const isIndeterminate = !isAllChecked && categoryKeys.some(key => 
-                  selectedPermissions.includes(key) || 
-                  selectedPermissions.includes('system.*') || 
-                  selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
-                );
+            <div className="grid grid-cols-5 gap-6">
+              <div className="col-span-3">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">Danh sách Quyền hạn</h3>
+                <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
+                  {SYSTEM_PERMISSION_SCOPES.map(scope => {
+                    const categoryKeys = scope.items.map(item => item.key);
+                    const isAllChecked = categoryKeys.every(key => 
+                      selectedPermissions.includes(key) || 
+                      selectedPermissions.includes('system.*') || 
+                      selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
+                    );
+                    const isIndeterminate = !isAllChecked && categoryKeys.some(key => 
+                      selectedPermissions.includes(key) || 
+                      selectedPermissions.includes('system.*') || 
+                      selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
+                    );
 
-                return (
-                <div key={scope.category} className="space-y-3 border-b last:border-b-0 pb-4 border-slate-100 last:pb-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-[#1e40af] block select-none">
-                      {scope.category}
-                    </span>
-                    <Checkbox 
-                      checked={isAllChecked}
-                      indeterminate={isIndeterminate}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        if (checked) {
-                          setSelectedPermissions(prev => {
-                            const newPerms = [...prev];
-                            categoryKeys.forEach(k => {
-                              if (!newPerms.includes(k)) newPerms.push(k);
-                            });
-                            return newPerms;
-                          });
-                        } else {
-                          setSelectedPermissions(prev => prev.filter(p => !categoryKeys.includes(p) && p !== 'system.*' && !categoryKeys.some(k => p.endsWith('.*') && k.startsWith(p.replace('.*', '')))));
-                        }
-                      }}
-                      className="text-xs font-semibold text-slate-600"
-                    >
-                      Chọn tất cả
-                    </Checkbox>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-3 pl-2">
-                    {scope.items.map(item => {
-                      const isChecked = selectedPermissions.includes(item.key) || selectedPermissions.includes('system.*') || selectedPermissions.some(p => p.endsWith('.*') && item.key.startsWith(p.replace('.*', '')));
-                      return (
-                        <Checkbox
-                          key={item.key}
-                          checked={isChecked}
+                    return (
+                    <div key={scope.category} className="space-y-3 border-b last:border-b-0 pb-4 border-slate-100 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-[#1e40af] block select-none">
+                          {scope.category}
+                        </span>
+                        <Checkbox 
+                          checked={isAllChecked}
+                          indeterminate={isIndeterminate}
                           onChange={(e) => {
-                            const active = e.target.checked;
-                            if (active) {
-                              setSelectedPermissions(prev => [...prev, item.key]);
+                            const checked = e.target.checked;
+                            if (checked) {
+                              setSelectedPermissions(prev => {
+                                const newPerms = [...prev];
+                                categoryKeys.forEach(k => {
+                                  if (!newPerms.includes(k)) newPerms.push(k);
+                                });
+                                return newPerms;
+                              });
                             } else {
-                              setSelectedPermissions(prev => prev.filter(p => p !== item.key && p !== 'system.*'));
+                              setSelectedPermissions(prev => prev.filter(p => !categoryKeys.includes(p) && p !== 'system.*' && !categoryKeys.some(k => p.endsWith('.*') && k.startsWith(p.replace('.*', '')))));
                             }
                           }}
-                          className="text-sm text-slate-700 font-medium hover:text-slate-900 transition-colors"
+                          className="text-xs font-semibold text-slate-600"
                         >
-                          {item.label} <code className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-2">{item.key}</code>
+                          Chọn tất cả
                         </Checkbox>
-                      );
-                    })}
-                  </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-3 pl-2">
+                        {scope.items.map(item => {
+                          const isChecked = selectedPermissions.includes(item.key) || selectedPermissions.includes('system.*') || selectedPermissions.some(p => p.endsWith('.*') && item.key.startsWith(p.replace('.*', '')));
+                          return (
+                            <Checkbox
+                              key={item.key}
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const active = e.target.checked;
+                                if (active) {
+                                  setSelectedPermissions(prev => [...prev, item.key]);
+                                } else {
+                                  setSelectedPermissions(prev => prev.filter(p => p !== item.key && p !== 'system.*'));
+                                }
+                              }}
+                              className="text-sm text-slate-700 font-medium hover:text-slate-900 transition-colors"
+                            >
+                              {item.label} <code className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-2">{item.key}</code>
+                            </Checkbox>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )})}
                 </div>
-              )})}
+              </div>
+
+              <div className="col-span-2">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">Menu Tương ứng</h3>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 max-h-[380px] overflow-y-auto custom-scrollbar">
+                  {accessibleMenus.length === 0 ? (
+                    <div className="text-xs text-slate-500 text-center py-4">Chưa có menu nào được cấp phép</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {accessibleMenus.map((menu: any) => (
+                        <div key={menu.key} className="text-sm">
+                          <div className="font-bold text-[#1e40af] mb-1.5">{menu.label}</div>
+                          {menu.children && menu.children.length > 0 && (
+                            <ul className="list-disc pl-5 space-y-1 text-slate-600 text-xs font-semibold">
+                              {menu.children.map((child: any) => (
+                                <li key={child.key}>{child.label}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <Alert

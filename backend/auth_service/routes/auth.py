@@ -13,7 +13,7 @@ from sqlalchemy import select, func, delete
 from passlib.context import CryptContext
 
 from backend.shared.database import get_db
-from backend.auth_service.models import User, UserGroup, UserGroupMember, SecurityPolicy, AuditLog
+from backend.auth_service.models import User, UserGroup, UserGroupMember, SecurityPolicy, AuditLog, Permission, GroupPermission
 from backend.auth_service.schemas import (
     LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest,
     GroupCreateRequest, GroupUpdateRequest, GroupResponse,
@@ -24,6 +24,16 @@ from backend.auth_service.jwt_handler import create_access_token, create_refresh
 router = APIRouter(tags=["Authentication"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+@router.get("/permissions")
+async def list_permissions(db: AsyncSession = Depends(get_db)):
+    """Lấy danh sách tất cả các quyền hệ thống."""
+    result = await db.execute(select(Permission))
+    perms = result.scalars().all()
+    return {
+        "success": True,
+        "data": [{"code": p.code, "name": p.name, "module": p.module} for p in perms if not p.code.endswith(".*")]
+    }
 
 
 @router.post("/login")
@@ -40,19 +50,13 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     # Fetch groups and permissions
     ugm_result = await db.execute(
-        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        select(UserGroup.id, UserGroup.code, UserGroup.name)
         .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
         .where(UserGroupMember.user_id == user.id)
     )
-    import json
     user_groups = []
     for r in ugm_result.all():
-        perms = []
-        if r[3]:
-            try:
-                perms = json.loads(r[3])
-            except:
-                pass
+        perms = await get_group_permissions(db, r[0])
         user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
 
     token_data = {"sub": user.id, "username": user.username, "role": user.role}
@@ -112,19 +116,13 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     ugm_result = await db.execute(
-        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        select(UserGroup.id, UserGroup.code, UserGroup.name)
         .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
         .where(UserGroupMember.user_id == user.id)
     )
-    import json
     user_groups = []
     for r in ugm_result.all():
-        perms = []
-        if r[3]:
-            try:
-                perms = json.loads(r[3])
-            except:
-                pass
+        perms = await get_group_permissions(db, r[0])
         user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
     
     u_dict = UserResponse.model_validate(user).model_dump()
@@ -144,22 +142,15 @@ async def list_users(db: AsyncSession = Depends(get_db)):
     users = result.scalars().all()
     
     ugm_result = await db.execute(
-        select(UserGroupMember.user_id, UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        select(UserGroupMember.user_id, UserGroup.id, UserGroup.code, UserGroup.name)
         .join(UserGroup, UserGroupMember.group_id == UserGroup.id)
     )
     ugm_rows = ugm_result.all()
-    
     user_groups_map = {}
-    import json
-    for user_id, g_id, g_code, g_name, g_perms in ugm_rows:
+    for user_id, g_id, g_code, g_name in ugm_rows:
         if user_id not in user_groups_map:
             user_groups_map[user_id] = []
-        perms = []
-        if g_perms:
-            try:
-                perms = json.loads(g_perms)
-            except:
-                pass
+        perms = await get_group_permissions(db, g_id)
         user_groups_map[user_id].append({"id": g_id, "code": g_code, "name": g_name, "permissions": perms})
         
     data = []
@@ -213,19 +204,13 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
     await db.commit()
     
     ugm_result = await db.execute(
-        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        select(UserGroup.id, UserGroup.code, UserGroup.name)
         .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
         .where(UserGroupMember.user_id == user_id)
     )
-    import json
     user_groups = []
     for r in ugm_result.all():
-        perms = []
-        if r[3]:
-            try:
-                perms = json.loads(r[3])
-            except:
-                pass
+        perms = await get_group_permissions(db, r[0])
         user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
     
     u_dict = UserResponse.model_validate(user).model_dump()
@@ -282,13 +267,16 @@ async def change_password(user_id: str, body: ChangePasswordRequest, db: AsyncSe
 
 import json
 
-def parse_group_permissions(group: UserGroup):
-    perms = []
-    if group.permissions:
-        try:
-            perms = json.loads(group.permissions)
-        except:
-            pass
+async def get_group_permissions(db, group_id: str):
+    perm_result = await db.execute(
+        select(Permission.code)
+        .join(GroupPermission, GroupPermission.permission_id == Permission.id)
+        .where(GroupPermission.group_id == group_id)
+    )
+    return [r[0] for r in perm_result.all()]
+
+async def parse_group_permissions(db, group: UserGroup):
+    perms = await get_group_permissions(db, group.id)
     return {
         "id": group.id,
         "code": group.code,
@@ -329,7 +317,7 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
         )
         actual_count = count_result.scalar()
         
-        g_dict = parse_group_permissions(g)
+        g_dict = await parse_group_permissions(db, g)
         g_dict["memberCount"] = actual_count
         response_data.append(g_dict)
         
@@ -350,11 +338,18 @@ async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_
         code=body.code,
         name=body.name,
         description=body.description,
-        permissions=json.dumps(body.permissions) if body.permissions else "[]",
+        
         memberCount=0,
         createdAt=datetime.utcnow().isoformat() + "Z",
     )
     db.add(group)
+    await db.flush()
+    if body.permissions:
+        import time
+        for p_code in body.permissions:
+            p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one_or_none()
+            if p_id:
+                db.add(GroupPermission(id=f"gp-{int(time.time() * 10000)}-{p_id}", group_id=group.id, permission_id=p_id))
     
     if body.member_ids is not None:
         for u_id in body.member_ids:
@@ -371,7 +366,7 @@ async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_
     return {
         "success": True,
         "message": "Tạo nhóm thành công!",
-        "group": parse_group_permissions(group)
+        "group": await parse_group_permissions(db, group)
     }
 
 @router.put("/groups/{group_id}")
@@ -399,7 +394,12 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
     if body.description is not None:
         group.description = body.description
     if body.permissions is not None:
-        group.permissions = json.dumps(body.permissions)
+        await db.execute(delete(GroupPermission).where(GroupPermission.group_id == group_id))
+        import time
+        for p_code in body.permissions:
+            p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one_or_none()
+            if p_id:
+                db.add(GroupPermission(id=f"gp-{int(time.time() * 10000)}-{p_id}", group_id=group_id, permission_id=p_id))
         
     role_map = {
         "GRP_ADMIN": "admin",
@@ -435,7 +435,7 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
     )
     actual_count = count_result.scalar()
     
-    g_dict = parse_group_permissions(group)
+    g_dict = await parse_group_permissions(db, group)
     g_dict["memberCount"] = actual_count
     
     return {

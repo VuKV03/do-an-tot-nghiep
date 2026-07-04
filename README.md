@@ -136,3 +136,38 @@ Sau khi khởi chạy, hệ thống backend sẽ tự động kết nối và t�
   - **Exam Service**: `http://localhost:8001/docs`
   - **AI Service**: `http://localhost:8002/docs`
   - **Analytics Service**: `http://localhost:8003/docs`
+
+---
+
+## 📂 Cấu trúc thư mục (Folder Structure)
+
+Dự án được phân chia thành 2 phần chính: **Frontend (React/Vite)** và **Backend (Python Microservices)**.
+
+### 1. Thư mục Frontend (`/src`)
+Chứa toàn bộ mã nguồn của giao diện người dùng.
+- `src/components/`: Nơi chứa các thành phần giao diện (UI components) được chia theo chức năng.
+  - `dang-nhap-dang-ky/`: Các component liên quan đến xác thực (Login, Thay đổi mật khẩu, Hồ sơ).
+  - `layout/`: Thành phần bố cục chính của trang (AppSidebar, AppHeader).
+  - `quan-tri-he-thong/`: Các trang quản lý (Người dùng, Nhóm người dùng & Phân quyền, Chính sách bảo mật).
+- `src/config/`: File cấu hình chung của Frontend (ví dụ: `menuConfig.tsx` chứa danh sách điều hướng).
+- `src/hooks/`: Các custom React Hooks tái sử dụng.
+- `src/services/`: Chứa các hàm gọi API tương tác với Backend.
+- `src/utils/`: Các hàm tiện ích dùng chung (helper functions, permission rules).
+- `src/types.ts`: Định nghĩa cấu trúc dữ liệu (Interfaces/Types) cho TypeScript.
+- `src/App.tsx`: Component gốc, xử lý định tuyến và trạng thái đăng nhập.
+- `src/main.tsx`: Điểm neo khởi chạy ứng dụng React.
+
+### 2. Thư mục Backend (`/backend`)
+Chứa các dịch vụ Microservices xử lý logic nghiệp vụ.
+- `backend/gateway/`: API Gateway định tuyến và chuyển tiếp các HTTP requests từ Frontend tới các service tương ứng.
+- `backend/auth_service/`: Dịch vụ xác thực và phân quyền (Đăng nhập, Quản lý tài khoản, Nhóm quyền).
+- `backend/exam_service/`: Dịch vụ quản lý cốt lõi (Kho câu hỏi, Thẩm định, Ma trận đề thi, Sinh đề).
+- `backend/ai_service/`: Dịch vụ tương tác với Google Gemini để tự động tạo câu hỏi trắc nghiệm dựa trên ma trận.
+- `backend/analytics_service/`: Dịch vụ tính toán thống kê, cung cấp số liệu cho bảng tổng quan (Dashboard).
+- `backend/shared/`: Mã nguồn dùng chung cho tất cả các microservices (Cấu hình Database, Models cơ bản, Logger).
+
+### 3. Cấu hình & Khởi chạy (Root)
+- `start.js` / `start_services.py`: Cặp script đặc biệt dùng để khởi chạy song song nhiều dịch vụ Backend và máy chủ Frontend chỉ với một lệnh.
+- `package.json` / `vite.config.ts`: Cấu hình thư viện và trình biên dịch của Frontend.
+- `requirements.txt`: Danh sách các thư viện Python cần thiết cho Backend.
+- `dev/` / `venv/`: Thư mục chứa môi trường ảo (Virtual Environment) của Python.
