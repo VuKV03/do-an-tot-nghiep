@@ -142,6 +142,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         status=_status_to_int(body.status),
         status_ai=0,
         approved_note="",
+        statements=_as_json(body.statements),
     )
 
     db.add(question)
@@ -169,5 +170,6 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
             status_ai=question.status_ai or 0,
             approved_note=question.approved_note or "",
             exam_id=question.exam_id,
+            statements=question.statements,
         ),
     }

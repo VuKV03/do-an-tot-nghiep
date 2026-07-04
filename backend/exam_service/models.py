@@ -58,6 +58,7 @@ class Question(Base):
     status = Column(Integer, default=0)
     status_ai = Column(Integer, default=0)
     approved_note = Column(Text, default="")
+    statements = Column(Text, nullable=True)
 
     # Relationship
     exam = relationship("Exam", back_populates="questions")

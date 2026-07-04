@@ -126,13 +126,6 @@ export default function QuestionBankModule({
       setApiSubjects(subjectOptions);
       setApiGrades(gradeOptions);
       setAllTopicsRaw(topRes.data);
-      // Set defaults to first available values
-      if (subjectOptions.length > 0 && !selectedSubject) {
-        setSelectedSubject(subjectOptions[0].value);
-      }
-      if (gradeOptions.length > 0 && !selectedGrade) {
-        setSelectedGrade(gradeOptions[0].value);
-      }
     } catch (e) {
       console.error('Không thể tải dữ liệu môn học / chủ đề:', e);
     } finally {
@@ -184,14 +177,35 @@ export default function QuestionBankModule({
 
   // Subjects dropdown: prefer API data, fallback to static
   const subjectDropdownOptions = useMemo(
-    () => (apiSubjects.length > 0 ? apiSubjects : SUBJECTS),
+    () => [
+      { value: '', label: 'Tất cả' },
+      ...(apiSubjects.length > 0 ? apiSubjects : SUBJECTS)
+    ],
     [apiSubjects]
   );
   // Grades dropdown: prefer API data, fallback to static
   const gradeDropdownOptions = useMemo(
-    () => (apiGrades.length > 0 ? apiGrades : GRADES),
+    () => [
+      { value: '', label: 'Tất cả' },
+      ...(apiGrades.length > 0 ? apiGrades : GRADES)
+    ],
     [apiGrades]
   );
+
+  const selectedTopicObj = useMemo(() => {
+    if (!selectedTopicKey) return null;
+    return allTopicsRaw.find((t: any) => t.id === selectedTopicKey);
+  }, [selectedTopicKey, allTopicsRaw]);
+
+  const actualSubject = useMemo(() => {
+    if (selectedSubject) return selectedSubject;
+    return selectedTopicObj?.subject_name || '';
+  }, [selectedSubject, selectedTopicObj]);
+
+  const actualGrade = useMemo(() => {
+    if (selectedGrade) return selectedGrade;
+    return selectedTopicObj?.grade_name || '';
+  }, [selectedGrade, selectedTopicObj]);
 
   // Build topic tree from API data filtered by selected subject & grade
   const topicTreeData = useMemo(() => {
@@ -361,17 +375,20 @@ export default function QuestionBankModule({
     setAiGenerating(true);
     setAiSuggestedQuestion(null);
 
+    const targetSubject = actualSubject || 'Toán học';
+    const targetGrade = actualGrade || 'Khối 12';
+
     // Simulate generation loop
     setTimeout(() => {
       let aiText = '';
       let aiOptions: string[] = [];
       let aiAnswer = '';
 
-      if (selectedSubject === 'Toán học') {
+      if (targetSubject === 'Toán học') {
         aiText = `[Sinh tự động bởi AI] Tìm tiệm cận đứng và tiệm cận ngang của đồ thị hàm số phân thức y = (3x + 1) / (x - 2).`;
         aiOptions = ['A. x = 2; y = 3', 'B. x = -2; y = -3', 'C. x = 3; y = 2', 'D. Không có tiệm cận'];
         aiAnswer = 'A. x = 2; y = 3';
-      } else if (selectedSubject === 'Tiếng Anh') {
+      } else if (targetSubject === 'Tiếng Anh') {
         aiText = `[AI Question] Identify the incorrect underlined word: "Even though she had visited Paris twice, but she still wanted to go there again next summer."`;
         aiOptions = ['A. Even though', 'B. twice', 'C. but', 'D. next summer'];
         aiAnswer = 'C. but';
@@ -383,13 +400,13 @@ export default function QuestionBankModule({
 
       const generated: Question = {
         id: `q-ai-${Date.now()}`,
-        code: `AI-${selectedSubject.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000 + 1000)}`,
+        code: `AI-${targetSubject.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000 + 1000)}`,
         text: aiText,
         type: 'single',
         level: aiSelectedLevel,
         status: 'pending', // Directly sent to pending approval
-        subject: selectedSubject,
-        grade: selectedGrade || 'Khối 12',
+        subject: targetSubject,
+        grade: targetGrade,
         topicId: selectedTopicKey || topicTreeData[0]?.children?.[0]?.key || 'math-sub1.1',
         topicName: topicTreeData[0]?.title || 'Chủ đề đề xuất',
         subTopicName: topicTreeData[0]?.children?.[0]?.title || 'Tiểu mục đề xuất',
@@ -416,17 +433,19 @@ export default function QuestionBankModule({
 
   const handleImportMockFiles = () => {
     message.loading('Đang phân tích cấu trúc dữ liệu tệp tin nhập vào...');
+    const targetSubject = actualSubject || 'Toán học';
+    const targetGrade = actualGrade || 'Khối 12';
     setTimeout(() => {
       // Add two questions
       const importQ1: Question = {
         id: `q-imp-1-${Date.now()}`,
-        code: `IMP-${selectedSubject.substring(0, 3).toUpperCase()}-101`,
-        text: `[Imported] Câu hỏi trắc nghiệm tích hợp số 1 môn ${selectedSubject} bám sát cấu trúc ôn tập năm nay.`,
+        code: `IMP-${targetSubject.substring(0, 3).toUpperCase()}-101`,
+        text: `[Imported] Câu hỏi trắc nghiệm tích hợp số 1 môn ${targetSubject} bám sát cấu trúc ôn tập năm nay.`,
         type: 'single',
         level: 'nhan_biet',
         status: 'pending',
-        subject: selectedSubject,
-        grade: selectedGrade || 'Khối 12',
+        subject: targetSubject,
+        grade: targetGrade,
         topicId: selectedTopicKey || topicTreeData[0]?.children?.[0]?.key || 'math-sub1.1',
         topicName: 'Danh mục nhập khẩu',
         correctAnswer: 'Phương án A',
@@ -437,13 +456,13 @@ export default function QuestionBankModule({
 
       const importQ2: Question = {
         id: `q-imp-2-${Date.now()}`,
-        code: `IMP-${selectedSubject.substring(0, 3).toUpperCase()}-102`,
+        code: `IMP-${targetSubject.substring(0, 3).toUpperCase()}-102`,
         text: `[Imported] Tìm mệnh đề kiểm tra kiến thức kỹ năng liên môn nâng cao thực hành thực tế.`,
         type: 'short',
         level: 'van_dung_cao',
         status: 'approved',
-        subject: selectedSubject,
-        grade: selectedGrade || 'Khối 12',
+        subject: targetSubject,
+        grade: targetGrade,
         topicId: selectedTopicKey || topicTreeData[0]?.children?.[0]?.key || 'math-sub1.1',
         topicName: 'Danh mục nhập khẩu',
         correctAnswer: 'Kết quả tính toán sau khảo sát thực nghiệm',
@@ -557,12 +576,20 @@ export default function QuestionBankModule({
     {
       title: 'Nội dung câu hỏi',
       dataIndex: 'text',
-      ellipsis: true,
+      width: 350,
       render: (text: string) => (
         <Tooltip title={text}>
-          <span className="text-slate-800 font-medium text-xs hover:text-[#002147] transition-all cursor-pointer">
+          <div
+            className="text-slate-800 font-medium text-xs hover:text-[#002147] transition-all cursor-pointer"
+            style={{
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              maxWidth: '320px',
+            }}
+          >
             {text}
-          </span>
+          </div>
         </Tooltip>
       )
     },
@@ -1102,10 +1129,13 @@ export default function QuestionBankModule({
               onChange: (keys) => setSelectedRowKeys(keys),
             }}
             pagination={{
-              pageSize: 8,
-              showSizeChanger: false,
-              className: "pr-4 pb-4 pt-4 text-xs font-medium",
-              style: { justifyContent: 'flex-end', margin: '16px 0 0 calc(100% - 400px)' }
+              total: filteredQuestions.length,
+              showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
+              showSizeChanger: true,
+              defaultPageSize: 10,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              locale: { items_per_page: '/ trang' },
+              className: 'mt-6',
             }}
             scroll={{ x: 'max-content' }}
             className="border-none text-xs rounded-2xl"
@@ -1128,8 +1158,8 @@ export default function QuestionBankModule({
           fetchQuestions(); // refresh from API
           setActiveModalType(null);
         }}
-        subject={selectedSubject}
-        grade={selectedGrade}
+        subject={actualSubject}
+        grade={actualGrade}
         selectedTopicKey={selectedTopicKey}
         topicTreeData={topicTreeData}
       />
@@ -1157,11 +1187,11 @@ export default function QuestionBankModule({
             <div className="grid grid-cols-2 gap-4 text-xs font-sans">
               <div>
                 <span className="text-slate-400 font-medium block">Môn học đồng hành:</span>
-                <strong className="text-slate-800 block text-[13px]">{selectedSubject}</strong>
+                <strong className="text-slate-800 block text-[13px]">{actualSubject || 'Tất cả'}</strong>
               </div>
               <div>
                 <span className="text-slate-400 font-medium block">Khối lớp kiểm soát:</span>
-                <strong className="text-slate-800 block text-[13px]">{selectedGrade}</strong>
+                <strong className="text-slate-800 block text-[13px]">{actualGrade || 'Tất cả'}</strong>
               </div>
             </div>
 
@@ -1336,8 +1366,8 @@ export default function QuestionBankModule({
           fetchQuestions();
         }}
         initialType="single"
-        subject={selectedSubject}
-        grade={selectedGrade}
+        subject={actualSubject || updateQuestion?.subject || ''}
+        grade={actualGrade || updateQuestion?.grade || ''}
         selectedTopicKey={selectedTopicKey}
         topicTreeData={topicTreeData}
         initialQuestion={updateQuestion || undefined}

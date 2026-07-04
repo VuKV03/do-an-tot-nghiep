@@ -101,6 +101,7 @@ class BankQuestionCreate(BaseModel):
     correctAnswer: Optional[str | List[str]] = None
     status: Optional[str] = "draft"
     competencyComponentId: Optional[str] = None
+    statements: Optional[list] = None
 
 
 class BankQuestionUpdate(BaseModel):
@@ -111,6 +112,7 @@ class BankQuestionUpdate(BaseModel):
     correctAnswer: Optional[str | List[str]] = None
     status: Optional[str] = None
     competencyComponentId: Optional[str] = None
+    statements: Optional[list] = None
 
 
 @router.get("/")
@@ -163,6 +165,16 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             except Exception:
                 pass
 
+        # Parse statements
+        stmts = []
+        if q.statements:
+            try:
+                parsed_stmts = json.loads(q.statements)
+                if isinstance(parsed_stmts, list):
+                    stmts = parsed_stmts
+            except Exception:
+                pass
+
         data.append({
             "id": q.id,
             "code": q.code or (f"Q-{q.id[-6:].upper()}" if len(q.id) >= 6 else q.id),
@@ -183,6 +195,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "createdAt": _now(),
             "examId": q.exam_id,
             "feedback": q.approved_note or "",
+            "statements": stmts,
         })
 
     return {"success": True, "count": len(data), "data": data}
@@ -243,6 +256,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
     # Options and Correct Answer conversion
     options_str = json.dumps(body.options or [], ensure_ascii=False)
     correct_ans_str = json.dumps(body.correctAnswer, ensure_ascii=False) if isinstance(body.correctAnswer, list) else (body.correctAnswer or "")
+    statements_str = json.dumps(body.statements, ensure_ascii=False) if body.statements else None
 
     question = Question(
         id=q_id,
@@ -258,6 +272,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         exam_id=exam_id,
         status=status_int,
         line_number=1,
+        statements=statements_str,
     )
     
     db.add(question)
@@ -282,6 +297,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
             "correctAnswer": body.correctAnswer or "",
             "creator": "Hội đồng Chuyên môn",
             "createdAt": _now(),
+            "statements": body.statements or [],
         }
     }
 
@@ -319,6 +335,8 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
         question.status = {"approved": 2, "pending": 1, "draft": 0}.get(body.status, 0)
     if body.competencyComponentId is not None:
         question.competency_component_id = body.competencyComponentId
+    if body.statements is not None:
+        question.statements = json.dumps(body.statements, ensure_ascii=False)
 
     await db.commit()
     return {"success": True, "message": "Cập nhật câu hỏi thành công!"}

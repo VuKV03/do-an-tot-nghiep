@@ -256,14 +256,19 @@ export default function UpdateQuestionModal({
         setStatements([]);
         setSubQuestions([]);
       } else if (initialQuestion.type === 'true_false') {
-        const stmts = Array.from({ length: 4 }).map((_, i) => ({
-          topicId: initialQuestion.topicId || '',
-          topicName: initialQuestion.topicName || '',
-          level: 'nhan_biet' as CognitiveLevel,
-          nangLuc: 'Nhận biết',
-          content: (initialQuestion.options && initialQuestion.options[i]) || '',
-          isCorrect: initialQuestion.correctAnswer && initialQuestion.correctAnswer[i] === 'True',
-        }));
+        const stmts = Array.from({ length: 4 }).map((_, i) => {
+          const st = initialQuestion.statements?.[i];
+          return {
+            topicId: st?.topicId || initialQuestion.topicId || '',
+            topicName: st?.topicName || initialQuestion.topicName || '',
+            level: st?.level || ('nhan_biet' as CognitiveLevel),
+            nangLuc: st?.nangLuc || undefined,
+            content: st?.content || (initialQuestion.options && initialQuestion.options[i]) || '',
+            isCorrect: st !== undefined 
+              ? st.isCorrect 
+              : (initialQuestion.correctAnswer && initialQuestion.correctAnswer[i] === 'True'),
+          };
+        });
         setStatements(stmts);
         setAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));
         setSubQuestions([]);
@@ -308,7 +313,6 @@ export default function UpdateQuestionModal({
       });
 
     // Khởi tạo 4 dòng câu hỏi Đúng/Sai
-    const suffix = subject ? ` ${subject.toLowerCase()}` : '';
       const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
         topicId: defaultTopicKey || '',
         topicName: '',
@@ -319,14 +323,7 @@ export default function UpdateQuestionModal({
             : i === 2
               ? 'van_dung'
               : 'van_dung') as CognitiveLevel,
-        nangLuc:
-          i === 0
-            ? `Nhận biết${suffix}`
-            : i === 1
-              ? `Thông hiểu${suffix}`
-              : i === 2
-                ? `Vận dụng${suffix}`
-                : `Vận dụng${suffix}`,
+        nangLuc: undefined,
         content: '',
         isCorrect: i === 0 || i === 1 || i === 3,
       }));
@@ -1022,7 +1019,7 @@ export default function UpdateQuestionModal({
                           <Select
                             size='large'
                             className='w-full text-base font-medium'
-                            options={LEVEL_OPTIONS}
+                            options={cognitiveLevelOptions}
                             value={ans.level}
                             onChange={(val) =>
                               updateStatementRow(idx, { level: val })
@@ -1035,7 +1032,7 @@ export default function UpdateQuestionModal({
                           <Select
                             size='large'
                             className='w-full text-base font-medium'
-                            options={nangLucOptions}
+                            options={competencyOptions}
                             value={ans.nangLuc}
                             onChange={(val) =>
                               updateStatementRow(idx, { nangLuc: val })

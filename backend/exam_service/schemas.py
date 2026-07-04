@@ -26,6 +26,7 @@ class QuestionBase(BaseModel):
     status_ai: Optional[int] = 0
     approved_note: Optional[str] = ""
     exam_id: Optional[str] = None
+    statements: Optional[str] = None
 
 
 class QuestionResponse(QuestionBase):

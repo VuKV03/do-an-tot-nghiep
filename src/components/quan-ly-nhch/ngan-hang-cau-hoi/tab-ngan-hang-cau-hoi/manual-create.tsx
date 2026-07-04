@@ -261,7 +261,6 @@ export default function CreateQuestionModal({
     });
 
     // Khởi tạo 4 dòng câu hỏi Đúng/Sai
-    const suffix = subject ? ` ${subject.toLowerCase()}` : '';
     const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
       topicId: defaultTopicKey || '',
       topicName: '',
@@ -272,14 +271,7 @@ export default function CreateQuestionModal({
           : i === 2
             ? 'van_dung'
             : 'van_dung') as CognitiveLevel,
-      nangLuc:
-        i === 0
-          ? `Nhận biết${suffix}`
-          : i === 1
-            ? `Thông hiểu${suffix}`
-            : i === 2
-              ? `Vận dụng${suffix}`
-              : `Vận dụng${suffix}`,
+      nangLuc: undefined,
       content: '',
       isCorrect: i === 0 || i === 1 || i === 3,
     }));
@@ -966,7 +958,7 @@ export default function CreateQuestionModal({
                           <Select
                             size='large'
                             className='w-full text-base font-medium'
-                            options={LEVEL_OPTIONS}
+                            options={cognitiveLevelOptions}
                             value={ans.level}
                             onChange={(val) =>
                               updateStatementRow(idx, { level: val })
@@ -979,7 +971,7 @@ export default function CreateQuestionModal({
                           <Select
                             size='large'
                             className='w-full text-base font-medium'
-                            options={nangLucOptions}
+                            options={competencyOptions}
                             value={ans.nangLuc}
                             onChange={(val) =>
                               updateStatementRow(idx, { nangLuc: val })

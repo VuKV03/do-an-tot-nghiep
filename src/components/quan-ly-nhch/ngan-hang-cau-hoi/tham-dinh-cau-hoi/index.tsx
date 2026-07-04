@@ -380,11 +380,17 @@ export default function ThamDinhCauHoiTab({
 
   // ── Derived: topic tree ────────────────────────
   const subjectDropdownOptions = useMemo(
-    () => (apiSubjects.length > 0 ? apiSubjects : SUBJECTS),
+    () => [
+      { value: '', label: 'Tất cả' },
+      ...(apiSubjects.length > 0 ? apiSubjects : SUBJECTS)
+    ],
     [apiSubjects]
   );
   const gradeDropdownOptions = useMemo(
-    () => (apiGrades.length > 0 ? apiGrades : GRADES),
+    () => [
+      { value: '', label: 'Tất cả' },
+      ...(apiGrades.length > 0 ? apiGrades : GRADES)
+    ],
     [apiGrades]
   );
 
@@ -455,7 +461,8 @@ export default function ThamDinhCauHoiTab({
     const relevantQuestions = questions.filter(q => q.status === 'pending' || q.status === 'approved' || q.status === 'rejected');
 
     return relevantQuestions.filter((q) => {
-      if (q.subject !== selectedSubject) return false;
+      if (selectedSubject && q.subject !== selectedSubject) return false;
+      if (selectedGrade && q.grade !== selectedGrade) return false;
       if (selectedTopicKey) {
         const isChild = topicTreeData.some((t) =>
           t.children?.some((c) => c.key === q.topicId)
@@ -478,7 +485,7 @@ export default function ThamDinhCauHoiTab({
       }
       return true;
     });
-  }, [questions, selectedSubject, selectedTopicKey, topicTreeData, applied]);
+  }, [questions, selectedSubject, selectedGrade, selectedTopicKey, topicTreeData, applied]);
 
   // ── Handlers ──────────────────────────────────
   const handleSearch = () => {
@@ -530,12 +537,20 @@ export default function ThamDinhCauHoiTab({
     {
       title: 'Nội dung câu hỏi',
       dataIndex: 'text',
-      ellipsis: true,
+      width: 350,
       render: (text: string) => (
         <Tooltip title={text}>
-          <span className="text-slate-800 font-medium text-xs hover:text-[#002147] cursor-pointer transition-colors">
+          <div
+            className="text-slate-800 font-medium text-xs hover:text-[#002147] cursor-pointer transition-colors"
+            style={{
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              maxWidth: '320px',
+            }}
+          >
             {text}
-          </span>
+          </div>
         </Tooltip>
       )
     },
@@ -889,12 +904,13 @@ export default function ThamDinhCauHoiTab({
               }}
               rowClassName={(_, idx) => (idx % 2 === 1 ? 'bg-slate-50/50' : '')}
               pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                pageSizeOptions: ['10', '12'],
+                total: filteredQuestions.length,
                 showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                className: 'pr-4 pb-4 pt-4 text-xs font-medium',
-                locale: { items_per_page: '/ trang' }
+                showSizeChanger: true,
+                defaultPageSize: 10,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                locale: { items_per_page: '/ trang' },
+                className: 'mt-6',
               }}
               scroll={{ x: 'max-content' }}
               className="border-none text-xs rounded-2xl"
