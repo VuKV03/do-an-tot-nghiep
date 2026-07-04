@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 # pyrefly: ignore [missing-import]
 from passlib.context import CryptContext
 
 from backend.shared.database import get_db
-from backend.auth_service.models import User, UserGroup, SecurityPolicy, AuditLog
+from backend.auth_service.models import User, UserGroup, UserGroupMember, SecurityPolicy, AuditLog
 from backend.auth_service.schemas import (
     LoginRequest, RegisterRequest, UserResponse, UpdateRequest, ChangePasswordRequest,
     GroupCreateRequest, GroupUpdateRequest, GroupResponse,
@@ -38,6 +38,23 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if user.status != "active":
         raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa hoặc vô hiệu hóa.")
 
+    # Fetch groups and permissions
+    ugm_result = await db.execute(
+        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
+        .where(UserGroupMember.user_id == user.id)
+    )
+    import json
+    user_groups = []
+    for r in ugm_result.all():
+        perms = []
+        if r[3]:
+            try:
+                perms = json.loads(r[3])
+            except:
+                pass
+        user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
+
     token_data = {"sub": user.id, "username": user.username, "role": user.role}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -54,6 +71,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             "fullName": user.fullName,
             "role": user.role,
             "status": user.status,
+            "groups": user_groups,
         },
     }
 
@@ -77,14 +95,45 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         role=body.role or "teacher",
         status="active",
         createdAt=datetime.utcnow().isoformat() + "Z",
+        position=body.position
     )
     db.add(user)
+    
+    if body.groups is not None:
+        for group_id in body.groups:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{group_id}",
+                group_id=group_id,
+                user_id=user.id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+
     await db.commit()
+
+    ugm_result = await db.execute(
+        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
+        .where(UserGroupMember.user_id == user.id)
+    )
+    import json
+    user_groups = []
+    for r in ugm_result.all():
+        perms = []
+        if r[3]:
+            try:
+                perms = json.loads(r[3])
+            except:
+                pass
+        user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
+    
+    u_dict = UserResponse.model_validate(user).model_dump()
+    u_dict["groups"] = user_groups
 
     return {
         "success": True,
         "message": "Đăng ký tài khoản thành công!",
-        "user": UserResponse.model_validate(user).model_dump(),
+        "user": u_dict,
     }
 
 
@@ -93,10 +142,36 @@ async def list_users(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách người dùng."""
     result = await db.execute(select(User))
     users = result.scalars().all()
+    
+    ugm_result = await db.execute(
+        select(UserGroupMember.user_id, UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        .join(UserGroup, UserGroupMember.group_id == UserGroup.id)
+    )
+    ugm_rows = ugm_result.all()
+    
+    user_groups_map = {}
+    import json
+    for user_id, g_id, g_code, g_name, g_perms in ugm_rows:
+        if user_id not in user_groups_map:
+            user_groups_map[user_id] = []
+        perms = []
+        if g_perms:
+            try:
+                perms = json.loads(g_perms)
+            except:
+                pass
+        user_groups_map[user_id].append({"id": g_id, "code": g_code, "name": g_name, "permissions": perms})
+        
+    data = []
+    for u in users:
+        u_dict = UserResponse.model_validate(u).model_dump()
+        u_dict["groups"] = user_groups_map.get(u.id, [])
+        data.append(u_dict)
+        
     return {
         "success": True,
         "count": len(users),
-        "data": [UserResponse.model_validate(u).model_dump() for u in users],
+        "data": data,
     }
 
 
@@ -115,16 +190,51 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
         user.email = body.email
     if body.role is not None:
         user.role = body.role
+    if body.position is not None:
+        user.position = body.position
     if body.status is not None:
+        if user.username == "admin" and body.status != "active":
+            raise HTTPException(status_code=403, detail="Không thể khóa tài khoản quản trị hệ thống gốc.")
         user.status = body.status
     if body.password is not None:
         user.password_hash = pwd_context.hash(body.password)
         
+    if body.groups is not None:
+        await db.execute(delete(UserGroupMember).where(UserGroupMember.user_id == user_id))
+        for group_id in body.groups:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{group_id}",
+                group_id=group_id,
+                user_id=user_id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+            
     await db.commit()
+    
+    ugm_result = await db.execute(
+        select(UserGroup.id, UserGroup.code, UserGroup.name, UserGroup.permissions)
+        .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
+        .where(UserGroupMember.user_id == user_id)
+    )
+    import json
+    user_groups = []
+    for r in ugm_result.all():
+        perms = []
+        if r[3]:
+            try:
+                perms = json.loads(r[3])
+            except:
+                pass
+        user_groups.append({"id": r[0], "code": r[1], "name": r[2], "permissions": perms})
+    
+    u_dict = UserResponse.model_validate(user).model_dump()
+    u_dict["groups"] = user_groups
+    
     return {
         "success": True,
         "message": "Cập nhật thông tin thành công!",
-        "user": UserResponse.model_validate(user).model_dump()
+        "user": u_dict
     }
 
 
@@ -208,10 +318,13 @@ async def list_groups(db: AsyncSession = Depends(get_db)):
         fallback_role = g.code.split('_')[-1].lower() if '_' in g.code else g.code.lower()
         
         count_result = await db.execute(
-            select(func.count(User.id)).where(
+            select(func.count(func.distinct(User.id)))
+            .outerjoin(UserGroupMember, User.id == UserGroupMember.user_id)
+            .where(
                 (User.role == g.code) | 
                 (User.role == mapped_role) | 
-                (User.role == fallback_role)
+                (User.role == fallback_role) |
+                (UserGroupMember.group_id == g.id)
             )
         )
         actual_count = count_result.scalar()
@@ -242,6 +355,17 @@ async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_
         createdAt=datetime.utcnow().isoformat() + "Z",
     )
     db.add(group)
+    
+    if body.member_ids is not None:
+        for u_id in body.member_ids:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{u_id}",
+                group_id=group.id,
+                user_id=u_id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+            
     await db.commit()
     
     return {
@@ -265,6 +389,11 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
             raise HTTPException(status_code=409, detail="Mã nhóm đã tồn tại.")
         group.code = body.code
         
+    if body.status is not None:
+        if group.code == "GRP_ADMIN" and body.status == "inactive":
+            raise HTTPException(status_code=403, detail="Không thể khóa nhóm quản trị hệ thống gốc.")
+        group.status = body.status
+        
     if body.name is not None:
         group.name = body.name
     if body.description is not None:
@@ -281,11 +410,27 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
     mapped_role = role_map.get(group.code)
     fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
     
+    if body.member_ids is not None:
+        await db.execute(delete(UserGroupMember).where(UserGroupMember.group_id == group_id))
+        for u_id in body.member_ids:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{u_id}",
+                group_id=group.id,
+                user_id=u_id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+            
+    await db.commit()
+    
     count_result = await db.execute(
-        select(func.count(User.id)).where(
+        select(func.count(func.distinct(User.id)))
+        .outerjoin(UserGroupMember, User.id == UserGroupMember.user_id)
+        .where(
             (User.role == group.code) | 
             (User.role == mapped_role) | 
-            (User.role == fallback_role)
+            (User.role == fallback_role) |
+            (UserGroupMember.group_id == group_id)
         )
     )
     actual_count = count_result.scalar()
@@ -337,13 +482,14 @@ async def list_group_members(group_id: str, db: AsyncSession = Depends(get_db)):
     mapped_role = role_map.get(group.code)
     fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
     
-    # Find users whose role matches the group code or mapped role
+    # Find users whose role matches the group code or mapped role, or are explicitly in the group
     user_result = await db.execute(
-        select(User).where(
+        select(User).outerjoin(UserGroupMember, User.id == UserGroupMember.user_id).where(
             (User.role == group.code) | 
             (User.role == mapped_role) | 
-            (User.role == fallback_role)
-        )
+            (User.role == fallback_role) |
+            (UserGroupMember.group_id == group_id)
+        ).distinct()
     )
     users = user_result.scalars().all()
     

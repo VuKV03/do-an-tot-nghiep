@@ -25,19 +25,28 @@ class RegisterRequest(BaseModel):
     fullName: str
     password: str
     role: Optional[str] = "teacher"
+    position: Optional[str] = None
+    groups: Optional[list[str]] = None
 
 
 class UpdateRequest(BaseModel):
     fullName: Optional[str] = None
     email: Optional[str] = None
     role: Optional[str] = None
+    position: Optional[str] = None
     status: Optional[str] = None
     password: Optional[str] = None
+    groups: Optional[list[str]] = None
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+
+class UserGroupInfo(BaseModel):
+    id: str
+    code: str
+    name: str
 
 class UserResponse(BaseModel):
     id: str
@@ -45,8 +54,10 @@ class UserResponse(BaseModel):
     email: str
     fullName: str
     role: str
+    position: Optional[str] = None
     status: str
     createdAt: str
+    groups: Optional[list[UserGroupInfo]] = []
 
     model_config = {"from_attributes": True}
 
@@ -55,12 +66,15 @@ class GroupCreateRequest(BaseModel):
     name: str
     description: Optional[str] = None
     permissions: Optional[list[str]] = []
+    member_ids: Optional[list[str]] = None
 
 class GroupUpdateRequest(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     permissions: Optional[list[str]] = None
+    status: Optional[str] = None
+    member_ids: Optional[list[str]] = None
 
 class GroupResponse(BaseModel):
     id: str
@@ -69,6 +83,7 @@ class GroupResponse(BaseModel):
     description: Optional[str] = None
     memberCount: int
     permissions: list[str]
+    status: str
     createdAt: str
 
     model_config = {"from_attributes": True}

@@ -155,7 +155,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
           </span>
         </div>
       }
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: '20px 24px 8px' } }}
     >
       {/* Question info */}
@@ -273,7 +273,7 @@ function BulkReviewModal({ visible, count, onClose, onConfirm }: BulkReviewModal
           Thẩm định nhiều câu hỏi
         </span>
       }
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: '20px 24px 8px' } }}
     >
       <div className="text-[#1a4f9c] font-bold text-sm mb-4">

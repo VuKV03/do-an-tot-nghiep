@@ -54,57 +54,6 @@ export default function SystemAdminModule({
 
   return (
     <div className="space-y-6" id="system-admin-overall-module">
-      
-      {/* Header section with Dynamic Titles corresponding to active key */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs shrink-0 select-none">
-        <div className="space-y-1">
-          <h2 className="text-slate-900 font-extrabold text-sm uppercase tracking-wider flex items-center gap-2">
-            <SafetyCertificateOutlined className="text-[#002147] animate-pulse" />
-            VÙNG AN NINH & QUẢN TRỊ HỆ THỐNG
-          </h2>
-          <p className="text-xs text-slate-400 font-medium">
-            Quản trị thông tin cán bộ, chuẩn hóa ma trận phân lớp vai trò và giám sát các chuẩn mã hóa bảo mật thời gian thực.
-          </p>
-        </div>
-        
-        {/* Sub Navigation tabs buttons to navigate */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <Button
-            type={currentTabKey === 'quan-ly-nguoi-dung' ? 'primary' : 'text'}
-            size="small"
-            icon={<UserOutlined />}
-            onClick={() => onNavigateTab('quan-ly-nguoi-dung')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'quan-ly-nguoi-dung' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Người dùng
-          </Button>
-          <Button
-            type={currentTabKey === 'quan-ly-nhom-nguoi-dung' ? 'primary' : 'text'}
-            size="small"
-            icon={<TeamOutlined />}
-            onClick={() => onNavigateTab('quan-ly-nhom-nguoi-dung')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'quan-ly-nhom-nguoi-dung' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Nhóm & Phân quyền
-          </Button>
-          <Button
-            type={currentTabKey === 'chinh-sach-bao-mat' ? 'primary' : 'text'}
-            size="small"
-            icon={<LockOutlined />}
-            onClick={() => onNavigateTab('chinh-sach-bao-mat')}
-            className={`text-xs font-black rounded-lg py-1 px-3 border-transparent ${
-              currentTabKey === 'chinh-sach-bao-mat' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            An toàn bảo mật
-          </Button>
-        </div>
-      </div>
-
       {currentTabKey === 'quan-ly-nguoi-dung' && (
         <UserManagement onAddAuditLog={onAddAuditLog} setSecurityLogs={setSecurityLogs} />
       )}
@@ -114,10 +63,10 @@ export default function SystemAdminModule({
       )}
 
       {currentTabKey === 'chinh-sach-bao-mat' && (
-        <SecurityPolicy 
-          securityLogs={securityLogs} 
-          setSecurityLogs={setSecurityLogs} 
-          onAddAuditLog={onAddAuditLog} 
+        <SecurityPolicy
+          securityLogs={securityLogs}
+          setSecurityLogs={setSecurityLogs}
+          onAddAuditLog={onAddAuditLog}
         />
       )}
 
