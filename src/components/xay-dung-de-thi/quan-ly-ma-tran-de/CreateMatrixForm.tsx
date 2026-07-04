@@ -772,8 +772,8 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
         </Spin>
       )}
 
-      {/* Bảng cấu hình tổng hợp */}
-      {obj.length > 0 && caiDat && (
+      {/* Bảng cấu hình tổng hợp — tạm ẩn theo yêu cầu, giữ nguyên code để bật lại sau này */}
+      {false && obj.length > 0 && caiDat && (
         <div className="bg-white border border-slate-200 rounded-lg shadow-xs p-5">
           <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-3">Bảng cấu hình tổng hợp theo loại câu hỏi</h3>
           <table className="w-full text-xs border-collapse">
