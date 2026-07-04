@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Button, 
   Tag, 
@@ -10,7 +10,12 @@ import {
   Form,
   Input,
   Popconfirm,
-  Table
+  Table,
+  Space,
+  Empty,
+  Pagination,
+  Dropdown,
+  Switch
 } from 'antd';
 import {
   SettingOutlined,
@@ -18,7 +23,9 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  MoreOutlined
 } from '@ant-design/icons';
 import { AuditLog } from '../../../types';
 import axios from 'axios';
@@ -41,6 +48,7 @@ interface UserGroup {
   description: string;
   memberCount: number;
   permissions: string[];
+  status?: 'active' | 'inactive';
 }
 
 interface GroupManagementProps {
@@ -51,6 +59,9 @@ interface GroupManagementProps {
 export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: GroupManagementProps) {
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const [searchCode, setSearchCode] = useState('');
+  const [searchName, setSearchName] = useState('');
 
   const fetchGroups = async () => {
     try {
@@ -70,6 +81,14 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   React.useEffect(() => {
     fetchGroups();
   }, []);
+
+  const filteredGroups = useMemo(() => {
+    return userGroups.filter(g => {
+      const matchCode = g.code.toLowerCase().includes(searchCode.toLowerCase());
+      const matchName = g.name.toLowerCase().includes(searchName.toLowerCase());
+      return matchCode && matchName;
+    });
+  }, [userGroups, searchCode, searchName]);
 
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [activeGroupForPermissions, setActiveGroupForPermissions] = useState<UserGroup | null>(null);
@@ -100,6 +119,22 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const [activeGroupForMembers, setActiveGroupForMembers] = useState<UserGroup | null>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [tempSelectedUserIds, setTempSelectedUserIds] = useState<string[]>([]);
+  const [searchUserAdd, setSearchUserAdd] = useState('');
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/users`);
+      if (res.data.success) {
+        setAllUsers(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching all users:', err);
+    }
+  };
 
   const handleOpenMembersModal = async (group: UserGroup) => {
     setActiveGroupForMembers(group);
@@ -162,63 +197,14 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
     setIsGroupModalOpen(true);
   };
 
-  const renderGroupPermissions = (group: UserGroup) => {
-    const perms = group.permissions || [];
-    if (perms.length === 0) return <span className="text-slate-400 italic text-[10px]">Chưa được cấp quyền</span>;
-
-    // Check if has ALL permissions
-    let checkedCount = 0;
-    let totalCount = 0;
-    SYSTEM_PERMISSION_SCOPES.forEach(scope => {
-      scope.items.forEach(item => {
-        totalCount++;
-        if (perms.includes(item.key) || perms.includes('system.*') || perms.some(p => p.endsWith('.*') && item.key.startsWith(p.replace('.*', '')))) {
-          checkedCount++;
-        }
-      });
-    });
-
-    if (checkedCount === totalCount) {
-      return (
-        <span className="bg-blue-50 border border-blue-200 text-blue-700 px-2 py-1 rounded-md font-black text-[10px] tracking-wide block">
-          🌟 ALL QUYỀN (TOÀN QUYỀN HỆ THỐNG)
-        </span>
-      );
-    }
-
-    return perms.map(p => {
-      let label = p;
-      if (p === 'system.*') {
-        label = 'Toàn quyền: Quản trị hệ thống & Bảo mật';
-      } else if (p.endsWith('.*')) {
-        const prefix = p.replace('.*', '');
-        const scope = SYSTEM_PERMISSION_SCOPES.find(s => s.items.some(i => i.key.startsWith(prefix)));
-        if (scope) label = `Toàn quyền: ${scope.category}`;
-      } else {
-        for (const scope of SYSTEM_PERMISSION_SCOPES) {
-          const item = scope.items.find(i => i.key === p);
-          if (item) {
-            label = item.label;
-            break;
-          }
-        }
-      }
-
-      return (
-        <span key={p} className="bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-medium text-[10px] block truncate max-w-full" title={label}>
-          {label}
-        </span>
-      );
-    });
-  };
-
   const handleAddGroup = () => {
     setEditingGroup(null);
+    setGroupMembers([]);
     form.resetFields();
     setIsEditGroupModalOpen(true);
   };
 
-  const handleEditGroup = (group: UserGroup) => {
+  const handleEditGroup = async (group: UserGroup) => {
     setEditingGroup(group);
     form.setFieldsValue({
       code: group.code,
@@ -226,6 +212,39 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       description: group.description,
     });
     setIsEditGroupModalOpen(true);
+    try {
+      const res = await axios.get(`${API_URL}/auth/groups/${group.id}/members`);
+      if (res.data.success) {
+        setGroupMembers(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching members:', err);
+    }
+  };
+
+  const handleToggleGroupStatus = async (group: UserGroup, checked: boolean) => {
+    const newStatus = checked ? 'active' : 'inactive';
+    const statusText = checked ? 'Mở khóa' : 'Khóa';
+
+    try {
+      const res = await axios.put(`${API_URL}/auth/groups/${group.id}`, {
+        status: newStatus
+      });
+
+      if (res.data.success) {
+        await fetchGroups(); // Refresh list
+        message.success(`Đã ${statusText.toLowerCase()} nhóm người dùng: ${group.name}`);
+        
+        await logSecurityAction(
+          `${statusText} nhóm`,
+          checked ? 'success' : 'warning',
+          `Cập nhật trạng thái nhóm ${group.name} thành ${checked ? 'Hoạt động' : 'Đã khóa'}.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Error toggling group status:', err);
+      message.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái nhóm.');
+    }
   };
 
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
@@ -251,8 +270,12 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const handleSaveGroup = async () => {
     try {
       const values = await form.validateFields();
+      const payload = {
+        ...values,
+        member_ids: groupMembers.map(m => m.id)
+      };
       if (editingGroup) {
-        const res = await axios.put(`${API_URL}/auth/groups/${editingGroup.id}`, values);
+        const res = await axios.put(`${API_URL}/auth/groups/${editingGroup.id}`, payload);
         if (res.data.success) {
           setUserGroups(prev => prev.map(g => g.id === editingGroup.id ? res.data.group : g));
           message.success(`Đã cập nhật nhóm "${values.name}"`);
@@ -265,7 +288,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
           });
         }
       } else {
-        const res = await axios.post(`${API_URL}/auth/groups`, values);
+        const res = await axios.post(`${API_URL}/auth/groups`, payload);
         if (res.data.success) {
           setUserGroups(prev => [...prev, res.data.group]);
           message.success(`Đã thêm mới nhóm "${values.name}"`);
@@ -327,137 +350,285 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center bg-white border rounded-2xl p-4 shadow-xxs">
-        <div className="flex-1 mr-4">
-          <span className="text-[10px] font-black uppercase text-slate-400 block tracking-widest mb-1 select-none">TỔNG QUAN PHÂN VAI TRÒ CHỈ THỊ</span>
-          <div className="text-xs text-slate-500 font-semibold leading-relaxed">
-            Các tài khoản cán bộ sẽ thừa hưởng toàn bộ các quyền gán tương ứng theo phạm vi chức năng (Scope matrix). Việc thay đổi quyền hạ tầng sẽ lập tức đồng bộ hóa trên các phiên làm việc của người dùng.
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+        <h1 className="text-[#1a3b70] text-lg font-bold uppercase m-0">Quản lý nhóm người dùng</h1>
+        <div className="w-5 h-5 bg-[#1a3b70] text-white rounded-full flex items-center justify-center font-bold text-xs cursor-pointer">
+          ?
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg p-5">
+        <h2 className="text-[#1a3b70] font-bold mb-4 text-sm">Tìm kiếm thông tin</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mã nhóm</label>
+            <Input
+              placeholder="Nhập mã nhóm"
+              className="rounded text-sm py-1.5"
+              value={searchCode}
+              onChange={e => setSearchCode(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tên nhóm</label>
+            <Input
+              placeholder="Nhập tên nhóm"
+              className="rounded text-sm py-1.5"
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+            />
           </div>
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />}
-          onClick={handleAddGroup}
-          className="bg-blue-600 h-10 px-5 rounded-xl font-bold shadow-sm hover:shadow-md transition-all text-xs"
-        >
-          Thêm Nhóm
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5" id="user-roles-group-grid">
-        {userGroups.map(group => (
-          <div 
-            key={group.id}
-            className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-xs transition-shadow flex flex-col space-y-4"
+        <div className="flex justify-center mt-6">
+          <Button
+            type="primary"
+            className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8"
           >
-            <div className="flex items-center justify-between border-b border-dashed pb-3 select-none">
-              <div className="flex items-center gap-2">
-                <strong className="text-slate-800 text-xs font-black uppercase tracking-wider">{group.name}</strong>
-                <Tag color="blue" className="rounded-md font-mono font-black text-[9px] uppercase m-0 py-0.5 px-2.5">
-                  {group.code}
-                </Tag>
-              </div>
-              <div className="flex gap-1">
-                <Button 
-                  size="small" 
-                  type="text" 
-                  icon={<EditOutlined />} 
-                  onClick={() => handleEditGroup(group)}
-                  className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors w-7 h-7 flex items-center justify-center"
-                />
-                <Popconfirm
-                  title="Xóa nhóm người dùng"
-                  description="Bạn có chắc chắn muốn xóa nhóm này?"
-                  onConfirm={() => handleDeleteGroup(group.id, group.name)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button 
-                    size="small" 
-                    type="text" 
-                    icon={<DeleteOutlined />} 
-                    className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors w-7 h-7 flex items-center justify-center"
-                  />
-                </Popconfirm>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs font-medium">
-              <p className="text-slate-500 leading-relaxed min-h-[38px] text-[11px]">
-                {group.description}
-              </p>
-
-              <div 
-                className="flex justify-between items-center bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors cursor-pointer rounded-xl p-2.5 select-none"
-                onClick={() => handleOpenMembersModal(group)}
-              >
-                <span className="text-blue-600 text-[11px] font-semibold flex items-center gap-1.5"><TeamOutlined /> Số lượng nhân viên gán:</span>
-                <strong className="text-blue-800">{group.memberCount} Thành viên (Xem danh sách)</strong>
-              </div>
-
-              <div className="space-y-1.5 select-none">
-                <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest block">Quyền gán hạn khả dụng:</span>
-                <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto pr-1">
-                  {renderGroupPermissions(group)}
-                </div>
-              </div>
-
-              <Divider className="my-3 border-dashed" />
-
-              <div className="flex justify-between items-center">
-                <span className="text-[9px] text-emerald-600 font-extrabold uppercase">✓ ĐỒNG BỘ ĐỒNG LOẠT TRÊN CLOUD</span>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<SettingOutlined />}
-                  onClick={() => handleOpenPermissionEditor(group)}
-                  className="bg-[#002147] border-transparent text-white font-extrabold text-[11px] rounded-lg hover:opacity-90 cursor-pointer"
-                >
-                  Bố trí lại Phân quyền
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
+            Tìm kiếm
+          </Button>
+        </div>
       </div>
 
+      {/* Groups Table */}
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mt-6">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="text-[#1a3b70] font-bold text-sm m-0">Kết quả tìm kiếm</h2>
+          <div className="flex gap-2">
+            <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleAddGroup}>Thêm mới</Button>
+            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xóa</Button>
+            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
+                <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
+                <th className="py-3 px-4 text-center w-16">STT</th>
+                <th className="py-3 px-4 text-left">Mã nhóm</th>
+                <th className="py-3 px-4 text-left">Tên nhóm</th>
+                <th className="py-3 px-4 text-left">Mô tả chi tiết</th>
+                <th className="py-3 px-4 text-center">Thành viên</th>
+                <th className="py-3 px-4 text-center w-28">Trạng thái</th>
+                <th className="py-3 px-4 text-center w-32">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-sm text-slate-500">
+                    Đang tải dữ liệu nhóm...
+                  </td>
+                </tr>
+              ) : filteredGroups.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center">
+                    <Empty description="Không tìm thấy thông tin nhóm nào phù hợp." />
+                  </td>
+                </tr>
+              ) : (
+                filteredGroups.map((g, index) => (
+                  <tr key={g.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 px-4">
+                      <input type="checkbox" className="rounded text-[#1e40af]" />
+                    </td>
+                    <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
+                    <td className="py-3 px-4 text-slate-600 font-semibold">{g.code}</td>
+                    <td className="py-3 px-4 text-slate-600">{g.name}</td>
+                    <td className="py-3 px-4 text-slate-600">
+                      <div className="truncate max-w-[200px]" title={g.description}>
+                        {g.description || 'Không có mô tả'}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div 
+                        className="inline-flex items-center gap-1.5 text-blue-600 font-bold cursor-pointer hover:underline"
+                        onClick={() => handleOpenMembersModal(g)}
+                      >
+                        <TeamOutlined /> {g.memberCount}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <Dropdown
+                        disabled={g.code === 'GRP_ADMIN'}
+                        menu={{
+                          items: [
+                            { 
+                              key: 'active', 
+                              label: <span className="text-emerald-600 font-semibold text-xs">Đang hoạt động</span>, 
+                              onClick: () => handleToggleGroupStatus(g, true) 
+                            },
+                            { 
+                              key: 'inactive', 
+                              label: <span className="text-red-500 font-semibold text-xs">Khóa</span>, 
+                              onClick: () => handleToggleGroupStatus(g, false) 
+                            }
+                          ]
+                        }}
+                        trigger={['click']}
+                      >
+                        <div className={`inline-flex items-center justify-center ${g.code !== 'GRP_ADMIN' ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'}`} title={g.code === 'GRP_ADMIN' ? 'Không thể thay đổi trạng thái nhóm quản trị' : 'Nhấp để thay đổi trạng thái'}>
+                          {g.status !== 'inactive' ? (
+                            <span className="inline-flex items-center justify-center border border-emerald-500 text-emerald-600 px-3 py-1 rounded bg-white text-[11px] font-semibold w-28 hover:bg-emerald-50 transition-colors">
+                              Đang hoạt động {g.code !== 'GRP_ADMIN' && <span className="ml-1 text-[8px]">▼</span>}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center border border-red-300 text-red-500 px-3 py-1 rounded bg-red-50 text-[11px] font-semibold w-28 hover:bg-red-100 transition-colors">
+                              Đã khóa {g.code !== 'GRP_ADMIN' && <span className="ml-1 text-[8px]">▼</span>}
+                            </span>
+                          )}
+                        </div>
+                      </Dropdown>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <Space size={12}>
+                        <div 
+                          className="bg-blue-50 text-[#1e40af] p-1.5 rounded cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => handleEditGroup(g)}
+                          title="Chỉnh sửa thông tin nhóm"
+                        >
+                          <EditOutlined className="text-sm" />
+                        </div>
+                        <div 
+                          className="bg-emerald-50 text-emerald-600 p-1.5 rounded cursor-pointer hover:bg-emerald-100 transition-colors"
+                          onClick={() => handleOpenPermissionEditor(g)}
+                          title="Thiết lập phân quyền"
+                        >
+                          <SettingOutlined className="text-sm" />
+                        </div>
+                        <div 
+                          className="bg-rose-50 text-rose-600 p-1.5 rounded cursor-pointer hover:bg-rose-100 transition-colors"
+                          onClick={() => {
+                            Modal.confirm({
+                              title: 'Xóa nhóm người dùng',
+                              content: `Bạn có chắc chắn muốn xóa nhóm "${g.name}"?`,
+                              okText: 'Xóa',
+                              cancelText: 'Hủy',
+                              okButtonProps: { danger: true },
+                              onOk: () => handleDeleteGroup(g.id, g.name)
+                            });
+                          }}
+                          title="Xóa nhóm"
+                        >
+                          <DeleteOutlined className="text-sm" />
+                        </div>
+                      </Space>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-white">
+          <div className="text-[11px] text-slate-500 font-semibold tracking-wide">
+            1 - {filteredGroups.length} / 1234 bản ghi
+          </div>
+          <Pagination 
+            size="small" 
+            total={1234} 
+            showSizeChanger 
+            showQuickJumper={false}
+            defaultPageSize={10}
+            pageSizeOptions={['10', '20', '50', '100']}
+            locale={{ items_per_page: '/ trang' }}
+          />
+        </div>
+      </div>
+
+      {/* Permissions Modal */}
       <Modal
         title={
-          <div className="border-b pb-2 flex items-center gap-1.5 select-none">
-            <TeamOutlined className="text-blue-900" />
-            <span className="font-extrabold uppercase text-[12px] text-slate-800">
-              ĐỒNG BỘ MA TRẬN PHÂN QUYỀN HẠ TẦNG
-            </span>
+          <div className="text-xl font-bold text-slate-800">
+            Phân quyền nhóm người dùng
           </div>
         }
         open={isGroupModalOpen}
         onCancel={() => setIsGroupModalOpen(false)}
-        onOk={handleSaveGroupPermissions}
-        okText="Ghi đè quyền khả dụng"
-        cancelText="Hủy bỏ"
+        footer={
+          <div className="flex justify-center gap-4 mt-6">
+            <Button 
+              key="back" 
+              onClick={() => setIsGroupModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-40"
+            >
+              Hủy
+            </Button>
+            <Button 
+              key="submit" 
+              type="primary" 
+              onClick={handleSaveGroupPermissions} 
+              className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-40"
+            >
+              Lưu thay đổi
+            </Button>
+          </div>
+        }
         centered
-        width={560}
+        width={600}
+        closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
       >
         {activeGroupForPermissions && (
-          <div className="pt-4 space-y-4 text-xs font-semibold">
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl select-none">
-              <span className="text-[10px] font-black uppercase text-slate-400 block tracking-widest">NHÓM VAI TRÒ CHỌN LỌC</span>
-              <strong className="text-slate-800 text-[13px] block mt-0.5">{activeGroupForPermissions.name}</strong>
-              <p className="text-[10.5px] text-slate-400 font-medium block mt-1 mb-0 leading-relaxed">
-                {activeGroupForPermissions.description}
-              </p>
+          <div className="pt-4 text-sm font-medium">
+            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg select-none mb-4">
+              <span className="text-xs font-bold text-[#1e40af] block mb-1">Nhóm người dùng:</span>
+              <strong className="text-slate-800 text-sm block">{activeGroupForPermissions.name}</strong>
+              {activeGroupForPermissions.description && (
+                <p className="text-xs text-slate-600 mt-1 mb-0 leading-relaxed">
+                  {activeGroupForPermissions.description}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
-              {SYSTEM_PERMISSION_SCOPES.map(scope => (
-                <div key={scope.category} className="space-y-2 border-b last:border-b-0 pb-3 border-slate-100 last:pb-0">
-                  <span className="text-[11px] font-black text-blue-900 border-l-2 border-blue-950 pl-2 block uppercase select-none">
-                    {scope.category}
-                  </span>
+            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
+              {SYSTEM_PERMISSION_SCOPES.map(scope => {
+                const categoryKeys = scope.items.map(item => item.key);
+                const isAllChecked = categoryKeys.every(key => 
+                  selectedPermissions.includes(key) || 
+                  selectedPermissions.includes('system.*') || 
+                  selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
+                );
+                const isIndeterminate = !isAllChecked && categoryKeys.some(key => 
+                  selectedPermissions.includes(key) || 
+                  selectedPermissions.includes('system.*') || 
+                  selectedPermissions.some(p => p.endsWith('.*') && key.startsWith(p.replace('.*', '')))
+                );
+
+                return (
+                <div key={scope.category} className="space-y-3 border-b last:border-b-0 pb-4 border-slate-100 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-[#1e40af] block select-none">
+                      {scope.category}
+                    </span>
+                    <Checkbox 
+                      checked={isAllChecked}
+                      indeterminate={isIndeterminate}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (checked) {
+                          setSelectedPermissions(prev => {
+                            const newPerms = [...prev];
+                            categoryKeys.forEach(k => {
+                              if (!newPerms.includes(k)) newPerms.push(k);
+                            });
+                            return newPerms;
+                          });
+                        } else {
+                          setSelectedPermissions(prev => prev.filter(p => !categoryKeys.includes(p) && p !== 'system.*' && !categoryKeys.some(k => p.endsWith('.*') && k.startsWith(p.replace('.*', '')))));
+                        }
+                      }}
+                      className="text-xs font-semibold text-slate-600"
+                    >
+                      Chọn tất cả
+                    </Checkbox>
+                  </div>
                   
-                  <div className="grid grid-cols-1 gap-2 pl-2">
+                  <div className="grid grid-cols-1 gap-3 pl-2">
                     {scope.items.map(item => {
                       const isChecked = selectedPermissions.includes(item.key) || selectedPermissions.includes('system.*') || selectedPermissions.some(p => p.endsWith('.*') && item.key.startsWith(p.replace('.*', '')));
                       return (
@@ -472,89 +643,200 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
                               setSelectedPermissions(prev => prev.filter(p => p !== item.key && p !== 'system.*'));
                             }
                           }}
-                          className="text-[11px] text-slate-700 font-medium hover:text-slate-900 transition-colors"
+                          className="text-sm text-slate-700 font-medium hover:text-slate-900 transition-colors"
                         >
-                          {item.label} <code className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1 rounded ml-1.5">{item.key}</code>
+                          {item.label} <code className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-2">{item.key}</code>
                         </Checkbox>
                       );
                     })}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             <Alert
               type="warning"
               showIcon
-              title={
-                <span className="text-[10px] leading-relaxed block text-slate-650 font-bold select-none">
-                  Lưu ý: Quyền hạn được ghi đè sẽ có hiệu lực lập tức đối với tất cả thành viên thuộc nhóm. Vui lòng kiểm tra kỹ lưỡng rào cản an toàn trước khi xác nhận.
+              message={
+                <span className="text-sm leading-relaxed block text-slate-700 font-medium select-none">
+                  Lưu ý: Quyền hạn được ghi đè sẽ có hiệu lực lập tức đối với tất cả thành viên thuộc nhóm. Vui lòng kiểm tra kỹ lưỡng trước khi xác nhận.
                 </span>
               }
+              className="mt-4 border-amber-200 bg-amber-50"
             />
           </div>
         )}
       </Modal>
 
+      {/* Edit Group Modal */}
       <Modal
         title={
-          <div className="border-b pb-2 flex items-center gap-1.5 select-none">
-            <TeamOutlined className="text-blue-900" />
-            <span className="font-extrabold uppercase text-[12px] text-slate-800">
-              {editingGroup ? 'CẬP NHẬT THÔNG TIN NHÓM' : 'THÊM MỚI NHÓM NGƯỜI DÙNG'}
-            </span>
+          <div className="text-xl font-bold text-slate-800">
+            {editingGroup ? 'Chỉnh sửa nhóm người dùng' : 'Thêm mới nhóm người dùng'}
           </div>
         }
         open={isEditGroupModalOpen}
         onCancel={() => setIsEditGroupModalOpen(false)}
-        onOk={handleSaveGroup}
-        okText={editingGroup ? 'Cập nhật' : 'Thêm mới'}
-        cancelText="Hủy bỏ"
+        footer={
+          <div className="flex justify-center gap-4 mt-6">
+            <Button 
+              key="back" 
+              onClick={() => setIsEditGroupModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
+            >
+              Đóng
+            </Button>
+            <Button 
+              key="submit" 
+              type="primary" 
+              onClick={handleSaveGroup} 
+              className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
+            >
+              Lưu
+            </Button>
+          </div>
+        }
         centered
-        width={480}
+        width={750}
+        forceRender
+        closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
       >
-        <div className="pt-4">
-          <Form form={form} layout="vertical" className="text-xs">
-            <Form.Item
-              name="code"
-              label={<span className="text-[11px] font-bold text-slate-700">Mã nhóm (VD: GRP_ADMIN)</span>}
-              rules={[{ required: true, message: 'Vui lòng nhập mã nhóm' }]}
-            >
-              <Input placeholder="Nhập mã nhóm" className="rounded-lg text-sm" />
-            </Form.Item>
-            
-            <Form.Item
-              name="name"
-              label={<span className="text-[11px] font-bold text-slate-700">Tên nhóm</span>}
-              rules={[{ required: true, message: 'Vui lòng nhập tên nhóm' }]}
-            >
-              <Input placeholder="Nhập tên nhóm" className="rounded-lg text-sm" />
-            </Form.Item>
+        <Form form={form} layout="vertical" className="mt-6">
+          <div className="mb-6">
+            <h3 className="text-base font-bold text-slate-800 mb-4">Thông tin nhóm người dùng</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+              <Form.Item
+                name="code"
+                label={<span className="text-sm text-slate-500 font-medium">Mã nhóm <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng nhập mã nhóm' }]}
+              >
+                <Input placeholder="Nhập" className="rounded py-1.5" />
+              </Form.Item>
+              
+              <Form.Item
+                name="name"
+                label={<span className="text-sm text-slate-500 font-medium">Tên nhóm <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng nhập tên nhóm' }]}
+              >
+                <Input placeholder="Nhập" className="rounded py-1.5" />
+              </Form.Item>
+            </div>
 
             <Form.Item
               name="description"
-              label={<span className="text-[11px] font-bold text-slate-700">Mô tả chi tiết</span>}
+              label={<span className="text-sm text-slate-500 font-medium">Mô tả</span>}
+              className="mt-2"
             >
-              <Input.TextArea placeholder="Mô tả chức năng, vai trò của nhóm này" rows={3} className="rounded-lg text-sm" />
+              <Input.TextArea placeholder="Nhập" rows={3} className="rounded py-1.5" />
             </Form.Item>
-          </Form>
-        </div>
+          </div>
+
+          <div className="mb-2">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-bold text-slate-800 m-0">Danh sách người dùng trong nhóm</h3>
+              <Button 
+                type="primary" 
+                className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-medium rounded"
+                onClick={async () => {
+                  await fetchAllUsers();
+                  setTempSelectedUserIds([]);
+                  setSearchUserAdd('');
+                  setIsAddUserModalOpen(true);
+                }}
+              >
+                Thêm người dùng
+              </Button>
+            </div>
+            
+            <Input 
+              prefix={<SearchOutlined className="text-slate-400" />} 
+              placeholder="Tìm kiếm theo tài khoản, họ và tên, đơn vị" 
+              className="rounded py-1.5 mb-4"
+            />
+
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <Table
+                dataSource={groupMembers}
+                rowKey="id"
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['10', '20', '50'],
+                  locale: { items_per_page: '/ trang' },
+                  size: 'small',
+                  showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`
+                }}
+                className="w-full text-sm text-slate-700"
+                columns={[
+                  {
+                    title: 'STT',
+                    key: 'stt',
+                    width: 60,
+                    align: 'center',
+                    render: (_, __, index) => index + 1,
+                  },
+                  {
+                    title: 'Mã người dùng',
+                    dataIndex: 'username',
+                    key: 'username',
+                  },
+                  {
+                    title: 'Họ và tên',
+                    dataIndex: 'fullName',
+                    key: 'fullName',
+                  },
+                  {
+                    title: 'Đơn vị',
+                    dataIndex: 'department',
+                    key: 'department',
+                    render: () => 'Đơn vị mẫu',
+                  },
+                  {
+                    title: '',
+                    key: 'action',
+                    width: 60,
+                    align: 'center',
+                    render: (_, record) => (
+                      <div 
+                        className="bg-red-50 text-red-500 p-1.5 rounded inline-flex cursor-pointer hover:bg-red-100"
+                        onClick={() => {
+                          setGroupMembers(prev => prev.filter(m => m.id !== record.id));
+                          message.success('Đã xóa người dùng khỏi danh sách.');
+                        }}
+                      >
+                        <DeleteOutlined />
+                      </div>
+                    )
+                  }
+                ]}
+                locale={{ emptyText: 'Chưa có người dùng nào được thêm.' }}
+              />
+            </div>
+          </div>
+        </Form>
       </Modal>
 
       <Modal
         title={
-          <div className="border-b pb-2 flex items-center gap-1.5 select-none">
-            <TeamOutlined className="text-blue-900" />
-            <span className="font-extrabold uppercase text-[12px] text-slate-800">
-              DANH SÁCH THÀNH VIÊN: {activeGroupForMembers?.name}
-            </span>
+          <div className="text-xl font-bold text-slate-800">
+            Danh sách thành viên: {activeGroupForMembers?.name}
           </div>
         }
         open={isMembersModalOpen}
         onCancel={() => setIsMembersModalOpen(false)}
-        footer={null}
+        footer={
+          <div className="flex justify-center mt-6">
+            <Button 
+              onClick={() => setIsMembersModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
+            >
+              Đóng
+            </Button>
+          </div>
+        }
         centered
         width={700}
+        closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
       >
         <Table 
           dataSource={groupMembers}
@@ -592,6 +874,127 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
           ]}
         />
       </Modal>
+
+      {/* Add User To Group Modal */}
+      <Modal
+        title={
+          <div className="text-xl font-bold text-slate-800">
+            Thêm người dùng
+          </div>
+        }
+        open={isAddUserModalOpen}
+        onCancel={() => setIsAddUserModalOpen(false)}
+        footer={
+          <div className="flex justify-center gap-4 mt-6">
+            <Button 
+              key="back" 
+              onClick={() => setIsAddUserModalOpen(false)} 
+              className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
+            >
+              Đóng
+            </Button>
+            <Button 
+              key="submit" 
+              type="primary" 
+              onClick={() => {
+                const selectedUsers = allUsers.filter(u => tempSelectedUserIds.includes(u.id));
+                const newMembers = [...groupMembers];
+                selectedUsers.forEach(user => {
+                  if (!newMembers.find(m => m.id === user.id)) {
+                    newMembers.push(user);
+                  }
+                });
+                setGroupMembers(newMembers);
+                setIsAddUserModalOpen(false);
+                message.success(`Đã thêm ${selectedUsers.length} người dùng vào danh sách.`);
+              }} 
+              className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
+            >
+              Lưu
+            </Button>
+          </div>
+        }
+        centered
+        width={800}
+        closeIcon={<span className="text-slate-500 hover:text-slate-700 text-lg font-bold">&times;</span>}
+      >
+        <div className="mt-4">
+          <Input 
+            prefix={<SearchOutlined className="text-slate-400" />} 
+            placeholder="Tìm kiếm theo tài khoản, họ và tên, đơn vị" 
+            className="rounded py-1.5 mb-4"
+            value={searchUserAdd}
+            onChange={(e) => setSearchUserAdd(e.target.value)}
+          />
+
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <Table
+              rowSelection={{
+                type: 'checkbox',
+                selectedRowKeys: tempSelectedUserIds,
+                onChange: (selectedRowKeys) => {
+                  setTempSelectedUserIds(selectedRowKeys as string[]);
+                },
+                getCheckboxProps: (record) => ({
+                  disabled: groupMembers.some(m => m.id === record.id),
+                })
+              }}
+              dataSource={allUsers.filter(u => 
+                u.username?.toLowerCase().includes(searchUserAdd.toLowerCase()) || 
+                u.fullName?.toLowerCase().includes(searchUserAdd.toLowerCase())
+              )}
+              rowKey="id"
+              pagination={{
+                pageSize: 5,
+                showSizeChanger: true,
+                pageSizeOptions: ['5', '10', '20'],
+                locale: { items_per_page: '/ trang' },
+                size: 'small',
+                showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`
+              }}
+              className="w-full text-sm text-slate-700"
+              columns={[
+                {
+                  title: 'STT',
+                  key: 'stt',
+                  width: 60,
+                  align: 'center',
+                  render: (_, __, index) => index + 1,
+                },
+                {
+                  title: 'Tài khoản',
+                  dataIndex: 'username',
+                  key: 'username',
+                  render: (text) => <strong className="text-[#1e40af]">{text}</strong>
+                },
+                {
+                  title: 'Họ và tên',
+                  dataIndex: 'fullName',
+                  key: 'fullName',
+                },
+                {
+                  title: 'Đơn vị',
+                  dataIndex: 'department',
+                  key: 'department',
+                  render: () => 'Đơn vị mẫu',
+                },
+                {
+                  title: 'Trạng thái',
+                  dataIndex: 'status',
+                  key: 'status',
+                  render: (status) => (
+                    <Tag color={status === 'active' ? 'green' : 'red'} className="font-bold">
+                      {status === 'active' ? 'Hoạt động' : 'Đã khóa'}
+                    </Tag>
+                  )
+                }
+              ]}
+              locale={{ emptyText: 'Không tìm thấy người dùng.' }}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
+

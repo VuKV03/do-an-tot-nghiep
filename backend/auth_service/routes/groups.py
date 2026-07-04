@@ -9,10 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from backend.shared.database import get_db
-from backend.auth_service.models import UserGroup
+from backend.auth_service.models import UserGroup, UserGroupMember
 from backend.auth_service.schemas import GroupCreateRequest, GroupUpdateRequest
 
 router = APIRouter(tags=["Groups"])
@@ -29,6 +29,7 @@ def to_group_dict(g: UserGroup):
         "description": g.description,
         "memberCount": g.memberCount,
         "permissions": perms,
+        "status": g.status,
         "createdAt": g.createdAt
     }
 
@@ -52,11 +53,22 @@ async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_
         code=body.code,
         name=body.name,
         description=body.description,
-        memberCount=0,
+        memberCount=len(body.member_ids) if body.member_ids else 0,
         permissions=json.dumps(body.permissions or []),
         createdAt=datetime.utcnow().isoformat() + "Z",
     )
     db.add(group)
+    
+    if body.member_ids:
+        for user_id in body.member_ids:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{user_id}",
+                group_id=group.id,
+                user_id=user_id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+
     await db.commit()
     return {
         "success": True,
@@ -80,7 +92,21 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
         group.description = body.description
     if body.permissions is not None:
         group.permissions = json.dumps(body.permissions)
+    if body.status is not None:
+        group.status = body.status
         
+    if body.member_ids is not None:
+        await db.execute(delete(UserGroupMember).where(UserGroupMember.group_id == group_id))
+        for user_id in body.member_ids:
+            ugm = UserGroupMember(
+                id=f"ugm-{int(time.time() * 1000)}-{user_id}",
+                group_id=group_id,
+                user_id=user_id,
+                joinedAt=datetime.utcnow().isoformat() + "Z"
+            )
+            db.add(ugm)
+        group.memberCount = len(body.member_ids)
+
     await db.commit()
     return {
         "success": True,

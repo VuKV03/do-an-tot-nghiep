@@ -16,8 +16,17 @@ class User(Base):
     fullName = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="teacher")  # admin, reviewer, teacher, student
+    position = Column(String(100), nullable=True) # Chức vụ
     status = Column(String(50), default="active")  # active, inactive, locked
     createdAt = Column(String(100), nullable=False)
+
+class UserGroupMember(Base):
+    __tablename__ = "user_group_members"
+
+    id = Column(String(255), primary_key=True)
+    group_id = Column(String(255), nullable=False)
+    user_id = Column(String(255), nullable=False)
+    joinedAt = Column(String(100), nullable=False)
 
 class UserGroup(Base):
     __tablename__ = "user_groups"
@@ -28,6 +37,7 @@ class UserGroup(Base):
     description = Column(Text, nullable=True)
     memberCount = Column(Integer, default=0)
     permissions = Column(Text, nullable=True)
+    status = Column(String(50), default="active")
     createdAt = Column(String(100), nullable=False)
 
 class SecurityPolicy(Base):
