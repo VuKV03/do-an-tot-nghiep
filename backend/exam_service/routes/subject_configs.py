@@ -70,13 +70,13 @@ async def list_subject_configs(db: AsyncSession = Depends(get_db)):
     return SubjectConfigListResponse(success=True, count=len(data), data=data)
 
 
-@router.get("/by-subject/{subject_id}", response_model=SubjectConfigResponse)
+@router.get("/by-subject/{subject_id}")
 async def get_subject_config_by_subject(subject_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SubjectConfig).where(SubjectConfig.subject_id == subject_id))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy cấu hình môn học.")
-    return _to_response(obj)
+    return {"success": True, "data": _to_response(obj)}
 
 
 @router.post("/", status_code=201)

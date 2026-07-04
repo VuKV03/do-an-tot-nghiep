@@ -12,11 +12,14 @@ const getShortCode = (ma: string, ten: string) => {
 };
 import type { TreeDataNode, TreeProps } from 'antd';
 import {
-  apiGetCaiDatMaTran, apiSaveMaTran,
+  apiSaveMaTran,
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
 } from './mockData';
-import { subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi, type TopicAPI } from '../../../services/danhMucApi.ts';
+import {
+  subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi,
+  subjectConfigApi, type TopicAPI, type SubjectConfigAPI, type QuestionTypeAPI,
+} from '../../../services/danhMucApi.ts';
 
 const countKey = (topicId: string, levelId: string | null, typeId: string | null, competencyId: string | null) =>
   `${topicId}|${levelId}|${typeId}|${competencyId}`;
@@ -91,6 +94,81 @@ const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
   return roots;
 };
 
+const toNum = (v: unknown): number => (v === null || v === undefined || v === '' ? 0 : Number(v) || 0);
+
+// Xây ds_loai_cau_hoi từ "Cấu hình môn học" (subject_configs: Phần I/II/III cố định), thay cho
+// suy luận cứng theo code TN/DS/TLN trước đây. Trả về ChuDeNode[] (cây chủ đề) đi kèm để dùng chung
+// cho cả changeMonHoc (Thêm mới) và loadDetail (Edit) — tránh lặp code.
+const fetchSubjectMatrixConfig = async (
+  selectedSubj: { id: string; code: string },
+): Promise<{ cd: CaiDatMaTran; chuDe: ChuDeNode[]; subjectConfig: SubjectConfigAPI | null }> => {
+  const cd: CaiDatMaTran = { ds_dm_muc_do: [], ds_dm_thanh_phan_nang_luc: [], ds_loai_cau_hoi: [] };
+  let chuDe: ChuDeNode[] = [];
+
+  const topicsRes = await topicsApi.list();
+  const rawTopics = topicsRes.data || [];
+  chuDe = buildTopicTree(rawTopics.filter(t => t.subject_id === selectedSubj.id));
+
+  const nlRes = await competencyComponentApi.list();
+  const rawNL = nlRes.data || [];
+  cd.ds_dm_thanh_phan_nang_luc = rawNL
+    .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
+    .map((nl: any) => ({ id: nl.id, ma: nl.code, ten: nl.name }));
+
+  const mdRes = await cognitiveLevelApi.list();
+  cd.ds_dm_muc_do = (mdRes.data || []).map((md: any) => ({ id: md.id, ma: md.code, ten: md.name }));
+
+  const [subjectConfig, typesRes] = await Promise.all([
+    subjectConfigApi.getBySubjectId(selectedSubj.id).then(res => res.data).catch(() => null),
+    questionTypeApi.list(),
+  ]);
+  const typeMap = new Map<string, QuestionTypeAPI>((typesRes.data || []).map(t => [t.id, t]));
+
+  if (!subjectConfig) {
+    message.warning('Môn học chưa được cấu hình (Cấu hình môn học) — vui lòng cấu hình trước khi tạo ma trận.');
+    cd.ds_loai_cau_hoi = [];
+    return { cd, chuDe, subjectConfig: null };
+  }
+
+  const parts = [
+    {
+      typeId: subjectConfig.type_id_p1, from: subjectConfig.p1_from, to: subjectConfig.p1_to,
+      content: subjectConfig.content_p1, diem: toNum(subjectConfig.points_for_a_correct_answers_p1),
+    },
+    {
+      typeId: subjectConfig.type_id_p2, from: subjectConfig.p2_from, to: subjectConfig.p2_to,
+      content: subjectConfig.content_p2, diem: toNum(subjectConfig.points_for_4_correct_idea),
+      diem_theo_y: {
+        y1: toNum(subjectConfig.points_for_1_correct_idea),
+        y2: toNum(subjectConfig.points_for_2_correct_idea),
+        y3: toNum(subjectConfig.points_for_3_correct_idea),
+        y4: toNum(subjectConfig.points_for_4_correct_idea),
+      },
+    },
+    {
+      typeId: subjectConfig.type_id_p3, from: subjectConfig.p3_from, to: subjectConfig.p3_to,
+      content: subjectConfig.content_p3, diem: toNum(subjectConfig.points_for_a_correct_answers_p3),
+    },
+  ];
+
+  cd.ds_loai_cau_hoi = parts
+    .filter(p => p.typeId && typeMap.has(p.typeId))
+    .map(p => {
+      const t = typeMap.get(p.typeId!)!;
+      const soLuongCau = p.from != null && p.to != null ? Math.max(0, p.to - p.from + 1) : 0;
+      return {
+        loai_cau_hoi_id: t.id,
+        diem: p.diem,
+        so_luong_cau: soLuongCau,
+        noi_dung_phan: `${p.content || ''}: ${t.name}`.trim(),
+        dm_loai_cau_hoi: { id: t.id, ma: t.code, ten: t.name },
+        diem_theo_y: (p as any).diem_theo_y,
+      };
+    });
+
+  return { cd, chuDe, subjectConfig };
+};
+
 interface Props {
   onBack: () => void;
   editingId?: string;
@@ -112,6 +190,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   const [checkedKeys, setCheckedKeys] = useState<{ checked: React.Key[]; halfChecked: React.Key[] }>({ checked: [], halfChecked: [] });
   const [searchValue, setSearchValue] = useState('');
   const [obj, setObj] = useState<MaTranData[]>([]);
+  const [subjectConfig, setSubjectConfig] = useState<SubjectConfigAPI | null>(null);
   const checkRequestSeqRef = React.useRef(0);
 
   // --- Step 1: Chọn Môn ---
@@ -119,81 +198,24 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     setIsChangingSubject(true);
     setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
     setMonHocId(value);
-    const cd = { ...await apiGetCaiDatMaTran(value) };
 
+    let cd: CaiDatMaTran = { ds_dm_muc_do: [], ds_dm_thanh_phan_nang_luc: [], ds_loai_cau_hoi: [] };
     let chuDe: ChuDeNode[] = [];
+    let subjectCfg: SubjectConfigAPI | null = null;
     try {
       const selectedSubj = fullSubjects.find(s => s.code === value);
       if (selectedSubj) {
-        // Fetch real topics
-        const topicsRes = await topicsApi.list();
-        const rawTopics = topicsRes.data || [];
-        const filteredFlatTopics = rawTopics.filter(t => t.subject_id === selectedSubj.id);
-        chuDe = buildTopicTree(filteredFlatTopics);
-
-        // Fetch real competency components
-        const nlRes = await competencyComponentApi.list();
-        const rawNL = nlRes.data || [];
-        const filteredNL = rawNL
-          .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
-          .map((nl: any) => ({
-            id: nl.id,
-            ma: nl.code,
-            ten: nl.name
-          }));
-        cd.ds_dm_thanh_phan_nang_luc = filteredNL;
-
-        // Fetch real cognitive levels (Cấp độ tư duy)
-        const mdRes = await cognitiveLevelApi.list();
-        const rawMD = mdRes.data || [];
-        const mappedMD = rawMD.map((md: any) => ({
-          id: md.id,
-          ma: md.code,
-          ten: md.name
-        }));
-        cd.ds_dm_muc_do = mappedMD;
-
-        // Fetch real question types (Loại hình câu hỏi)
-        const lchRes = await questionTypeApi.list();
-        const rawLCH = lchRes.data || [];
-        const mappedLCH = rawLCH.map((lch: any) => {
-          let diem = 1.0;
-          let so_luong_cau = 5;
-          let noi_dung_phan = lch.name;
-          const codeUpper = (lch.code || '').toUpperCase();
-          if (codeUpper === 'TN') {
-            diem = 0.25;
-            so_luong_cau = 12;
-            noi_dung_phan = 'Phần I: Trắc nghiệm nhiều lựa chọn';
-          } else if (codeUpper === 'DS') {
-            diem = 1.0;
-            so_luong_cau = 4;
-            noi_dung_phan = 'Phần II: Trắc nghiệm Đúng/Sai';
-          } else if (codeUpper === 'TLN') {
-            diem = 0.5;
-            so_luong_cau = 6;
-            noi_dung_phan = 'Phần III: Trả lời ngắn';
-          }
-
-          return {
-            loai_cau_hoi_id: lch.id,
-            diem: diem,
-            so_luong_cau: so_luong_cau,
-            noi_dung_phan: noi_dung_phan,
-            dm_loai_cau_hoi: {
-              id: lch.id,
-              ma: lch.code,
-              ten: lch.name
-            }
-          };
-        });
-        cd.ds_loai_cau_hoi = mappedLCH;
+        const result = await fetchSubjectMatrixConfig(selectedSubj);
+        cd = result.cd;
+        chuDe = result.chuDe;
+        subjectCfg = result.subjectConfig;
       }
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ/loại câu hỏi từ database:', err);
     }
 
     setCaiDat(cd);
+    setSubjectConfig(subjectCfg);
     setDataChuDe(chuDe);
     setDataChuDeSelect(formatChuDeItems(chuDe));
     setIsChangingSubject(false);
@@ -211,75 +233,16 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
           // Load subject data
           setIsChangingSubject(true);
           setMonHocId(mId);
-          const cd = { ...await apiGetCaiDatMaTran(mId) };
 
+          let cd: CaiDatMaTran = { ds_dm_muc_do: [], ds_dm_thanh_phan_nang_luc: [], ds_loai_cau_hoi: [] };
           let chuDe: ChuDeNode[] = [];
           try {
             const selectedSubj = subjectsList.find(s => s.code === mId);
             if (selectedSubj) {
-              // Fetch real topics
-              const topicsRes = await topicsApi.list();
-              const rawTopics = topicsRes.data || [];
-              const filteredFlatTopics = rawTopics.filter(t => t.subject_id === selectedSubj.id);
-              chuDe = buildTopicTree(filteredFlatTopics);
-
-              // Fetch real competency components
-              const nlRes = await competencyComponentApi.list();
-              const rawNL = nlRes.data || [];
-              const filteredNL = rawNL
-                .filter((nl: any) => nl.subject_id === selectedSubj.id && nl.is_active)
-                .map((nl: any) => ({
-                  id: nl.id,
-                  ma: nl.code,
-                  ten: nl.name
-                }));
-              cd.ds_dm_thanh_phan_nang_luc = filteredNL;
-
-              // Fetch real cognitive levels (Cấp độ tư duy)
-              const mdRes = await cognitiveLevelApi.list();
-              const rawMD = mdRes.data || [];
-              const mappedMD = rawMD.map((md: any) => ({
-                id: md.id,
-                ma: md.code,
-                ten: md.name
-              }));
-              cd.ds_dm_muc_do = mappedMD;
-
-              // Fetch real question types (Loại hình câu hỏi)
-              const lchRes = await questionTypeApi.list();
-              const rawLCH = lchRes.data || [];
-              const mappedLCH = rawLCH.map((lch: any) => {
-                let diem = 1.0;
-                let so_luong_cau = 5;
-                let noi_dung_phan = lch.name;
-                const codeUpper = (lch.code || '').toUpperCase();
-                if (codeUpper === 'TN') {
-                  diem = 0.25;
-                  so_luong_cau = 12;
-                  noi_dung_phan = 'Phần I: Trắc nghiệm nhiều lựa chọn';
-                } else if (codeUpper === 'DS') {
-                  diem = 1.0;
-                  so_luong_cau = 4;
-                  noi_dung_phan = 'Phần II: Trắc nghiệm Đúng/Sai';
-                } else if (codeUpper === 'TLN') {
-                  diem = 0.5;
-                  so_luong_cau = 6;
-                  noi_dung_phan = 'Phần III: Trả lời ngắn';
-                }
-
-                return {
-                  loai_cau_hoi_id: lch.id,
-                  diem: diem,
-                  so_luong_cau: so_luong_cau,
-                  noi_dung_phan: noi_dung_phan,
-                  dm_loai_cau_hoi: {
-                    id: lch.id,
-                    ma: lch.code,
-                    ten: lch.name
-                  }
-                };
-              });
-              cd.ds_loai_cau_hoi = mappedLCH;
+              const result = await fetchSubjectMatrixConfig(selectedSubj);
+              cd = result.cd;
+              chuDe = result.chuDe;
+              setSubjectConfig(result.subjectConfig);
             }
           } catch (err) {
             console.error('Lỗi khi tải dữ liệu chủ đề/năng lực/cấp độ/loại câu hỏi từ database:', err);
@@ -567,6 +530,11 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
             <Input placeholder="Nhập tên" className="text-xs" value={tenMatran} onChange={e => setTenMatran(e.target.value)} />
           </div>
         </div>
+        {subjectConfig && (
+          <div className="mt-3 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded px-3 py-1.5">
+            Theo <strong>Cấu hình môn học</strong>: Thời gian thi <strong>{subjectConfig.time ?? '—'} phút</strong> · Tổng số câu yêu cầu <strong>{subjectConfig.questions_number ?? '—'}</strong> · Thang điểm <strong>{subjectConfig.scale ?? '—'}</strong>
+          </div>
+        )}
       </div>
 
       {/* Content: Tree + Table */}
@@ -829,7 +797,13 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                     <td className={`border border-slate-200 px-3 py-2 text-center font-bold ${soCauConfig > lch.so_luong_cau ? 'text-red-500' : soCauConfig === lch.so_luong_cau ? 'text-green-600' : ''}`}>
                       {soCauConfig}
                     </td>
-                    <td className="border border-slate-200 px-3 py-2 text-center">{lch.diem}</td>
+                    <td className="border border-slate-200 px-3 py-2 text-center">
+                      {lch.diem_theo_y ? (
+                        <Tooltip title="Điểm theo số ý đúng: 1 ý / 2 ý / 3 ý / 4 ý">
+                          <span>{lch.diem_theo_y.y1}/{lch.diem_theo_y.y2}/{lch.diem_theo_y.y3}/{lch.diem_theo_y.y4}</span>
+                        </Tooltip>
+                      ) : lch.diem}
+                    </td>
                     <td className="border border-slate-200 px-3 py-2 text-center font-bold text-amber-700">{(soCauConfig * lch.diem).toFixed(2)}</td>
                   </tr>
                 );

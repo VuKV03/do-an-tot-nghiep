@@ -37,6 +37,8 @@ export interface LoaiCauHoi {
   noi_dung_phan: string;
   dm_loai_cau_hoi: { id: string; ma: string; ten: string };
   diem: number;
+  /** Điểm theo số ý đúng (1/2/3/4) — chỉ có ở Phần II (Đúng/Sai) lấy từ "Cấu hình môn học" */
+  diem_theo_y?: { y1: number; y2: number; y3: number; y4: number };
 }
 
 export interface CaiDatMaTran {
@@ -44,130 +46,6 @@ export interface CaiDatMaTran {
   ds_dm_thanh_phan_nang_luc: CompetencyComponent[];
   ds_loai_cau_hoi: LoaiCauHoi[];
 }
-
-const MOCK_CAI_DAT_TOAN: CaiDatMaTran = {
-  ds_dm_muc_do: [
-    { id: 'md-1', ma: '1', ten: 'Nhận biết' },
-    { id: 'md-2', ma: '2', ten: 'Thông hiểu' },
-    { id: 'md-3', ma: '3', ten: 'Vận dụng' },
-    { id: 'md-4', ma: '4', ten: 'Vận dụng cao' },
-  ],
-  ds_dm_thanh_phan_nang_luc: [
-    { id: 'nl-1', ten: 'Tư duy và lập luận toán học' },
-    // { id: 'nl-2', ten: 'Giải quyết vấn đề toán học' },
-    // { id: 'nl-3', ten: 'Mô hình hóa toán học' },
-  ],
-  ds_loai_cau_hoi: [
-    {
-      loai_cau_hoi_id: 'lch-tn',
-      so_luong_cau: 12, // Đã sửa từ 24 về 12
-      noi_dung_phan: 'Phần I: Trắc nghiệm nhiều lựa chọn',
-      dm_loai_cau_hoi: { id: 'lch-tn', ma: 'TN', ten: 'Trắc nghiệm nhiều lựa chọn' },
-      diem: 0.25,
-    },
-    {
-      loai_cau_hoi_id: 'lch-tln',
-      so_luong_cau: 4,
-      noi_dung_phan: 'Phần II: Trắc nghiệm Đúng/Sai',
-      dm_loai_cau_hoi: { id: 'lch-tln', ma: 'TLN', ten: 'Trắc nghiệm Đúng/Sai' },
-      diem: 1.0, // Điểm tối đa cho 1 câu lớn (4 ý)
-    },
-    {
-      loai_cau_hoi_id: 'lch-ds',
-      so_luong_cau: 6,
-      noi_dung_phan: 'Phần III: Trả lời ngắn',
-      dm_loai_cau_hoi: { id: 'lch-ds', ma: 'DS', ten: 'Trả lời ngắn' },
-      diem: 0.5, // Đã sửa từ 0.25 lên 0.5
-    },
-  ],
-};
-
-const MOCK_CAI_DAT_VAT_LY: CaiDatMaTran = {
-  // Mức độ nhận thức (giữ nguyên theo chuẩn 4 mức)
-  ds_dm_muc_do: [
-    { id: 'md-1', ma: '1', ten: 'Nhận biết' },
-    { id: 'md-2', ma: '2', ten: 'Thông hiểu' },
-    { id: 'md-3', ma: '3', ten: 'Vận dụng' },
-    { id: 'md-4', ma: '4', ten: 'Vận dụng cao' },
-  ],
-  ds_dm_thanh_phan_nang_luc: [
-    { id: 'nl-vl1', ten: 'Nhận thức vật lí' },
-    { id: 'nl-vl2', ten: 'Tìm hiểu thế giới tự nhiên dưới góc độ vật lí' },
-    { id: 'nl-vl3', ten: 'Vận dụng kiến thức, kĩ năng đã học' },
-  ],
-  ds_loai_cau_hoi: [
-    {
-      loai_cau_hoi_id: 'lch-tn',
-      so_luong_cau: 18, // 18 câu trắc nghiệm
-      noi_dung_phan: 'Phần I: Trắc nghiệm nhiều lựa chọn',
-      dm_loai_cau_hoi: { id: 'lch-tn', ma: 'TN', ten: 'Trắc nghiệm' },
-      diem: 0.25,
-    },
-    {
-      loai_cau_hoi_id: 'lch-tln',
-      so_luong_cau: 4, // 4 câu hỏi lớn
-      noi_dung_phan: 'Phần II: Trắc nghiệm Đúng/Sai',
-      dm_loai_cau_hoi: { id: 'lch-tln', ma: 'TLN', ten: 'Đúng/Sai' },
-      diem: 1.0, // Điểm tối đa cho 4 ý
-    },
-    {
-      loai_cau_hoi_id: 'lch-ds',
-      so_luong_cau: 6, // 6 câu trả lời ngắn
-      noi_dung_phan: 'Phần III: Trả lời ngắn',
-      dm_loai_cau_hoi: { id: 'lch-ds', ma: 'DS', ten: 'Trả lời ngắn' },
-      diem: 0.25, // Thường là 0.25 hoặc 0.5 tùy barem từng năm
-    },
-  ],
-};
-
-const MOCK_CAI_DAT_TIENG_ANH: CaiDatMaTran = {
-  ds_dm_muc_do: [
-    { id: 'md-1', ma: '1', ten: 'Nhận biết' },
-    { id: 'md-2', ma: '2', ten: 'Thông hiểu' },
-    { id: 'md-3', ma: '3', ten: 'Vận dụng' },
-    { id: 'md-4', ma: '4', ten: 'Vận dụng cao' },
-  ],
-  ds_dm_thanh_phan_nang_luc: [
-    { id: 'nl-ta1', ten: 'Năng lực ngôn ngữ' },
-    { id: 'nl-ta2', ten: 'Năng lực giao tiếp' },
-  ],
-  ds_loai_cau_hoi: [
-    {
-      loai_cau_hoi_id: 'lch-dien-tu-ngan',
-      so_luong_cau: 12,
-      noi_dung_phan: 'Điền từ/cụm từ ngắn',
-      dm_loai_cau_hoi: { id: 'lch-dt-ngan', ma: 'DTN', ten: 'Trắc nghiệm' },
-      diem: 0.25,
-    },
-    {
-      loai_cau_hoi_id: 'lch-sap-xep',
-      so_luong_cau: 5,
-      noi_dung_phan: 'Sắp xếp câu đúng thứ tự',
-      dm_loai_cau_hoi: { id: 'lch-sx', ma: 'SX', ten: 'Trắc nghiệm' },
-      diem: 0.25,
-    },
-    {
-      loai_cau_hoi_id: 'lch-dien-tu-dai',
-      so_luong_cau: 5,
-      noi_dung_phan: 'Điền câu/cụm từ dài',
-      dm_loai_cau_hoi: { id: 'lch-dtd', ma: 'DTD', ten: 'Trắc nghiệm' },
-      diem: 0.25,
-    },
-    {
-      loai_cau_hoi_id: 'lch-doc-hieu',
-      so_luong_cau: 18, // Chia làm 2 bài đọc (8 câu + 10 câu)
-      noi_dung_phan: 'Đọc hiểu',
-      dm_loai_cau_hoi: { id: 'lch-dh', ma: 'DH', ten: 'Trắc nghiệm' },
-      diem: 0.25,
-    },
-  ],
-};
-
-export const MOCK_CAI_DAT_MAP: Record<string, CaiDatMaTran> = {
-  'mh-toan': MOCK_CAI_DAT_TOAN,
-  'mh-anh': MOCK_CAI_DAT_TIENG_ANH,
-  'mh-ly': MOCK_CAI_DAT_VAT_LY,
-};
 
 // ------------------------------------------
 // 2.3 GET /api/cau-hoi/chu-de?mon_hoc_id={id}
@@ -450,12 +328,6 @@ export function fakeDelay(ms = 400): Promise<void> {
 export async function apiGetMonHoc(): Promise<MonHocOption[]> {
   await fakeDelay(300);
   return MOCK_MON_HOC;
-}
-
-/** 2.2 Lấy Cài đặt Ma trận theo Môn */
-export async function apiGetCaiDatMaTran(monHocId: string): Promise<CaiDatMaTran> {
-  await fakeDelay(500);
-  return MOCK_CAI_DAT_MAP[monHocId] || MOCK_CAI_DAT_MAP['mh-toan'];
 }
 
 /** 2.3 Lấy Chủ đề theo Môn (cây cha-con) */
