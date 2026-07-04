@@ -479,10 +479,22 @@ export interface BankQuestionCreateAPI {
   status?: string;
 }
 
+export interface BankQuestionCountByTopicAPI {
+  topic_id: string;
+  level_id: string | null;
+  type_id: string | null;
+  competency_component_id: string | null;
+  count: number;
+}
+
 export const bankQuestionApi = {
   list: () =>
     apiFetch<{ success: boolean; count: number; data: BankQuestionAPI[] }>(
       '/bank-questions/',
+    ),
+  countByTopic: (topicIds: string[], status: number = 2) =>
+    apiFetch<{ success: boolean; data: BankQuestionCountByTopicAPI[] }>(
+      `/bank-questions/count-by-topic?topic_ids=${topicIds.join(',')}&status=${status}`,
     ),
   create: (body: BankQuestionCreateAPI) =>
     apiFetch<{ success: boolean; message: string; data: BankQuestionAPI }>(

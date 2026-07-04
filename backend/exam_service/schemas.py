@@ -65,6 +65,9 @@ class ExamCreate(BaseModel):
     description: Optional[str] = ""
     source: Optional[str] = "manual"
     questions: Optional[List[QuestionBase]] = []
+    # Danh sách id câu hỏi đã có sẵn trong Ngân hàng câu hỏi cần gắn vào đề thi này
+    # (dùng cho luồng "Đề thi riêng lẻ" — chọn câu có sẵn thay vì tạo câu mới).
+    questionIds: Optional[List[str]] = None
 
 
 class ExamUpdate(BaseModel):
@@ -80,6 +83,7 @@ class ExamUpdate(BaseModel):
     description: Optional[str] = None
     source: Optional[str] = None
     questions: Optional[List[QuestionBase]] = None
+    questionIds: Optional[List[str]] = None
 
 
 class ExamResponse(BaseModel):
