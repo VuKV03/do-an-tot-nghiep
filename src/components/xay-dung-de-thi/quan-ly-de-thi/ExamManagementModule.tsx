@@ -35,12 +35,17 @@ import {
   DownOutlined,
   UpOutlined,
   UserOutlined,
-  MoreOutlined
+  MoreOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
+import { Question } from '../../../types';
+import { bankQuestionApi } from '../../../services/danhMucApi';
 import ModalTuDongSinhDe from './ModalTuDongSinhDe';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalAddGoiDeThiNew from './ModalAddGoiDeThiNew';
+import ExamContentDisplay from './ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
 
@@ -83,14 +88,17 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const [selectedPkg, setSelectedPkg] = useState<any | null>(null);
 
   // Secondary interactive modals state
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isPermissionOpen, setIsPermissionOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSyncOpen, setIsSyncOpen] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
 
+  // Xem chi tiết đề thi
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [viewQuestions, setViewQuestions] = useState<Question[]>([]);
+  const [viewLoading, setViewLoading] = useState(false);
+
   // Form states for secondary modals
-  const [reviewForm, setReviewForm] = useState({ reviewerId: '', notes: '' });
   const [permissions, setPermissions] = useState<Record<string, string[]>>({});
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
 
@@ -234,20 +242,92 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
     });
   };
 
+  // Lấy câu hỏi thật của 1 đề thi từ Ngân hàng câu hỏi (đã lọc theo examId), dùng chung cho
+  // "Xem đề thi" và "Xuất file" — exam.questions từ GET /api/exams trả sai tên field
+  // (content/correct_answer thay vì text/correctAnswer) nên KHÔNG dùng trực tiếp ở đây.
+  const fetchExamQuestions = async (examId: string): Promise<Question[]> => {
+    try {
+      const res = await bankQuestionApi.list();
+      if (!res.success || !res.data) return [];
+      return res.data
+        .filter(q => q.examId === examId)
+        .map((q): Question => ({
+          id: q.id,
+          code: q.code,
+          text: q.text,
+          type: q.type,
+          level: q.level,
+          status: q.status,
+          subject: q.subject,
+          grade: q.grade,
+          topicId: q.topicId || '',
+          topicName: q.topicName || 'Chưa phân loại',
+          subTopicName: q.subTopicName || '',
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          creator: q.creator,
+          createdAt: q.createdAt,
+        }));
+    } catch {
+      return [];
+    }
+  };
+
+  // Xem chi tiết đề thi
+  const handleOpenView = async (exam: any) => {
+    setSelectedExam(exam);
+    setIsViewOpen(true);
+    setViewLoading(true);
+    setViewQuestions(await fetchExamQuestions(exam.id));
+    setViewLoading(false);
+  };
+
+  // Trước đây file xuất chỉ là text thuần đổi đuôi .docx — Word không mở được (báo lỗi/hỏng file).
+  // Sinh RTF thật (định dạng Word hiểu trực tiếp, không cần thư viện ngoài); escape ký tự có dấu
+  // tiếng Việt theo \uN? vì RTF gốc chỉ hỗ trợ 7-bit ASCII.
+  const escapeRtf = (text: string): string => {
+    let out = '';
+    for (const ch of String(text ?? '')) {
+      const code = ch.codePointAt(0)!;
+      if (ch === '\\' || ch === '{' || ch === '}') out += '\\' + ch;
+      else if (ch === '\n') out += '\\par ';
+      else if (code < 128) out += ch;
+      else out += `\\u${code > 32767 ? code - 65536 : code}?`;
+    }
+    return out;
+  };
+
+  const buildExamRtf = (exam: any, questions: Question[]): string => {
+    const parts: string[] = [
+      `{\\b\\fs28 ${escapeRtf('ĐỀ THI TRẮC NGHIỆM')}}\\par`,
+      `{\\b ${escapeRtf(`Môn: ${exam.subject}`)}}\\par`,
+      `{\\b ${escapeRtf(`Khối: ${exam.grade}`)}}\\par`,
+      '\\par',
+    ];
+    questions.forEach((q, i) => {
+      parts.push(`{\\b ${escapeRtf(`Câu ${i + 1}:`)}} ${escapeRtf(q.text)}\\par`);
+      (q.options || []).forEach((opt, oi) => {
+        parts.push(`${escapeRtf(`${String.fromCharCode(65 + oi)}. ${opt}`)}\\par`);
+      });
+      const answer = Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer;
+      parts.push(`{\\i ${escapeRtf(`Đáp án: ${answer ?? ''}`)}}\\par`);
+      parts.push('\\par');
+    });
+    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 ${parts.join('\n')}}`;
+  };
+
   // Word export trigger
-  const handleExportWord = (exam: any) => {
-    message.loading({ content: `Đang biên dịch & xuất tài liệu .docx cho đề ${exam.code}...`, key: 'word' });
-    setTimeout(() => {
-      // Mock docx download via standard file download trigger
-      const element = document.createElement("a");
-      const file = new Blob([`ĐỀ THI TRẮC NGHIỆM CHẤT LƯỢNG CAO\nMôn: ${exam.subject}\nKhối: ${exam.grade}\n\n${exam.questions.map((q: any, i: number) => `Câu ${i+1}: ${q.text}\nĐáp án: ${q.correctAnswer}\n`).join('\n')}`], {type: 'text/plain'});
-      element.href = URL.createObjectURL(file);
-      element.download = `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}.docx`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      message.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
-    }, 1200);
+  const handleExportWord = async (exam: any) => {
+    message.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
+    const questions = await fetchExamQuestions(exam.id);
+    const element = document.createElement("a");
+    const file = new Blob([buildExamRtf(exam, questions)], { type: 'application/msword' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}.doc`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    message.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
 
   const handleExportExcel = () => {
@@ -257,20 +337,31 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
     }, 1000);
   };
 
-  // Open secondary workflows
-  const handleOpenReview = (exam: any) => {
-    setSelectedExam(exam);
-    setReviewForm({ reviewerId: '', notes: '' });
-    setIsReviewOpen(true);
+  // Gửi thẩm định: đề thi đã ở trạng thái "Chờ thẩm định" ngay khi tạo, nên chỉ cần
+  // chuyển sang tab "Thẩm định/phản biện đề" để hội đồng xử lý tiếp.
+  const handleSendReview = () => {
+    setSelectedExamIds([]);
+    setActiveTab('exam_review');
   };
 
-  const handleSendReview = () => {
-    if (!reviewForm.reviewerId) {
-      message.error('Vui lòng chọn nhân sự thẩm định!');
-      return;
+  // Duyệt / Từ chối đề thi ở tab thẩm định
+  const handleReviewDecision = async (exam: any, status: 'approved' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/exams/${exam.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success(status === 'approved' ? `Đã duyệt đề thi "${exam.name}".` : `Đã từ chối đề thi "${exam.name}".`);
+        fetchData();
+      } else {
+        message.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
+      }
+    } catch {
+      message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
     }
-    message.success(`Đã chuyển tiếp đề thi ${selectedExam.code} đến giám định viên thẩm định.`);
-    setIsReviewOpen(false);
   };
 
   const handleOpenPermissions = (exam: any) => {
@@ -348,7 +439,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       key: 'review',
       label: 'Gửi thẩm định/phản biên',
       icon: <SafetyCertificateOutlined />,
-      onClick: () => handleOpenReview(exam)
+      onClick: () => handleSendReview()
     },
     {
       key: 'permission',
@@ -530,7 +621,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                 <Button
                   icon={<SafetyCertificateOutlined />}
                   disabled={selectedExamIds.length === 0}
-                  onClick={() => selectedExamIds.length > 0 && handleOpenReview(filteredExamRoots.find(e => e.id === selectedExamIds[0])!)}
+                  onClick={handleSendReview}
                   className="border-slate-300 text-slate-700 font-semibold text-xs rounded cursor-pointer"
                 >
                   Gửi thẩm định
@@ -630,6 +721,32 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
+                          {activeTab === 'exam_review' && (
+                            <>
+                              <Popconfirm
+                                title={`Duyệt đề thi "${row.name}"?`}
+                                okText="Duyệt" cancelText="Hủy"
+                                onConfirm={() => handleReviewDecision(row, 'approved')}
+                              >
+                                <Tooltip title="Duyệt (Đã thẩm định)">
+                                  <Button size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                                </Tooltip>
+                              </Popconfirm>
+                              <Popconfirm
+                                title={`Từ chối đề thi "${row.name}"?`}
+                                okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
+                                onConfirm={() => handleReviewDecision(row, 'rejected')}
+                              >
+                                <Tooltip title="Từ chối">
+                                  <Button size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer" />
+                                </Tooltip>
+                              </Popconfirm>
+                            </>
+                          )}
+                          <Tooltip title="Xem đề thi">
+                            <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
+                              onClick={() => handleOpenView(row)} className="cursor-pointer" />
+                          </Tooltip>
                           <Tooltip title="Chỉnh sửa">
                             <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />}
                               onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
@@ -653,47 +770,36 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       {/* SECONDARY ACTION MODALS                                    */}
       {/* ========================================================== */}
 
-      {/* Modal A: Gửi thẩm định */}
+      {/* Modal: Xem chi tiết đề thi */}
       <Modal
         title={
-          <span className="font-extrabold uppercase text-[12px] text-slate-800">
-            Ủy thác Hội đồng thẩm định / phản biện đề thi
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold uppercase text-[12px] text-slate-800">Xem đề thi</span>
+            {selectedExam && <Tag color="blue" className="rounded-md font-mono m-0">{selectedExam.code}</Tag>}
+          </div>
         }
-        open={isReviewOpen}
-        onCancel={() => setIsReviewOpen(false)}
-        onOk={handleSendReview}
-        okText="Bàn giao thẩm định"
-        cancelText="Đóng"
+        open={isViewOpen}
+        onCancel={() => { setIsViewOpen(false); setViewQuestions([]); }}
+        footer={[
+          <Button key="close" onClick={() => { setIsViewOpen(false); setViewQuestions([]); }} className="rounded font-semibold text-xs">Đóng</Button>
+        ]}
         centered
-        width={450}
+        width={720}
       >
-        <div className="space-y-4 pt-3 text-xs">
-          <div className="space-y-1">
-            <label className="font-bold text-slate-500 uppercase text-[10px]">Chỉ định Giám định viên</label>
-            <Select
-              className="w-full text-xs font-semibold"
-              placeholder="Chọn giám định viên phản biện..."
-              value={reviewForm.reviewerId}
-              onChange={val => setReviewForm({ ...reviewForm, reviewerId: val })}
-              options={SYSTEM_USERS.filter(u => u.role === 'reviewer' || u.role === 'admin').map(u => ({
-                value: u.id,
-                label: `${u.fullName} (${u.role === 'admin' ? 'Quản trị viên' : 'Chuyên gia giám định'})`
-              }))}
-            />
+        {selectedExam && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-3 text-xs flex flex-wrap gap-x-6 gap-y-1">
+            <span><strong>Tên đề:</strong> {selectedExam.name}</span>
+            <span><strong>Môn:</strong> {selectedExam.subject}</span>
+            <span><strong>Khối:</strong> {selectedExam.grade}</span>
+            <span><strong>Thời gian:</strong> {selectedExam.duration || 90} phút</span>
+            <span><strong>Số câu:</strong> {viewQuestions.length}</span>
           </div>
-
-          <div className="space-y-1">
-            <label className="font-bold text-slate-500 uppercase text-[10px]">Ghi chú yêu cầu thẩm định</label>
-            <textarea
-              rows={3}
-              className="w-full border rounded-xl p-2.5 font-semibold text-xs text-slate-700"
-              placeholder="Nhập ghi chú định hướng, thời hạn hoàn thành..."
-              value={reviewForm.notes}
-              onChange={e => setReviewForm({ ...reviewForm, notes: e.target.value })}
-            />
-          </div>
-        </div>
+        )}
+        {viewLoading ? (
+          <div className="py-12 text-center"><Spin /></div>
+        ) : (
+          <ExamContentDisplay questions={viewQuestions} allowEdit={false} />
+        )}
       </Modal>
 
       {/* Modal B: Phân quyền quản lý */}

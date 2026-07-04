@@ -3,7 +3,7 @@ import { Modal, Button, Select, Input, message, Popconfirm, Tooltip, Empty } fro
 import { SwapOutlined, DeleteOutlined, SaveOutlined, PlusOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { SUBJECTS as INITIAL_SUBJECTS } from '../../../data';
-import { subjectCategoryApi, topicsApi } from '../../../services/danhMucApi';
+import { subjectCategoryApi, bankQuestionApi } from '../../../services/danhMucApi';
 import ModalChonCauHoi from './ModalChonCauHoi';
 
 interface ModalDeRiengLeProps {
@@ -70,87 +70,25 @@ export default function ModalDeRiengLe({
 
     const loadQuestionPool = async () => {
       try {
-        const res = await fetch('http://localhost:8001/exams/');
-        const json = await res.json();
-        if (json.success && json.data) {
-          // Gather all unique questions from all exams
-          const pool: Question[] = [];
-          const seenIds = new Set<string>();
-
-          // Get raw topics for mapping topicName
-          let topics: any[] = [];
-          try {
-            const topicRes = await topicsApi.list();
-            if (topicRes.success && topicRes.data) {
-              topics = topicRes.data;
-            }
-          } catch (e) {
-            console.error('Failed to fetch topics for mapping:', e);
-          }
-
-          json.data.forEach((exam: any) => {
-            if (exam.questions) {
-              exam.questions.forEach((q: any) => {
-                if (q.id && !seenIds.has(q.id)) {
-                  seenIds.add(q.id);
-                  
-                  // Normalize fields
-                  let level = q.level;
-                  if (level === '0452ee72-8e42-4cb4-8d25-8b7bc7c062cd' || level === 'vv' || level === 'easy' || level === 'medium') level = 'nhan_biet';
-                  else if (level === '48e3724c-8331-4cb7-85db-4eab06fc53d2' || level === 'zz') level = 'thong_hieu';
-                  else if (level === '9aabe520-155a-4026-8e2e-c87e3ccc719c' || level === 'xx' || level === 'hard') level = 'van_dung';
-                  else if (level === '02ac1a8b-34f0-4fab-8c26-8816201f5492' || level === 'VDC') level = 'van_dung_cao';
-                  
-                  if (!['nhan_biet', 'thong_hieu', 'van_dung', 'van_dung_cao'].includes(level)) {
-                    level = 'nhan_biet';
-                  }
-
-                  let type = q.type;
-                  if (type === '14e974c6-ad3b-4c88-a463-3e5c21182227' || type === 'TN') type = 'single';
-                  else if (type === 'c0b3121a-7a1a-4930-bc4b-15d18bb29b5e' || type === 'ĐS') type = 'true_false';
-                  else if (type === '2e3e3c4e-5066-4bf7-9f9e-911a1e51b76a' || type === 'TLN') type = 'short';
-                  else if (type === '2a9d09c5-accc-4a45-8bf9-e643c8d04830' || type === 'CHN') type = 'multiple';
-
-                  if (!['single', 'true_false', 'short', 'multiple'].includes(type)) {
-                    type = 'single';
-                  }
-
-                  // Find topic name
-                  let topicName = q.topicName || '';
-                  if (q.topicId && topics.length > 0) {
-                    const topic = topics.find((t: any) => t.id === q.topicId);
-                    if (topic) {
-                      topicName = topic.name;
-                    }
-                  }
-
-                  // Map subject category name from DB name
-                  let subjectName = exam.subject;
-                  if (subjectName === 'Toán') subjectName = 'Toán học';
-                  else if (subjectName === 'Lý') subjectName = 'Vật Lý';
-
-                  pool.push({
-                    id: q.id,
-                    code: q.code || `Q-${subjectName.substring(0, 3).toUpperCase()}-${q.id.substring(0, 4)}`,
-                    text: q.text,
-                    type,
-                    level,
-                    status: q.status === 2 ? 'approved' : 'pending',
-                    subject: subjectName,
-                    grade: exam.grade || 'Khối 12',
-                    topicId: q.topicId || '',
-                    topicName: topicName || 'Chưa phân loại',
-                    subTopicName: '',
-                    options: q.options || [],
-                    correctAnswer: q.correctAnswer || '',
-                    creator: q.creator || 'Hệ thống',
-                    createdAt: q.createdAt || exam.createdAt || '2026-06-01T14:30:00Z',
-                  });
-                }
-              });
-            }
-          });
-          setQuestionPool(pool);
+        const res = await bankQuestionApi.list();
+        if (res.success && res.data) {
+          setQuestionPool(res.data.map((q): Question => ({
+            id: q.id,
+            code: q.code,
+            text: q.text,
+            type: q.type,
+            level: q.level,
+            status: q.status,
+            subject: q.subject,
+            grade: q.grade,
+            topicId: q.topicId || '',
+            topicName: q.topicName || 'Chưa phân loại',
+            subTopicName: q.subTopicName || '',
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            creator: q.creator,
+            createdAt: q.createdAt,
+          })));
         }
       } catch (err) {
         console.error('Failed to load question pool:', err);
@@ -276,13 +214,8 @@ export default function ModalDeRiengLe({
         grade: 'Khối 12',
         duration: 90,
         source: 'manual',
-        questions: allQuestions.map(q => ({
-          text: q.text,
-          type: q.type || 'single',
-          level: q.level || 'nhan_biet',
-          options: q.options || [],
-          correctAnswer: q.correctAnswer || '',
-        })),
+        // Câu hỏi chọn từ Ngân hàng câu hỏi đã tồn tại sẵn — chỉ cần gắn exam_id, không tạo lại.
+        questionIds: allQuestions.map(q => q.id),
       };
 
       const url = typeAdd || !exam ? 'http://localhost:8001/exams/' : `http://localhost:8001/exams/${exam.id}`;
