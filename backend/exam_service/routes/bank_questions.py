@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, text, func
+from sqlalchemy import select, text, func, or_, and_
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
@@ -236,6 +236,65 @@ async def count_bank_questions_by_topic(
         for r in result.all()
     ]
     return {"success": True, "data": data}
+
+
+class RandomSelectCell(BaseModel):
+    don_vi_id: str
+    muc_do_id: Optional[str] = None
+    loai_cau_hoi_id: Optional[str] = None
+    nang_luc_id: Optional[str] = None
+    so_cau: int
+
+
+class RandomSelectRequest(BaseModel):
+    grade_id: Optional[str] = None
+    status: int = 2
+    cells: List[RandomSelectCell]
+
+
+@router.post("/random-select")
+async def random_select_questions(body: RandomSelectRequest, db: AsyncSession = Depends(get_db)):
+    """Chọn ngẫu nhiên câu hỏi đã duyệt khớp từng ô của ma trận (topic/mức độ/loại câu hỏi/năng lực).
+    Câu chưa gắn năng lực (competency_component_id = NULL) được coi là khớp mọi cột năng lực,
+    nhất quán với cách tính tong_so_cau ở ma trận đề. Một câu đã được chọn cho 1 ô sẽ không được
+    chọn lại cho ô khác trong cùng lượt sinh, tránh trùng lặp câu hỏi trong đề."""
+    excluded: set[str] = set()
+    results = []
+    for cell in body.cells:
+        if cell.so_cau <= 0:
+            results.append({
+                "don_vi_id": cell.don_vi_id, "muc_do_id": cell.muc_do_id,
+                "loai_cau_hoi_id": cell.loai_cau_hoi_id, "nang_luc_id": cell.nang_luc_id,
+                "requested": 0, "found": 0, "questionIds": [],
+            })
+            continue
+
+        conditions = [Question.topic_id == cell.don_vi_id, Question.status == body.status]
+        if cell.muc_do_id:
+            conditions.append(Question.level_id == cell.muc_do_id)
+        if cell.loai_cau_hoi_id:
+            conditions.append(Question.type_id == cell.loai_cau_hoi_id)
+        if body.grade_id:
+            conditions.append(Question.grade_id == body.grade_id)
+        if cell.nang_luc_id:
+            conditions.append(or_(
+                Question.competency_component_id == cell.nang_luc_id,
+                Question.competency_component_id.is_(None),
+            ))
+        if excluded:
+            conditions.append(Question.id.notin_(excluded))
+
+        stmt = select(Question.id).where(and_(*conditions)).order_by(func.rand()).limit(cell.so_cau)
+        ids = [r[0] for r in (await db.execute(stmt)).all()]
+        excluded.update(ids)
+
+        results.append({
+            "don_vi_id": cell.don_vi_id, "muc_do_id": cell.muc_do_id,
+            "loai_cau_hoi_id": cell.loai_cau_hoi_id, "nang_luc_id": cell.nang_luc_id,
+            "requested": cell.so_cau, "found": len(ids), "questionIds": ids,
+        })
+
+    return {"success": True, "data": results}
 
 
 @router.post("/", status_code=201)

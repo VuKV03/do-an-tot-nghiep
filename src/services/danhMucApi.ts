@@ -487,6 +487,24 @@ export interface BankQuestionCountByTopicAPI {
   count: number;
 }
 
+export interface RandomSelectCellAPI {
+  don_vi_id: string;
+  muc_do_id?: string | null;
+  loai_cau_hoi_id?: string | null;
+  nang_luc_id?: string | null;
+  so_cau: number;
+}
+
+export interface RandomSelectResultAPI {
+  don_vi_id: string;
+  muc_do_id: string | null;
+  loai_cau_hoi_id: string | null;
+  nang_luc_id: string | null;
+  requested: number;
+  found: number;
+  questionIds: string[];
+}
+
 export const bankQuestionApi = {
   list: () =>
     apiFetch<{ success: boolean; count: number; data: BankQuestionAPI[] }>(
@@ -495,6 +513,11 @@ export const bankQuestionApi = {
   countByTopic: (topicIds: string[], status: number = 2) =>
     apiFetch<{ success: boolean; data: BankQuestionCountByTopicAPI[] }>(
       `/bank-questions/count-by-topic?topic_ids=${topicIds.join(',')}&status=${status}`,
+    ),
+  randomSelect: (cells: RandomSelectCellAPI[], gradeId?: string, status: number = 2) =>
+    apiFetch<{ success: boolean; data: RandomSelectResultAPI[] }>(
+      '/bank-questions/random-select',
+      { method: 'POST', body: JSON.stringify({ cells, grade_id: gradeId ?? null, status }) },
     ),
   create: (body: BankQuestionCreateAPI) =>
     apiFetch<{ success: boolean; message: string; data: BankQuestionAPI }>(

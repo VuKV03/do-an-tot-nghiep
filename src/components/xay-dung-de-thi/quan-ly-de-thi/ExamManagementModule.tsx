@@ -20,7 +20,6 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
-  ThunderboltOutlined,
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -42,9 +41,9 @@ import {
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
-import ModalTuDongSinhDe from './ModalTuDongSinhDe';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalAddGoiDeThiNew from './ModalAddGoiDeThiNew';
+import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ExamContentDisplay from './ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
@@ -81,8 +80,8 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const [selectedPkgIds, setSelectedPkgIds] = useState<string[]>([]);
 
   // Modal Triggers
-  const [isTuDongOpen, setIsTuDongOpen] = useState(false);
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
+  const [isTuDongMoiOpen, setIsTuDongMoiOpen] = useState(false);
   const [isAddGoiDeOpen, setIsAddGoiDeOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<any | null>(null);
@@ -605,18 +604,18 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => setIsTuDongOpen(true)}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
-                >
-                  Thêm mới theo ma trận
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
                   onClick={() => { setSelectedExam(null); setIsDeRiengLeOpen(true); }}
                   className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
                 >
                   Thêm mới thủ công
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setIsTuDongMoiOpen(true)}
+                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                >
+                  Thêm mới tự động
                 </Button>
                 <Button
                   icon={<SafetyCertificateOutlined />}
@@ -957,16 +956,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
         </div>
       </Modal>
 
-      {/* Modals 1, 2, 3 */}
-      <ModalTuDongSinhDe
-        open={isTuDongOpen}
-        onCancel={() => setIsTuDongOpen(false)}
-        onSuccess={() => {
-          setIsTuDongOpen(false);
-          fetchData();
-        }}
-      />
-
       <ModalDeRiengLe
         open={isDeRiengLeOpen}
         exam={selectedExam}
@@ -980,6 +969,15 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           fetchData();
         }}
         typeAdd={selectedExam === null}
+      />
+
+      <ModalTaoDeTuDong
+        open={isTuDongMoiOpen}
+        onCancel={() => setIsTuDongMoiOpen(false)}
+        onSuccess={() => {
+          setIsTuDongMoiOpen(false);
+          fetchData();
+        }}
       />
 
       <ModalAddGoiDeThiNew

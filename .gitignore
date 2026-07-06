@@ -12,3 +12,4 @@ dev/
 venv/
 .venv/
 .temp-agent/
+CLAUDE.md
