@@ -1,49 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { message } from 'antd';
 import { Question, MatrixConfig, AuditLog } from '../types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES } from '../data';
+import { bankQuestionApi } from '../services/danhMucApi';
 
 export const useAppState = () => {
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
+  const [questions, setQuestions] = useState<Question[]>([]); // Khởi tạo rỗng, sẽ fetch từ DB
   const [matrices, setMatrices] = useState<MatrixConfig[]>(INITIAL_MATRICES);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const logs: AuditLog[] = [];
-    
-    // Generate logs from matrices
-    INITIAL_MATRICES.forEach((m, index) => {
-      logs.push({
-        id: `log-m-${m.id}`,
-        user: 'Hệ thống (Auto)',
-        action: 'Khởi tạo ma trận',
-        timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
-        details: `Đã tạo ma trận cấu hình: ${m.name}`
-      });
-    });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-    // Generate logs from questions
-    INITIAL_QUESTIONS.forEach(q => {
-      logs.push({
-        id: `log-q-${q.id}`,
-        user: q.creator,
-        action: 'Khởi tạo câu hỏi',
-        timestamp: q.createdAt,
-        details: `Thêm mới câu hỏi ${q.type === 'single' ? 'trắc nghiệm' : 'tự luận'}: ${q.code} thuộc môn ${q.subject}`
-      });
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const res = await bankQuestionApi.list();
+        if (res.success && res.data) {
+          const mappedQuestions: Question[] = res.data.map((q: any) => ({
+            id: q.id,
+            code: q.code,
+            text: q.text,
+            type: q.type,
+            level: q.level,
+            subject: q.subject,
+            grade: q.grade,
+            topicId: q.topicId || '',
+            topicName: q.topicName || '',
+            subTopicName: q.subTopicName || '',
+            options: q.options || [],
+            correctAnswer: q.correctAnswer || '',
+            creator: q.creator || 'Hệ thống',
+            createdAt: q.createdAt || new Date().toISOString(),
+            status: q.status,
+            feedback: q.feedback
+          }));
+          
+          setQuestions(mappedQuestions);
 
-      if (q.status === 'approved') {
-        logs.push({
-          id: `log-q-app-${q.id}`,
-          user: 'Ban giám định chuyên môn',
-          action: 'Duyệt câu hỏi',
-          timestamp: new Date(new Date(q.createdAt).getTime() + 3600000).toISOString(),
-          details: `Phê duyệt thành công câu hỏi ${q.code} đưa vào ngân hàng chính thức.`
-        });
+          // Tạo logs từ dữ liệu thật
+          const logs: AuditLog[] = [];
+          
+          INITIAL_MATRICES.forEach((m, index) => {
+            logs.push({
+              id: `log-m-${m.id}`,
+              user: 'Hệ thống (Auto)',
+              action: 'Khởi tạo ma trận',
+              timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
+              details: `Đã tạo ma trận cấu hình: ${m.name}`
+            });
+          });
+
+          mappedQuestions.forEach(q => {
+            logs.push({
+              id: `log-q-${q.id}`,
+              user: q.creator,
+              action: 'Khởi tạo câu hỏi',
+              timestamp: q.createdAt,
+              details: `Thêm mới câu hỏi ${q.type === 'single' ? 'trắc nghiệm' : 'tự luận'}: ${q.code} thuộc môn ${q.subject}`
+            });
+
+            if (q.status === 'approved') {
+              logs.push({
+                id: `log-q-app-${q.id}`,
+                user: 'Ban giám định chuyên môn',
+                action: 'Duyệt câu hỏi',
+                timestamp: new Date(new Date(q.createdAt).getTime() + 3600000).toISOString(),
+                details: `Phê duyệt thành công câu hỏi ${q.code} đưa vào ngân hàng chính thức.`
+              });
+            }
+          });
+
+          setAuditLogs(logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+        } else {
+          message.error('Không thể tải dữ liệu câu hỏi');
+        }
+      } catch (error) {
+        console.error('Lỗi khi tải dữ liệu câu hỏi:', error);
+        message.error('Lỗi kết nối đến máy chủ');
       }
-    });
+    };
 
-    // Sort by timestamp descending
-    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  });
+    fetchQuestions();
+  }, []);
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedReviewQuestion, setSelectedReviewQuestion] = useState<Question | null>(null);
