@@ -1,12 +1,49 @@
 import { useState } from 'react';
 import { message } from 'antd';
 import { Question, MatrixConfig, AuditLog } from '../types';
-import { INITIAL_MATRICES, MOCK_AUDIT_LOGS } from '../data';
+import { INITIAL_QUESTIONS, INITIAL_MATRICES } from '../data';
 
 export const useAppState = () => {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [matrices, setMatrices] = useState<MatrixConfig[]>(INITIAL_MATRICES);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    const logs: AuditLog[] = [];
+    
+    // Generate logs from matrices
+    INITIAL_MATRICES.forEach((m, index) => {
+      logs.push({
+        id: `log-m-${m.id}`,
+        user: 'Hệ thống (Auto)',
+        action: 'Khởi tạo ma trận',
+        timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
+        details: `Đã tạo ma trận cấu hình: ${m.name}`
+      });
+    });
+
+    // Generate logs from questions
+    INITIAL_QUESTIONS.forEach(q => {
+      logs.push({
+        id: `log-q-${q.id}`,
+        user: q.creator,
+        action: 'Khởi tạo câu hỏi',
+        timestamp: q.createdAt,
+        details: `Thêm mới câu hỏi ${q.type === 'single' ? 'trắc nghiệm' : 'tự luận'}: ${q.code} thuộc môn ${q.subject}`
+      });
+
+      if (q.status === 'approved') {
+        logs.push({
+          id: `log-q-app-${q.id}`,
+          user: 'Ban giám định chuyên môn',
+          action: 'Duyệt câu hỏi',
+          timestamp: new Date(new Date(q.createdAt).getTime() + 3600000).toISOString(),
+          details: `Phê duyệt thành công câu hỏi ${q.code} đưa vào ngân hàng chính thức.`
+        });
+      }
+    });
+
+    // Sort by timestamp descending
+    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  });
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedReviewQuestion, setSelectedReviewQuestion] = useState<Question | null>(null);

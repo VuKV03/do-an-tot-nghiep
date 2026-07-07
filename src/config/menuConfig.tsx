@@ -1,7 +1,12 @@
 import React from 'react';
-import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined } from '@ant-design/icons';
+import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined, DashboardOutlined } from '@ant-design/icons';
 
 export const rawMenuItems = [
+  {
+    key: 'dashboard',
+    icon: <DashboardOutlined />,
+    label: 'Bảng tổng quan',
+  },
   {
     key: 'xay-dung-de',
     icon: <ProjectOutlined />,

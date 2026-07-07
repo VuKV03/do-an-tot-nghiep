@@ -13,8 +13,8 @@ import { useAppState } from './hooks/useAppState';
 import DashboardOverview from './components/DashboardOverview';
 import QuestionBankModule from './components/quan-ly-nhch/ngan-hang-cau-hoi/tab-ngan-hang-cau-hoi';
 import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
-import QuestionTopicsModule from './components/QuestionTopicsModule';
-import QuestionStatsModule from './components/QuestionStatsModule';
+import QuestionTopicsModule from './components/quan-ly-nhch/QuestionTopicsModule';
+import QuestionStatsModule from './components/quan-ly-nhch/thong-ke-nhch/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
@@ -33,7 +33,10 @@ const { Header, Sider, Content } = Layout;
 
 export default function App() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeMenuKey, setActiveMenuKey] = useState<string>('ngan-hang-cau-hoi');
+  const [activeMenuKey, setActiveMenuKey] = useState<string>(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || 'dashboard';
+  });
 
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
 
@@ -49,6 +52,25 @@ export default function App() {
       }
     }
   }, []);
+
+  // Sync state to URL hash
+  useEffect(() => {
+    if (activeMenuKey) {
+      window.location.hash = activeMenuKey;
+    }
+  }, [activeMenuKey]);
+
+  // Listen to hash changes (e.g. user clicks back/forward browser buttons)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== activeMenuKey) {
+        setActiveMenuKey(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeMenuKey]);
 
   const {
     questions,
