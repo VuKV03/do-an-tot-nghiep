@@ -71,10 +71,7 @@ async def list_matrix_configs(
         conditions.append(MatrixConfig.subject == subj_name)
 
     if status and status != "all":
-        if status == "pending":
-            conditions.append(MatrixConfig.status == "pending")
-        else:
-            conditions.append(MatrixConfig.status == status)
+        conditions.append(MatrixConfig.status == status)
 
     if conditions:
         query = query.where(and_(*conditions))
@@ -140,7 +137,7 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
     # Check unique code
     existing_result = await db.execute(select(MatrixConfig).where(MatrixConfig.code == matrix_code))
     if existing_result.scalar_one_or_none():
-        matrix_code = f"{matrix_code}-{int(time.time())[-4:]}"
+        matrix_code = f"{matrix_code}-{str(int(time.time()))[-4:]}"
 
     now = datetime.utcnow().isoformat() + "Z"
     subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
