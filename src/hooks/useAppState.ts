@@ -25,6 +25,8 @@ export const useAppState = () => {
             topicId: q.topicId || '',
             topicName: q.topicName || '',
             subTopicName: q.subTopicName || '',
+            nangLucId: q.nangLucId || '',
+            nangLuc: q.nangLuc || '',
             options: q.options || [],
             correctAnswer: q.correctAnswer || '',
             creator: q.creator || 'Hệ thống',

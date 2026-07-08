@@ -85,7 +85,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
       {/* Dynamic Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
 
-        {/* Card 1: Total Questions */}
+        {/* Card 1: Tổng câu hỏi hệ thống */}
         <div
           id="metric-card-total-questions"
           className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
@@ -107,7 +107,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
           </div>
         </div>
 
-        {/* Card 2: Total Matrices */}
+        {/* Card 2: Cấu hình Ma trận */}
         <div
           id="metric-card-total-matrices"
           className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
@@ -128,7 +128,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
           </div>
         </div>
 
-        {/* Card 3: Approved Questions */}
+        {/* Card 3: Câu hỏi đã duyệt */}
         <div
           id="metric-card-approved-questions"
           className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
@@ -149,7 +149,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
           </div>
         </div>
 
-        {/* Card 4: Pending Approvals */}
+        {/* Card 4: Chờ thẩm định */}
         <div
           id="metric-card-pending-approvals"
           className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
@@ -169,28 +169,14 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
             <span>⚠️ Thẩm định khẩn cấp</span>
           </div>
         </div>
-
-        {/* Card 5: Active Teachers */}
-        <div
-          id="metric-card-active-teachers"
-          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
-        >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 transition-all duration-300 group-hover:w-2" />
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Chuyên gia đang hoạt động</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{activeTeachersFormatted} ThS/TS</span>
-            </div>
-            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-lg text-indigo-500 transition-all group-hover:bg-indigo-500 group-hover:text-white">
-              <TeamOutlined className="transition-all" />
-            </div>
-          </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
-            <span>● Đang sẵn sàng</span>
-          </div>
-        </div>
-
       </div>
+
+      {/* Card 5: Tổng số đề đã tạo */}
+
+      {/* Card 6: */}
+
+      {/* Card 4: Chờ thẩm định */}
+      {/* Card 4: Chờ thẩm định */}
 
       {/* Main Graph Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="dashboard-charts-layout">
@@ -205,7 +191,6 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
               <span className="w-1 h-4 bg-[#0f172a] rounded-full inline-block" />
               <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">Phân bố câu hỏi theo Môn học và Trạng thái</span>
             </div>
-            <Tag color="blue" className="text-[10px] font-bold uppercase m-0">Năm học 2025 - 2026</Tag>
           </div>
           <div className="p-5 flex-1 select-none">
             <div className="h-[280px] w-full pt-2">
@@ -270,127 +255,6 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
               ))}
             </div>
           </div>
-        </div>
-
-      </div>
-
-      {/* NEW INTERACTIVE SEGMENT: RECENT MATRICES & QUESTIONS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="dashboard-new-features-row">
-        {/* Dynamic Matrices List */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between border-b pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <FileTextOutlined className="text-[#0f172a] text-sm" />
-              <span className="font-extrabold text-xs uppercase text-slate-800 tracking-wider">Ma trận đề thi gần đây</span>
-            </div>
-            <Button
-              size="small"
-              type="link"
-              onClick={() => onNavigate('matrix-config')}
-              className="text-[#0f172a] font-bold text-xs p-0 flex items-center gap-0.5 hover:text-sky-600"
-            >
-              Xem tất cả →
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="py-12 text-center"><Spin size="small" /></div>
-          ) : recentMatrices.length === 0 ? (
-            <div className="py-8 text-center text-slate-400">
-              <Empty description={<span className="text-xs text-slate-400 font-medium">Chưa có ma trận đề thi nào.</span>}>
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<ThunderboltOutlined />}
-                  onClick={() => onNavigate('matrix-config')}
-                  className="bg-[#0f172a] border-transparent text-white rounded-lg font-bold text-xs"
-                >
-                  Tạo Ma trận
-                </Button>
-              </Empty>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentMatrices.map((m) => {
-                const totalQuestions = m.rows?.reduce((sum, row) => sum + (row.cells?.nhanBiet || 0) + (row.cells?.thongHieu || 0) + (row.cells?.vanDung || 0) + (row.cells?.vanDungCao || 0), 0) || 0;
-                return (
-                  <div key={m.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <strong className="text-slate-800 text-xs font-black">{m.name}</strong>
-                        <span className="text-[9px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 border font-mono font-bold">{m.code}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-slate-400 font-bold">
-                        <span>Môn: <strong className="text-indigo-600 font-extrabold">{m.subject}</strong></span>
-                        <span>•</span>
-                        <span>Lớp: <strong className="text-purple-600 font-extrabold">{m.grade}</strong></span>
-                        <span>•</span>
-                        <span>{totalQuestions} câu</span>
-                      </div>
-                    </div>
-                    <Tag color="success" className="rounded-md font-extrabold text-[9px] uppercase m-0 border-transparent">Hoạt động</Tag>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Dynamic Questions List */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between border-b pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <BookOutlined className="text-indigo-600 text-sm" />
-              <span className="font-extrabold text-xs uppercase text-slate-800 tracking-wider">Câu hỏi mới thêm</span>
-            </div>
-            <Button
-              size="small"
-              type="link"
-              onClick={() => onNavigate('question-bank')}
-              className="text-indigo-600 font-bold text-xs p-0 flex items-center gap-0.5 hover:text-indigo-500"
-            >
-              Ngân hàng câu hỏi →
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="py-12 text-center"><Spin size="small" /></div>
-          ) : recentQuestions.length === 0 ? (
-            <div className="py-8 text-center text-slate-400">
-              <Empty description={<span className="text-xs text-slate-400 font-medium">Chưa có câu hỏi nào.</span>}>
-                <Button
-                  size="small"
-                  onClick={() => onNavigate('question-bank')}
-                  className="rounded-lg font-bold text-xs border-indigo-200 text-indigo-700 bg-transparent hover:bg-indigo-50"
-                >
-                  Tạo Câu hỏi Mới
-                </Button>
-              </Empty>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentQuestions.map((q) => {
-                const statusColor = q.status === 'approved' ? 'success' : q.status === 'pending' ? 'processing' : q.status === 'rejected' ? 'error' : 'default';
-                const statusText = q.status === 'approved' ? 'Đã duyệt' : q.status === 'pending' ? 'Chờ duyệt' : q.status === 'rejected' ? 'Từ chối' : 'Bản nháp';
-                return (
-                  <div key={q.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <strong className="text-slate-800 text-xs font-black truncate max-w-[200px]">{q.text || 'Câu hỏi chưa có nội dung'}</strong>
-                        <span className="text-[9px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 border font-mono font-bold">{q.code}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-slate-400 font-bold">
-                        <span>Môn: <strong className="text-indigo-600 font-extrabold">{q.subject}</strong></span>
-                        <span>•</span>
-                        <span>Người tạo: <strong className="text-amber-600 font-extrabold">{q.creator}</strong></span>
-                      </div>
-                    </div>
-                    <Tag color={statusColor} className="rounded-md font-extrabold text-[9px] uppercase m-0 border-transparent">{statusText}</Tag>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </div>
