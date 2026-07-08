@@ -74,19 +74,19 @@ const MENU_STRUCTURE = [
 ];
 
 const PERMISSION_MAP: Record<string, string[]> = {
-  'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-  'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
-  'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+  'xay-dung-de': ['matrices.manage', 'matrices.submit', 'matrices.approve', 'exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'quan-ly-ma-tran-de': ['matrices.manage', 'matrices.submit', 'matrices.approve'],
+  'quan-ly-de-thi-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
   
-  'quan-ly-nhch': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
-  'chu-de-cau-hoi': ['questions.view', 'questions.approve', 'questions.review'],
-  'ngan-hang-cau-hoi': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
-  'thong-ke-nhch': ['questions.view', 'questions.approve', 'questions.review'],
+  'quan-ly-nhch': ['topics.manage', 'topics.submit', 'topics.approve', 'questions.manage', 'questions.submit', 'questions.approve'],
+  'chu-de-cau-hoi': ['topics.manage', 'topics.submit', 'topics.approve'],
+  'ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.approve'],
+  'thong-ke-nhch': ['topics.manage', 'questions.manage', 'topics.approve', 'questions.approve'],
   
-  'quan-tri-he-thong': ['system.users', 'system.groups', 'system.policies'],
+  'quan-tri-he-thong': ['system.users', 'system.groups'],
   'quan-ly-nguoi-dung': ['system.users'],
   'quan-ly-nhom-nguoi-dung': ['system.groups'],
-  'chinh-sach-bao-mat': ['system.policies'],
+  'chinh-sach-bao-mat': ['system.groups'],
   
   'quan-tri-danh-muc': ['system.categories'],
   'danh-muc-mon-hoc': ['system.categories'],
