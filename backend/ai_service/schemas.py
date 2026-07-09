@@ -27,14 +27,22 @@ class GenerateQuestionsRequest(BaseModel):
     easyPercent: Optional[int] = 40
     mediumPercent: Optional[int] = 40
     hardPercent: Optional[int] = 20
+    # 'single' | 'true_false' | 'short' — quyết định định dạng câu hỏi Gemini phải sinh ra
+    type: Optional[str] = "single"
+
+
+class GeneratedStatement(BaseModel):
+    content: str
+    isCorrect: bool
 
 
 class GeneratedQuestion(BaseModel):
     text: str
     type: str
     level: str
-    options: List[str]
-    correctAnswer: str
+    options: Optional[List[str]] = None
+    correctAnswer: Optional[str] = None
+    statements: Optional[List[GeneratedStatement]] = None
 
 
 class GenerateQuestionsResponse(BaseModel):

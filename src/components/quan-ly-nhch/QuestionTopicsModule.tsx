@@ -1,6 +1,6 @@
 import React from 'react';
-import ThamDinhChuDeMain from './quan-ly-nhch/chu-de/tham-dinh-chu-de/index';
-import { Question, TopicNode } from '../types';
+import ThamDinhChuDeMain from './chu-de/tham-dinh-chu-de/index';
+import { Question, TopicNode } from '../../types';
 
 interface QuestionTopicsModuleProps {
   questions?: Question[];

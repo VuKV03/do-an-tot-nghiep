@@ -13,8 +13,8 @@ import { useAppState } from './hooks/useAppState';
 import DashboardOverview from './components/DashboardOverview';
 import QuestionBankModule from './components/quan-ly-nhch/ngan-hang-cau-hoi/tab-ngan-hang-cau-hoi';
 import MatrixConfigModule from './components/xay-dung-de-thi/quan-ly-ma-tran-de/MatrixConfigModule';
-import QuestionTopicsModule from './components/QuestionTopicsModule';
-import QuestionStatsModule from './components/QuestionStatsModule';
+import QuestionTopicsModule from './components/quan-ly-nhch/QuestionTopicsModule';
+import QuestionStatsModule from './components/quan-ly-nhch/thong-ke-nhch/QuestionStatsModule';
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
@@ -33,7 +33,10 @@ const { Header, Sider, Content } = Layout;
 
 export default function App() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeMenuKey, setActiveMenuKey] = useState<string>('ngan-hang-cau-hoi');
+  const [activeMenuKey, setActiveMenuKey] = useState<string>(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || 'dashboard';
+  });
 
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
 
@@ -49,6 +52,25 @@ export default function App() {
       }
     }
   }, []);
+
+  // Sync state to URL hash
+  useEffect(() => {
+    if (activeMenuKey) {
+      window.location.hash = activeMenuKey;
+    }
+  }, [activeMenuKey]);
+
+  // Listen to hash changes (e.g. user clicks back/forward browser buttons)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== activeMenuKey) {
+        setActiveMenuKey(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeMenuKey]);
 
   const {
     questions,
@@ -67,6 +89,7 @@ export default function App() {
     handleOpenReview,
     handleApproveQuestion,
     handleRejectQuestion,
+    exams,
   } = useAppState();
 
   // Personal Profile Modal state
@@ -76,7 +99,15 @@ export default function App() {
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
 
   // Navigation controller helper
-  const handleDashboardNavigate = (tab: 'question-bank' | 'matrix-config' | 'quan-ly-de-thi-goi-de') => {
+  const [targetSubTab, setTargetSubTab] = useState<string | null>(null);
+
+  const handleDashboardNavigate = (tab: 'question-bank' | 'matrix-config' | 'quan-ly-de-thi-goi-de', subTab?: string) => {
+    if (subTab) {
+      setTargetSubTab(subTab);
+    } else {
+      setTargetSubTab(null);
+    }
+
     if (tab === 'question-bank') {
       setActiveMenuKey('ngan-hang-cau-hoi');
     } else if (tab === 'matrix-config') {
@@ -186,6 +217,7 @@ export default function App() {
             questions={questions}
             matrices={matrices}
             auditLogs={auditLogs}
+            exams={exams}
             onNavigate={handleDashboardNavigate}
           />
         );
@@ -196,11 +228,12 @@ export default function App() {
             onUpdateQuestion={handleUpdateQuestion}
             onDeleteQuestion={handleDeleteQuestion}
             onOpenReview={handleOpenReview}
+            initialTab={targetSubTab as 'bank' | 'review'}
           />
         );
       case 'quan-ly-ma-tran-de':
         return (
-          <MatrixConfigModule />
+          <MatrixConfigModule initialTab={targetSubTab as 'list' | 'evaluation'} />
         );
       case 'chu-de-cau-hoi':
         return (
@@ -280,7 +313,10 @@ export default function App() {
         collapsed={collapsed}
         setCollapsed={setCollapsed}
         activeMenuKey={activeMenuKey}
-        setActiveMenuKey={setActiveMenuKey}
+        setActiveMenuKey={(key) => {
+          setTargetSubTab(null);
+          setActiveMenuKey(key);
+        }}
         menuItems={menuItems}
       />
 
@@ -304,10 +340,6 @@ export default function App() {
                 getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
               }
             />
-
-            {/* <span className="text-[10px] bg-sky-100/70 border border-sky-200 text-[#0f172a] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider block">
-              Hệ thống bảo mật 256-bit TLS
-            </span> */}
           </div>
 
           {/* Yielded workspace content active view */}

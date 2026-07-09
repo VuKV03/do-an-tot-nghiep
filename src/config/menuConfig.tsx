@@ -1,7 +1,12 @@
 import React from 'react';
-import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined } from '@ant-design/icons';
+import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined, DashboardOutlined } from '@ant-design/icons';
 
 export const rawMenuItems = [
+  {
+    key: 'dashboard',
+    icon: <DashboardOutlined />,
+    label: 'Bảng tổng quan',
+  },
   {
     key: 'xay-dung-de',
     icon: <ProjectOutlined />,
@@ -22,16 +27,6 @@ export const rawMenuItems = [
     ]
   },
   {
-    key: 'quan-tri-he-thong',
-    icon: <SettingOutlined />,
-    label: 'Quản trị hệ thống',
-    children: [
-      { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
-      { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
-      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
-    ]
-  },
-  {
     key: 'quan-tri-danh-muc',
     icon: <FolderOutlined />,
     label: 'Quản trị danh mục',
@@ -42,6 +37,16 @@ export const rawMenuItems = [
       { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
       { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
       { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
+    ]
+  },
+  {
+    key: 'quan-tri-he-thong',
+    icon: <SettingOutlined />,
+    label: 'Quản trị hệ thống',
+    children: [
+      { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
+      { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
+      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
     ]
   }
 ];

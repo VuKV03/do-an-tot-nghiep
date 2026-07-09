@@ -432,6 +432,9 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
     }
   };
 
+  // Chỉ cho sửa đề khi chưa "Đã thẩm định" (Nháp / Chờ thẩm định / Từ chối) — đề đã thẩm định coi như chốt.
+  const canEditExam = (status: string) => !['3', 'approved', 'active'].includes(status);
+
   // Dropdown actions generator
   const getActionMenuItems = (exam: any) => [
     {
@@ -563,18 +566,28 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
-                  <Select
-                    value={examStatus}
-                    onChange={setExamStatus}
-                    className="w-full text-xs"
-                    options={[
-                      { value: 'all', label: 'Chờ thẩm định' },
-                      { value: 'draft', label: 'Tạo mới' },
-                      { value: 'pending', label: 'Chờ thẩm định' },
-                      { value: 'approved', label: 'Đã thẩm định' },
-                      { value: 'rejected', label: 'Từ chối' }
-                    ]}
-                  />
+                  {activeTab === 'exam_review' ? (
+                    // Tab thẩm định chỉ hiển thị đề đang chờ thẩm định — khoá cứng, không cho đổi.
+                    <Select
+                      value="pending"
+                      disabled
+                      className="w-full text-xs"
+                      options={[{ value: 'pending', label: 'Chờ thẩm định' }]}
+                    />
+                  ) : (
+                    <Select
+                      value={examStatus}
+                      onChange={setExamStatus}
+                      className="w-full text-xs"
+                      options={[
+                        { value: 'all', label: 'Tất cả' },
+                        { value: 'draft', label: 'Nháp (vừa tạo mới)' },
+                        { value: 'approved', label: 'Đã thẩm định' },
+                        { value: 'pending', label: 'Chờ thẩm định' },
+                        { value: 'rejected', label: 'Từ chối' }
+                      ]}
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex justify-center">
@@ -682,7 +695,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                   <th className="py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)</th>
                   <th className="py-3 px-3 text-center font-semibold">Ngày tạo</th>
                   <th className="py-3 px-3 text-center font-semibold">Trạng thái</th>
-                  <th className="py-3 px-3 text-center font-semibold">Trạng thái do AI tạo</th>
                   <th className="py-3 px-3 text-center font-semibold">Thao tác</th>
                 </tr>
               </thead>
@@ -714,11 +726,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                       <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : '20/10/2006'}</td>
                       <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
                       <td className="py-2.5 px-3 text-center">
-                        {row.source === 'ai'
-                          ? <span className="inline-block bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded font-bold text-[9px]">AI</span>
-                          : <span className="inline-block bg-slate-50 text-slate-400 border px-2 py-0.5 rounded font-bold text-[9px]">—</span>}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
                           {activeTab === 'exam_review' && (
                             <>
@@ -746,10 +753,12 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                               onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
-                          <Tooltip title="Chỉnh sửa">
-                            <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
-                          </Tooltip>
+                          {canEditExam(row.status) && (
+                            <Tooltip title="Chỉnh sửa">
+                              <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />}
+                                onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
+                            </Tooltip>
+                          )}
                           <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
                             <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
                           </Dropdown>

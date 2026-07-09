@@ -76,7 +76,8 @@ export default function AppSidebar({
         style={{ backgroundColor: '#0f172a', borderRight: 0, padding: '12px 0' }}
         items={menuItems}
         onClick={({ key }) => setActiveMenuKey(key)}
-        defaultOpenKeys={['xay-dung-de', 'quan-ly-nhch']}
+        // tự động mở các menu này khi user đã login
+        // defaultOpenKeys={['xay-dung-de', 'quan-ly-nhch', "quan-tri-danh-muc"]}
         className="font-medium text-xs text-slate-100"
       />
     </Sider>

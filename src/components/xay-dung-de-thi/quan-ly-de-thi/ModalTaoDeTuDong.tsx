@@ -38,26 +38,24 @@ const buildChuDeTree = (flat: TopicAPI[]): ChuDeTreeNode[] => {
 export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTaoDeTuDongProps) {
   const [step, setStep] = useState(0);
 
-  // Bước 1: Môn học + Khối lớp
+  // Bước 0: Môn học + Khối lớp + Chủ đề & Tiểu mục
   const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
-  const [grades, setGrades] = useState<GradeLevelAPI[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [grades, setGrades] = useState<GradeLevelAPI[]>([]);
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(null);
-
-  // Bước 2: Chủ đề + Tiểu mục
   const [topicTree, setTopicTree] = useState<ChuDeTreeNode[]>([]);
   const [checkedTopicKeys, setCheckedTopicKeys] = useState<React.Key[]>([]);
   const [searchTopic, setSearchTopic] = useState('');
   const [loadingTopics, setLoadingTopics] = useState(false);
 
-  // Bước 3: Ma trận đề
+  // Bước 1: Ma trận đề
   const [matrices, setMatrices] = useState<any[]>([]);
   const [loadingMatrices, setLoadingMatrices] = useState(false);
   const [selectedMatrixId, setSelectedMatrixId] = useState<string | null>(null);
   const [matrixRows, setMatrixRows] = useState<MaTranData[]>([]);
   const [loadingMatrixDetail, setLoadingMatrixDetail] = useState(false);
 
-  // Bước 4: Sinh đề tự động
+  // Bước 2: Sinh đề tự động
   const [generating, setGenerating] = useState(false);
   const [genResults, setGenResults] = useState<RandomSelectResultAPI[]>([]);
   const [genQuestions, setGenQuestions] = useState<Question[]>([]);
@@ -81,22 +79,33 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     gradeLevelApi.list().then(res => setGrades((res.data || []).filter(g => g.is_active))).catch(() => message.error('Không tải được danh sách khối lớp.'));
   }, [open]);
 
-  // Bước 2: tải chủ đề theo môn + lớp đã chọn
+  // Tải chủ đề theo môn đã chọn.
+  // Lưu ý 1: CHỈ lọc theo subject_id, không lọc theo grade_id — ma trận đề (CreateMatrixForm.tsx)
+  // cũng chỉ lọc chủ đề theo môn khi gán don_vi_id, nên nếu lọc thêm theo khối ở đây (grade_id
+  // trên topic là nullable/không bắt buộc) có thể loại bỏ đúng chủ đề mà ma trận đang tham chiếu,
+  // khiến checkedTopicKeys không bao giờ khớp don_vi_id dù người dùng tick đúng chủ đề.
+  // Lưu ý 2: KHÔNG được phụ thuộc vào `step` ở đây — nếu gate theo `step === 0`, hiệu ứng này sẽ
+  // chạy lại (và rơi vào nhánh reset) ngay khi người dùng bấm "Tiếp tục" sang Bước 1, xoá sạch
+  // checkedTopicKeys vừa tick trước khi kịp so khớp với ma trận (đã từng gây bug tiểu mục không khớp).
   useEffect(() => {
-    if (!open || step !== 1 || !selectedSubjectId || !selectedGradeId) return;
+    if (!open || !selectedSubjectId || !selectedGradeId) {
+      setTopicTree([]); setCheckedTopicKeys([]);
+      return;
+    }
     setLoadingTopics(true);
     topicsApi.list()
       .then(res => {
-        const flat = (res.data || []).filter(t => t.subject_id === selectedSubjectId && t.grade_id === selectedGradeId);
+        const flat = (res.data || []).filter(t => t.subject_id === selectedSubjectId);
         setTopicTree(buildChuDeTree(flat));
+        setCheckedTopicKeys([]);
       })
       .catch(() => message.error('Không tải được danh sách chủ đề.'))
       .finally(() => setLoadingTopics(false));
-  }, [open, step, selectedSubjectId, selectedGradeId]);
+  }, [open, selectedSubjectId, selectedGradeId]);
 
-  // Bước 3: tải ma trận đề tương ứng môn đã chọn
+  // Bước 1: tải ma trận đề tương ứng môn đã chọn
   useEffect(() => {
-    if (!open || step !== 2 || !selectedSubject) return;
+    if (!open || step !== 1 || !selectedSubject) return;
     setLoadingMatrices(true);
     fetch('/api/matrix-configs?page=1&pageSize=200')
       .then(r => r.json())
@@ -152,10 +161,18 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // Chỉ giữ các hàng của ma trận thuộc tiểu mục đã tick ở Bước 2
+  // Chỉ giữ các hàng của ma trận thuộc tiểu mục đã tick ở Bước 0
   const scopedRows = useMemo(
     () => matrixRows.filter(r => checkedTopicKeys.includes(r.don_vi_id)),
     [matrixRows, checkedTopicKeys],
+  );
+
+  // Tên các tiểu mục mà ma trận yêu cầu (dùng để hiển thị chẩn đoán khi scopedRows rỗng —
+  // nếu tên trùng với tiểu mục đã tick nhưng vẫn không khớp, khả năng cao don_vi_id trong
+  // ma trận đang trỏ đến 1 tiểu mục đã bị xoá/tạo lại với id mới, cùng tên cũ)
+  const expectedTopicNames = useMemo(
+    () => Array.from(new Set(matrixRows.map(r => r.don_vi_kien_thuc))),
+    [matrixRows],
   );
 
   const mapBankQuestions = async (ids: Set<string>): Promise<Question[]> => {
@@ -219,9 +236,9 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // Tự động sinh ngay khi vào Bước 4
+  // Tự động sinh ngay khi vào Bước 2
   useEffect(() => {
-    if (!open || step !== 3) return;
+    if (!open || step !== 2) return;
     void handleGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, step]);
@@ -262,9 +279,8 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  const canNextStep0 = !!selectedSubjectId && !!selectedGradeId;
-  const canNextStep1 = checkedTopicKeys.length > 0;
-  const canNextStep2 = !!selectedMatrixId && scopedRows.length > 0;
+  const canNextStep0 = !!selectedSubjectId && !!selectedGradeId && checkedTopicKeys.length > 0;
+  const canNextStep1 = !!selectedMatrixId && scopedRows.length > 0;
 
   const footer = (() => {
     if (step === 0) {
@@ -285,17 +301,8 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         </Button>,
       ];
     }
-    if (step === 2) {
-      return [
-        <Button key="back" onClick={() => setStep(1)} className="rounded font-semibold text-xs">Quay lại</Button>,
-        <Button key="next" type="primary" disabled={!canNextStep2} onClick={() => setStep(3)}
-          className="bg-[#2c3e9e] border-transparent text-white rounded font-semibold text-xs hover:bg-[#243590]">
-          Tiếp tục
-        </Button>,
-      ];
-    }
     return [
-      <Button key="back" onClick={() => setStep(2)} disabled={saving} className="rounded font-semibold text-xs">Quay lại</Button>,
+      <Button key="back" onClick={() => setStep(1)} disabled={saving} className="rounded font-semibold text-xs">Quay lại</Button>,
       <Button key="regen" icon={<ReloadOutlined />} onClick={handleGenerate} loading={generating} disabled={saving}
         className="rounded font-semibold text-xs">
         Sinh lại
@@ -328,70 +335,72 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           size="small"
           className="mb-6 font-semibold text-xs"
           items={[
-            { title: 'Môn học & Khối lớp' },
-            { title: 'Chủ đề & Tiểu mục' },
+            { title: 'Môn học, Chủ đề & Tiểu mục' },
             { title: 'Ma trận đề' },
             { title: 'Đề tự động' },
           ]}
         />
 
+        <div style={{ minHeight: 520 }}>
         {step === 0 && (
-          <div className="space-y-4 animate-in fade-in duration-300 max-w-md mx-auto py-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
-              <Select
-                placeholder="Chọn môn học" className="w-full text-xs"
-                value={selectedSubjectId} onChange={setSelectedSubjectId}
-                options={subjects.map(s => ({ value: s.id, label: s.name }))}
-              />
+          <div className="animate-in fade-in duration-300">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
+                <Select
+                  placeholder="Chọn môn học" className="w-full text-xs"
+                  value={selectedSubjectId} onChange={setSelectedSubjectId}
+                  options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
+                <Select
+                  placeholder="Chọn khối lớp" className="w-full text-xs"
+                  value={selectedGradeId} onChange={setSelectedGradeId}
+                  options={grades.map(g => ({ value: g.id, label: g.name }))}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
-              <Select
-                placeholder="Chọn khối lớp" className="w-full text-xs"
-                value={selectedGradeId} onChange={setSelectedGradeId}
-                options={grades.map(g => ({ value: g.id, label: g.name }))}
-              />
-            </div>
+
+            {selectedSubjectId && selectedGradeId && (
+              <>
+                <div className="mb-2 text-xs text-slate-500">
+                  Chủ đề & tiểu mục của môn <strong>{selectedSubject?.name}</strong> — tick để chọn phạm vi sinh đề (cấu trúc phân cấp cha/con).
+                </div>
+                <Input size="small" placeholder="Tìm kiếm chủ đề..." prefix={<SearchOutlined className="text-slate-400" />}
+                  className="text-xs mb-2" value={searchTopic} onChange={e => setSearchTopic(e.target.value)} allowClear />
+                <div className="border border-slate-200 rounded p-2 overflow-y-auto" style={{ maxHeight: 420 }}>
+                  {loadingTopics ? (
+                    <div className="py-8 text-center"><Spin /></div>
+                  ) : antTreeData.length > 0 ? (
+                    <Tree
+                      checkable blockNode
+                      treeData={filteredTreeData}
+                      checkedKeys={checkedTopicKeys}
+                      onCheck={(keys) => setCheckedTopicKeys(Array.isArray(keys) ? keys : keys.checked)}
+                      className="text-xs"
+                    />
+                  ) : (
+                    <Empty description="Môn học này chưa có chủ đề nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {step === 1 && (
           <div className="animate-in fade-in duration-300">
             <div className="mb-2 text-xs text-slate-500">
-              Chủ đề của môn <strong>{selectedSubject?.name}</strong> — khối <strong>{selectedGrade?.name}</strong>
-            </div>
-            <Input size="small" placeholder="Tìm kiếm chủ đề..." prefix={<SearchOutlined className="text-slate-400" />}
-              className="text-xs mb-2" value={searchTopic} onChange={e => setSearchTopic(e.target.value)} allowClear />
-            <div className="border border-slate-200 rounded p-2 overflow-y-auto" style={{ maxHeight: 360 }}>
-              {loadingTopics ? (
-                <div className="py-8 text-center"><Spin /></div>
-              ) : antTreeData.length > 0 ? (
-                <Tree
-                  checkable blockNode
-                  treeData={filteredTreeData}
-                  checkedKeys={checkedTopicKeys}
-                  onCheck={(keys) => setCheckedTopicKeys(Array.isArray(keys) ? keys : keys.checked)}
-                  className="text-xs"
-                />
-              ) : (
-                <Empty description="Môn/khối lớp này chưa có chủ đề nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              )}
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="animate-in fade-in duration-300">
-            <div className="mb-2 text-xs text-slate-500">
-              Ma trận đề của môn <strong>{selectedSubject?.name}</strong> — chỉ những tiểu mục đã tick ở Bước 2 sẽ được dùng để sinh đề.
+              Ma trận đề của môn <strong>{selectedSubject?.name}</strong> — chỉ những tiểu mục đã tick ở Bước 1 sẽ được dùng để sinh đề.
             </div>
             {loadingMatrices ? (
               <div className="py-8 text-center"><Spin /></div>
             ) : matrices.length === 0 ? (
               <Empty description="Chưa có ma trận đề nào cho môn này — vui lòng tạo ma trận trước." />
             ) : (
-              <div className="border border-slate-200 rounded divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 320 }}>
+              <div className="border border-slate-200 rounded divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 420 }}>
                 {matrices.map((m) => (
                   <div
                     key={m.id}
@@ -410,13 +419,20 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
             {loadingMatrixDetail && <div className="py-3 text-center"><Spin size="small" /></div>}
             {selectedMatrixId && !loadingMatrixDetail && scopedRows.length === 0 && (
               <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
-                Ma trận này không có tiểu mục nào trùng với chủ đề đã chọn ở Bước 2 — vui lòng chọn ma trận khác hoặc quay lại Bước 2 để tick thêm tiểu mục.
+                <div>
+                  Ma trận này không có tiểu mục nào trùng với chủ đề đã chọn ở Bước 1 — vui lòng chọn ma trận khác hoặc quay lại Bước 1 để tick thêm tiểu mục.
+                </div>
+                {expectedTopicNames.length > 0 && (
+                  <div className="mt-1.5 text-slate-600">
+                    Ma trận này yêu cầu các tiểu mục: <strong>{expectedTopicNames.join(', ')}</strong>.
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <div className="animate-in fade-in duration-300">
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
@@ -453,6 +469,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
             )}
           </div>
         )}
+        </div>
       </div>
     </Modal>
   );

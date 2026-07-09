@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Tree, Select, Input, Button, Table, Tag, Space, message, Modal, Radio, Form, Spin, Divider, Tooltip, notification, DatePicker, Dropdown } from 'antd';
+import { Tree, Select, Input, Button, Table, Space, message, Modal, Form, Spin, Divider, Tooltip, notification, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import CreateQuestionModal from './manual-create';
+import AIGenerateQuestionModal from './ai-generate';
 import UpdateQuestionModal from './update';
 import DeleteConfirmModal from './delete';
 import SendReviewConfirmModal from './send-review';
@@ -16,12 +17,10 @@ import {
   UploadOutlined,
   EditOutlined,
   DeleteOutlined,
-  CheckCircleOutlined,
   QuestionCircleOutlined,
   FilterOutlined,
   BookOutlined,
   AppstoreOutlined,
-  LoadingOutlined,
   SendOutlined,
   MoreOutlined,
   HistoryOutlined,
@@ -36,16 +35,24 @@ interface QuestionBankModuleProps {
   onUpdateQuestion?: (q: Question) => void;
   onDeleteQuestion?: (id: string) => void;
   onOpenReview?: (q: Question) => void;
+  initialTab?: 'bank' | 'review';
 }
 
 export default function QuestionBankModule({
   onAddQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
-  onOpenReview
+  onOpenReview,
+  initialTab
 }: QuestionBankModuleProps) {
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'bank' | 'review'>('bank');
+  const [activeTab, setActiveTab] = useState<'bank' | 'review'>(initialTab || 'bank');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Filters state
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -93,9 +100,6 @@ export default function QuestionBankModule({
 
   // AI Generation State
   const [isAIOpen, setIsAIOpen] = useState(false);
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiSuggestedQuestion, setAiSuggestedQuestion] = useState<Question | null>(null);
-  const [aiSelectedLevel, setAiSelectedLevel] = useState<CognitiveLevel>('nhan_biet');
 
   // File import state
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -369,67 +373,6 @@ export default function QuestionBankModule({
   };
 
 
-
-  // AI Simulated Stream generator
-  const triggerAIQuestionGeneration = () => {
-    setAiGenerating(true);
-    setAiSuggestedQuestion(null);
-
-    const targetSubject = actualSubject || 'Toán học';
-    const targetGrade = actualGrade || 'Khối 12';
-
-    // Simulate generation loop
-    setTimeout(() => {
-      let aiText = '';
-      let aiOptions: string[] = [];
-      let aiAnswer = '';
-
-      if (targetSubject === 'Toán học') {
-        aiText = `[Sinh tự động bởi AI] Tìm tiệm cận đứng và tiệm cận ngang của đồ thị hàm số phân thức y = (3x + 1) / (x - 2).`;
-        aiOptions = ['A. x = 2; y = 3', 'B. x = -2; y = -3', 'C. x = 3; y = 2', 'D. Không có tiệm cận'];
-        aiAnswer = 'A. x = 2; y = 3';
-      } else if (targetSubject === 'Tiếng Anh') {
-        aiText = `[AI Question] Identify the incorrect underlined word: "Even though she had visited Paris twice, but she still wanted to go there again next summer."`;
-        aiOptions = ['A. Even though', 'B. twice', 'C. but', 'D. next summer'];
-        aiAnswer = 'C. but';
-      } else {
-        aiText = `[AI Generated] Đâu là giải pháp căn bản để bảo vệ sự đa dạng sinh học và nguồn tài nguyên thiên nhiên quốc gia?`;
-        aiOptions = ['A. Tăng cường lực lượng kiểm lâm', 'B. Quy hoạch các khu bảo tồn thiên nhiên quốc gia và tuyên truyền nâng cao ý thức', 'C. Cấm hoàn toàn mọi hoạt động khai thác', 'D. Nhập khẩu tài nguyên thay thế'];
-        aiAnswer = 'B. Quy hoạch các khu bảo tồn thiên nhiên quốc gia và tuyên truyền nâng cao ý thức';
-      }
-
-      const generated: Question = {
-        id: `q-ai-${Date.now()}`,
-        code: `AI-${targetSubject.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000 + 1000)}`,
-        text: aiText,
-        type: 'single',
-        level: aiSelectedLevel,
-        status: 'pending', // Directly sent to pending approval
-        subject: targetSubject,
-        grade: targetGrade,
-        topicId: selectedTopicKey || topicTreeData[0]?.children?.[0]?.key || 'math-sub1.1',
-        topicName: topicTreeData[0]?.title || 'Chủ đề đề xuất',
-        subTopicName: topicTreeData[0]?.children?.[0]?.title || 'Tiểu mục đề xuất',
-        options: aiOptions,
-        correctAnswer: aiAnswer,
-        creator: 'SmartTest AI Generator',
-        createdAt: new Date().toISOString()
-      };
-
-      setAiSuggestedQuestion(generated);
-      setAiGenerating(false);
-      message.success('AI hoàn tất đề xuất câu hỏi chất lượng cao!');
-    }, 2000);
-  };
-
-  const acceptAISuggestedQuestion = () => {
-    if (aiSuggestedQuestion) {
-      onAddQuestion(aiSuggestedQuestion);
-      message.success('Đã lưu câu hỏi sinh bởi AI vào hồ sơ chờ thẩm định.');
-      setIsAIOpen(false);
-      setAiSuggestedQuestion(null);
-    }
-  };
 
   const handleImportMockFiles = () => {
     message.loading('Đang phân tích cấu trúc dữ liệu tệp tin nhập vào...');
@@ -1165,118 +1108,20 @@ export default function QuestionBankModule({
       />
 
       {/* MODAL 2: INTERACTIVE AI SMART GENERATOR */}
-      <Modal
-        title={
-          <div className="flex items-center gap-2 pb-2 border-b border-indigo-100">
-            <ThunderboltOutlined className="text-indigo-600 font-extrabold animate-pulse" />
-            <span className="font-extrabold uppercase text-slate-800 text-[14px]">Sinh câu hỏi tự động bằng AI (SmartTest Engine)</span>
-          </div>
-        }
+      <AIGenerateQuestionModal
         open={isAIOpen}
-        onCancel={() => {
+        onClose={() => setIsAIOpen(false)}
+        onSave={(q) => {
+          onAddQuestion?.(q);
+          fetchQuestions();
           setIsAIOpen(false);
-          setAiSuggestedQuestion(null);
         }}
-        footer={null}
-        width={600}
-        centered
-      >
-        <div className="space-y-4 pt-3">
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 p-4 rounded-2xl">
-            <span className="text-xs text-indigo-900 font-extrabold uppercase tracking-wider block mb-2">Thông số sinh câu hỏi</span>
-            <div className="grid grid-cols-2 gap-4 text-xs font-sans">
-              <div>
-                <span className="text-slate-400 font-medium block">Môn học đồng hành:</span>
-                <strong className="text-slate-800 block text-[13px]">{actualSubject || 'Tất cả'}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium block">Khối lớp kiểm soát:</span>
-                <strong className="text-slate-800 block text-[13px]">{actualGrade || 'Tất cả'}</strong>
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Mức độ tư duy yêu cầu</label>
-              <Radio.Group
-                id="ai-level-radio-group"
-                value={aiSelectedLevel}
-                onChange={(e) => setAiSelectedLevel(e.target.value)}
-                className="flex flex-wrap gap-2 pt-1"
-                size="small"
-              >
-                <Radio.Button value="nhan_biet" className="text-xs font-bold">Nhận biết</Radio.Button>
-                <Radio.Button value="thong_hieu" className="text-xs font-bold">Thông hiểu</Radio.Button>
-                <Radio.Button value="van_dung" className="text-xs font-bold">Vận dụng</Radio.Button>
-                <Radio.Button value="van_dung_cao" className="text-xs font-bold text-rose-600">Vận dụng cao</Radio.Button>
-              </Radio.Group>
-            </div>
-          </div>
-
-          <Button
-            type="primary"
-            id="btn-ai-submit-generation"
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-extrabold py-2 shadow-xs border-transparent hover:opacity-90 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-            icon={<ThunderboltOutlined />}
-            onClick={triggerAIQuestionGeneration}
-            disabled={aiGenerating}
-          >
-            {aiGenerating ? 'AI Đang phân tích và xử lý...' : 'Bắt đầu sinh câu hỏi tự động'}
-          </Button>
-
-          {aiGenerating && (
-            <div className="text-center py-10 space-y-3" id="ai-generating-loader-container">
-              <Spin indicator={<LoadingOutlined style={{ fontSize: 36, color: '#4f46e5' }} spin />} />
-              <p className="text-xs text-indigo-900 font-bold animate-pulse">SmartTest AI đang cấu trúc câu hỏi bám sát ma trận năng lực chuyên môn...</p>
-            </div>
-          )}
-
-          {aiSuggestedQuestion && (
-            <div className="border border-slate-200 bg-white rounded-2xl p-4 shadow-sm space-y-4 animate-in zoom-in-95 duration-300">
-              <div className="flex items-center justify-between border-b border-dashed pb-2">
-                <Tag color="purple" className="font-extrabold uppercase font-mono text-[10px]">{aiSuggestedQuestion.code}</Tag>
-                <span className="text-[11px] bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded font-bold text-indigo-700">Được sinh bởi AI</span>
-              </div>
-
-              <div className="text-[13px] text-slate-800 font-bold leading-relaxed">
-                {aiSuggestedQuestion.text}
-              </div>
-
-              {aiSuggestedQuestion.options && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {aiSuggestedQuestion.options.map((opt, id) => (
-                    <div
-                      key={id}
-                      className={`p-2 rounded-lg border font-medium ${opt === aiSuggestedQuestion.correctAnswer
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                        : 'bg-slate-50 border-slate-200'
-                        }`}
-                    >
-                      {opt}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t mt-4 border-slate-100">
-                <Button
-                  className="rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border-slate-200"
-                  onClick={() => setAiSuggestedQuestion(null)}
-                >
-                  Bỏ đi, sinh đề khác
-                </Button>
-                <Button
-                  type="primary"
-                  className="rounded-lg text-xs font-extrabold bg-[#002147] border-transparent text-white hover:bg-slate-900"
-                  icon={<CheckCircleOutlined />}
-                  onClick={acceptAISuggestedQuestion}
-                >
-                  Duyệt và Thêm vào NHCH
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
+        defaultSubject={actualSubject}
+        defaultGrade={actualGrade}
+        subjectOptions={apiSubjects}
+        gradeOptions={apiGrades}
+        allTopicsRaw={allTopicsRaw}
+      />
 
       {/* MODAL 3: IMPORT DATA FROM FILE */}
       <Modal

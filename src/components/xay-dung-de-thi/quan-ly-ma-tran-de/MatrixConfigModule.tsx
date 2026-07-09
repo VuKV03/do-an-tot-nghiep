@@ -44,7 +44,7 @@ import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 
-export default function MatrixConfigModule() {
+export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list' | 'evaluation' }) {
   // Real Môn thi list fetched from database API
   const [dbSubjects, setDbSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
 
@@ -67,19 +67,25 @@ export default function MatrixConfigModule() {
   const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
 
   // Active Tab state
-  const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>(initialTab || 'list');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // List Searching & Filtering states
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [filterSubject, setFilterSubject] = useState<string>('all');
   const [filterGrade, setFilterGrade] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Evaluation states
   const [evalIsSearchExpanded, setEvalIsSearchExpanded] = useState(true);
   const [evalSearchText, setEvalSearchText] = useState('');
   const [evalFilterSubject, setEvalFilterSubject] = useState<string>('all');
-  const [evalFilterStatus, setEvalFilterStatus] = useState<string>('pending');
   const [evalDateRange, setEvalDateRange] = useState<string>(''); // Simulated Range picker text
 
   const [evalTableData, setEvalTableData] = useState<MatrixTableDataRow[]>([]);
@@ -125,7 +131,7 @@ export default function MatrixConfigModule() {
       params.set('pageSize', String(size));
       if (searchText.trim()) params.set('search', searchText.trim());
       if (filterSubject !== 'all') params.set('subject', filterSubject);
-      params.set('status', 'new');
+      if (filterStatus !== 'all') params.set('status', filterStatus);
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
@@ -150,7 +156,7 @@ export default function MatrixConfigModule() {
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
       if (evalFilterSubject !== 'all') params.set('subject', evalFilterSubject);
-      params.set('status', evalFilterStatus);
+      params.set('status', 'pending');
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
@@ -175,7 +181,7 @@ export default function MatrixConfigModule() {
       fetchEvalList(1, evalPageSize);
       setEvalSelectedRowIds([]);
     }
-  }, [activeTab, evalFilterStatus]);
+  }, [activeTab]);
 
   // Handle search button click
   const handleSearchClick = () => {
@@ -293,7 +299,8 @@ export default function MatrixConfigModule() {
     switch (status) {
       case 'approved': return <Tag color="green" className="rounded-full text-[11px] font-medium px-3">Đã thẩm định</Tag>;
       case 'rejected': return <Tag color="red" className="rounded-full text-[11px] font-medium px-3">Từ chối</Tag>;
-      case 'new': return <Tag color="blue" className="rounded-full text-[11px] font-medium px-3">Tạo mới</Tag>;
+      case 'new': return <Tag color="default" className="rounded-full text-[11px] font-medium px-3">Nháp</Tag>;
+      case 'pending': return <Tag color="gold" className="rounded-full text-[11px] font-medium px-3">Chờ thẩm định</Tag>;
       default: return <Tag className="rounded-full text-[11px] font-medium px-3">{status}</Tag>;
     }
   };
@@ -490,7 +497,7 @@ export default function MatrixConfigModule() {
 
             {isSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -513,6 +520,23 @@ export default function MatrixConfigModule() {
                       options={[
                         { value: 'all', label: 'Tất cả' },
                         ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
+                      ]}
+                    />
+                  </div>
+
+                  {/* Trạng thái */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
+                    <Select
+                      value={filterStatus}
+                      onChange={setFilterStatus}
+                      className="w-full text-xs"
+                      options={[
+                        { value: 'all', label: 'Tất cả' },
+                        { value: 'approved', label: 'Đã thẩm định' },
+                        { value: 'pending', label: 'Chờ thẩm định' },
+                        { value: 'rejected', label: 'Từ chối' },
+                        { value: 'new', label: 'Nháp' }
                       ]}
                     />
                   </div>
@@ -748,7 +772,7 @@ export default function MatrixConfigModule() {
 
             {evalIsSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -771,21 +795,6 @@ export default function MatrixConfigModule() {
                       options={[
                         { value: 'all', label: 'Tất cả' },
                         ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
-                      ]}
-                    />
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
-                    <Select
-                      value={evalFilterStatus}
-                      onChange={setEvalFilterStatus}
-                      className="w-full text-xs"
-                      options={[
-                        { value: 'pending', label: 'Chờ thẩm định' },
-                        { value: 'approved', label: 'Đã thẩm định' },
-                        { value: 'rejected', label: 'Từ chối' }
                       ]}
                     />
                   </div>
