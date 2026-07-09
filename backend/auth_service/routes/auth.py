@@ -200,6 +200,33 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
                 joinedAt=datetime.utcnow().isoformat() + "Z"
             )
             db.add(ugm)
+        
+        # Đồng bộ role dựa trên nhóm được gán (ưu tiên: admin > reviewer > teacher)
+        role_map = {
+            "GRP_ADMIN": "admin",
+            "GRP_REVIEWER": "reviewer",
+            "GRP_TEACHER": "teacher",
+            "GRP_STUDENT": "student"
+        }
+        role_priority = ["admin", "reviewer", "teacher", "student"]
+        
+        group_codes_result = await db.execute(
+            select(UserGroup.code).where(UserGroup.id.in_(body.groups))
+        )
+        group_codes = [r[0] for r in group_codes_result.all()]
+        
+        # Tìm role có priority cao nhất
+        best_role = None
+        for priority_role in role_priority:
+            for g_code in group_codes:
+                if role_map.get(g_code) == priority_role:
+                    best_role = priority_role
+                    break
+            if best_role:
+                break
+        
+        if best_role and body.role is None:
+            user.role = best_role
             
     await db.commit()
     
@@ -345,7 +372,6 @@ async def create_group(body: GroupCreateRequest, db: AsyncSession = Depends(get_
     db.add(group)
     await db.flush()
     if body.permissions:
-        import time
         for p_code in body.permissions:
             p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one_or_none()
             if p_id:
@@ -395,7 +421,6 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
         group.description = body.description
     if body.permissions is not None:
         await db.execute(delete(GroupPermission).where(GroupPermission.group_id == group_id))
-        import time
         for p_code in body.permissions:
             p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one_or_none()
             if p_id:
@@ -420,6 +445,14 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
                 joinedAt=datetime.utcnow().isoformat() + "Z"
             )
             db.add(ugm)
+        
+        # Đồng bộ trường role trong bảng users dựa trên nhóm
+        if mapped_role:
+            for u_id in body.member_ids:
+                user_result = await db.execute(select(User).where(User.id == u_id))
+                user_obj = user_result.scalar_one_or_none()
+                if user_obj and user_obj.role != mapped_role:
+                    user_obj.role = mapped_role
             
     await db.commit()
     
