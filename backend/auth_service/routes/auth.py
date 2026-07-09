@@ -216,16 +216,16 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
         group_codes = [r[0] for r in group_codes_result.all()]
         
         # Tìm role có priority cao nhất
-        best_role = None
+        best_role = "user"  # Mặc định nếu không thuộc nhóm nào
         for priority_role in role_priority:
             for g_code in group_codes:
                 if role_map.get(g_code) == priority_role:
                     best_role = priority_role
                     break
-            if best_role:
+            if best_role != "user":
                 break
         
-        if best_role and body.role is None:
+        if body.role is None:
             user.role = best_role
             
     await db.commit()
@@ -436,6 +436,17 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
     fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
     
     if body.member_ids is not None:
+        # Lấy danh sách members cũ trước khi xóa
+        old_members_result = await db.execute(
+            select(UserGroupMember.user_id).where(UserGroupMember.group_id == group_id)
+        )
+        old_member_ids = set(r[0] for r in old_members_result.all())
+        new_member_ids = set(body.member_ids)
+        
+        # Xác định users bị xóa khỏi nhóm
+        removed_user_ids = old_member_ids - new_member_ids
+        
+        # Xóa toàn bộ members cũ và thêm members mới
         await db.execute(delete(UserGroupMember).where(UserGroupMember.group_id == group_id))
         for u_id in body.member_ids:
             ugm = UserGroupMember(
@@ -446,25 +457,52 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
             )
             db.add(ugm)
         
-        # Đồng bộ trường role trong bảng users dựa trên nhóm
+        await db.flush()  # Flush để các thay đổi trên có hiệu lực cho query bên dưới
+        
+        role_priority = ["admin", "reviewer", "teacher", "student"]
+        
+        # Đồng bộ role cho users MỚI thêm vào nhóm
         if mapped_role:
-            for u_id in body.member_ids:
+            for u_id in (new_member_ids - old_member_ids):
                 user_result = await db.execute(select(User).where(User.id == u_id))
                 user_obj = user_result.scalar_one_or_none()
-                if user_obj and user_obj.role != mapped_role:
-                    user_obj.role = mapped_role
+                if user_obj:
+                    # Chỉ nâng role nếu role mới có priority cao hơn
+                    current_priority = role_priority.index(user_obj.role) if user_obj.role in role_priority else len(role_priority)
+                    new_priority = role_priority.index(mapped_role) if mapped_role in role_priority else len(role_priority)
+                    if new_priority < current_priority:
+                        user_obj.role = mapped_role
+        
+        # Đồng bộ role cho users BỊ XÓA khỏi nhóm
+        for u_id in removed_user_ids:
+            user_result = await db.execute(select(User).where(User.id == u_id))
+            user_obj = user_result.scalar_one_or_none()
+            if user_obj:
+                # Tìm tất cả nhóm còn lại mà user này thuộc về
+                remaining_groups_result = await db.execute(
+                    select(UserGroup.code)
+                    .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
+                    .where(UserGroupMember.user_id == u_id)
+                )
+                remaining_codes = [r[0] for r in remaining_groups_result.all()]
+                
+                # Xác định role cao nhất từ các nhóm còn lại
+                best_role = "user"  # Mặc định nếu không còn nhóm nào
+                for priority_role in role_priority:
+                    for g_code in remaining_codes:
+                        if role_map.get(g_code) == priority_role:
+                            best_role = priority_role
+                            break
+                    if best_role != "user":
+                        break
+                
+                user_obj.role = best_role
             
     await db.commit()
     
     count_result = await db.execute(
-        select(func.count(func.distinct(User.id)))
-        .outerjoin(UserGroupMember, User.id == UserGroupMember.user_id)
-        .where(
-            (User.role == group.code) | 
-            (User.role == mapped_role) | 
-            (User.role == fallback_role) |
-            (UserGroupMember.group_id == group_id)
-        )
+        select(func.count(func.distinct(UserGroupMember.user_id)))
+        .where(UserGroupMember.group_id == group_id)
     )
     actual_count = count_result.scalar()
     
@@ -505,24 +543,13 @@ async def list_group_members(group_id: str, db: AsyncSession = Depends(get_db)):
     if not group:
         raise HTTPException(status_code=404, detail="Nhóm không tồn tại.")
         
-    # Map group code to role
-    role_map = {
-        "GRP_ADMIN": "admin",
-        "GRP_TEACHER": "teacher",
-        "GRP_STUDENT": "student",
-        "GRP_REVIEWER": "reviewer"
-    }
-    mapped_role = role_map.get(group.code)
-    fallback_role = group.code.split('_')[-1].lower() if '_' in group.code else group.code.lower()
-    
-    # Find users whose role matches the group code or mapped role, or are explicitly in the group
+    # Chỉ lấy users thực sự có bản ghi trong bảng user_group_members
     user_result = await db.execute(
-        select(User).outerjoin(UserGroupMember, User.id == UserGroupMember.user_id).where(
-            (User.role == group.code) | 
-            (User.role == mapped_role) | 
-            (User.role == fallback_role) |
-            (UserGroupMember.group_id == group_id)
-        ).distinct()
+        select(User)
+        .join(UserGroupMember, User.id == UserGroupMember.user_id)
+        .where(UserGroupMember.group_id == group_id)
+        .distinct()
+    )
     )
     users = user_result.scalars().all()
     
