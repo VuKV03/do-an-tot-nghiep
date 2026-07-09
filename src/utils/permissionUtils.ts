@@ -1,7 +1,9 @@
 import { SystemUser } from '../types';
 
 export const checkUserPermission = (currentUser: SystemUser | null, key: string) => {
+  // Cho phép truy cập toàn bộ nếu role là admin HOẶC user thuộc nhóm GRP_ADMIN
   if (currentUser?.role === 'admin') return true;
+  if (currentUser?.groups?.some(g => g.code === 'GRP_ADMIN')) return true;
   if (!currentUser?.groups || currentUser.groups.length === 0) return false;
   
   const userPerms = new Set<string>();
