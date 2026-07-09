@@ -61,7 +61,7 @@ export default function CreateSubjectCategoryModal({
             label={<span className="text-gray-700 font-medium text-[15px]">Mã môn học</span>}
             rules={[{ required: true, message: 'Vui lòng nhập mã môn học' }]}
           >
-            <Input placeholder="Nhập" className="h-[42px] text-base" maxLength={50} />
+            <Input placeholder="Nhập" className="h-[42px] text-base uppercase" maxLength={50} />
           </Form.Item>
 
           <Form.Item

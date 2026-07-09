@@ -44,7 +44,7 @@ export default function DetailSubjectCategoryModal({ open, onClose, record }: De
 
         <Form form={form} layout="vertical">
           <Form.Item name="code" label={<span className="text-gray-700 font-medium text-[15px]">Mã môn học</span>}>
-            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium uppercase" />
           </Form.Item>
 
           <Form.Item name="name" label={<span className="text-gray-700 font-medium text-[15px]">Tên môn học</span>}>
