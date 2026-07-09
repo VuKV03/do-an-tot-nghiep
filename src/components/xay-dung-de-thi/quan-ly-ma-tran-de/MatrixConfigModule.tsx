@@ -44,7 +44,7 @@ import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 
-export default function MatrixConfigModule() {
+export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list' | 'evaluation' }) {
   // Real Môn thi list fetched from database API
   const [dbSubjects, setDbSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
 
@@ -67,7 +67,13 @@ export default function MatrixConfigModule() {
   const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
 
   // Active Tab state
-  const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>(initialTab || 'list');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // List Searching & Filtering states
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);

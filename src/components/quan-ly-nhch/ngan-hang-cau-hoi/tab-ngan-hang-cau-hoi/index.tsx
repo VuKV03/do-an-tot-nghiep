@@ -35,16 +35,24 @@ interface QuestionBankModuleProps {
   onUpdateQuestion?: (q: Question) => void;
   onDeleteQuestion?: (id: string) => void;
   onOpenReview?: (q: Question) => void;
+  initialTab?: 'bank' | 'review';
 }
 
 export default function QuestionBankModule({
   onAddQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
-  onOpenReview
+  onOpenReview,
+  initialTab
 }: QuestionBankModuleProps) {
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'bank' | 'review'>('bank');
+  const [activeTab, setActiveTab] = useState<'bank' | 'review'>(initialTab || 'bank');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Filters state
   const [selectedSubject, setSelectedSubject] = useState<string>('');

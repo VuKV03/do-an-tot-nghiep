@@ -374,9 +374,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     <div className="space-y-5 animate-in fade-in duration-300">
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
         <h1 className="text-[#1a3b70] text-lg font-bold uppercase m-0">Quản lý người dùng</h1>
-        <div className="w-5 h-5 bg-[#1a3b70] text-white rounded-full flex items-center justify-center font-bold text-xs cursor-pointer">
-          ?
-        </div>
       </div>
 
       {/* Filters */}
@@ -603,10 +600,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           </span>
         }
       />
-
-      {/* ============================================================== */}
-      {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
-      {/* ============================================================== */}
       {/* ============================================================== */}
       {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
       {/* ============================================================== */}

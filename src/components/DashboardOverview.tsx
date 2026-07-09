@@ -31,14 +31,20 @@ interface DashboardOverviewProps {
   questions: Question[];
   matrices: MatrixConfig[];
   auditLogs: AuditLog[];
-  onNavigate: (tab: 'question-bank' | 'matrix-config' | 'quan-ly-de-thi-goi-de') => void;
+  exams?: any[];
+  onNavigate: (tab: 'question-bank' | 'matrix-config' | 'quan-ly-de-thi-goi-de', subTab?: string) => void;
 }
 
-export default function DashboardOverview({ questions, matrices, auditLogs, onNavigate }: DashboardOverviewProps) {
+export default function DashboardOverview({ questions, matrices, auditLogs, exams = [], onNavigate }: DashboardOverviewProps) {
   // Compute metrics from actual questions data
   const totalQuestionsFormatted = questions.length.toLocaleString();
   const pendingCount = questions.filter(q => q.status === 'pending').length;
   const pendingApprovalsFormatted = pendingCount.toLocaleString();
+
+  const pendingMatrixCount = matrices.filter(m => m.status === 'pending').length;
+  const pendingMatrixFormatted = pendingMatrixCount.toLocaleString();
+
+  const totalExamsCount = exams.length;
 
   // Estimate active teachers based on unique creators
   const activeTeachers = new Set(questions.map(q => q.creator)).size;
@@ -83,7 +89,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
   return (
     <div className="space-y-6 pt-2" id="dashboard-container">
       {/* Dynamic Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 
         {/* Card 1: Tổng câu hỏi hệ thống */}
         <div
@@ -104,6 +110,26 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
           <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
             <ArrowUpOutlined className="text-[9px]" />
             <span>+{newQuestionsThisWeek} câu mới tuần này</span>
+          </div>
+        </div>
+        {/* Card 3: Câu hỏi đã duyệt */}
+        <div
+          id="metric-card-approved-questions"
+          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          onClick={() => onNavigate('question-bank')}
+        >
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-500 transition-all duration-300 group-hover:w-2" />
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Câu hỏi đã duyệt</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{questions.filter(q => q.status === 'approved').length.toLocaleString()} Câu</span>
+            </div>
+            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center text-lg text-violet-600 transition-all group-hover:bg-violet-500 group-hover:text-white">
+              <AuditOutlined className="transition-all" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-violet-600 font-semibold select-none">
+            <span>Chất lượng đạt chuẩn</span>
           </div>
         </div>
 
@@ -128,56 +154,71 @@ export default function DashboardOverview({ questions, matrices, auditLogs, onNa
           </div>
         </div>
 
-        {/* Card 3: Câu hỏi đã duyệt */}
+        {/* Card 6: Tổng số đề đã tạo */}
         <div
-          id="metric-card-approved-questions"
+          id="metric-card-total-exams"
           className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
-          onClick={() => onNavigate('question-bank')}
+          onClick={() => onNavigate('quan-ly-de-thi-goi-de')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-500 transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Câu hỏi đã duyệt</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{questions.filter(q => q.status === 'approved').length.toLocaleString()} Câu</span>
+              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Tổng số đề đã tạo</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{totalExamsCount.toLocaleString()} Đề</span>
             </div>
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center text-lg text-violet-600 transition-all group-hover:bg-violet-500 group-hover:text-white">
+            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-lg text-emerald-600 transition-all group-hover:bg-emerald-500 group-hover:text-white">
               <AuditOutlined className="transition-all" />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-violet-600 font-semibold select-none">
+          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-emerald-600 font-semibold select-none">
             <span>Chất lượng đạt chuẩn</span>
           </div>
         </div>
 
-        {/* Card 4: Chờ thẩm định */}
+        {/* Card 4: Chờ thẩm định (Câu hỏi) */}
         <div
-          id="metric-card-pending-approvals"
+          id="metric-card-pending-questions"
           className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
-          onClick={() => onNavigate('question-bank')}
+          onClick={() => onNavigate('question-bank', 'review')}
         >
           <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-amber-700/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định</span>
+              <span className="text-amber-700/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Câu hỏi)</span>
               <span className="text-xl font-black text-amber-700 tracking-tight block mt-1">{pendingApprovalsFormatted}</span>
             </div>
             <div className="w-10 h-10 bg-amber-100/80 rounded-xl flex items-center justify-center text-lg text-amber-600 transition-all group-hover:bg-amber-500 group-hover:text-white">
-              <AuditOutlined className="transition-all animate-pulse" />
+              <FileTextOutlined className="transition-all animate-pulse" />
             </div>
           </div>
           <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-amber-600 font-semibold uppercase tracking-wider text-[9px]">
-            <span>⚠️ Thẩm định khẩn cấp</span>
+            <span>⚠️ Cần duyệt</span>
           </div>
         </div>
+
+        {/* Card 5: Chờ thẩm định (Ma trận) */}
+        <div
+          id="metric-card-pending-matrices"
+          className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          onClick={() => onNavigate('matrix-config', 'evaluation')}
+        >
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 transition-all duration-300 group-hover:w-2" />
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-rose-700/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Ma trận)</span>
+              <span className="text-xl font-black text-rose-700 tracking-tight block mt-1">{pendingMatrixFormatted}</span>
+            </div>
+            <div className="w-10 h-10 bg-rose-100/80 rounded-xl flex items-center justify-center text-lg text-rose-600 transition-all group-hover:bg-rose-500 group-hover:text-white">
+              <AuditOutlined className="transition-all animate-pulse" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-rose-600 font-semibold uppercase tracking-wider text-[9px]">
+            <span>⚠️ Cần duyệt</span>
+          </div>
+        </div>
+
+
       </div>
-
-      {/* Card 5: Tổng số đề đã tạo */}
-
-      {/* Card 6: */}
-
-      {/* Card 4: Chờ thẩm định */}
-      {/* Card 4: Chờ thẩm định */}
-
       {/* Main Graph Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="dashboard-charts-layout">
 

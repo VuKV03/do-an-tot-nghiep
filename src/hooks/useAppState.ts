@@ -6,7 +6,8 @@ import { bankQuestionApi } from '../services/danhMucApi';
 
 export const useAppState = () => {
   const [questions, setQuestions] = useState<Question[]>([]); // Khởi tạo rỗng, sẽ fetch từ DB
-  const [matrices, setMatrices] = useState<MatrixConfig[]>(INITIAL_MATRICES);
+  const [matrices, setMatrices] = useState<MatrixConfig[]>([]); // Khởi tạo rỗng, fetch từ API
+  const [exams, setExams] = useState<any[]>([]); // Thêm list đề thi
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   useEffect(() => {
@@ -39,16 +40,7 @@ export const useAppState = () => {
 
           // Tạo logs từ dữ liệu thật
           const logs: AuditLog[] = [];
-          
-          INITIAL_MATRICES.forEach((m, index) => {
-            logs.push({
-              id: `log-m-${m.id}`,
-              user: 'Hệ thống (Auto)',
-              action: 'Khởi tạo ma trận',
-              timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
-              details: `Đã tạo ma trận cấu hình: ${m.name}`
-            });
-          });
+
 
           mappedQuestions.forEach(q => {
             logs.push({
@@ -80,7 +72,46 @@ export const useAppState = () => {
       }
     };
 
+    const fetchMatrices = async () => {
+      try {
+        const res = await fetch('/api/matrix-configs?page=1&pageSize=1000');
+        const data = await res.json();
+        if (data.data) {
+          const mappedMatrices = data.data.map((m: any) => ({
+            id: m._id || m.id,
+            code: m.code,
+            name: m.name,
+            subject: m.subject_id?.name || m.subject || 'N/A',
+            grade: m.grade_id?.name || m.grade || 'N/A',
+            duration: m.duration || 45,
+            totalQuestions: m.total_questions || 0,
+            status: m.status || 'draft',
+            createdAt: m.createdAt || new Date().toISOString(),
+            creator: m.created_by?.username || 'Hệ thống',
+            structure: []
+          }));
+          setMatrices(mappedMatrices);
+        }
+      } catch (error) {
+        console.error('Lỗi khi tải dữ liệu ma trận:', error);
+      }
+    };
+
+    const fetchExams = async () => {
+      try {
+        const res = await fetch('/api/exams');
+        const data = await res.json();
+        if (data.data) {
+          setExams(data.data);
+        }
+      } catch (error) {
+        console.error('Lỗi khi tải dữ liệu đề thi:', error);
+      }
+    };
+
     fetchQuestions();
+    fetchMatrices();
+    fetchExams();
   }, []);
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -199,5 +230,6 @@ export const useAppState = () => {
     handleOpenReview,
     handleApproveQuestion,
     handleRejectQuestion,
+    exams,
   };
 };
