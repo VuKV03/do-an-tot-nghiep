@@ -550,7 +550,6 @@ async def list_group_members(group_id: str, db: AsyncSession = Depends(get_db)):
         .where(UserGroupMember.group_id == group_id)
         .distinct()
     )
-    )
     users = user_result.scalars().all()
     
     return {
