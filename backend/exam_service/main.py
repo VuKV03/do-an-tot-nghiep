@@ -487,7 +487,22 @@ async def lifespan(app: FastAPI):
                 print("[Exam Service] ✅ 'status' column already exists in questions table.")
     except Exception as e:
         print(f"[Exam Service] Error checking/adding status column: {e}")
-    
+
+    # Migration: add 'matrix_id' column to exams table if not exists (create_all doesn't
+    # alter already-existing tables — same pattern as the 'status' migration above).
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM exams LIKE 'matrix_id'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE exams ADD COLUMN matrix_id VARCHAR(255) NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'matrix_id' column to exams table.")
+            else:
+                print("[Exam Service] ✅ 'matrix_id' column already exists in exams table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding matrix_id column: {e}")
+
     # DEBUG: Describe columns of questions and exams tables
     try:
         async with engine.begin() as conn:

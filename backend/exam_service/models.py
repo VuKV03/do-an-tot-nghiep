@@ -28,6 +28,9 @@ class Exam(Base):
     duration = Column(Integer, nullable=False)
     description = Column(Text, default="")
     source = Column(String(50), default="manual")
+    # Ma trận đề dùng để sinh đề này (chỉ có ở luồng "Thêm mới tự động" > Theo ma trận đề).
+    # NULL nghĩa là đề tự chọn/thủ công/AI-config, không gắn với ma trận nào.
+    matrix_id = Column(String(255), nullable=True)
 
     # Relationship
     questions = relationship("Question", back_populates="exam", cascade="all, delete-orphan")
@@ -80,6 +83,8 @@ class Package(Base):
     accessType = Column(String(50), default="standard")
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
+    matrix_id = Column(String(255), nullable=True)
+    exam_period_id = Column(String(36), nullable=True)
 
 
 class MatrixConfig(Base):

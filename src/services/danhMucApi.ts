@@ -465,6 +465,7 @@ export interface BankQuestionAPI {
   nangLuc?: string;
   examId?: string | null;
   feedback?: string;
+  statements?: Question['statements'];
 }
 
 export interface BankQuestionCreateAPI {

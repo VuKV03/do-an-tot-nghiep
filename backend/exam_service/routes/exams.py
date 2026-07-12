@@ -58,6 +58,7 @@ def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
         duration=exam.duration or 60,
         description=exam.description or "",
         source=exam.source or "manual",
+        matrix_id=exam.matrix_id,
         questions=[
             QuestionResponse(
                 id=q.id,
@@ -126,6 +127,7 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
         duration=body.duration or 60,
         description=body.description or "",
         source=body.source or "manual",
+        matrix_id=body.matrix_id,
     )
     db.add(exam)
 

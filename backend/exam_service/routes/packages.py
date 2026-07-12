@@ -45,6 +45,8 @@ def _build_package_response(p: Package) -> PackageResponse:
         accessType=p.accessType or "standard",
         createdAt=p.createdAt,
         description=p.description or "",
+        matrix_id=p.matrix_id,
+        exam_period_id=p.exam_period_id,
     )
 
 
@@ -77,6 +79,8 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         accessType=body.accessType or "standard",
         createdAt=now,
         description=body.description or "",
+        matrix_id=body.matrix_id,
+        exam_period_id=body.exam_period_id,
     )
     db.add(package)
     await db.commit()

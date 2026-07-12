@@ -1,24 +1,25 @@
 import React from 'react';
 import { Card, Tag, Button, Space, Tooltip, Radio } from 'antd';
-import { SwapOutlined, SearchOutlined, WarningOutlined, FileTextOutlined } from '@ant-design/icons';
+import { SwapOutlined, SearchOutlined, FileTextOutlined, EditOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 
 interface ExamContentDisplayProps {
   questions: any[];
   onReplaceQuestion?: (index: number, question: any) => void;
   onFindSimilar?: (index: number, question: any) => void;
+  onEditQuestion?: (index: number, question: any) => void;
   allowEdit?: boolean;
-  swapCounts?: Record<number, number>;
-  maxSwaps?: number;
+  /** Chỉ số câu đang được "Sinh lại" (không giới hạn số lượt) — dùng để hiện loading và khoá tạm các nút khác. */
+  regeneratingIndex?: number | null;
 }
 
 export default function ExamContentDisplay({
   questions = [],
   onReplaceQuestion,
   onFindSimilar,
+  onEditQuestion,
   allowEdit = false,
-  swapCounts = {},
-  maxSwaps = 3,
+  regeneratingIndex = null,
 }: ExamContentDisplayProps) {
   const getLevelTag = (level: string) => {
     switch (level) {
@@ -47,9 +48,8 @@ export default function ExamContentDisplay({
         </div>
       ) : (
         questions.map((q, idx) => {
-          const swaps = swapCounts[idx] || 0;
-          const remainingSwaps = Math.max(0, maxSwaps - swaps);
-          const isSwapDisabled = swaps >= maxSwaps;
+          const isRegenerating = regeneratingIndex === idx;
+          const isBusyWithAnother = regeneratingIndex !== null && regeneratingIndex !== idx;
 
           // Check if group question GRP (has sub-questions) or regular question
           const isGroup = q.type === 'GRP' || q.isGroup || Array.isArray(q.subQuestions);
@@ -66,38 +66,50 @@ export default function ExamContentDisplay({
                   </span>
                   <Space size={8}>
                     {getLevelTag(q.level)}
-                    {allowEdit && !isGroup && (
-                      <span className="text-[10px] text-slate-400 font-semibold">
-                        Lượt đổi: <strong className={swaps >= maxSwaps ? "text-red-500" : "text-amber-600"}>{swaps}/{maxSwaps}</strong>
-                      </span>
-                    )}
                   </Space>
                 </div>
               }
               extra={
                 allowEdit && !isGroup && (
                   <Space size={6}>
-                    <Tooltip title={isSwapDisabled ? "Đã hết lượt đổi trực tiếp! Vui lòng Import file câu hỏi mới" : `Đổi câu hỏi tự động (Còn ${remainingSwaps} lượt)`}>
-                      <Button
-                        size="small"
-                        icon={<SwapOutlined />}
-                        disabled={isSwapDisabled}
-                        onClick={() => onReplaceQuestion && onReplaceQuestion(idx, q)}
-                        className={`text-[10px] font-semibold rounded border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 ${isSwapDisabled ? 'opacity-50' : ''}`}
-                      >
-                        Đổi nhanh
-                      </Button>
-                    </Tooltip>
-                    <Tooltip title="Xem danh sách câu hỏi tương đương từ ngân hàng">
-                      <Button
-                        size="small"
-                        icon={<SearchOutlined />}
-                        onClick={() => onFindSimilar && onFindSimilar(idx, q)}
-                        className="text-[10px] font-semibold rounded border-sky-200 text-sky-700 bg-sky-50 hover:bg-sky-100"
-                      >
-                        Tìm tương đồng
-                      </Button>
-                    </Tooltip>
+                    {onEditQuestion && (
+                      <Tooltip title="Sửa nội dung câu hỏi này">
+                        <Button
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => onEditQuestion(idx, q)}
+                          className="text-[10px] font-semibold rounded border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100"
+                        >
+                          Sửa
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {onReplaceQuestion && (
+                      <Tooltip title="Sinh lại câu này">
+                        <Button
+                          size="small"
+                          icon={<SwapOutlined />}
+                          loading={isRegenerating}
+                          disabled={isBusyWithAnother}
+                          onClick={() => onReplaceQuestion(idx, q)}
+                          className="text-[10px] font-semibold rounded border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+                        >
+                          Sinh lại
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {onFindSimilar && (
+                      <Tooltip title="Xem danh sách câu hỏi tương đương từ ngân hàng">
+                        <Button
+                          size="small"
+                          icon={<SearchOutlined />}
+                          onClick={() => onFindSimilar(idx, q)}
+                          className="text-[10px] font-semibold rounded border-sky-200 text-sky-700 bg-sky-50 hover:bg-sky-100"
+                        >
+                          Tìm tương đồng
+                        </Button>
+                      </Tooltip>
+                    )}
                   </Space>
                 )
               }
@@ -146,7 +158,9 @@ export default function ExamContentDisplay({
                   <div className="grid grid-cols-2 gap-2 pl-2 text-slate-500 font-medium">
                     {q.options.map((opt: string, optIdx: number) => {
                       const label = String.fromCharCode(65 + optIdx);
-                      const isCorrect = q.correctAnswer === label;
+                      // correctAnswer thường lưu nguyên văn nội dung đáp án đúng (xem manual-create.tsx),
+                      // không phải chữ cái A/B/C/D — vẫn so thêm với `label` để tương thích dữ liệu cũ nếu có.
+                      const isCorrect = q.correctAnswer === opt || q.correctAnswer === label;
                       return (
                         <div
                           key={optIdx}
@@ -175,13 +189,6 @@ export default function ExamContentDisplay({
                   </div>
                 )}
 
-                {/* Over swap limit warnings */}
-                {allowEdit && !isGroup && swaps >= maxSwaps && (
-                  <div className="mt-2 p-2 bg-rose-50 border border-rose-100 rounded text-rose-800 text-[10px] font-semibold flex items-center gap-1.5 animate-pulse">
-                    <WarningOutlined className="text-rose-500" />
-                    <span>Đã vượt quá số lượt đổi (3 lần). Vui lòng sử dụng tính năng Import Câu hỏi để chèn thủ công.</span>
-                  </div>
-                )}
               </div>
             </Card>
           );

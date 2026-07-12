@@ -36,7 +36,8 @@ import {
   UserOutlined,
   MoreOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  RetweetOutlined
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
@@ -44,6 +45,7 @@ import { bankQuestionApi } from '../../../services/danhMucApi';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalAddGoiDeThiNew from './ModalAddGoiDeThiNew';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
+import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
 import ExamContentDisplay from './ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
@@ -83,6 +85,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
   const [isTuDongMoiOpen, setIsTuDongMoiOpen] = useState(false);
   const [isAddGoiDeOpen, setIsAddGoiDeOpen] = useState(false);
+  const [isSinhHoanViOpen, setIsSinhHoanViOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<any | null>(null);
 
@@ -759,6 +762,10 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                                 onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
                             </Tooltip>
                           )}
+                          <Tooltip title="Sinh đề hoán vị">
+                            <Button size="small" type="text" icon={<RetweetOutlined className="text-[#2c3e9e]" />}
+                              onClick={() => { setSelectedExam(row); setIsSinhHoanViOpen(true); }} className="cursor-pointer" />
+                          </Tooltip>
                           <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
                             <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
                           </Dropdown>
@@ -994,6 +1001,17 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
         onCancel={() => setIsAddGoiDeOpen(false)}
         onSuccess={() => {
           setIsAddGoiDeOpen(false);
+          fetchData();
+        }}
+      />
+
+      <ModalSinhDeHoanVi
+        open={isSinhHoanViOpen}
+        exam={selectedExam}
+        onCancel={() => { setIsSinhHoanViOpen(false); setSelectedExam(null); }}
+        onSuccess={() => {
+          setIsSinhHoanViOpen(false);
+          setSelectedExam(null);
           fetchData();
         }}
       />

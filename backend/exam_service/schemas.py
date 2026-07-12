@@ -68,6 +68,8 @@ class ExamCreate(BaseModel):
     # Danh sách id câu hỏi đã có sẵn trong Ngân hàng câu hỏi cần gắn vào đề thi này
     # (dùng cho luồng "Đề thi riêng lẻ" — chọn câu có sẵn thay vì tạo câu mới).
     questionIds: Optional[List[str]] = None
+    # Ma trận đề đã dùng để sinh đề này (luồng "Theo ma trận đề"); None nếu đề tự chọn/AI-config.
+    matrix_id: Optional[str] = None
 
 
 class ExamUpdate(BaseModel):
@@ -84,6 +86,7 @@ class ExamUpdate(BaseModel):
     source: Optional[str] = None
     questions: Optional[List[QuestionBase]] = None
     questionIds: Optional[List[str]] = None
+    matrix_id: Optional[str] = None
 
 
 class ExamResponse(BaseModel):
@@ -100,6 +103,7 @@ class ExamResponse(BaseModel):
     duration: int
     description: str
     source: str
+    matrix_id: Optional[str] = None
     questions: List[QuestionResponse]
 
     model_config = {"from_attributes": True}
@@ -120,6 +124,9 @@ class PackageCreate(BaseModel):
     examIds: Optional[List[str]] = []
     accessType: Optional[str] = "standard"
     description: Optional[str] = ""
+    # Chỉ dùng để gắn nhãn/lọc gói đề (không ảnh hưởng logic sinh đề hoán vị)
+    matrix_id: Optional[str] = None
+    exam_period_id: Optional[str] = None
 
 
 class PackageUpdate(BaseModel):
@@ -132,6 +139,8 @@ class PackageUpdate(BaseModel):
     downloadsCount: Optional[int] = None
     accessType: Optional[str] = None
     description: Optional[str] = None
+    matrix_id: Optional[str] = None
+    exam_period_id: Optional[str] = None
 
 
 class PackageResponse(BaseModel):
@@ -147,6 +156,8 @@ class PackageResponse(BaseModel):
     accessType: str
     createdAt: str
     description: str
+    matrix_id: Optional[str] = None
+    exam_period_id: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
