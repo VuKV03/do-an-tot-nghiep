@@ -30,7 +30,8 @@ import {
   SearchOutlined,
   UsergroupAddOutlined,
   QuestionCircleFilled,
-  MoreOutlined
+  MoreOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
@@ -68,11 +69,14 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [searchUsername, setSearchUsername] = useState('');
   const [searchFullName, setSearchFullName] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Modals for Users
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [userModalMode, setUserModalMode] = useState<'create' | 'edit'>('create');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingUser, setViewingUser] = useState<SystemUser | null>(null);
   const [userForm] = Form.useForm();
 
   const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
@@ -157,6 +161,10 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     setDefaultGroupId(null);
     setIsUserModalOpen(true);
   };
+  const handleOpenViewUser = (user: SystemUser) => {
+    setViewingUser(user);
+    setIsViewModalOpen(true);
+  };
 
   const handleOpenEditUser = (user: SystemUser) => {
     setUserModalMode('edit');
@@ -186,8 +194,37 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             tempPass += chars.charAt(Math.floor(Math.random() * chars.length));
           }
 
+          // Generate username from fullName
+          let generatedUsername = '';
+          if (values.fullName) {
+            const parts = values.fullName.trim().split(/\s+/);
+            if (parts.length === 1) {
+              generatedUsername = parts[0].toLowerCase();
+            } else {
+              const lastName = parts[parts.length - 1].toLowerCase();
+              const initials = parts.slice(0, parts.length - 1).map((p: string) => p[0].toLowerCase()).join('');
+              generatedUsername = `${lastName}${initials}`;
+            }
+
+            // Remove diacritics
+            generatedUsername = generatedUsername
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/đ/g, "d")
+              .replace(/Đ/g, "d");
+
+            // Ensure no conflict with existing
+            let baseUsername = generatedUsername;
+            let counter = 2;
+            while (users.some(u => u.username === generatedUsername)) {
+              generatedUsername = `${baseUsername}${counter}`;
+              counter++;
+            }
+          }
+
+          const finalUsername = generatedUsername || `user_${Date.now()}`;
           const res = await axios.post(`${API_URL}/auth/register`, {
-            username: values.username?.toLowerCase().trim() || `user_${Date.now()}`,
+            username: finalUsername,
             email: values.email,
             fullName: values.fullName,
             password: tempPass,
@@ -210,7 +247,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               user: 'Quản trị viên',
               action: 'Tạo người dùng',
               timestamp: new Date().toISOString(),
-              details: `Đã tạo tài khoản cán bộ mới: ${values.fullName} (@${values.username}, Quyền: ${values.role})`
+              details: `Đã tạo tài khoản cán bộ mới: ${values.fullName} (@${finalUsername}, Quyền: ${values.role})`
             });
 
             // Add to security log
@@ -225,7 +262,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               title: 'MẬT KHẨU TẠM THỜI',
               content: (
                 <div>
-                  <p>Tài khoản <strong>@{values.username}</strong> đã được tạo thành công.</p>
+                  <p>Tài khoản <strong>@{finalUsername}</strong> đã được tạo thành công.</p>
                   <p>Mật khẩu tạm thời: <code className="bg-slate-100 p-1 rounded font-bold">{tempPass}</code></p>
                   <p className="text-xs mt-2 text-slate-500">Hãy yêu cầu người dùng đổi mật khẩu trong lần đăng nhập đầu tiên.</p>
                 </div>
@@ -296,6 +333,64 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       console.error('Error deleting user:', err);
       message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
     }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedUserIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một tài khoản để xóa.');
+      return;
+    }
+
+    const selectedUsers = users.filter(u => selectedUserIds.includes(u.id));
+
+    // Check if any selected user is in QTHT group or is admin
+    const hasAdmin = selectedUsers.some(u => {
+      if (u.username === 'admin' || u.role === 'admin') return true;
+      const groups = (u as any).groups;
+      if (groups && Array.isArray(groups)) {
+        return groups.some((g: any) =>
+          g.code === 'QTHT' ||
+          g.name === 'QTHT' ||
+          g.name.toLowerCase().includes('quản trị hệ thống') ||
+          g.name.toLowerCase().includes('qtht')
+        );
+      }
+      return false;
+    });
+
+    if (hasAdmin) {
+      message.error('Không cho phép xóa nhóm QTHT');
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Xác nhận xóa tài khoản',
+      content: `Bạn có chắc chắn muốn xóa ${selectedUserIds.length} tài khoản đã chọn không? Hành động này không thể hoàn tác.`,
+      okText: 'Xóa',
+      okButtonProps: { danger: true },
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await Promise.all(selectedUserIds.map(id => axios.delete(`${API_URL}/auth/users/${id}`)));
+
+          await fetchUsers(); // Refresh list
+          setSelectedUserIds([]); // Clear selection
+
+          message.success(`Đã xóa thành công ${selectedUserIds.length} tài khoản.`);
+
+          onAddAuditLog({
+            id: `log-sec-${Date.now()}`,
+            user: 'Quản trị viên',
+            action: 'Xóa người dùng hàng loạt',
+            timestamp: new Date().toISOString(),
+            details: `Đã xóa ${selectedUserIds.length} tài khoản khỏi hệ thống.`
+          });
+        } catch (err: any) {
+          console.error('Error deleting users:', err);
+          message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
+        }
+      }
+    });
   };
 
   const handleToggleUserStatus = async (user: SystemUser) => {
@@ -433,7 +528,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           <h2 className="text-[#1a3b70] font-bold text-sm m-0">Kết quả tìm kiếm</h2>
           <div className="flex gap-2">
             <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleOpenCreateUser}>Thêm mới</Button>
-            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xóa</Button>
+            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded" onClick={handleBulkDelete}>Xóa</Button>
             <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
           </div>
         </div>
@@ -441,7 +536,20 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
-                <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
+                <th className="py-3 px-4 text-left w-12">
+                  <input
+                    type="checkbox"
+                    className="rounded text-[#1e40af] cursor-pointer"
+                    checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedUserIds(filteredUsers.map(u => u.id));
+                      } else {
+                        setSelectedUserIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="py-3 px-4 text-center w-16">STT</th>
                 <th className="py-3 px-4 text-left">Mã người dùng<br />/tên đăng nhập</th>
                 <th className="py-3 px-4 text-left">Họ và tên</th>
@@ -468,7 +576,18 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 filteredUsers.map((u, index) => (
                   <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-3 px-4">
-                      <input type="checkbox" className="rounded text-[#1e40af]" />
+                      <input
+                        type="checkbox"
+                        className="rounded text-[#1e40af] cursor-pointer"
+                        checked={selectedUserIds.includes(u.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUserIds(prev => [...prev, u.id]);
+                          } else {
+                            setSelectedUserIds(prev => prev.filter(id => id !== u.id));
+                          }
+                        }}
+                      />
                     </td>
                     <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
                     <td className="py-3 px-4 text-slate-600">{u.username}</td>
@@ -522,8 +641,16 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                     <td className="py-3 px-4 text-center">
                       <Space size={12}>
                         <div
+                          className="bg-emerald-50 text-emerald-600 p-1.5 rounded cursor-pointer hover:bg-emerald-100 transition-colors"
+                          onClick={() => handleOpenViewUser(u)}
+                          title="Xem chi tiết"
+                        >
+                          <EyeOutlined className="text-sm" />
+                        </div>
+                        <div
                           className="bg-blue-50 text-[#1e40af] p-1.5 rounded cursor-pointer hover:bg-blue-100 transition-colors"
                           onClick={() => handleOpenEditUser(u)}
+                          title="Chỉnh sửa"
                         >
                           <EditOutlined className="text-sm" />
                         </div>
@@ -550,6 +677,16 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                                 icon: <DeleteOutlined className="text-red-500" />,
                                 disabled: u.username === 'admin',
                                 onClick: () => {
+                                  const groups = (u as any).groups;
+                                  const isQTHT = u.role === 'admin' || (groups && Array.isArray(groups) && groups.some((g: any) =>
+                                    g.code === 'QTHT' || g.name === 'QTHT' || g.name.toLowerCase().includes('quản trị hệ thống') || g.name.toLowerCase().includes('qtht')
+                                  ));
+
+                                  if (isQTHT) {
+                                    message.error('Không cho phép xóa nhóm QTHT');
+                                    return;
+                                  }
+
                                   Modal.confirm({
                                     title: 'Xác nhận xóa tài khoản',
                                     content: `Bạn có chắc chắn muốn xóa tài khoản ${u.fullName} (@${u.username}) không? Hành động này không thể hoàn tác.`,
@@ -697,7 +834,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               ]}
               className="mt-2"
             >
-              <Input placeholder="abc@xyz" className="rounded py-1.5" />
+              <Input placeholder="abc@gmail.com" className="rounded py-1.5" />
             </Form.Item>
 
             <Form.Item
@@ -851,6 +988,79 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           className="mt-4"
           pagination={{ pageSize: 5 }}
         />
+      </Modal>
+
+      {/* Modal Xem chi tiết người dùng */}
+      <Modal
+        title={<span className="text-[#1e40af] text-lg font-bold">THÔNG TIN CHI TIẾT NGƯỜI DÙNG</span>}
+        open={isViewModalOpen}
+        onCancel={() => setIsViewModalOpen(false)}
+        footer={
+          <Button type="primary" onClick={() => setIsViewModalOpen(false)} className="bg-[#1e40af] hover:bg-[#1e3a8a] rounded px-6">
+            Đóng
+          </Button>
+        }
+        width={700}
+        centered
+        className="rounded-lg overflow-hidden"
+      >
+        {viewingUser && (
+          <div className="py-4">
+            <Row gutter={[24, 16]}>
+              <Col span={12}>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Họ và tên:</span> <span className="font-semibold text-slate-800">{viewingUser.fullName}</span></p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Mã đăng nhập:</span> <span className="font-semibold text-slate-800">{viewingUser.username}</span></p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Email:</span> <span className="font-semibold text-slate-800">{viewingUser.email || 'Chưa cập nhật'}</span></p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Số điện thoại:</span> <span className="font-semibold text-slate-800">{(viewingUser as any).phoneNumber || 'Chưa cập nhật'}</span></p>
+              </Col>
+              <Col span={12}>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Trạng thái:</span> 
+                  {viewingUser.status === 'active' ? (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-xs font-semibold border border-emerald-200">Đang hoạt động</span>
+                  ) : (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-red-50 text-red-500 text-xs font-semibold border border-red-200">Khóa</span>
+                  )}
+                </p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Giới tính:</span> <span className="font-semibold text-slate-800">{(viewingUser as any).gender || 'Chưa cập nhật'}</span></p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Ngày sinh:</span> <span className="font-semibold text-slate-800">{(viewingUser as any).dateOfBirth ? new Date((viewingUser as any).dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</span></p>
+                <p className="mb-2"><span className="text-slate-500 font-medium">Chức vụ:</span> <span className="font-semibold text-slate-800">{(viewingUser as any).position || 'Cán bộ'}</span></p>
+              </Col>
+            </Row>
+
+            <div className="mt-6">
+              <h4 className="text-sm font-bold text-slate-700 mb-2 border-b pb-2">Nhóm người dùng</h4>
+              {(viewingUser as any).groups && (viewingUser as any).groups.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {(viewingUser as any).groups.map((g: any) => (
+                    <span key={g.id} className="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-sm font-medium">
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-slate-400 italic">Chưa được phân vào nhóm nào.</span>
+              )}
+            </div>
+
+            <div className="mt-6">
+              <h4 className="text-sm font-bold text-slate-700 mb-2 border-b pb-2">Môn học phụ trách</h4>
+              {(viewingUser as any).subjects && (viewingUser as any).subjects.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {(viewingUser as any).subjects.map((s: string) => {
+                    const sub = subjects.find(sb => sb.id === s);
+                    return (
+                      <span key={s} className="inline-block px-3 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded text-sm font-medium">
+                        {sub ? sub.name : s}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-slate-400 italic">Chưa có môn học nào.</span>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
     </div>
