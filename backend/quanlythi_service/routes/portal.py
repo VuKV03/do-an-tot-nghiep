@@ -51,8 +51,12 @@ async def get_session_info(candidate_id: str, db: AsyncSession = Depends(get_db)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
+    exam = None
     questions_list = []
     if session.exam_id:
+        e_result = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == session.exam_id))
+        exam = e_result.scalar_one_or_none()
+
         q_result = await db.execute(
             select(exam_models.Question, exam_models.QuestionType)
             .outerjoin(exam_models.QuestionType, exam_models.Question.type_id == exam_models.QuestionType.id)
@@ -70,6 +74,13 @@ async def get_session_info(candidate_id: str, db: AsyncSession = Depends(get_db)
                     parsed_options = json.loads(q.options)
                 except:
                     pass
+
+            parsed_statements = []
+            if q.statements:
+                try:
+                    parsed_statements = json.loads(q.statements)
+                except:
+                    pass
             
             type_name = q_type.name if q_type else "Phần chung"
             type_code = q_type.code if q_type else ""
@@ -80,12 +91,14 @@ async def get_session_info(candidate_id: str, db: AsyncSession = Depends(get_db)
                 "type_code": type_code,
                 "content": q.content,
                 "options": parsed_options,
+                "statements": parsed_statements,
                 "correct_answer": q.correct_answer
             })
             
     return {
         "candidate": candidate,
         "session": session,
+        "exam": exam,
         "questions": questions_list
     }
 
@@ -178,4 +191,10 @@ async def submit_final(candidate_id: str, payload: schemas.SubmitFinalRequest, d
     await db.commit()
     await db.refresh(exam_result)
     
-    return exam_result
+    return {
+        "success": True,
+        "score": exam_result.score,
+        "total_correct": exam_result.total_correct,
+        "total_questions": exam_result.total_questions,
+        "submitted_at": exam_result.submitted_at
+    }

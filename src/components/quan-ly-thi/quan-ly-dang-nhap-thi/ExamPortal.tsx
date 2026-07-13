@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, message, Spin, Typography, Modal, Radio, Space, Input } from 'antd';
-import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FlagFilled, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../../types';
 
 const { Header, Content, Footer } = Layout;
@@ -9,9 +9,11 @@ const { Title, Text } = Typography;
 interface ExamPortalProps {
   currentUser: SystemUser;
   onLogout: () => void;
+  mode?: 'taking' | 'preview';
+  previewExamData?: any;
 }
 
-export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
+export default function ExamPortal({ currentUser, onLogout, mode = 'taking', previewExamData }: ExamPortalProps) {
   const [loading, setLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -24,12 +26,19 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   const [examResultData, setExamResultData] = useState<any>(null);
   const [isTimeOutSubmit, setIsTimeOutSubmit] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'waiting' | 'taking' | 'review'>('waiting');
+  const [viewMode, setViewMode] = useState<'waiting' | 'taking' | 'review'>(mode === 'preview' ? 'taking' : 'waiting');
   const [waitCountdown, setWaitCountdown] = useState(10);
 
   useEffect(() => {
+    if (mode === 'preview' && previewExamData) {
+      setSessionInfo(previewExamData);
+      setTimeLeft((previewExamData.session?.duration_minutes || 45) * 60);
+      setViewMode('taking');
+      setLoading(false);
+      return;
+    }
     fetchSessionInfo();
-  }, []);
+  }, [mode, previewExamData]);
 
   const fetchSessionInfo = async () => {
     try {
@@ -64,15 +73,15 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   }, [viewMode, waitCountdown]);
 
   useEffect(() => {
-    if (viewMode !== 'waiting' && timeLeft > 0) {
+    if (viewMode !== 'waiting' && timeLeft > 0 && mode !== 'preview') {
       const timer = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
       return () => clearInterval(timer);
-    } else if (viewMode !== 'waiting' && timeLeft === 0 && sessionInfo && !submitting && !resultModalVisible) {
+    } else if (viewMode !== 'waiting' && timeLeft === 0 && sessionInfo && !submitting && !resultModalVisible && mode !== 'preview') {
       doSubmit(true);
     }
-  }, [timeLeft, sessionInfo, viewMode, submitting, resultModalVisible]);
+  }, [timeLeft, sessionInfo, viewMode, submitting, resultModalVisible, mode]);
 
   const handleLogout = () => {
     Modal.confirm({
@@ -99,6 +108,10 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   };
 
   const handleSubmitDraft = async () => {
+    if (mode === 'preview') {
+      message.success('Đã lưu bài làm tạm thời (Preview).');
+      return;
+    }
     try {
       const token = localStorage.getItem('auth_token');
       const res = await fetch(`/api/exam/portal/submit-draft?candidate_id=${currentUser.id}`, {
@@ -122,6 +135,12 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   };
 
   const doSubmit = async (isAuto: boolean) => {
+    if (mode === 'preview') {
+      setIsTimeOutSubmit(isAuto);
+      setExamResultData({ score: 10 });
+      setResultModalVisible(true);
+      return;
+    }
     setSubmitting(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -221,10 +240,27 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   const totalQuestions = questions.length;
   const answeredCount = Object.keys(answers).length;
 
-  // Group questions by parts for bottom nav
+  // Helper: get display name for type_code
+  const getTypeDisplayName = (typeCode: string) => {
+    const tc = (typeCode || '').toLowerCase();
+    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'Đúng sai';
+    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'Trả lời ngắn';
+    return 'Trắc nghiệm';
+  };
+
+  // Normalize type_code to a group key
+  const getTypeGroupKey = (typeCode: string) => {
+    const tc = (typeCode || '').toLowerCase();
+    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'true_false';
+    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'short';
+    return 'single';
+  };
+
+  // Group questions by type_code for bottom nav (like student interface)
   const parts = questions.reduce((acc: any, q: any) => {
-    if (!acc[q.part]) acc[q.part] = [];
-    acc[q.part].push(q);
+    const key = getTypeGroupKey(q.type_code);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(q);
     return acc;
   }, {});
 
@@ -232,26 +268,28 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
 
   if (viewMode === 'waiting') {
     return (
-      <div className="flex flex-col h-screen w-full bg-[#f0f4f8] items-center justify-center p-4">
-        <Title level={3} className="text-[#1a365d] uppercase mb-2 font-bold tracking-wide">
+      <div className="flex flex-col min-h-screen w-full bg-[#f4f6f9] items-center justify-center py-12 px-4 font-sans">
+        <h1 className="text-[28px] text-slate-800 uppercase mb-3 font-medium tracking-wide text-center">
           {sessionInfo.session?.name ? sessionInfo.session.name.toUpperCase() : 'KỲ THI TRỰC TUYẾN'}
-        </Title>
-        <Text className="text-slate-600 mb-10 font-medium">Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({sessionInfo.session?.start_time ? new Date(sessionInfo.session.start_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '09:00'} - {sessionInfo.session?.end_time ? new Date(sessionInfo.session.end_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '11:00'})</Text>
+        </h1>
+        <p className="text-slate-800 mb-12 text-[15px]">
+          Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({sessionInfo.session?.start_time ? new Date(sessionInfo.session.start_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '09:00'} - {sessionInfo.session?.end_time ? new Date(sessionInfo.session.end_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '11:00'})
+        </p>
 
-        <div className="flex gap-6 max-w-4xl w-full mb-10">
-          <div className="flex-1 bg-white p-8 rounded-xl shadow-sm">
-            <h3 className="text-blue-800 font-bold mb-6 uppercase tracking-wider text-sm">THÍ SINH</h3>
-            <div className="space-y-5 text-slate-800 font-bold text-sm">
+        <div className="flex flex-col md:flex-row gap-6 max-w-[960px] w-full mb-10">
+          <div className="flex-1 bg-white p-8 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
+            <h3 className="text-blue-800 font-bold mb-6 uppercase tracking-wider text-[15px]">THÍ SINH</h3>
+            <div className="space-y-6 text-slate-800 font-bold text-[15px]">
               <div><span className="text-slate-500 mr-2 font-normal">Họ và tên:</span> {currentUser.fullName}</div>
               <div><span className="text-slate-500 mr-2 font-normal">SBD:</span> {currentUser.username}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Ngày sinh:</span> {sessionInfo.candidate?.dob || '30/05/2007'}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> {sessionInfo.candidate?.gender || 'NAM'}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> {sessionInfo.candidate?.gender || 'Nữ'}</div>
             </div>
           </div>
-          <div className="flex-1 bg-white p-8 rounded-xl shadow-sm">
-            <h3 className="text-blue-800 font-bold mb-6 uppercase tracking-wider text-sm">MÔN THI</h3>
-            <div className="space-y-5 text-slate-800 font-bold text-sm">
-              <div><span className="text-slate-500 mr-2 font-normal">Môn thi:</span> {sessionInfo.exam?.subject || 'TOÁN'}</div>
+          <div className="flex-1 bg-white p-8 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
+            <h3 className="text-blue-800 font-bold mb-6 uppercase tracking-wider text-[15px]">MÔN THI</h3>
+            <div className="space-y-6 text-slate-800 font-bold text-[15px]">
+              <div><span className="text-slate-500 mr-2 font-normal">Môn thi:</span> {sessionInfo.exam?.subject || 'Toán học'}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Số lượng câu hỏi:</span> {totalQuestions}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Thời gian làm bài (phút):</span> {sessionInfo.session?.duration_minutes || 60}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> 10</div>
@@ -259,16 +297,16 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
           </div>
         </div>
 
-        <div className="max-w-4xl w-full mb-12 text-slate-600 text-sm space-y-1">
-          <div className="font-bold text-slate-800 mb-2">Lưu ý</div>
+        <div className="max-w-[960px] w-full mb-14 text-slate-600 text-[15px] space-y-2">
+          <div className="font-bold text-slate-800 mb-3 text-base">Lưu ý</div>
           <div>Thí sinh cần xác nhận xem hướng dẫn làm bài trước khi bắt đầu làm bài thi</div>
           <div>Thí sinh chỉ có thể bắt đầu làm bài khi ca thi đã mở</div>
         </div>
 
-        <div className="flex gap-4">
-          <Button size="large" className="px-10 h-10 font-bold border-blue-600 text-blue-700 rounded" onClick={onLogout}>Thoát</Button>
-          <Button type="primary" size="large" className="px-10 h-10 font-bold bg-blue-800 rounded" onClick={() => setViewMode('taking')} disabled={waitCountdown > 0}>
-            {waitCountdown > 0 ? `Bắt đầu làm bài (${waitCountdown}s)` : 'Bắt đầu làm bài'}
+        <div className="flex justify-center gap-4 w-full">
+          <Button size="large" className="px-8 h-11 text-slate-600 font-medium border-slate-300 rounded hover:text-slate-800 hover:border-slate-400" onClick={onLogout}>Thoát</Button>
+          <Button type="primary" size="large" className="px-8 h-11 font-medium bg-[#1677ff] rounded shadow-sm hover:bg-blue-600" onClick={() => setViewMode('taking')}>
+            Bắt đầu làm bài
           </Button>
         </div>
       </div>
@@ -293,16 +331,69 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
-              {Object.keys(parts).map((partNum) => (
-                <div key={partNum} className="space-y-6">
-                  <div className="font-bold text-blue-900 uppercase">PHẦN {['I', 'II', 'III', 'IV'][parseInt(partNum) - 1]}:</div>
+              {Object.keys(parts).map((partKey) => (
+                <div key={partKey} className="space-y-6">
+                  <div className="font-bold text-blue-900 uppercase">PHẦN {getTypeDisplayName(partKey).toUpperCase()}:</div>
                   
-                  {parts[partNum].map((q: any) => {
+                  {parts[partKey].map((q: any) => {
                     const globalIdx = getQuestionGlobalIndex(q.id);
                     return (
                       <div key={q.id} className="border-b pb-6 last:border-0 border-slate-100">
                         <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {globalIdx + 1}: </span> <span className="font-medium">{q.content}</span></div>
-                        {(!q.options || q.options.length === 0 || q.type_code?.toLowerCase().includes('ngan') || q.type_code === 'TLN') ? (
+                        {q.type_code === 'true_false' || q.type_code?.toLowerCase() === 'đs' || q.type_code?.toLowerCase() === 'ds' ? (
+                          <div className="pl-12 w-full max-w-4xl">
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                              <table className="w-full text-left text-[14px] text-slate-800">
+                                <thead className="bg-slate-100 border-b border-slate-200">
+                                  <tr>
+                                    <th className="py-2.5 px-4 font-bold text-slate-700 w-12 text-center">Ý</th>
+                                    <th className="py-2.5 px-4 font-bold text-slate-700">Phát biểu</th>
+                                    <th className="py-2.5 px-4 font-bold text-slate-700 w-24 text-center">Đúng</th>
+                                    <th className="py-2.5 px-4 font-bold text-slate-700 w-24 text-center">Sai</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                  {q.options.map((opt: string, oIdx: number) => {
+                                    const letter = String.fromCharCode(97 + oIdx); // a, b, c, d
+                                    const currentAns = answers[q.id] || "";
+                                    const parts = currentAns ? currentAns.split(', ') : [];
+                                    const isTrue = parts[oIdx] === `${oIdx + 1}. Đúng`;
+                                    const isFalse = parts[oIdx] === `${oIdx + 1}. Sai`;
+                                    
+                                    return (
+                                      <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
+                                        <td className="py-3 px-4 text-center font-bold">{letter})</td>
+                                        <td className="py-3 px-4">{opt}</td>
+                                        <td className="py-3 px-4 text-center border-l border-slate-100">
+                                          <Radio 
+                                            checked={isTrue} 
+                                            onChange={() => {
+                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({length: q.options.length}).map((_, i) => `${i + 1}. `))];
+                                              newParts[oIdx] = `${oIdx + 1}. Đúng`;
+                                              handleSelectAnswer(q.id, newParts.join(', '));
+                                            }}
+                                            className="m-0"
+                                          />
+                                        </td>
+                                        <td className="py-3 px-4 text-center border-l border-slate-100">
+                                          <Radio 
+                                            checked={isFalse} 
+                                            onChange={() => {
+                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({length: q.options.length}).map((_, i) => `${i + 1}. `))];
+                                              newParts[oIdx] = `${oIdx + 1}. Sai`;
+                                              handleSelectAnswer(q.id, newParts.join(', '));
+                                            }}
+                                            className="m-0"
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : (!q.options || q.options.length === 0 || q.type_code?.toLowerCase().includes('ngan') || q.type_code === 'TLN') ? (
                           <div className="pl-12">
                             <Input 
                               placeholder="Nhập câu trả lời của bạn..." 
@@ -352,11 +443,11 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
               </div>
 
               <div className="space-y-6">
-                {Object.keys(parts).map((partNum) => (
-                  <div key={partNum}>
-                    <div className="text-sm text-blue-900 mb-3">Phần {['I', 'II', 'III', 'IV'][parseInt(partNum) - 1]}: Thí sinh trả lời từ câu {getQuestionGlobalIndex(parts[partNum][0].id) + 1} đến câu {getQuestionGlobalIndex(parts[partNum][parts[partNum].length - 1].id) + 1}</div>
+                {Object.keys(parts).map((partKey) => (
+                  <div key={partKey}>
+                    <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => getQuestionGlobalIndex(q.id) + 1).join(', ')}</div>
                     <div className="flex flex-wrap gap-2">
-                      {parts[partNum].map((q: any) => {
+                      {parts[partKey].map((q: any) => {
                         const gIdx = getQuestionGlobalIndex(q.id);
                         const isAnswered = !!answers[q.id];
                         const isFlagged = flagged[q.id];
@@ -390,7 +481,7 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
   }
 
   return (
-    <Layout className="min-h-screen font-sans bg-white flex flex-col">
+    <Layout className="h-screen overflow-hidden font-sans bg-[#f4f6f9] flex flex-col">
       {/* Top Header */}
       <header className="bg-[#1a365d] px-4 flex items-center justify-between h-14 shrink-0 text-white shadow-md z-50" style={{ color: 'white', lineHeight: 'normal' }}>
         <div className="flex flex-col text-xs font-medium tracking-wide" style={{ color: 'white' }}>
@@ -413,17 +504,19 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
           </div>
 
           <div className="flex items-center gap-1.5 ml-4 mr-2" style={{ color: 'white' }}>
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-            <span className="text-xs font-medium" style={{ color: 'white' }}>Đang kết nối</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${mode === 'preview' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'}`}></div>
+            <span className="text-xs font-medium" style={{ color: 'white' }}>{mode === 'preview' ? 'Preview Mode' : 'Đang kết nối'}</span>
           </div>
 
-          <Button
-            className="bg-white text-blue-800 border-none font-bold px-5 h-8 text-xs hover:bg-blue-50"
-            onClick={() => setViewMode('review')}
-            loading={submitting}
-          >
-            NỘP BÀI
-          </Button>
+          {mode !== 'preview' && (
+            <Button
+              className="bg-white text-blue-800 border-none font-bold px-5 h-8 text-xs hover:bg-blue-50"
+              onClick={() => setViewMode('review')}
+              loading={submitting}
+            >
+              NỘP BÀI
+            </Button>
+          )}
           <Button
             className="bg-white text-red-600 border-none font-bold px-5 h-8 text-xs hover:bg-red-50"
             onClick={handleLogout}
@@ -441,84 +534,166 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
       </header>
 
       {/* Main Content */}
-      <Content className="flex-1 flex flex-col mx-auto w-full max-w-6xl px-4 py-4 overflow-y-auto">
+      <Content className="flex-1 flex flex-col bg-[#f4f6f9] w-full overflow-hidden">
         {/* Controls Row */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-3">
-            <Button
-              icon={<ArrowLeftOutlined />}
-              className="text-blue-700 border-blue-700 font-medium px-4 h-9"
-              onClick={() => setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))}
-              disabled={currentQuestionIdx === 0}
-            >
-              Quay lại
-            </Button>
-            <Button
-              type="primary"
-              className="bg-blue-700 font-medium px-4 h-9 flex flex-row-reverse items-center gap-2"
-              onClick={() => setCurrentQuestionIdx(Math.min(totalQuestions - 1, currentQuestionIdx + 1))}
-              disabled={currentQuestionIdx === totalQuestions - 1}
-            >
-              <ArrowRightOutlined />
-              Tiếp theo
-            </Button>
-          </div>
-          <div className="flex items-center gap-6">
-            <span className="text-slate-600 font-medium text-sm">
-              Số câu đã trả lời: <span className="text-green-600 font-bold text-lg ml-1">{answeredCount}</span> / {totalQuestions}
-            </span>
-            <div className="flex gap-1 text-slate-400">
-              <Button type="text" size="small" icon={<UnorderedListOutlined />} />
-              <Button type="text" size="small" icon={<AppstoreOutlined />} className="text-blue-600 bg-blue-50" />
+        <div className="flex items-center justify-center py-3 px-8 border-b border-slate-200 shrink-0 bg-white shadow-sm z-10 relative">
+          <div className="w-full max-w-[1200px] flex justify-center relative items-center">
+            <div className="flex gap-2">
+              <Button
+                className="text-blue-800 border-blue-800 font-medium px-4 h-8 rounded-sm hover:bg-blue-50 flex items-center gap-1 transition-all text-xs"
+                onClick={() => setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))}
+                disabled={currentQuestionIdx === 0}
+              >
+                <ArrowLeftOutlined className="text-[10px]" /> Quay lại
+              </Button>
+              <Button
+                type="primary"
+                className="bg-[#244384] font-medium px-4 h-8 flex flex-row-reverse items-center gap-1 rounded-sm shadow-none hover:bg-[#1a365d] transition-all text-xs"
+                onClick={() => setCurrentQuestionIdx(Math.min(totalQuestions - 1, currentQuestionIdx + 1))}
+                disabled={currentQuestionIdx === totalQuestions - 1}
+              >
+                <ArrowRightOutlined className="text-[10px]" /> Tiếp theo
+              </Button>
+            </div>
+            <div className="absolute right-0 flex items-center gap-4 hidden sm:flex">
+              <span className="text-slate-700 text-sm">
+                Số câu đã trả lời: <span className="text-green-600 font-bold ml-1">{answeredCount}</span> / {totalQuestions}
+              </span>
+              <div className="flex gap-1 ml-2">
+                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<UnorderedListOutlined className="text-[14px]" />} />
+                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<AppstoreOutlined className="text-[14px]" />} />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Question Area */}
-        <div className="flex-1">
-          <div className="border-b border-slate-200 pb-2 mb-6">
-            <h2 className="text-blue-800 font-bold text-base m-0 uppercase tracking-wide">
-              PHẦN {currentQ.part}: <span className="text-slate-600 font-medium lowercase normal-case ml-2">Thí sinh trả lời các câu hỏi phần {currentQ.part}. Mỗi câu hỏi thí sinh chỉ chọn một phương án</span>
-            </h2>
-          </div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-10 py-6 sm:py-8 w-full flex justify-center">
+          <div className="w-full max-w-[1200px] bg-white p-6 sm:p-10 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-slate-100 h-fit">
+            {(() => {
+            const currentTypeKey = getTypeGroupKey(currentQ.type_code);
+            const partQuestions = parts[currentTypeKey] || [];
+            if (partQuestions.length === 0) return null;
+            const startIdx = getQuestionGlobalIndex(partQuestions[0].id) + 1;
+            const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
+            
+            let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
+            if (currentTypeKey === 'true_false') {
+              partDesc = "Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.";
+            } else if (currentTypeKey === 'short') {
+              partDesc = "Thí sinh trả lời bằng cách nhập đáp án vào ô trống.";
+            }
 
-          <div className="flex gap-4">
+            return (
+              <div className="mb-8 flex flex-wrap items-center gap-4 text-[#1a365d]">
+                <span className="font-bold uppercase tracking-wider text-[15px] whitespace-nowrap">PHẦN {getTypeDisplayName(currentTypeKey).toUpperCase()}:</span>
+                <span className="text-[15px] font-medium">Thí sinh trả lời từ câu {startIdx} đến câu {endIdx}. {partDesc}</span>
+              </div>
+            );
+          })()}
+
+          <div className="flex gap-6 max-w-full">
             <div className="flex-1">
-              <div className="flex items-start gap-4 mb-8">
-                <div className="font-bold text-slate-800 text-lg shrink-0 pt-0.5">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
                   Câu {currentQuestionIdx + 1}:
                 </div>
-                <div className="text-lg text-slate-800 font-medium leading-relaxed">
+                <div className="text-[15px] text-slate-800 font-medium leading-relaxed flex-1">
                   {currentQ.content}
                 </div>
                 <div
-                  className="cursor-pointer ml-auto pl-4 shrink-0"
+                  className="cursor-pointer shrink-0 ml-4 flex flex-col items-center justify-center p-2 rounded-lg transition-all hover:bg-slate-100"
                   onClick={() => toggleFlag(currentQ.id)}
+                  title="Đánh dấu câu hỏi này"
                 >
-                  <FlagOutlined className={`text-2xl ${flagged[currentQ.id] ? 'text-yellow-500' : 'text-slate-300 hover:text-slate-400'}`} />
+                  {flagged[currentQ.id] ? (
+                    <FlagFilled className="text-xl text-yellow-500 drop-shadow-md mb-1" />
+                  ) : (
+                    <FlagOutlined className="text-xl text-slate-400 hover:text-slate-500 mb-1" />
+                  )}
+                  <span className={`text-[11px] font-semibold ${flagged[currentQ.id] ? 'text-yellow-600' : 'text-slate-500'}`}>
+                    Đánh dấu
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-4 pl-14">
-                {(!currentQ.options || currentQ.options.length === 0 || currentQ.type_code?.toLowerCase().includes('ngan') || currentQ.type_code === 'TLN') ? (
+              <div className="space-y-4 pl-[54px] pr-12">
+                {currentQ.type_code === 'true_false' || currentQ.type_code?.toLowerCase() === 'đs' || currentQ.type_code?.toLowerCase() === 'ds' ? (
+                  <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-[15px] text-slate-800">
+                      <thead className="bg-slate-100 border-b border-slate-200">
+                        <tr>
+                          <th className="py-3 px-4 font-bold text-slate-700 w-12 text-center">Ý</th>
+                          <th className="py-3 px-4 font-bold text-slate-700">Phát biểu</th>
+                          <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Đúng</th>
+                          <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Sai</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {currentQ.options.map((opt: string, oIdx: number) => {
+                          const letter = String.fromCharCode(97 + oIdx); // a, b, c, d
+                          const currentAns = answers[currentQ.id] || "";
+                          const parts = currentAns ? currentAns.split(', ') : [];
+                          const isTrue = parts[oIdx] === `${oIdx + 1}. Đúng`;
+                          const isFalse = parts[oIdx] === `${oIdx + 1}. Sai`;
+                          
+                          return (
+                            <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
+                              <td className="py-3.5 px-4 text-center font-bold">{letter})</td>
+                              <td className="py-3.5 px-4">{opt}</td>
+                              <td className="py-3.5 px-4 text-center border-l border-slate-100">
+                                <Radio 
+                                  checked={isTrue} 
+                                  onChange={() => {
+                                    const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({length: currentQ.options.length}).map((_, i) => `${i + 1}. `))];
+                                    newParts[oIdx] = `${oIdx + 1}. Đúng`;
+                                    handleSelectAnswer(currentQ.id, newParts.join(', '));
+                                  }}
+                                  className="m-0"
+                                />
+                              </td>
+                              <td className="py-3.5 px-4 text-center border-l border-slate-100">
+                                <Radio 
+                                  checked={isFalse} 
+                                  onChange={() => {
+                                    const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({length: currentQ.options.length}).map((_, i) => `${i + 1}. `))];
+                                    newParts[oIdx] = `${oIdx + 1}. Sai`;
+                                    handleSelectAnswer(currentQ.id, newParts.join(', '));
+                                  }}
+                                  className="m-0"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (!currentQ.options || currentQ.options.length === 0 || currentQ.type_code?.toLowerCase().includes('ngan') || currentQ.type_code === 'TLN') ? (
                   <Input.TextArea
                     placeholder="Nhập câu trả lời của bạn vào đây..."
                     rows={4}
                     value={answers[currentQ.id] || ''}
                     onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
-                    className="w-full max-w-2xl text-base"
+                    className="w-full text-[15px] p-3 rounded shadow-none border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 ) : (
                   <Radio.Group
                     onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
                     value={answers[currentQ.id]}
-                    className="flex flex-col gap-4"
+                    className="flex flex-col gap-2 w-full"
                   >
                     {currentQ.options.map((opt: string, oIdx: number) => {
                       const letter = String.fromCharCode(65 + oIdx);
+                      const isSelected = answers[currentQ.id] === letter;
                       return (
-                        <Radio key={letter} value={letter} className="text-base text-slate-700 font-medium">
-                          <span className="font-bold">{letter}. </span> {opt.substring(3)}
+                        <Radio 
+                          key={letter} 
+                          value={letter} 
+                          className="text-[15px] text-slate-800 font-normal w-full m-0 py-1"
+                        >
+                          <span className={`font-bold mr-1 ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{letter}.</span> 
+                          <span>{opt.substring(3)}</span>
                         </Radio>
                       );
                     })}
@@ -528,35 +703,36 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
             </div>
 
             {/* Scroll bar placeholder spacing similar to the image */}
-            <div className="w-1.5 h-64 bg-slate-200 rounded-full shrink-0 ml-8"></div>
+            <div className="w-1.5 h-64 bg-slate-200 rounded-full shrink-0 hidden md:block"></div>
+          </div>
           </div>
         </div>
       </Content>
 
       {/* Bottom Navigation */}
-      <Footer className="bg-white border-t-2 border-slate-200 p-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 shrink-0">
-        <div className="max-w-7xl mx-auto w-full px-4 py-4">
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-4 mb-4">
-            {Object.keys(parts).map((partNum, pIdx) => (
-              <div key={partNum} className="flex items-center gap-3">
-                <div className="font-bold text-blue-900 text-sm">Phần {['I', 'II', 'III', 'IV'][parseInt(partNum) - 1]}:</div>
+      <Footer className="bg-white border-t border-slate-300 p-0 z-40 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+        <div className="w-full max-w-[1200px] mx-auto px-6 py-4 flex flex-col items-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mb-4 w-full">
+            {Object.keys(parts).map((partKey, pIdx) => (
+              <div key={partKey} className="flex items-center gap-3">
+                <div className="font-bold text-[#1a365d] text-[15px]">Phần {getTypeDisplayName(partKey)}:</div>
                 <div className="flex flex-wrap gap-2">
-                  {parts[partNum].map((q: any) => {
+                  {parts[partKey].map((q: any) => {
                     const gIdx = getQuestionGlobalIndex(q.id);
                     const isAnswered = !!answers[q.id];
                     const isActive = gIdx === currentQuestionIdx;
                     const isFlagged = flagged[q.id];
 
-                    let bgClass = "bg-slate-200 text-slate-600"; // Default
-                    if (isActive) bgClass = "bg-blue-500 text-white shadow-md shadow-blue-500/40 transform scale-110";
-                    else if (isFlagged) bgClass = "bg-yellow-400 text-white shadow-sm";
-                    else if (isAnswered) bgClass = "bg-green-600 text-white shadow-sm";
+                    let bgClass = "bg-slate-200 text-slate-600 border-transparent";
+                    if (isActive) bgClass = "bg-[#1677ff] text-white border-[#1677ff] shadow-md transform scale-110";
+                    else if (isFlagged) bgClass = "bg-[#fadb14] text-white border-[#fadb14]";
+                    else if (isAnswered) bgClass = "bg-[#389e0d] text-white border-[#389e0d]";
 
                     return (
                       <div
                         key={q.id}
                         onClick={() => setCurrentQuestionIdx(gIdx)}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all ${bgClass} hover:opacity-80`}
+                        className={`w-[28px] h-[28px] rounded-full flex items-center justify-center text-[13px] font-bold cursor-pointer transition-all border ${bgClass} hover:opacity-80`}
                       >
                         {gIdx + 1}
                       </div>
@@ -564,19 +740,21 @@ export default function ExamPortal({ currentUser, onLogout }: ExamPortalProps) {
                   })}
                 </div>
                 {pIdx < Object.keys(parts).length - 1 && (
-                  <div className="h-6 w-px bg-slate-300 ml-5"></div>
+                  <div className="h-5 w-[1px] bg-slate-300 mx-1"></div>
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-center mt-2 pb-2">
-            <Button
-              type="primary"
-              className="bg-blue-800 px-10 h-8 font-bold text-xs tracking-wide rounded-md shadow-md hover:bg-blue-700"
-              onClick={handleSubmitDraft}
-            >
-              Lưu
-            </Button>
+          <div className="flex gap-4">
+            {mode !== 'preview' && (
+              <Button 
+                className="bg-blue-50 text-blue-800 border-blue-200 font-medium px-6 h-8 text-[13px] hover:bg-blue-100" 
+                onClick={handleSubmitDraft} 
+                loading={submitting}
+              >
+                LƯU BÀI TẠM
+              </Button>
+            )}
           </div>
         </div>
       </Footer>

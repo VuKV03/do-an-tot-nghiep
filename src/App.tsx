@@ -307,23 +307,53 @@ export default function App() {
     }
   };
 
-  if (!currentUser) {
-    if (activeMenuKey === 'portal') {
+  const isPortalPort = window.location.port === '5174';
+
+  if (isPortalPort) {
+    if (!currentUser) {
       return <CandidateLogin onLoginSuccess={setCurrentUser} />;
     }
+    if (currentUser.role === 'candidate') {
+      return (
+        <ExamPortal
+          currentUser={currentUser}
+          onLogout={() => {
+            localStorage.removeItem('user_info');
+            localStorage.removeItem('auth_token');
+            setCurrentUser(null);
+          }}
+        />
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <h2 className="text-xl font-bold text-red-600 mb-4">Đây là cổng thi dành cho thí sinh</h2>
+        <p className="mb-4 text-slate-600">Tài khoản quản trị viên không thể truy cập tại đây.</p>
+        <Button onClick={() => {
+          localStorage.removeItem('user_info');
+          localStorage.removeItem('auth_token');
+          setCurrentUser(null);
+        }}>Đăng xuất</Button>
+      </div>
+    );
+  }
+
+  // Giao diện Quản trị (Port 5173)
+  if (!currentUser) {
     return <Login onLoginSuccess={setCurrentUser} />;
   }
 
   if (currentUser.role === 'candidate') {
     return (
-      <ExamPortal
-        currentUser={currentUser}
-        onLogout={() => {
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <h2 className="text-xl font-bold text-red-600 mb-4">Đây là cổng dành cho Quản trị viên</h2>
+        <p className="mb-4 text-slate-600">Thí sinh vui lòng truy cập cổng thi.</p>
+        <Button onClick={() => {
           localStorage.removeItem('user_info');
           localStorage.removeItem('auth_token');
           setCurrentUser(null);
-        }}
-      />
+        }}>Đăng xuất</Button>
+      </div>
     );
   }
 

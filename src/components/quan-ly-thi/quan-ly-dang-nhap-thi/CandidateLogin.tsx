@@ -129,12 +129,6 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
             </Form.Item>
           </Form>
         </div>
-
-        <div className="text-center mt-8">
-          <Button type="link" className="text-white/80 hover:text-white text-xs font-semibold" onClick={() => window.location.hash = ''}>
-            Quay lại trang dành cho Giáo viên / Quản trị
-          </Button>
-        </div>
       </div>
     </div>
   );
