@@ -44,6 +44,7 @@ import {
   DatabaseOutlined
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES } from '../data';
+import { RichTextView } from '../utils/htmlContent';
 
 interface ExamPackageModuleProps {
   onNavigateTab: (key: string) => void;
@@ -1248,8 +1249,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                 ) : (
                   selectedExam.questions.map((q, id) => (
                     <div key={id} className="bg-white border rounded-2xl p-4 space-y-2 text-xs">
-                      <div className="flex justify-between items-start">
-                        <strong className="text-slate-800">Câu hỏi {id + 1}: {q.text}</strong>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="text-slate-800 flex-1">
+                          <strong>Câu hỏi {id + 1}:</strong>
+                          <RichTextView html={q.text} />
+                        </div>
                         <Tag color={q.level === 'nhan_biet' || q.level === 'easy' ? 'blue' : 'orange'} className="rounded-md font-bold text-[8px] uppercase m-0 border-transparent">
                           {q.level === 'easy' || q.level === 'nhan_biet' ? 'Nhận biết' : 'Yêu cầu Vận Dụng'}
                         </Tag>

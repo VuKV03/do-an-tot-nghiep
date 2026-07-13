@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Tag, Button, Space, Tooltip, Radio } from 'antd';
 import { SwapOutlined, SearchOutlined, FileTextOutlined, EditOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
+import { RichTextView } from '../../../utils/htmlContent';
 
 interface ExamContentDisplayProps {
   questions: any[];
@@ -116,7 +117,7 @@ export default function ExamContentDisplay({
             >
               <div className="space-y-3 text-xs text-slate-700">
                 {/* Main Question Text */}
-                <div className="font-semibold text-slate-850 whitespace-pre-wrap">{q.text}</div>
+                <RichTextView html={q.text} className="font-semibold text-slate-850" />
 
                 {/* Sub Questions for GRP type */}
                 {isGroup && Array.isArray(q.subQuestions) && (

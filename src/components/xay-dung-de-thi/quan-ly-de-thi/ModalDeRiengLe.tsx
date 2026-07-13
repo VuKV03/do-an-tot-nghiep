@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, Select, Input, message, Popconfirm, Tooltip, Empty } from 'antd';
 import { SwapOutlined, DeleteOutlined, SaveOutlined, PlusOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
+import { RichTextView } from '../../../utils/htmlContent';
 import { SUBJECTS as INITIAL_SUBJECTS } from '../../../data';
 import { subjectCategoryApi, bankQuestionApi } from '../../../services/danhMucApi';
 import ModalChonCauHoi from './ModalChonCauHoi';
@@ -366,7 +367,7 @@ export default function ModalDeRiengLe({
                         <div className="flex items-start gap-2">
                           {/* Nội dung câu hỏi */}
                           <div className="flex-1 bg-slate-50 border border-slate-200 rounded p-3 text-xs text-slate-700 font-medium leading-relaxed">
-                            <div>{q.text}</div>
+                            <RichTextView html={q.text} />
                             {/* Đáp án nếu trắc nghiệm */}
                             {Array.isArray(q.options) && q.options.length > 0 && (
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[11px]">

@@ -10,6 +10,7 @@ import {
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/mockData';
 import ExamContentDisplay from './ExamContentDisplay';
+import RichTextEditor from '../../RichTextEditor';
 
 interface ModalTaoDeTuDongProps {
   open: boolean;
@@ -949,10 +950,10 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         <div className="space-y-3 text-xs">
           <div>
             <label className="block font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
-            <Input.TextArea
-              rows={3}
+            <RichTextEditor
+              minHeight={70}
               value={editingDraft.text}
-              onChange={e => setEditingDraft(prev => (prev ? { ...prev, text: e.target.value } : prev))}
+              onChange={(html) => setEditingDraft(prev => (prev ? { ...prev, text: html } : prev))}
             />
           </div>
 

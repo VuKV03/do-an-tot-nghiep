@@ -6,6 +6,7 @@
  */
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import type { Question } from '../types';
+import { htmlToDocxParagraphs } from './htmlToDocx';
 
 function formatAnswer(correctAnswer: string | string[] | undefined): string {
   return Array.isArray(correctAnswer) ? correctAnswer.join(', ') : (correctAnswer ?? '');
@@ -23,12 +24,7 @@ export function buildExamDocxDocument(title: string, subject: string, grade: str
   ];
 
   questions.forEach((q, i) => {
-    children.push(new Paragraph({
-      children: [
-        new TextRun({ text: `Câu ${i + 1}: `, bold: true }),
-        new TextRun({ text: q.text || '' }),
-      ],
-    }));
+    children.push(...htmlToDocxParagraphs(q.text, new TextRun({ text: `Câu ${i + 1}: `, bold: true })));
     (q.options || []).forEach((opt, oi) => {
       children.push(new Paragraph({ text: `${String.fromCharCode(65 + oi)}. ${opt}` }));
     });

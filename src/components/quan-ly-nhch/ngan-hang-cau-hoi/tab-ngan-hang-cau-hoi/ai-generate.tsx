@@ -9,6 +9,8 @@ import {
   questionTypeApi,
   type QuestionTypeAPI,
 } from '../../../../services/danhMucApi.ts';
+import RichTextEditor from '../../../RichTextEditor';
+import { RichTextView } from '../../../../utils/htmlContent';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -537,16 +539,14 @@ export default function AIGenerateQuestionModal({
             </div>
 
             {isEditingPreview ? (
-              <Input.TextArea
-                rows={3}
+              <RichTextEditor
                 value={aiSuggestedQuestion.text}
-                onChange={(e) => updateSuggestedText(e.target.value)}
-                className="text-[13px] font-medium"
+                onChange={updateSuggestedText}
+                minHeight={70}
+                className="text-[13px]"
               />
             ) : (
-              <div className="text-[13px] text-slate-800 font-bold leading-relaxed">
-                {aiSuggestedQuestion.text}
-              </div>
+              <RichTextView html={aiSuggestedQuestion.text} className="text-[13px] text-slate-800 font-bold leading-relaxed" />
             )}
 
             {aiSuggestedQuestion.type === 'single' && aiSuggestedQuestion.options && (

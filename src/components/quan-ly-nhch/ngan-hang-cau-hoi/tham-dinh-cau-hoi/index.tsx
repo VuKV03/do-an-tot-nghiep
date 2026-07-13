@@ -18,10 +18,12 @@ import {
   FilterOutlined,
   SearchOutlined,
   HistoryOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../../data';
+import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import QuestionHistoryModal from '../history';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,6 +41,7 @@ interface ThamDinhCauHoiProps {
   onApproveQuestion?: (id: string, comment: string) => void;
   onRejectQuestion?: (id: string, comment: string) => void;
   onBulkReviewQuestions?: (ids: string[], verdict: 'approve' | 'reject', comment: string) => void;
+  onEditQuestion?: (q: Question) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +176,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
         <Divider className="my-2" />
         <div>
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Nội dung câu hỏi</div>
-          <div className="text-sm text-slate-800 font-medium leading-relaxed">{question.text}</div>
+          <RichTextView html={question.text} className="text-sm text-slate-800 font-medium leading-relaxed" />
         </div>
         {question.options && question.options.length > 0 && (
           <div className="space-y-1.5 mt-2">
@@ -345,6 +348,7 @@ export default function ThamDinhCauHoiTab({
   onApproveQuestion,
   onRejectQuestion,
   onBulkReviewQuestions,
+  onEditQuestion,
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
@@ -470,7 +474,7 @@ export default function ThamDinhCauHoiTab({
         if (q.topicId !== selectedTopicKey && !isChild) return false;
       }
       if (applied.keyword) {
-        const hay = `${q.code} ${q.text} ${q.creator}`.toLowerCase();
+        const hay = `${q.code} ${stripHtmlToText(q.text)} ${q.creator}`.toLowerCase();
         if (!hay.includes(applied.keyword.toLowerCase())) return false;
       }
       if (applied.grades.length > 0 && !applied.grades.includes(q.grade)) return false;
@@ -538,21 +542,24 @@ export default function ThamDinhCauHoiTab({
       title: 'Nội dung câu hỏi',
       dataIndex: 'text',
       width: 350,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <div
-            className="text-slate-800 font-medium text-xs hover:text-[#002147] cursor-pointer transition-colors"
-            style={{
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              maxWidth: '320px',
-            }}
-          >
-            {text}
-          </div>
-        </Tooltip>
-      )
+      render: (text: string) => {
+        const plainText = stripHtmlToText(text);
+        return (
+          <Tooltip title={plainText}>
+            <div
+              className="text-slate-700 font-normal text-xs hover:text-[#002147] cursor-pointer transition-colors"
+              style={{
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                maxWidth: '320px',
+              }}
+            >
+              {plainText}
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: 'Loại câu hỏi',
@@ -611,48 +618,49 @@ export default function ThamDinhCauHoiTab({
       title: 'Trạng thái',
       dataIndex: 'status',
       width: 120,
-      render: (status: QuestionStatus, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (isAI) return null;
-        return <StatusBadge status={status} />;
-      }
-    },
-    {
-      title: 'Trạng thái câu AI tạo',
-      width: 140,
-      render: (_: any, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (!isAI) return null;
-        return <StatusBadge status={record.status} />;
-      }
+      render: (status: QuestionStatus) => <StatusBadge status={status} />
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 90,
+      width: 120,
       align: 'center',
-      render: (_: any, record: Question) => (
-        <div className="flex items-center justify-center gap-1.5">
-          <Tooltip title="Thẩm định chi tiết">
-            <Button
-              type="text"
-              icon={<FileTextOutlined className="text-blue-600 text-xs" />}
-              className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-              onClick={() => setReviewQuestion(record)}
-              style={{ cursor: 'pointer' }}
-            />
-          </Tooltip>
-          <Tooltip title="Lịch sử thẩm định">
-            <Button
-              type="text"
-              icon={<HistoryOutlined className="text-slate-500 text-xs" />}
-              className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded border border-slate-200"
-              onClick={() => setHistoryQuestion(record)}
-              style={{ cursor: 'pointer' }}
-            />
-          </Tooltip>
-        </div>
-      )
+      render: (_: any, record: Question) => {
+        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            <Tooltip title="Thẩm định chi tiết">
+              <Button
+                type="text"
+                icon={<FileTextOutlined className="text-blue-600 text-xs" />}
+                className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                onClick={() => setReviewQuestion(record)}
+                style={{ cursor: 'pointer' }}
+              />
+            </Tooltip>
+            {canEditQuestion && onEditQuestion && (
+              <Tooltip title="Chỉnh sửa">
+                <Button
+                  type="text"
+                  icon={<EditOutlined className="text-blue-600 text-xs" />}
+                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                  onClick={() => onEditQuestion(record)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="Lịch sử thẩm định">
+              <Button
+                type="text"
+                icon={<HistoryOutlined className="text-slate-500 text-xs" />}
+                className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded border border-slate-200"
+                onClick={() => setHistoryQuestion(record)}
+                style={{ cursor: 'pointer' }}
+              />
+            </Tooltip>
+          </div>
+        );
+      }
     }
   ];
 

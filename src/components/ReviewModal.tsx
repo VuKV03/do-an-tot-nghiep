@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Input, Upload, Button, Tag, Divider, message } from 'antd';
 import { InboxOutlined, CheckCircleOutlined, CloseCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Question } from '../types';
+import { RichTextView } from '../utils/htmlContent';
 
 interface ReviewModalProps {
   visible: boolean;
@@ -99,7 +100,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
         <div>
           <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Nội dung câu hỏi mô phỏng</label>
           <div className="bg-white border border-slate-200 rounded-xl p-4 min-h-[140px] max-h-[220px] overflow-y-auto shadow-inner text-slate-800 text-[13px] leading-relaxed font-sans space-y-4">
-            <div className="font-semibold">{question.text}</div>
+            <RichTextView html={question.text} className="font-semibold" />
             
             {/* Options display */}
             {question.options && question.options.length > 0 && (

@@ -9,6 +9,7 @@ import {
   TrueFalseStatement,
 } from '../../../../types';
 import { questionApi, subjectCategoryApi, gradeLevelApi, competencyComponentApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
+import RichTextEditor from '../../../RichTextEditor';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -717,77 +718,7 @@ export default function CreateQuestionModal({
                 className='mb-0'
                 style={{ marginBottom: '6px' }}
               >
-                <div className='border border-slate-300 rounded-lg overflow-hidden'>
-                  {/* Toolbar giả lập */}
-                  <div className='flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50'>
-                    {['H1', 'H2'].map((t) => (
-                      <button
-                        key={t}
-                        type='button'
-                        className='px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors'
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                    <span className='w-px h-4 bg-slate-300 mx-1' />
-                    <select className='text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium'>
-                      <option>Sans Serif</option>
-                    </select>
-                    <span className='w-px h-4 bg-slate-300 mx-1' />
-                    <select className='text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium'>
-                      <option>Normal</option>
-                    </select>
-                    <span className='w-px h-4 bg-slate-300 mx-1' />
-                    {[
-                      { t: 'B', cls: 'font-black' },
-                      { t: 'I', cls: 'italic' },
-                      { t: 'U', cls: 'underline' },
-                      { t: 'S', cls: 'line-through' },
-                    ].map(({ t, cls }) => (
-                      <button
-                        key={t}
-                        type='button'
-                        className={`px-1.5 py-0.5 text-[13px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors ${cls}`}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                    <span className='w-px h-4 bg-slate-300 mx-1' />
-                    {['"', '≡', '⊟', '≔'].map((t, i) => (
-                      <button
-                        key={i}
-                        type='button'
-                        className='px-1.5 py-0.5 text-[13px] text-slate-600 hover:bg-slate-200 rounded transition-colors'
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                    <span className='w-px h-4 bg-slate-300 mx-1' />
-                    {['🔗', '🖼', '▣', 'Tx', 'Σ', '⊞', '🔊', '🎤'].map(
-                      (t, i) => (
-                        <button
-                          key={i}
-                          type='button'
-                          className='px-1 py-0.5 text-[13px] text-slate-500 hover:bg-slate-200 rounded transition-colors'
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {t}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                  <Form.Item name='text' noStyle>
-                    <Input.TextArea
-                      placeholder='Nhập nội dung câu hỏi...'
-                      rows={4}
-                      className='border-0 rounded-none text-base resize-none'
-                      style={{ boxShadow: 'none', fontSize: '15px' }}
-                    />
-                  </Form.Item>
-                </div>
+                <RichTextEditor placeholder='Nhập nội dung câu hỏi...' minHeight={100} />
               </Form.Item>
             </div>
 
@@ -1132,14 +1063,6 @@ export default function CreateQuestionModal({
           className='rounded-lg text-base font-bold px-6 h-9'
         >
           Đóng
-        </Button>
-        <Button
-          className='rounded-lg text-base font-bold px-6 border-blue-400 text-blue-600 hover:bg-blue-50 h-9'
-          onClick={() =>
-            message.info('Chức năng xem thử đang được phát triển.')
-          }
-        >
-          Xem thử
         </Button>
         <Button
           type='primary'

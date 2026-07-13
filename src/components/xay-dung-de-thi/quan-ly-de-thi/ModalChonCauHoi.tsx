@@ -3,6 +3,7 @@ import { Modal, Button, Select, Input, Tree, Empty, Tooltip, Tag } from 'antd';
 import { SearchOutlined, EyeOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
 import { topicsApi } from '../../../services/danhMucApi';
 import { Question } from '../../../types';
+import { stripHtmlToText } from '../../../utils/htmlContent';
 import ModalChiTietCauHoi from './ModalChiTietCauHoi';
 
 interface ModalChonCauHoiProps {
@@ -163,7 +164,7 @@ export default function ModalChonCauHoi({
       if (fType !== 'all' && q.type !== fType) return false;
       if (fLevel !== 'all' && q.level !== fLevel) return false;
       if (fStatus !== 'all' && q.status !== fStatus) return false;
-      if (searchName.trim() && !`${q.code} ${q.text}`.toLowerCase().includes(searchName.toLowerCase())) return false;
+      if (searchName.trim() && !`${q.code} ${stripHtmlToText(q.text)}`.toLowerCase().includes(searchName.toLowerCase())) return false;
       if (selectedTopicKey) {
         const isMatchOrDescendant = (nodeId: string, targetId: string): boolean => {
           if (nodeId === targetId) return true;
@@ -324,7 +325,7 @@ export default function ModalChonCauHoi({
                       <td className="py-2 px-2 text-center text-slate-400">{idx + 1}</td>
                       <td className="py-2 px-2 font-mono text-[10px]">{q.code}</td>
                       <td className="py-2 px-2">
-                        <span className="block max-w-[200px] truncate">{q.text}</span>
+                        <span className="block max-w-[200px] truncate">{stripHtmlToText(q.text)}</span>
                       </td>
                       <td className="py-2 px-2 text-center">{getTypeLabel(q.type)}</td>
                       <td className="py-2 px-2 text-center">
