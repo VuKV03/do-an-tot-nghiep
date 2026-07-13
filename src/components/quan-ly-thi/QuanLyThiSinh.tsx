@@ -164,12 +164,6 @@ export default function QuanLyThiSinh() {
   const columns: ColumnsType<Candidate> = [
     { title: 'STT', dataIndex: 'stt', key: 'stt', width: 60, align: 'center' },
     {
-      title: 'Kỳ thi',
-      dataIndex: 'dotThi',
-      key: 'dotThi',
-      render: (val: string) => sessions.find(s => s.id === val)?.name || val
-    },
-    {
       title: 'Họ và tên',
       dataIndex: 'fullName',
       key: 'fullName',
@@ -190,6 +184,12 @@ export default function QuanLyThiSinh() {
     { title: 'Ngày sinh', dataIndex: 'dob', key: 'dob', width: 110 },
     { title: 'SBD', dataIndex: 'sbd', key: 'sbd', width: 100 },
     { title: 'CCCD', dataIndex: 'cccd', key: 'cccd', width: 100 },
+    {
+      title: 'Kỳ thi',
+      dataIndex: 'dotThi',
+      key: 'dotThi',
+      render: (val: string) => sessions.find(s => s.id === val)?.name || val
+    },
     // { title: 'Môn thi 1', dataIndex: 'subject1', key: 'subject1' },
     // { title: 'Môn thi 2', dataIndex: 'subject2', key: 'subject2' },
     // { title: 'Môn thi 3', dataIndex: 'subject3', key: 'subject3' },
@@ -269,6 +269,7 @@ export default function QuanLyThiSinh() {
       } else if (modalMode === 'edit' && editingCandidate) {
         const calculatedSBD = values.sbd || generateSBD(values.fullName, dobStr) || editingCandidate.sbd;
         const payload = {
+          session_id: values.dotThi,
           full_name: values.fullName,
           username: calculatedSBD,
           password: dobStr ? dobStr.replace(/\//g, '') : undefined, // Cập nhật lại mật khẩu nếu ngày sinh thay đổi

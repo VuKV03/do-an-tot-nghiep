@@ -54,6 +54,7 @@ class ExamCandidateResponse(ExamCandidateBase):
         from_attributes = True
 
 class ExamCandidateUpdate(BaseModel):
+    session_id: Optional[str] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None

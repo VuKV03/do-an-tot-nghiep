@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node start.js",
+    "dev:portal": "vite --port 5174",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",

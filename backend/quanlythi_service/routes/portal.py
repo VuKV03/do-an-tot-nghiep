@@ -25,7 +25,18 @@ async def login_candidate(credentials: schemas.LoginRequest, db: AsyncSession = 
         raise HTTPException(status_code=401, detail="Invalid username or password")
         
     # In a real app, generate JWT token
-    return {"access_token": "fake-jwt-token-for-candidate", "token_type": "bearer", "candidate_id": candidate.id, "session_id": candidate.session_id}
+    return {
+        "access_token": "fake-jwt-token-for-candidate",
+        "token_type": "bearer",
+        "candidate": {
+            "id": candidate.id,
+            "username": candidate.username,
+            "fullName": candidate.full_name
+        },
+        "session_id": candidate.session_id
+    }
+
+from backend.exam_service import models as exam_models
 
 @router.get("/me/session-info")
 async def get_session_info(candidate_id: str, db: AsyncSession = Depends(get_db)):
@@ -40,9 +51,42 @@ async def get_session_info(candidate_id: str, db: AsyncSession = Depends(get_db)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
+    questions_list = []
+    if session.exam_id:
+        q_result = await db.execute(
+            select(exam_models.Question, exam_models.QuestionType)
+            .outerjoin(exam_models.QuestionType, exam_models.Question.type_id == exam_models.QuestionType.id)
+            .where(exam_models.Question.exam_id == session.exam_id)
+        )
+        questions_rows = q_result.all()
+        # Parse the JSON string `options` and map to expected frontend structure
+        for row in questions_rows:
+            q = row.Question
+            q_type = row.QuestionType
+            
+            parsed_options = []
+            if q.options:
+                try:
+                    parsed_options = json.loads(q.options)
+                except:
+                    pass
+            
+            type_name = q_type.name if q_type else "Phần chung"
+            type_code = q_type.code if q_type else ""
+
+            questions_list.append({
+                "id": q.id,
+                "part": type_name,
+                "type_code": type_code,
+                "content": q.content,
+                "options": parsed_options,
+                "correct_answer": q.correct_answer
+            })
+            
     return {
         "candidate": candidate,
-        "session": session
+        "session": session,
+        "questions": questions_list
     }
 
 @router.post("/submit-draft")
@@ -101,12 +145,33 @@ async def submit_final(candidate_id: str, payload: schemas.SubmitFinalRequest, d
     else:
         exam_result.answers_json = payload.answers_json
         
-    # Logic to calculate score would go here
-    # For now, placeholder
+    # Calculate real score
+    total_correct = 0
+    total_questions = 0
+    
+    session_result = await db.execute(select(models.ExamSession).where(models.ExamSession.id == cand.session_id))
+    session = session_result.scalar_one_or_none()
+    
+    if session and session.exam_id:
+        q_result = await db.execute(select(exam_models.Question).where(exam_models.Question.exam_id == session.exam_id))
+        questions = q_result.scalars().all()
+        total_questions = len(questions)
+        
+        try:
+            answers_dict = json.loads(payload.answers_json)
+        except Exception:
+            answers_dict = {}
+            
+        for q in questions:
+            user_ans = answers_dict.get(str(q.id))
+            if user_ans and q.correct_answer:
+                if str(user_ans).strip().lower() == str(q.correct_answer).strip().lower():
+                    total_correct += 1
+                
     exam_result.submitted_at = datetime.utcnow()
-    exam_result.score = 8.5
-    exam_result.total_correct = 34
-    exam_result.total_questions = 40
+    exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+    exam_result.total_correct = total_correct
+    exam_result.total_questions = total_questions
     
     cand.status = "submitted"
     

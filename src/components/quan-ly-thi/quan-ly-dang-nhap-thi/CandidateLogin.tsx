@@ -15,7 +15,7 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('/api/portal/auth/login', {
+      const response = await fetch('/api/exam/portal/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

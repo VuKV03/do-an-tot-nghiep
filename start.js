@@ -27,9 +27,9 @@ if (!fs.existsSync(venvDir) || !fs.existsSync(pythonCmd)) {
 }
 
 // 2. Chạy frontend và backend
-console.log("🚀 Đang khởi động dự án...");
+console.log("🚀 Đang khởi động dự án (Frontend Admin, Frontend Portal và Backend)...");
 try {
-    execSync(`npx concurrently "vite" "${pythonCmd} start_services.py"`, { stdio: 'inherit' });
+    execSync(`npx concurrently "vite" "vite --port 5174" "${pythonCmd} start_services.py"`, { stdio: 'inherit' });
 } catch (error) {
     // Process exits normally when terminated
 }

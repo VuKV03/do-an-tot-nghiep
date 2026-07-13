@@ -20,7 +20,7 @@ import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule'
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
-import QuanLyThi from './components/quan-ly-thi/QuanLyThi';
+import QuanLyThi from './components/quan-ly-thi/QuanLyKyThi';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
 import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
 import QuanLyDeThi from './components/quan-ly-thi/QuanLyDeThi';
@@ -123,16 +123,6 @@ export default function App() {
     }
   };
 
-
-
-  // User Action Menu list
-
-
-  // Navigation Sidebar paths exactly matches requested paths:
-  // "Xây dựng đề" -> sub-items: ["Quản lý ma trận đề", "Quản lý đề thi & gói đề"]
-  // "Quản lý ngân hàng câu hỏi" -> sub-items: ["Chủ đề câu hỏi", "Ngân hàng câu hỏi", "Thống kê NHCH"]
-  // "Quản trị hệ thống" -> sub-items: ["Quản lý người dùng", "Quản lý nhóm người dùng", "Chính sách bảo mật"]
-  // "Quản trị danh mục" -> sub-items: ["Danh mục môn học", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
   const hasPermission = React.useCallback((key: string) => {
     return checkUserPermission(currentUser, key);
   }, [currentUser]);
