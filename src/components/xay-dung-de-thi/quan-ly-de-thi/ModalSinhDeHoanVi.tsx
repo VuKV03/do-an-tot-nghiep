@@ -8,6 +8,7 @@ import {
   type ExamPeriodAPI,
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
+import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import ExamContentDisplay from './ExamContentDisplay';
 
 interface ModalSinhDeHoanViProps {
@@ -83,48 +84,6 @@ function parseTrueFalseCorrectness(correctAnswer: string | string[] | undefined,
   });
   return result;
 }
-
-const escapeRtf = (text: string): string => {
-  let out = '';
-  for (const ch of String(text ?? '')) {
-    const code = ch.codePointAt(0)!;
-    if (ch === '\\' || ch === '{' || ch === '}') out += '\\' + ch;
-    else if (ch === '\n') out += '\\par ';
-    else if (code < 128) out += ch;
-    else out += `\\u${code > 32767 ? code - 65536 : code}?`;
-  }
-  return out;
-};
-
-const buildExamRtf = (title: string, subject: string, grade: string, questions: Question[]): string => {
-  const parts: string[] = [
-    `{\\b\\fs28 ${escapeRtf(title)}}\\par`,
-    `{\\b ${escapeRtf(`Môn: ${subject}`)}}\\par`,
-    `{\\b ${escapeRtf(`Khối: ${grade}`)}}\\par`,
-    '\\par',
-  ];
-  questions.forEach((q, i) => {
-    parts.push(`{\\b ${escapeRtf(`Câu ${i + 1}:`)}} ${escapeRtf(q.text)}\\par`);
-    (q.options || []).forEach((opt, oi) => {
-      parts.push(`${escapeRtf(`${String.fromCharCode(65 + oi)}. ${opt}`)}\\par`);
-    });
-    const answer = Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer;
-    parts.push(`{\\i ${escapeRtf(`Đáp án: ${answer ?? ''}`)}}\\par`);
-    parts.push('\\par');
-  });
-  return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 ${parts.join('\n')}}`;
-};
-
-const downloadRtf = (fileNameNoExt: string, title: string, subject: string, grade: string, questions: Question[]) => {
-  const element = document.createElement('a');
-  const file = new Blob([buildExamRtf(title, subject, grade, questions)], { type: 'application/msword' });
-  element.href = URL.createObjectURL(file);
-  element.download = `${fileNameNoExt}.doc`;
-  document.body.appendChild(element);
-  element.click();
-  document.body.removeChild(element);
-  URL.revokeObjectURL(element.href);
-};
 
 export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: ModalSinhDeHoanViProps) {
   const [examPeriods, setExamPeriods] = useState<ExamPeriodAPI[]>([]);
@@ -325,25 +284,28 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     handleCancelEditQuestion();
   };
 
-  const handleDownloadSource = () => {
+  const handleDownloadSource = async () => {
     if (!exam) return;
-    downloadRtf(`${exam.code}_DeGoc`, exam.name, exam.subject, exam.grade, sourceQuestions);
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions);
+    triggerBlobDownload(blob, `${exam.code}_DeGoc`, 'docx');
   };
 
-  const handleDownloadVariant = (index: number) => {
+  const handleDownloadVariant = async (index: number) => {
     if (!exam) return;
     const code = String((startCode || 1) + index);
-    downloadRtf(`${exam.code}-${code}_DeHoanVi${index + 1}`, `${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index]);
+    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index]);
+    triggerBlobDownload(blob, `${exam.code}-${code}_DeHoanVi${index + 1}`, 'docx');
   };
 
   const handleDownloadAll = async () => {
     if (!exam || variants.length === 0) return;
     const zip = new JSZip();
-    zip.file(`${exam.code}_DeGoc.doc`, buildExamRtf(exam.name, exam.subject, exam.grade, sourceQuestions));
-    variants.forEach((qs, idx) => {
+    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions));
+    await Promise.all(variants.map(async (qs, idx) => {
       const code = String((startCode || 1) + idx);
-      zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.doc`, buildExamRtf(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs));
-    });
+      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs);
+      zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.docx`, variantBlob);
+    }));
     const blob = await zip.generateAsync({ type: 'blob' });
     const element = document.createElement('a');
     element.href = URL.createObjectURL(blob);
