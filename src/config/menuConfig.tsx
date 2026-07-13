@@ -1,5 +1,5 @@
 import React from 'react';
-import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined, DashboardOutlined } from '@ant-design/icons';
+import { ProjectOutlined, DatabaseOutlined, SettingOutlined, FolderOutlined, DashboardOutlined, CheckSquareOutlined } from '@ant-design/icons';
 
 export const rawMenuItems = [
   {
@@ -14,6 +14,17 @@ export const rawMenuItems = [
     children: [
       { key: 'quan-ly-ma-tran-de', label: 'Quản lý ma trận đề' },
       { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề thi & gói đề' }
+    ]
+  },
+  {
+    key: 'to-chuc-thi',
+    icon: <CheckSquareOutlined />,
+    label: 'Tổ chức thi',
+    children: [
+      { key: 'quan-ly-ky-thi', label: 'Quản lý kỳ thi' },
+      { key: 'quan-ly-thi-sinh', label: 'Quản lý thí sinh' },
+      { key: 'quan-ly-de-thi', label: 'Quản lý đề thi' },
+      { key: 'quan-ly-ket-qua-thi', label: 'Quản lý kết quả thi' }
     ]
   },
   {
@@ -35,8 +46,8 @@ export const rawMenuItems = [
       { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
       { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
       { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
-      { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
-      { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
+      { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' }
+      // { key: 'danh-muc-dot-thi', label: 'Danh mục kỳ thi' }
     ]
   },
   {

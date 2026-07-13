@@ -35,7 +35,7 @@ export default function DeleteDotThiModal({ open, onClose, onConfirm, itemName, 
         <div className="text-[17px] text-slate-800 pt-1">
           {isMultiple
             ? `Bạn có chắc chắn xóa ${multipleCount || 0} bản ghi đã chọn?`
-            : `Bạn có chắc chắn xóa bản ghi có tên đợt thi "${itemName || ''}"?`
+            : `Bạn có chắc chắn xóa bản ghi có tên kỳ thi "${itemName || ''}"?`
           }
         </div>
       </div>

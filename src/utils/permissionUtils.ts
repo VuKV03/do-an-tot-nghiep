@@ -5,7 +5,7 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
   if (currentUser?.role === 'admin') return true;
   if (currentUser?.groups?.some(g => g.code === 'GRP_ADMIN')) return true;
   if (!currentUser?.groups || currentUser.groups.length === 0) return false;
-  
+
   const userPerms = new Set<string>();
   currentUser.groups.forEach(g => {
     if (Array.isArray(g.permissions)) {
@@ -17,17 +17,22 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
     'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
     'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
     'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    
+
+    'to-chuc-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'quan-ly-ky-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'quan-ly-thi-sinh': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'quan-ly-ket-qua-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+
     'quan-ly-nhch': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
     'chu-de-cau-hoi': ['questions.view', 'questions.approve', 'questions.review'],
     'ngan-hang-cau-hoi': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
     'thong-ke-nhch': ['questions.view', 'questions.approve', 'questions.review'],
-    
+
     'quan-tri-he-thong': ['system.users', 'system.groups', 'system.policies'],
     'quan-ly-nguoi-dung': ['system.users'],
     'quan-ly-nhom-nguoi-dung': ['system.groups'],
     'chinh-sach-bao-mat': ['system.policies'],
-    
+
     'quan-tri-danh-muc': ['system.categories'],
     'danh-muc-mon-hoc': ['system.categories'],
     'danh-muc-khoi-lop': ['system.categories'],
@@ -39,11 +44,11 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
 
   const requiredPerms = permissionMap[key];
   if (requiredPerms) {
-    return requiredPerms.some(p => 
-      userPerms.has(p) || 
+    return requiredPerms.some(p =>
+      userPerms.has(p) ||
       Array.from(userPerms).some(vp => vp.endsWith('.*') && p.startsWith(vp.replace('.*', '')))
     );
   }
-  
+
   return false;
 };

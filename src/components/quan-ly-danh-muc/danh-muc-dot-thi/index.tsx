@@ -88,7 +88,7 @@ export default function DanhMucDotThi() {
       setData(mapped);
     } catch (e: any) {
       console.error(e);
-      message.error(e.message || 'Không thể tải danh sách đợt thi!');
+      message.error(e.message || 'Không thể tải danh sách kỳ thi!');
     } finally {
       setLoading(false);
     }
@@ -130,14 +130,14 @@ export default function DanhMucDotThi() {
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchTen = !searchTen || 
-        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) || 
+      const matchTen = !searchTen ||
+        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) ||
         item.Ma.toLowerCase().includes(searchTen.toLowerCase());
-      
+
       const matchTinhTrang = searchTinhTrang === 'Tất cả' ||
         (searchTinhTrang === 'Hoạt động' && item.IsActive) ||
         (searchTinhTrang === 'Không hoạt động' && !item.IsActive);
-      
+
       let matchDate = true;
       if (searchDates && searchDates[0] && searchDates[1] && item.CreatedAt) {
         const itemTime = new Date(item.CreatedAt).getTime();
@@ -159,12 +159,12 @@ export default function DanhMucDotThi() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: 'Mã đợt thi',
+      title: 'Mã kỳ thi',
       dataIndex: 'Ma',
       key: 'Ma',
     },
     {
-      title: 'Tên đợt thi',
+      title: 'Tên kỳ thi',
       dataIndex: 'Ten',
       key: 'Ten',
     },
@@ -192,11 +192,10 @@ export default function DanhMucDotThi() {
       key: 'IsActive',
       render: (isActive: boolean) => (
         <span
-          className={`px-3 py-1 rounded border text-sm font-medium ${
-            isActive
+          className={`px-3 py-1 rounded border text-sm font-medium ${isActive
               ? 'border-emerald-400 text-emerald-600 bg-emerald-50'
               : 'border-rose-400 text-rose-500 bg-rose-50'
-          }`}
+            }`}
         >
           {isActive ? 'Hoạt động' : 'Không hoạt động'}
         </span>
@@ -262,10 +261,10 @@ export default function DanhMucDotThi() {
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-600 text-sm font-medium">Tên đợt thi</label>
-                  <Input 
-                    placeholder="Nhập" 
-                    className="h-10 w-full" 
+                  <label className="text-gray-600 text-sm font-medium">Tên kỳ thi</label>
+                  <Input
+                    placeholder="Nhập"
+                    className="h-10 w-full"
                     value={searchTen}
                     onChange={(e) => setSearchTen(e.target.value)}
                   />
@@ -307,7 +306,7 @@ export default function DanhMucDotThi() {
               <h2 className="text-[#1e3a8a] font-semibold text-lg">Kết quả tìm kiếm</h2>
               {selectedRowKeys.length > 0 && (
                 <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
-                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> đợt thi
+                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> kỳ thi
                 </span>
               )}
             </div>
@@ -368,11 +367,11 @@ export default function DanhMucDotThi() {
                 is_active: values.isActive,
                 note: values.GhiChu || '',
               });
-              message.success('Thêm mới đợt thi thành công!');
+              message.success('Thêm mới kỳ thi thành công!');
               fetchData();
               return true;
             } catch (e: any) {
-              message.error(e.message || 'Không thể tạo đợt thi!');
+              message.error(e.message || 'Không thể tạo kỳ thi!');
               return false;
             }
           }}
@@ -400,11 +399,11 @@ export default function DanhMucDotThi() {
                 is_active: values.isActive,
                 note: values.GhiChu || '',
               });
-              message.success('Cập nhật đợt thi thành công!');
+              message.success('Cập nhật kỳ thi thành công!');
               fetchData();
               return true;
             } catch (e: any) {
-              message.error(e.message || 'Không thể cập nhật đợt thi!');
+              message.error(e.message || 'Không thể cập nhật kỳ thi!');
               return false;
             }
           }}
@@ -428,16 +427,16 @@ export default function DanhMucDotThi() {
                 for (const key of selectedRowKeys) {
                   await examPeriodApi.delete(key.toString());
                 }
-                message.success('Đã xóa đợt thi được chọn!');
+                message.success('Đã xóa kỳ thi được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
                 await examPeriodApi.delete(selectedRecord.Id);
-                message.success(`Đã xóa đợt thi "${selectedRecord.Ten}"!`);
+                message.success(`Đã xóa kỳ thi "${selectedRecord.Ten}"!`);
               }
               setIsDeleteModalOpen(false);
               fetchData();
             } catch (e: any) {
-              message.error(e.message || 'Không thể xóa đợt thi!');
+              message.error(e.message || 'Không thể xóa kỳ thi!');
             }
           }}
         />

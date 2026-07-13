@@ -59,6 +59,7 @@ class ServiceConfig:
     AI_SERVICE_URL: str = os.getenv("AI_SERVICE_URL", "http://localhost:8002")
     ANALYTICS_SERVICE_URL: str = os.getenv("ANALYTICS_SERVICE_URL", "http://localhost:8003")
     AUTH_SERVICE_URL: str = os.getenv("AUTH_SERVICE_URL", "http://localhost:8004")
+    QUANLYTHI_SERVICE_URL: str = os.getenv("QUANLYTHI_SERVICE_URL", "http://localhost:8005")
 
 
 # Singleton instances

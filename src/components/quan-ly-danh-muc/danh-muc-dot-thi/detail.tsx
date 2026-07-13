@@ -25,7 +25,7 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
         return dayjs(dateStr, 'DD-MM-YYYY');
       };
 
-      const dates = record.NgayBatDau && record.NgayKetThuc 
+      const dates = record.NgayBatDau && record.NgayKetThuc
         ? [parseDate(record.NgayBatDau), parseDate(record.NgayKetThuc)]
         : [];
 
@@ -53,7 +53,7 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
       <Modal
         title={
           <div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">
-            Chi tiết đợt thi
+            Chi tiết kỳ thi
           </div>
         }
         open={open}
@@ -68,20 +68,20 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
         }}
       >
         <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">
-          Thông tin đợt thi
+          Thông tin kỳ thi
         </div>
 
         <Form form={form} layout="vertical">
           <Form.Item
             name="Ma"
-            label={<span className="text-gray-700 font-medium text-[15px]">Mã đợt thi</span>}
+            label={<span className="text-gray-700 font-medium text-[15px]">Mã kỳ thi</span>}
           >
             <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
           </Form.Item>
 
           <Form.Item
             name="Ten"
-            label={<span className="text-gray-700 font-medium text-[15px]">Tên đợt thi</span>}
+            label={<span className="text-gray-700 font-medium text-[15px]">Tên kỳ thi</span>}
           >
             <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
           </Form.Item>
