@@ -20,7 +20,13 @@ import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule'
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
+import QuanLyThi from './components/quan-ly-thi/QuanLyKyThi';
+import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
+import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
+import QuanLyDeThi from './components/quan-ly-thi/QuanLyDeThi';
 import Login from './components/dang-nhap-dang-ky/Login';
+import ExamPortal from './components/quan-ly-thi/quan-ly-dang-nhap-thi/ExamPortal';
+import CandidateLogin from './components/quan-ly-thi/quan-ly-dang-nhap-thi/CandidateLogin';
 import ProfileModal from './components/dang-nhap-dang-ky/ProfileModal';
 import PasswordModal from './components/dang-nhap-dang-ky/PasswordModal';
 import { checkUserPermission } from './utils/permissionUtils';
@@ -117,16 +123,6 @@ export default function App() {
     }
   };
 
-
-
-  // User Action Menu list
-
-
-  // Navigation Sidebar paths exactly matches requested paths:
-  // "Xây dựng đề" -> sub-items: ["Quản lý ma trận đề", "Quản lý đề thi & gói đề"]
-  // "Quản lý ngân hàng câu hỏi" -> sub-items: ["Chủ đề câu hỏi", "Ngân hàng câu hỏi", "Thống kê NHCH"]
-  // "Quản trị hệ thống" -> sub-items: ["Quản lý người dùng", "Quản lý nhóm người dùng", "Chính sách bảo mật"]
-  // "Quản trị danh mục" -> sub-items: ["Danh mục môn học", "Danh mục khối lớp", "Cấp độ tư duy", "Loại hình câu hỏi"]
   const hasPermission = React.useCallback((key: string) => {
     return checkUserPermission(currentUser, key);
   }, [currentUser]);
@@ -253,6 +249,14 @@ export default function App() {
             onNavigateTab={(key) => setActiveMenuKey(key)}
           />
         );
+      case 'quan-ly-ky-thi':
+        return <QuanLyThi />;
+      case 'quan-ly-de-thi':
+        return <QuanLyDeThi />;
+      case 'quan-ly-thi-sinh':
+        return <QuanLyThiSinh />;
+      case 'quan-ly-ket-qua-thi':
+        return <QuanLyKetQuaThi />;
       case 'quan-ly-nguoi-dung':
       case 'quan-ly-nhom-nguoi-dung':
       case 'chinh-sach-bao-mat':
@@ -303,8 +307,54 @@ export default function App() {
     }
   };
 
+  const isPortalPort = window.location.port === '5174';
+
+  if (isPortalPort) {
+    if (!currentUser) {
+      return <CandidateLogin onLoginSuccess={setCurrentUser} />;
+    }
+    if (currentUser.role === 'candidate') {
+      return (
+        <ExamPortal
+          currentUser={currentUser}
+          onLogout={() => {
+            localStorage.removeItem('user_info');
+            localStorage.removeItem('auth_token');
+            setCurrentUser(null);
+          }}
+        />
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <h2 className="text-xl font-bold text-red-600 mb-4">Đây là cổng thi dành cho thí sinh</h2>
+        <p className="mb-4 text-slate-600">Tài khoản quản trị viên không thể truy cập tại đây.</p>
+        <Button onClick={() => {
+          localStorage.removeItem('user_info');
+          localStorage.removeItem('auth_token');
+          setCurrentUser(null);
+        }}>Đăng xuất</Button>
+      </div>
+    );
+  }
+
+  // Giao diện Quản trị (Port 5173)
   if (!currentUser) {
     return <Login onLoginSuccess={setCurrentUser} />;
+  }
+
+  if (currentUser.role === 'candidate') {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <h2 className="text-xl font-bold text-red-600 mb-4">Đây là cổng dành cho Quản trị viên</h2>
+        <p className="mb-4 text-slate-600">Thí sinh vui lòng truy cập cổng thi.</p>
+        <Button onClick={() => {
+          localStorage.removeItem('user_info');
+          localStorage.removeItem('auth_token');
+          setCurrentUser(null);
+        }}>Đăng xuất</Button>
+      </div>
+    );
   }
 
   return (

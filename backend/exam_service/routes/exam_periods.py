@@ -1,5 +1,5 @@
 """
-ExamPeriod CRUD routes — Danh mục đợt thi
+ExamPeriod CRUD routes — Danh mục kỳ thi
 Table: exam_periods
 GET /exam-periods/, POST /exam-periods/,
 PUT /exam-periods/{id}, DELETE /exam-periods/{id}
@@ -47,7 +47,7 @@ def _to_response(obj: ExamPeriod) -> ExamPeriodResponse:
 
 @router.get("/", response_model=ExamPeriodListResponse)
 async def list_exam_periods(db: AsyncSession = Depends(get_db)):
-    """Lấy danh sách tất cả đợt thi."""
+    """Lấy danh sách tất cả kỳ thi."""
     result = await db.execute(select(ExamPeriod).order_by(ExamPeriod.created_at.desc()))
     items = result.scalars().all()
     data = [_to_response(i) for i in items]
@@ -56,10 +56,10 @@ async def list_exam_periods(db: AsyncSession = Depends(get_db)):
 
 @router.post("/", status_code=201)
 async def create_exam_period(body: ExamPeriodCreate, db: AsyncSession = Depends(get_db)):
-    """Tạo đợt thi mới."""
+    """Tạo kỳ thi mới."""
     existing = await db.execute(select(ExamPeriod).where(ExamPeriod.code == body.code))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Mã đợt thi đã tồn tại!")
+        raise HTTPException(status_code=400, detail="Mã kỳ thi đã tồn tại!")
 
     obj = ExamPeriod(
         id=str(uuid.uuid4()),
@@ -78,23 +78,23 @@ async def create_exam_period(body: ExamPeriodCreate, db: AsyncSession = Depends(
     db.add(obj)
     await db.commit()
     await db.refresh(obj)
-    return {"success": True, "message": "Thêm đợt thi thành công!", "data": _to_response(obj)}
+    return {"success": True, "message": "Thêm kỳ thi thành công!", "data": _to_response(obj)}
 
 
 @router.put("/{item_id}")
 async def update_exam_period(
     item_id: str, body: ExamPeriodUpdate, db: AsyncSession = Depends(get_db)
 ):
-    """Cập nhật đợt thi."""
+    """Cập nhật kỳ thi."""
     result = await db.execute(select(ExamPeriod).where(ExamPeriod.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
-        raise HTTPException(status_code=404, detail="Không tìm thấy đợt thi.")
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỳ thi.")
 
     if body.code is not None and body.code != obj.code:
         dup = await db.execute(select(ExamPeriod).where(ExamPeriod.code == body.code))
         if dup.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Mã đợt thi đã tồn tại!")
+            raise HTTPException(status_code=400, detail="Mã kỳ thi đã tồn tại!")
 
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(obj, field, value)
@@ -104,19 +104,19 @@ async def update_exam_period(
     await db.refresh(obj)
     return {
         "success": True,
-        "message": "Cập nhật đợt thi thành công!",
+        "message": "Cập nhật kỳ thi thành công!",
         "data": _to_response(obj),
     }
 
 
 @router.delete("/{item_id}")
 async def delete_exam_period(item_id: str, db: AsyncSession = Depends(get_db)):
-    """Xóa đợt thi."""
+    """Xóa kỳ thi."""
     result = await db.execute(select(ExamPeriod).where(ExamPeriod.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
-        raise HTTPException(status_code=404, detail="Không tìm thấy đợt thi.")
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỳ thi.")
     name = obj.name
     await db.delete(obj)
     await db.commit()
-    return {"success": True, "message": f'Đã xóa đợt thi "{name}".'}
+    return {"success": True, "message": f'Đã xóa kỳ thi "{name}".'}

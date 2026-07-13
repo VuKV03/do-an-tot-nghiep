@@ -106,7 +106,7 @@ export interface SystemUser {
   username: string;     // Tên đăng nhập
   fullName: string;     // Họ và tên đầy đủ
   email: string;        // Địa chỉ email
-  role: 'admin' | 'teacher' | 'reviewer'; // Vai trò chính của người dùng
+  role: 'admin' | 'teacher' | 'reviewer' | 'candidate'; // Vai trò chính của người dùng
   status: 'active' | 'inactive'; // Trạng thái tài khoản
   groups?: UserGroup[]; // Danh sách các nhóm mà người dùng tham gia
 }

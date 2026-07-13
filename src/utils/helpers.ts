@@ -3,6 +3,10 @@ export const getBreadcrumbTitle = (activeMenuKey: string) => {
     case 'dashboard': return 'Bảng tổng quan điều khiển';
     case 'quan-ly-ma-tran-de': return 'Xây dựng đề thi/ Quản lý ma trận đề';
     case 'quan-ly-de-thi-goi-de': return 'Xây dựng đề thi / Quản lý đề thi & gói đề';
+    case 'quan-ly-ky-thi': return 'Tổ chức thi / Quản lý kỳ thi';
+    case 'quan-ly-thi-sinh': return 'Tổ chức thi / Quản lý thí sinh';
+    case 'quan-ly-de-thi': return 'Tổ chức thi / Quản lý đề thi';
+    case 'quan-ly-ket-qua-thi': return 'Tổ chức thi / Quản lý kết quả thi';
     case 'ngan-hang-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Ngân hàng câu hỏi';
     case 'chu-de-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Chủ đề câu hỏi';
     case 'thong-ke-nhch': return 'Quản lý ngân hàng câu hỏi / Thống kê NHCH';
@@ -14,7 +18,7 @@ export const getBreadcrumbTitle = (activeMenuKey: string) => {
     case 'cap-do-tu-duy': return 'Quản trị danh mục / Cấp độ tư duy';
     case 'loai-hinh-cau-hoi': return 'Quản trị danh mục / Loại hình câu hỏi';
     case 'thanh-phan-nang-luc': return 'Quản trị danh mục / Thành phần năng lực';
-    case 'danh-muc-dot-thi': return 'Quản trị danh mục / Danh mục đợt thi';
+    case 'danh-muc-dot-thi': return 'Quản trị danh mục / Danh mục kỳ thi';
     default: return `Phân hệ / ${activeMenuKey.replace(/-/g, ' ')}`;
   }
 };

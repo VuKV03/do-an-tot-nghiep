@@ -27,6 +27,7 @@ SERVICE_MAP = {
     "ai": service_config.AI_SERVICE_URL,
     "analytics": service_config.ANALYTICS_SERVICE_URL,
     "auth": service_config.AUTH_SERVICE_URL,
+    "quanlythi": service_config.QUANLYTHI_SERVICE_URL,
 }
 
 # ─── Replica state (in-memory, matches TypeScript version) ──────────
@@ -165,12 +166,26 @@ async def proxy_analytics_summary(request: Request):
     return await proxy_request(request, SERVICE_MAP["analytics"])
 
 
-# ─── Route: Auth Service ────────────────────────────────────────────
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_auth(request: Request, path: str = ""):
     """Forward auth requests to Auth Service."""
     request.scope["path"] = f"/{path}" if path else "/"
     return await proxy_request(request, SERVICE_MAP["auth"])
+
+
+# ─── Route: QuanLyThi Service ───────────────────────────────────────
+@app.api_route("/api/exam/admin/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_quanlythi_admin(request: Request, path: str = ""):
+    """Forward admin requests to QuanLyThi Service."""
+    request.scope["path"] = f"/api/exam/admin/{path}" if path else "/api/exam/admin/"
+    return await proxy_request(request, SERVICE_MAP["quanlythi"])
+
+
+@app.api_route("/api/exam/portal/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_quanlythi_portal(request: Request, path: str = ""):
+    """Forward portal requests to QuanLyThi Service."""
+    request.scope["path"] = f"/api/exam/portal/{path}" if path else "/api/exam/portal/"
+    return await proxy_request(request, SERVICE_MAP["quanlythi"])
 
 
 # ─── Microservices Control & Status ─────────────────────────────────

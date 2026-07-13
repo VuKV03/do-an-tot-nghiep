@@ -260,9 +260,9 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const baseStatements = editingOriginal.statements && editingOriginal.statements.length === editingStatements.length
         ? editingOriginal.statements
         : editingStatements.map((_, i) => ({
-            id: i + 1, topicId: editingOriginal.topicId || '', topicName: editingOriginal.topicName || '',
-            level: editingOriginal.level, nangLuc: editingOriginal.nangLuc, content: '', isCorrect: false,
-          }));
+          id: i + 1, topicId: editingOriginal.topicId || '', topicName: editingOriginal.topicName || '',
+          level: editingOriginal.level, nangLuc: editingOriginal.nangLuc, content: '', isCorrect: false,
+        }));
       const statements = baseStatements.map((s, i) => ({
         ...s,
         content: editingStatements[i]?.content ?? s.content,
@@ -418,234 +418,234 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   return (
     <>
-    <Modal
-      title={
-        <div className="border-b pb-2 flex items-center gap-1.5">
-          <ThunderboltOutlined className="text-[#1a3c8b]" />
-          <span className="font-bold text-sm text-[#1a3c8b] italic">Sinh hoán vị và tải</span>
-        </div>
-      }
-      open={open}
-      onCancel={() => { if (!generating && !saving) onCancel(); }}
-      footer={[
-        <Button key="cancel" onClick={onCancel} disabled={saving} className="rounded font-semibold text-xs">Hủy</Button>,
-        <Button key="save" type="primary" icon={<SaveOutlined />} loading={saving} disabled={variants.length === 0}
-          onClick={handleSavePackage}
-          className="bg-[#2c3e9e] border-transparent text-white rounded font-semibold text-xs hover:bg-[#243590]">
-          Lưu gói đề
-        </Button>,
-      ]}
-      centered
-      width={900}
-    >
-      <div className="pt-2 text-xs">
-        <div className="text-slate-500 mb-3">Tự động sinh đề thi hoán vị theo đề gốc: <strong>{exam?.name}</strong> ({exam?.code})</div>
-
-        <div className="grid grid-cols-3 gap-3 mb-3">
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Môn học</label>
-            <Select
-              disabled className="w-full" value={exam?.subject}
-              options={exam?.subject ? [{ value: exam.subject, label: exam.subject }] : []}
-            />
+      <Modal
+        title={
+          <div className="border-b pb-2 flex items-center gap-1.5">
+            <ThunderboltOutlined className="text-[#1a3c8b]" />
+            <span className="font-bold text-sm text-[#1a3c8b] italic">Sinh hoán vị và tải</span>
           </div>
-          {sourceMatrixInfo && (
+        }
+        open={open}
+        onCancel={() => { if (!generating && !saving) onCancel(); }}
+        footer={[
+          <Button key="cancel" onClick={onCancel} disabled={saving} className="rounded font-semibold text-xs">Hủy</Button>,
+          <Button key="save" type="primary" icon={<SaveOutlined />} loading={saving} disabled={variants.length === 0}
+            onClick={handleSavePackage}
+            className="bg-[#2c3e9e] border-transparent text-white rounded font-semibold text-xs hover:bg-[#243590]">
+            Lưu gói đề
+          </Button>,
+        ]}
+        centered
+        width={900}
+      >
+        <div className="pt-2 text-xs">
+          <div className="text-slate-500 mb-3">Tự động sinh đề thi hoán vị theo đề gốc: <strong>{exam?.name}</strong> ({exam?.code})</div>
+
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Ma trận đề</label>
+              <label className="block font-medium text-slate-700 mb-1">Môn học</label>
               <Select
-                disabled className="w-full" value={sourceMatrixInfo.id}
-                options={[{ value: sourceMatrixInfo.id, label: `${sourceMatrixInfo.name} (${sourceMatrixInfo.code})` }]}
+                disabled className="w-full" value={exam?.subject}
+                options={exam?.subject ? [{ value: exam.subject, label: exam.subject }] : []}
               />
             </div>
-          )}
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Đợt thi</label>
-            <Select
-              allowClear placeholder="Chọn đợt thi (tuỳ chọn)" className="w-full"
-              value={selectedExamPeriodId} onChange={setSelectedExamPeriodId}
-              options={examPeriods.map(p => ({ value: p.id, label: p.name }))}
-            />
+            {sourceMatrixInfo && (
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Ma trận đề</label>
+                <Select
+                  disabled className="w-full" value={sourceMatrixInfo.id}
+                  options={[{ value: sourceMatrixInfo.id, label: `${sourceMatrixInfo.name} (${sourceMatrixInfo.code})` }]}
+                />
+              </div>
+            )}
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">kỳ thi</label>
+              <Select
+                allowClear placeholder="Chọn kỳ thi (tuỳ chọn)" className="w-full"
+                value={selectedExamPeriodId} onChange={setSelectedExamPeriodId}
+                options={examPeriods.map(p => ({ value: p.id, label: p.name }))}
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Mã gói đề thi <span className="text-red-500">*</span></label>
+              <Input value={packageCode} onChange={e => setPackageCode(e.target.value)} />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Tên gói đề thi <span className="text-red-500">*</span></label>
+              <Input value={packageName} onChange={e => setPackageName(e.target.value)} />
+            </div>
+            <div />
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Mã đề thi bắt đầu từ</label>
+              <InputNumber min={1} className="w-full" value={startCode} onChange={v => setStartCode(v || 1)} />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Số lượng đề hoán vị cần sinh</label>
+              <InputNumber min={1} max={50} className="w-full" value={permutationCount} onChange={v => setPermutationCount(v || 1)} />
+            </div>
+            <div />
+            <div className="col-span-3">
+              <label className="block font-medium text-slate-700 mb-1">Ghi chú</label>
+              <Input.TextArea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Nhập" />
+            </div>
           </div>
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Mã gói đề thi <span className="text-red-500">*</span></label>
-            <Input value={packageCode} onChange={e => setPackageCode(e.target.value)} />
-          </div>
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Tên gói đề thi <span className="text-red-500">*</span></label>
-            <Input value={packageName} onChange={e => setPackageName(e.target.value)} />
-          </div>
-          <div />
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Mã đề thi bắt đầu từ</label>
-            <InputNumber min={1} className="w-full" value={startCode} onChange={v => setStartCode(v || 1)} />
-          </div>
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Số lượng đề hoán vị cần sinh</label>
-            <InputNumber min={1} max={50} className="w-full" value={permutationCount} onChange={v => setPermutationCount(v || 1)} />
-          </div>
-          <div />
-          <div className="col-span-3">
-            <label className="block font-medium text-slate-700 mb-1">Ghi chú</label>
-            <Input.TextArea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Nhập" />
-          </div>
-        </div>
 
-        <div className="flex justify-center mb-4">
-          <Button type="primary" icon={<ThunderboltOutlined />} loading={generating} disabled={loadingSource || sourceQuestions.length === 0}
-            onClick={handleGenerate}
-            className="bg-[#2c3e9e] border-transparent text-white rounded font-semibold text-xs hover:bg-[#243590] px-8">
-            Sinh đề hoán vị
-          </Button>
-        </div>
+          <div className="flex justify-center mb-4">
+            <Button type="primary" icon={<ThunderboltOutlined />} loading={generating} disabled={loadingSource || sourceQuestions.length === 0}
+              onClick={handleGenerate}
+              className="bg-[#2c3e9e] border-transparent text-white rounded font-semibold text-xs hover:bg-[#243590] px-8">
+              Sinh đề hoán vị
+            </Button>
+          </div>
 
-        <div className="mb-1 flex items-center justify-between">
-          <span className="font-bold text-[#1a3c8b] italic">Đề gốc</span>
-          <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadSource} disabled={sourceQuestions.length === 0} className="rounded text-xs">
-            Tải xuống
-          </Button>
-        </div>
-        <div className="border border-slate-200 rounded p-2 mb-4">
-          {loadingSource ? (
-            <div className="py-8 text-center"><Spin /></div>
-          ) : (
-            <ExamContentDisplay questions={sourceQuestions} allowEdit={false} />
-          )}
-        </div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-bold text-[#1a3c8b] italic">Đề gốc</span>
+            <Button size="small" icon={<DownloadOutlined />} onClick={handleDownloadSource} disabled={sourceQuestions.length === 0} className="rounded text-xs">
+              Tải xuống
+            </Button>
+          </div>
+          <div className="border border-slate-200 rounded p-2 mb-4">
+            {loadingSource ? (
+              <div className="py-8 text-center"><Spin /></div>
+            ) : (
+              <ExamContentDisplay questions={sourceQuestions} allowEdit={false} />
+            )}
+          </div>
 
-        {variants.length > 0 && (
-          <>
-            <div className="mb-1 font-bold text-[#1a3c8b] italic">Danh sách đề hoán vị</div>
-            <Tabs
-              size="small"
-              items={variants.map((qs, idx) => ({
-                key: String(idx),
-                label: `Đề hoán vị ${idx + 1}`,
-                children: (
-                  <div>
-                    <div className="flex justify-end mb-2">
-                      <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadVariant(idx)} className="rounded text-xs">
-                        Tải xuống
-                      </Button>
+          {variants.length > 0 && (
+            <>
+              <div className="mb-1 font-bold text-[#1a3c8b] italic">Danh sách đề hoán vị</div>
+              <Tabs
+                size="small"
+                items={variants.map((qs, idx) => ({
+                  key: String(idx),
+                  label: `Đề hoán vị ${idx + 1}`,
+                  children: (
+                    <div>
+                      <div className="flex justify-end mb-2">
+                        <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadVariant(idx)} className="rounded text-xs">
+                          Tải xuống
+                        </Button>
+                      </div>
+                      <div className="border border-slate-200 rounded p-2">
+                        <ExamContentDisplay
+                          questions={qs}
+                          allowEdit
+                          onEditQuestion={(questionIndex, question) => handleEditQuestion(idx, questionIndex, question)}
+                        />
+                      </div>
                     </div>
-                    <div className="border border-slate-200 rounded p-2">
-                      <ExamContentDisplay
-                        questions={qs}
-                        allowEdit
-                        onEditQuestion={(questionIndex, question) => handleEditQuestion(idx, questionIndex, question)}
-                      />
-                    </div>
-                  </div>
-                ),
-              }))}
-            />
-            <div className="flex items-center justify-end gap-2 mt-2">
-              <Button icon={<DownloadOutlined />} onClick={handleDownloadAll} className="rounded font-semibold text-xs">
-                Tải xuống tất cả đề
-              </Button>
-              <Button danger icon={<DeleteOutlined />} onClick={handleClearVariants} className="rounded font-semibold text-xs">
-                Xóa
-              </Button>
-            </div>
-          </>
-        )}
-        {variants.length === 0 && !generating && (
-          <Empty description="Chưa sinh đề hoán vị nào — bấm &quot;Sinh đề hoán vị&quot; để xem trước." className="py-6" />
-        )}
-      </div>
-    </Modal>
-
-    <Modal
-      title="Sửa nội dung câu hỏi"
-      open={editingTarget !== null}
-      onCancel={handleCancelEditQuestion}
-      onOk={handleSaveEditedQuestion}
-      okText="Lưu"
-      cancelText="Hủy"
-      width={640}
-      centered
-      destroyOnHidden
-    >
-      {editingOriginal && (
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
-            <Input.TextArea
-              rows={3}
-              value={editingText}
-              onChange={e => setEditingText(e.target.value)}
-            />
-          </div>
-
-          {editingOriginal.type === 'single' && (
-            <div>
-              <div className="font-bold text-[#1a3c8b] mb-1.5">Thông tin câu trả lời</div>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/50">
-                    <th className="text-left py-1.5 px-2 text-slate-600 font-bold w-8">STT</th>
-                    <th className="text-left py-1.5 px-2 text-slate-600 font-bold">Nội dung trả lời</th>
-                    <th className="text-center py-1.5 px-2 text-slate-600 font-bold w-20">Đáp án đúng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {editingAnswers.map((ans, idx) => (
-                    <tr key={idx} className="border-b border-slate-100">
-                      <td className="py-1.5 px-2 text-slate-400 font-mono align-middle">{idx + 1}</td>
-                      <td className="py-1.5 px-2 align-middle">
-                        <Input value={ans.content} onChange={e => updateEditingAnswerContent(idx, e.target.value)} />
-                      </td>
-                      <td className="py-1.5 px-2 text-center align-middle">
-                        <Checkbox checked={ans.isCorrect} onChange={() => setEditingAnswerCorrect(idx)} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ),
+                }))}
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button icon={<DownloadOutlined />} onClick={handleDownloadAll} className="rounded font-semibold text-xs">
+                  Tải xuống tất cả đề
+                </Button>
+                <Button danger icon={<DeleteOutlined />} onClick={handleClearVariants} className="rounded font-semibold text-xs">
+                  Xóa
+                </Button>
+              </div>
+            </>
           )}
-
-          {editingOriginal.type === 'true_false' && (
-            <div>
-              <div className="font-bold text-[#1a3c8b] mb-1.5">Thông tin câu trả lời Đúng / Sai</div>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/50">
-                    <th className="text-left py-1.5 px-2 text-slate-600 font-bold w-8">STT</th>
-                    <th className="text-left py-1.5 px-2 text-slate-600 font-bold">Nội dung trả lời</th>
-                    <th className="text-center py-1.5 px-2 text-slate-600 font-bold w-20">Đáp án đúng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {editingStatements.map((st, idx) => (
-                    <tr key={idx} className="border-b border-slate-100">
-                      <td className="py-1.5 px-2 text-slate-400 font-mono align-middle">{idx + 1}</td>
-                      <td className="py-1.5 px-2 align-middle">
-                        <Input value={st.content} onChange={e => updateEditingStatementContent(idx, e.target.value)} />
-                      </td>
-                      <td className="py-1.5 px-2 text-center align-middle">
-                        <Checkbox checked={st.isCorrect} onChange={e => setEditingStatementCorrect(idx, e.target.checked)} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {variants.length === 0 && !generating && (
+            <Empty description="Chưa sinh đề hoán vị nào — bấm &quot;Sinh đề hoán vị&quot; để xem trước." className="py-6" />
           )}
+        </div>
+      </Modal>
 
-          {editingOriginal.type === 'short' && (
+      <Modal
+        title="Sửa nội dung câu hỏi"
+        open={editingTarget !== null}
+        onCancel={handleCancelEditQuestion}
+        onOk={handleSaveEditedQuestion}
+        okText="Lưu"
+        cancelText="Hủy"
+        width={640}
+        centered
+        destroyOnHidden
+      >
+        {editingOriginal && (
+          <div className="space-y-3 text-xs">
             <div>
-              <div className="font-bold text-[#1a3c8b] mb-1.5">Đáp án tự luận</div>
-              <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
+              <label className="block font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
               <Input.TextArea
                 rows={3}
-                value={editingShortAnswer}
-                onChange={e => setEditingShortAnswer(e.target.value)}
+                value={editingText}
+                onChange={e => setEditingText(e.target.value)}
               />
             </div>
-          )}
-        </div>
-      )}
-    </Modal>
+
+            {editingOriginal.type === 'single' && (
+              <div>
+                <div className="font-bold text-[#1a3c8b] mb-1.5">Thông tin câu trả lời</div>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50">
+                      <th className="text-left py-1.5 px-2 text-slate-600 font-bold w-8">STT</th>
+                      <th className="text-left py-1.5 px-2 text-slate-600 font-bold">Nội dung trả lời</th>
+                      <th className="text-center py-1.5 px-2 text-slate-600 font-bold w-20">Đáp án đúng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editingAnswers.map((ans, idx) => (
+                      <tr key={idx} className="border-b border-slate-100">
+                        <td className="py-1.5 px-2 text-slate-400 font-mono align-middle">{idx + 1}</td>
+                        <td className="py-1.5 px-2 align-middle">
+                          <Input value={ans.content} onChange={e => updateEditingAnswerContent(idx, e.target.value)} />
+                        </td>
+                        <td className="py-1.5 px-2 text-center align-middle">
+                          <Checkbox checked={ans.isCorrect} onChange={() => setEditingAnswerCorrect(idx)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {editingOriginal.type === 'true_false' && (
+              <div>
+                <div className="font-bold text-[#1a3c8b] mb-1.5">Thông tin câu trả lời Đúng / Sai</div>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50">
+                      <th className="text-left py-1.5 px-2 text-slate-600 font-bold w-8">STT</th>
+                      <th className="text-left py-1.5 px-2 text-slate-600 font-bold">Nội dung trả lời</th>
+                      <th className="text-center py-1.5 px-2 text-slate-600 font-bold w-20">Đáp án đúng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editingStatements.map((st, idx) => (
+                      <tr key={idx} className="border-b border-slate-100">
+                        <td className="py-1.5 px-2 text-slate-400 font-mono align-middle">{idx + 1}</td>
+                        <td className="py-1.5 px-2 align-middle">
+                          <Input value={st.content} onChange={e => updateEditingStatementContent(idx, e.target.value)} />
+                        </td>
+                        <td className="py-1.5 px-2 text-center align-middle">
+                          <Checkbox checked={st.isCorrect} onChange={e => setEditingStatementCorrect(idx, e.target.checked)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {editingOriginal.type === 'short' && (
+              <div>
+                <div className="font-bold text-[#1a3c8b] mb-1.5">Đáp án tự luận</div>
+                <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
+                <Input.TextArea
+                  rows={3}
+                  value={editingShortAnswer}
+                  onChange={e => setEditingShortAnswer(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
