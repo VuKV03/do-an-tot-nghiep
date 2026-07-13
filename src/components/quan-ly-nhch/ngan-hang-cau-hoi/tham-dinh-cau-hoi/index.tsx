@@ -674,12 +674,12 @@ export default function ThamDinhCauHoiTab({
         }
       }}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch animate-in fade-in duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch lg:max-h-[calc(100vh-170px)] animate-in fade-in duration-300">
 
-        {/* ══ LEFT SIDEBAR ══ */}
+        {/* ══ LEFT SIDEBAR ══ — vị trí cố định, không di chuyển theo scroll */}
         <div
           id="tham-dinh-left-sidebar"
-          className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 h-[calc(100vh-140px)] sticky top-24 overflow-y-auto flex flex-col"
+          className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
         >
           {/* Subject + Grade */}
           <div className="space-y-4 pb-4 border-b border-slate-100">
@@ -758,7 +758,7 @@ export default function ThamDinhCauHoiTab({
         </div>
 
         {/* ══ RIGHT CONTENT ══ */}
-        <div className="lg:col-span-4 flex flex-col space-y-4" id="tham-dinh-right-content">
+        <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="tham-dinh-right-content">
 
           {/* ── Search card ── */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">

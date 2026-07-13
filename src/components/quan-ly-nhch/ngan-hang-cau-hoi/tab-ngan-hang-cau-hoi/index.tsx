@@ -738,12 +738,12 @@ export default function QuestionBankModule({
       </div>
 
       {activeTab === 'bank' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch animate-in fade-in duration-300" id="question-bank-container">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch lg:max-h-[calc(100vh-170px)] animate-in fade-in duration-300" id="question-bank-container">
 
-      {/* 20% Left Column Sidebar Filters Card */}
+      {/* 20% Left Column Sidebar Filters Card — vị trí cố định, không di chuyển theo scroll */}
       <div
         id="question-bank-left-sidebar"
-        className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 h-[calc(100vh-140px)] sticky top-24 overflow-y-auto flex flex-col"
+        className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
       >
         <div className="space-y-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wide">
@@ -810,7 +810,7 @@ export default function QuestionBankModule({
       </div>
 
       {/* 80% Right Column Content Area */}
-      <div className="lg:col-span-4 flex flex-col space-y-4" id="question-bank-right-content">
+      <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="question-bank-right-content">
 
         {/* Tìm kiếm thông tin Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
