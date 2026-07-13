@@ -195,7 +195,9 @@ export default function AIGenerateQuestionModal({
         const compRes = await competencyComponentApi.list(
           foundSub ? { subject_id: foundSub.id } : undefined,
         );
-        setCompetencyOptions(compRes.data.map((c) => ({ value: c.id, label: c.name })));
+        setCompetencyOptions(
+          compRes.data.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name })),
+        );
       } catch (err) {
         console.error('Không thể tải danh sách thành phần năng lực', err);
         setCompetencyOptions([]);

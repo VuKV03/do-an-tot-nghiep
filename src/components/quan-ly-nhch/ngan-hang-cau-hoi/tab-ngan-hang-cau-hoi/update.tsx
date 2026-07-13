@@ -126,7 +126,9 @@ export default function UpdateQuestionModal({
         const gradeId = foundGrade ? foundGrade.id : undefined;
 
         const compRes = await competencyComponentApi.list(subjectId ? { subject_id: subjectId } : undefined);
-        setCompetencyOptions(compRes.data.map((c) => ({ value: c.id, label: c.name })));
+        setCompetencyOptions(
+          compRes.data.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name })),
+        );
 
         const cogRes = await cognitiveLevelApi.list({ subject_id: subjectId, grade_id: gradeId });
         const mapLevelCode = (code: string) => {
