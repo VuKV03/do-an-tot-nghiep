@@ -20,7 +20,13 @@ import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule'
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
+import QuanLyThi from './components/quan-ly-thi/QuanLyThi';
+import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
+import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
+import QuanLyDeThi from './components/quan-ly-thi/QuanLyDeThi';
 import Login from './components/dang-nhap-dang-ky/Login';
+import ExamPortal from './components/quan-ly-thi/quan-ly-dang-nhap-thi/ExamPortal';
+import CandidateLogin from './components/quan-ly-thi/quan-ly-dang-nhap-thi/CandidateLogin';
 import ProfileModal from './components/dang-nhap-dang-ky/ProfileModal';
 import PasswordModal from './components/dang-nhap-dang-ky/PasswordModal';
 import { checkUserPermission } from './utils/permissionUtils';
@@ -253,6 +259,14 @@ export default function App() {
             onNavigateTab={(key) => setActiveMenuKey(key)}
           />
         );
+      case 'quan-ly-ky-thi':
+        return <QuanLyThi />;
+      case 'quan-ly-de-thi':
+        return <QuanLyDeThi />;
+      case 'quan-ly-thi-sinh':
+        return <QuanLyThiSinh />;
+      case 'quan-ly-ket-qua-thi':
+        return <QuanLyKetQuaThi />;
       case 'quan-ly-nguoi-dung':
       case 'quan-ly-nhom-nguoi-dung':
       case 'chinh-sach-bao-mat':
@@ -304,7 +318,23 @@ export default function App() {
   };
 
   if (!currentUser) {
+    if (activeMenuKey === 'portal') {
+      return <CandidateLogin onLoginSuccess={setCurrentUser} />;
+    }
     return <Login onLoginSuccess={setCurrentUser} />;
+  }
+
+  if (currentUser.role === 'candidate') {
+    return (
+      <ExamPortal
+        currentUser={currentUser}
+        onLogout={() => {
+          localStorage.removeItem('user_info');
+          localStorage.removeItem('auth_token');
+          setCurrentUser(null);
+        }}
+      />
+    );
   }
 
   return (

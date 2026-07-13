@@ -395,6 +395,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
             </div>
           )}
+
+          <div className="text-center">
+            <Button type="link" className="text-slate-400 hover:text-blue-400 text-xs font-semibold" onClick={() => window.location.hash = '#portal'}>
+              Bạn là thí sinh? Truy cập Cổng thi trực tuyến <ArrowRightOutlined />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

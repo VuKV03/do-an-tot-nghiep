@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.shared.database import ensure_database_exists, init_tables, async_session, engine
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select, func, text
+# pyrefly: ignore [missing-import]
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
     SubjectCategory, CognitiveLevel, QuestionType,  # category models

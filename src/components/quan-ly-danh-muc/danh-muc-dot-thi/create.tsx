@@ -55,7 +55,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
       <Modal
         title={
           <div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">
-            Thêm mới đợt thi
+            Thêm mới kỳ thi
           </div>
         }
         open={open}
@@ -70,7 +70,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
         }}
       >
         <div className="mb-4 text-[#1e3a8a] font-semibold text-[17px]">
-          Thông tin đợt thi
+          Thông tin kỳ thi
         </div>
 
         <Form
@@ -86,16 +86,16 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
         >
           <Form.Item
             name="Ma"
-            label={<span className="text-gray-700 font-medium text-[15px]">Mã đợt thi</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập mã đợt thi' }]}
+            label={<span className="text-gray-700 font-medium text-[15px]">Mã kỳ thi</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập mã kỳ thi' }]}
           >
             <Input placeholder="Nhập" className="h-[42px] text-base" />
           </Form.Item>
 
           <Form.Item
             name="Ten"
-            label={<span className="text-gray-700 font-medium text-[15px]">Tên đợt thi</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập tên đợt thi' }]}
+            label={<span className="text-gray-700 font-medium text-[15px]">Tên kỳ thi</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập tên kỳ thi' }]}
           >
             <Input placeholder="Nhập" className="h-[42px] text-base" />
           </Form.Item>
@@ -118,7 +118,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
           >
             <TextArea
               rows={4}
-              placeholder="Nhập ghi chú cho danh mục đợt thi"
+              placeholder="Nhập ghi chú cho danh mục kỳ thi"
               className="text-base py-2"
             />
           </Form.Item>

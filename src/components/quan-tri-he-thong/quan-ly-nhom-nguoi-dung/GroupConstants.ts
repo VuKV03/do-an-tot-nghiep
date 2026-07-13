@@ -35,7 +35,7 @@ export const MENU_STRUCTURE = [
       { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
       { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
       { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
-      { key: 'danh-muc-dot-thi', label: 'Danh mục đợt thi' }
+      { key: 'danh-muc-dot-thi', label: 'Danh mục kỳ thi' }
     ]
   }
 ];
@@ -45,17 +45,23 @@ export const PERMISSION_MAP: Record<string, string[]> = {
   'xay-dung-de': ['matrices.manage', 'matrices.submit', 'matrices.approve', 'exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
   'quan-ly-ma-tran-de': ['matrices.manage', 'matrices.submit', 'matrices.approve'],
   'quan-ly-de-thi-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
-  
+
+  'to-chuc-thi': ['sessions.manage', 'sessions.monitor', 'results.view'],
+  'quan-ly-ky-thi': ['sessions.manage', 'sessions.monitor'],
+  'quan-ly-thi-sinh': ['sessions.manage', 'sessions.monitor'],
+  'quan-ly-de-thi': ['sessions.manage', 'exams.manage'],
+  'quan-ly-ket-qua-thi': ['results.view'],
+
   'quan-ly-nhch': ['topics.manage', 'topics.submit', 'topics.approve', 'questions.manage', 'questions.submit', 'questions.approve'],
   'chu-de-cau-hoi': ['topics.manage', 'topics.submit', 'topics.approve'],
   'ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.approve'],
   'thong-ke-nhch': ['topics.manage', 'questions.manage', 'topics.approve', 'questions.approve'],
-  
+
   'quan-tri-he-thong': ['system.users', 'system.groups'],
   'quan-ly-nguoi-dung': ['system.users'],
   'quan-ly-nhom-nguoi-dung': ['system.groups'],
   'chinh-sach-bao-mat': ['system.groups'],
-  
+
   'quan-tri-danh-muc': ['system.categories'],
   'danh-muc-mon-hoc': ['system.categories'],
   'danh-muc-khoi-lop': ['system.categories'],

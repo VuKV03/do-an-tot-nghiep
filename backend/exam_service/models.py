@@ -176,7 +176,7 @@ class GradeLevel(Base):
     updated_at = Column(String(50), nullable=True)
 
 
-# ─── Danh mục đợt thi (ExamPeriod) ────────────────────────────────────
+# ─── Danh mục kỳ thi (ExamPeriod) ────────────────────────────────────
 class ExamPeriod(Base):
     __tablename__ = "exam_periods"
 
