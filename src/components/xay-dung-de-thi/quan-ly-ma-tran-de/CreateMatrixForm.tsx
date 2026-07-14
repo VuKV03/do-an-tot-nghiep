@@ -174,6 +174,9 @@ interface Props {
   editingId?: string;
 }
 
+const MA_MAX_LENGTH = 12;
+const TEN_MAX_LENGTH = 255;
+
 export default function CreateMatrixForm({ onBack, editingId }: Props) {
   // --- State ---
   const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
@@ -181,8 +184,16 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   const [monHocId, setMonHocId] = useState<string | null>(null);
   const [maMatran, setMaMatran] = useState('');
   const [tenMatran, setTenMatran] = useState('');
+  const [attemptedSave, setAttemptedSave] = useState(false);
   const [isChangingSubject, setIsChangingSubject] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const maMatranError = maMatran.length >= MA_MAX_LENGTH
+    ? `Mã ma trận không được vượt quá ${MA_MAX_LENGTH} ký tự.`
+    : (attemptedSave && !maMatran.trim() ? 'Vui lòng nhập mã ma trận.' : '');
+  const tenMatranError = tenMatran.length >= TEN_MAX_LENGTH
+    ? `Tên ma trận không được vượt quá ${TEN_MAX_LENGTH} ký tự.`
+    : (attemptedSave && !tenMatran.trim() ? 'Vui lòng nhập tên ma trận.' : '');
 
   const [caiDat, setCaiDat] = useState<CaiDatMaTran | null>(null);
   const [dataChuDe, setDataChuDe] = useState<ChuDeNode[]>([]);
@@ -470,8 +481,12 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
 
   // --- Save ---
   const handleSave = async () => {
+    setAttemptedSave(true);
     if (!monHocId) { message.warning('Vui lòng chọn môn học.'); return; }
+    if (!maMatran.trim()) { message.warning('Vui lòng nhập mã ma trận.'); return; }
+    if (maMatran.length > MA_MAX_LENGTH) { message.warning(`Mã ma trận không được vượt quá ${MA_MAX_LENGTH} ký tự.`); return; }
     if (!tenMatran.trim()) { message.warning('Vui lòng nhập tên ma trận.'); return; }
+    if (tenMatran.length > TEN_MAX_LENGTH) { message.warning(`Tên ma trận không được vượt quá ${TEN_MAX_LENGTH} ký tự.`); return; }
     if (obj.length === 0) { message.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
     setSaving(true);
     let res;
@@ -522,12 +537,28 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
               options={monHocList.map(m => ({ value: m.id, label: m.ten }))} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Mã ma trận</label>
-            <Input placeholder="Nhập mã" className="text-xs" value={maMatran} onChange={e => setMaMatran(e.target.value)} />
+            <label className="block text-xs font-medium text-slate-700 mb-1">Mã ma trận <span className="text-red-500">*</span></label>
+            <Input
+              placeholder="Nhập mã"
+              className="text-xs"
+              value={maMatran}
+              onChange={e => setMaMatran(e.target.value)}
+              maxLength={MA_MAX_LENGTH}
+              status={maMatranError ? 'error' : undefined}
+            />
+            {maMatranError && <div className="text-red-500 text-[11px] mt-1">{maMatranError}</div>}
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận <span className="text-red-500">*</span></label>
-            <Input placeholder="Nhập tên" className="text-xs" value={tenMatran} onChange={e => setTenMatran(e.target.value)} />
+            <Input
+              placeholder="Nhập tên"
+              className="text-xs"
+              value={tenMatran}
+              onChange={e => setTenMatran(e.target.value)}
+              maxLength={TEN_MAX_LENGTH}
+              status={tenMatranError ? 'error' : undefined}
+            />
+            {tenMatranError && <div className="text-red-500 text-[11px] mt-1">{tenMatranError}</div>}
           </div>
         </div>
         {subjectConfig && (
