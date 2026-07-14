@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Button, ConfigProvider, Form, Input, Modal, Switch } from 'antd';
 import type { SubjectCategoryType } from './index.tsx';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { TextArea } = Input;
 
@@ -20,8 +21,8 @@ export default function DetailSubjectCategoryModal({ open, onClose, record }: De
         name: record.name,
         note: record.note || '',
         is_active: record.is_active,
-        created_at: record.created_at,
-        updated_at: record.updated_at || '',
+        created_at: formatDateTime(record.created_at),
+        updated_at: formatDateTime(record.updated_at),
       });
     } else if (!open) {
       form.resetFields();

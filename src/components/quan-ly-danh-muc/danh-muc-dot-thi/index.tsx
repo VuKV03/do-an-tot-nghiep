@@ -7,6 +7,7 @@ import UpdateDotThiModal from './update.tsx';
 import DetailDotThiModal from './detail.tsx';
 import DeleteDotThiModal from './delete.tsx';
 import { examPeriodApi } from '../../../services/danhMucApi.ts';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -172,7 +173,7 @@ export default function DanhMucDotThi() {
       title: 'Ngày tạo',
       dataIndex: 'CreatedAt',
       key: 'CreatedAt',
-      render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '',
+      render: (v) => formatDateTime(v),
     },
     {
       title: 'Ngày bắt đầu',
