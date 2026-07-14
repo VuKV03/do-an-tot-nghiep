@@ -8,7 +8,6 @@ import {
   message,
   Modal,
   Spin,
-  Tag,
   Badge,
   Tooltip,
   Steps,
@@ -43,6 +42,8 @@ import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNod
 import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
+
+const NAME_MAX_LENGTH = 255;
 
 export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list' | 'evaluation' }) {
   // Real Môn thi list fetched from database API
@@ -86,7 +87,6 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
   const [evalIsSearchExpanded, setEvalIsSearchExpanded] = useState(true);
   const [evalSearchText, setEvalSearchText] = useState('');
   const [evalFilterSubject, setEvalFilterSubject] = useState<string>('all');
-  const [evalDateRange, setEvalDateRange] = useState<string>(''); // Simulated Range picker text
 
   const [evalTableData, setEvalTableData] = useState<MatrixTableDataRow[]>([]);
   const [evalTableTotal, setEvalTableTotal] = useState(0);
@@ -294,16 +294,26 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
     setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  // Status tag helper
-  const renderStatusTag = (status: string) => {
-    switch (status) {
-      case 'approved': return <Tag color="green" className="rounded-full text-[11px] font-medium px-3">Đã thẩm định</Tag>;
-      case 'rejected': return <Tag color="red" className="rounded-full text-[11px] font-medium px-3">Từ chối</Tag>;
-      case 'new': return <Tag color="default" className="rounded-full text-[11px] font-medium px-3">Nháp</Tag>;
-      case 'pending': return <Tag color="gold" className="rounded-full text-[11px] font-medium px-3">Chờ thẩm định</Tag>;
-      default: return <Tag className="rounded-full text-[11px] font-medium px-3">{status}</Tag>;
-    }
+  // Status tag helper — dùng span tự style (thay vì màu preset của antd Tag, viền quá mờ) để
+  // kiểm soát viền rõ nét + kích thước cố định + căn giữa chữ đồng nhất giữa các trạng thái.
+  const STATUS_TAG_BASE = "rounded text-[11px] font-semibold inline-flex items-center justify-center w-28 h-6 text-center leading-none border";
+  const STATUS_TAG_COLORS: Record<string, string> = {
+    approved: "bg-green-50 text-green-700 border-green-400",
+    rejected: "bg-red-50 text-red-700 border-red-400",
+    new: "bg-slate-100 text-slate-600 border-slate-300",
+    pending: "bg-amber-50 text-amber-700 border-amber-400",
   };
+  const STATUS_TAG_LABELS: Record<string, string> = {
+    approved: "Đã thẩm định",
+    rejected: "Từ chối",
+    new: "Nháp",
+    pending: "Chờ thẩm định",
+  };
+  const renderStatusTag = (status: string) => (
+    <span className={`${STATUS_TAG_BASE} ${STATUS_TAG_COLORS[status] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
+      {STATUS_TAG_LABELS[status] || status}
+    </span>
+  );
 
   // Pagination helpers
   const totalPages = Math.ceil(tableTotalRows / pageSize);
@@ -497,7 +507,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
             {isSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -506,8 +516,13 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                       className="rounded border-slate-300 text-xs"
                       value={searchText}
                       onChange={e => setSearchText(e.target.value)}
+                      maxLength={NAME_MAX_LENGTH}
+                      status={searchText.length >= NAME_MAX_LENGTH ? 'error' : undefined}
                       allowClear
                     />
+                    {searchText.length >= NAME_MAX_LENGTH && (
+                      <div className="text-red-500 text-[11px] mt-1">Tên ma trận không được vượt quá {NAME_MAX_LENGTH} ký tự.</div>
+                    )}
                   </div>
 
                   {/* Môn thi */}
@@ -538,17 +553,6 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                         { value: 'rejected', label: 'Từ chối' },
                         { value: 'new', label: 'Nháp' }
                       ]}
-                    />
-                  </div>
-
-                  {/* Ngày tạo */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Ngày tạo</label>
-                    <Input
-                      placeholder="Bắt đầu    →    Kết thúc"
-                      className="rounded border-slate-300 text-xs"
-                      suffix={<span className="text-slate-400 text-xs">📅</span>}
-                      readOnly
                     />
                   </div>
                 </div>
@@ -772,7 +776,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
             {evalIsSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -781,8 +785,13 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                       className="rounded border-slate-300 text-xs"
                       value={evalSearchText}
                       onChange={e => setEvalSearchText(e.target.value)}
+                      maxLength={NAME_MAX_LENGTH}
+                      status={evalSearchText.length >= NAME_MAX_LENGTH ? 'error' : undefined}
                       allowClear
                     />
+                    {evalSearchText.length >= NAME_MAX_LENGTH && (
+                      <div className="text-red-500 text-[11px] mt-1">Tên ma trận không được vượt quá {NAME_MAX_LENGTH} ký tự.</div>
+                    )}
                   </div>
 
                   {/* Môn thi */}
@@ -796,19 +805,6 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                         { value: 'all', label: 'Tất cả' },
                         ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
-                    />
-                  </div>
-
-                  {/* Ngày gửi */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Ngày gửi thẩm định/phản biện</label>
-                    <Input
-                      placeholder="Bắt đầu    →    Kết thúc"
-                      className="rounded border-slate-300 text-xs"
-                      suffix={<span className="text-slate-400 text-xs">📅</span>}
-                      value={evalDateRange}
-                      onChange={e => setEvalDateRange(e.target.value)}
-                      allowClear
                     />
                   </div>
                 </div>

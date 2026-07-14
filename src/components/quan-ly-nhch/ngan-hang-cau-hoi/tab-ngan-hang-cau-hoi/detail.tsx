@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Button, Row, Col, Divider, Tag } from 'antd';
 import { EyeOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel } from '../../../../types';
+import { RichTextView } from '../../../../utils/htmlContent';
 
 export interface QuestionDetailModalProps {
   open: boolean;
@@ -275,9 +276,7 @@ export default function QuestionDetailModal({
           <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">
             Nội dung câu hỏi
           </span>
-          <div className="text-slate-800 font-bold text-sm leading-relaxed whitespace-pre-wrap">
-            {question.text}
-          </div>
+          <RichTextView html={question.text} className="text-slate-800 font-bold text-sm leading-relaxed" />
         </div>
 
         {/* Options / Answers */}

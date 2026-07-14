@@ -18,10 +18,12 @@ import {
   FilterOutlined,
   SearchOutlined,
   HistoryOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../../data';
+import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import QuestionHistoryModal from '../history';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,6 +41,7 @@ interface ThamDinhCauHoiProps {
   onApproveQuestion?: (id: string, comment: string) => void;
   onRejectQuestion?: (id: string, comment: string) => void;
   onBulkReviewQuestions?: (ids: string[], verdict: 'approve' | 'reject', comment: string) => void;
+  onEditQuestion?: (q: Question) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +176,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
         <Divider className="my-2" />
         <div>
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Nội dung câu hỏi</div>
-          <div className="text-sm text-slate-800 font-medium leading-relaxed">{question.text}</div>
+          <RichTextView html={question.text} className="text-sm text-slate-800 font-medium leading-relaxed" />
         </div>
         {question.options && question.options.length > 0 && (
           <div className="space-y-1.5 mt-2">
@@ -345,6 +348,7 @@ export default function ThamDinhCauHoiTab({
   onApproveQuestion,
   onRejectQuestion,
   onBulkReviewQuestions,
+  onEditQuestion,
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
@@ -435,7 +439,7 @@ export default function ThamDinhCauHoiTab({
     clean(roots);
 
     if (!topicSearch.trim()) return roots;
-    const kw = topicSearch.toLowerCase();
+    const kw = topicSearch.trim().toLowerCase();
     
     const filterTree = (nodes: any[]): any[] => {
       return nodes.reduce((acc, node) => {
@@ -469,9 +473,10 @@ export default function ThamDinhCauHoiTab({
         );
         if (q.topicId !== selectedTopicKey && !isChild) return false;
       }
-      if (applied.keyword) {
-        const hay = `${q.code} ${q.text} ${q.creator}`.toLowerCase();
-        if (!hay.includes(applied.keyword.toLowerCase())) return false;
+      const kw = applied.keyword.trim();
+      if (kw) {
+        const hay = `${q.code} ${stripHtmlToText(q.text)} ${q.creator}`.toLowerCase();
+        if (!hay.includes(kw.toLowerCase())) return false;
       }
       if (applied.grades.length > 0 && !applied.grades.includes(q.grade)) return false;
       if (applied.type   !== 'all' && q.type   !== applied.type)   return false;
@@ -538,21 +543,24 @@ export default function ThamDinhCauHoiTab({
       title: 'Nội dung câu hỏi',
       dataIndex: 'text',
       width: 350,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <div
-            className="text-slate-800 font-medium text-xs hover:text-[#002147] cursor-pointer transition-colors"
-            style={{
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              maxWidth: '320px',
-            }}
-          >
-            {text}
-          </div>
-        </Tooltip>
-      )
+      render: (text: string) => {
+        const plainText = stripHtmlToText(text);
+        return (
+          <Tooltip title={plainText}>
+            <div
+              className="text-slate-700 font-normal text-xs hover:text-[#002147] cursor-pointer transition-colors"
+              style={{
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                maxWidth: '320px',
+              }}
+            >
+              {plainText}
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: 'Loại câu hỏi',
@@ -611,48 +619,49 @@ export default function ThamDinhCauHoiTab({
       title: 'Trạng thái',
       dataIndex: 'status',
       width: 120,
-      render: (status: QuestionStatus, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (isAI) return null;
-        return <StatusBadge status={status} />;
-      }
-    },
-    {
-      title: 'Trạng thái câu AI tạo',
-      width: 140,
-      render: (_: any, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (!isAI) return null;
-        return <StatusBadge status={record.status} />;
-      }
+      render: (status: QuestionStatus) => <StatusBadge status={status} />
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 90,
+      width: 120,
       align: 'center',
-      render: (_: any, record: Question) => (
-        <div className="flex items-center justify-center gap-1.5">
-          <Tooltip title="Thẩm định chi tiết">
-            <Button
-              type="text"
-              icon={<FileTextOutlined className="text-blue-600 text-xs" />}
-              className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-              onClick={() => setReviewQuestion(record)}
-              style={{ cursor: 'pointer' }}
-            />
-          </Tooltip>
-          <Tooltip title="Lịch sử thẩm định">
-            <Button
-              type="text"
-              icon={<HistoryOutlined className="text-slate-500 text-xs" />}
-              className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded border border-slate-200"
-              onClick={() => setHistoryQuestion(record)}
-              style={{ cursor: 'pointer' }}
-            />
-          </Tooltip>
-        </div>
-      )
+      render: (_: any, record: Question) => {
+        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            <Tooltip title="Thẩm định chi tiết">
+              <Button
+                type="text"
+                icon={<FileTextOutlined className="text-blue-600 text-xs" />}
+                className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                onClick={() => setReviewQuestion(record)}
+                style={{ cursor: 'pointer' }}
+              />
+            </Tooltip>
+            {canEditQuestion && onEditQuestion && (
+              <Tooltip title="Chỉnh sửa">
+                <Button
+                  type="text"
+                  icon={<EditOutlined className="text-blue-600 text-xs" />}
+                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                  onClick={() => onEditQuestion(record)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="Lịch sử thẩm định">
+              <Button
+                type="text"
+                icon={<HistoryOutlined className="text-slate-500 text-xs" />}
+                className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded border border-slate-200"
+                onClick={() => setHistoryQuestion(record)}
+                style={{ cursor: 'pointer' }}
+              />
+            </Tooltip>
+          </div>
+        );
+      }
     }
   ];
 
@@ -666,12 +675,12 @@ export default function ThamDinhCauHoiTab({
         }
       }}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch animate-in fade-in duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch lg:max-h-[calc(100vh-170px)] animate-in fade-in duration-300">
 
-        {/* ══ LEFT SIDEBAR ══ */}
+        {/* ══ LEFT SIDEBAR ══ — vị trí cố định, không di chuyển theo scroll */}
         <div
           id="tham-dinh-left-sidebar"
-          className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 h-[calc(100vh-140px)] sticky top-24 overflow-y-auto flex flex-col"
+          className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
         >
           {/* Subject + Grade */}
           <div className="space-y-4 pb-4 border-b border-slate-100">
@@ -750,7 +759,7 @@ export default function ThamDinhCauHoiTab({
         </div>
 
         {/* ══ RIGHT CONTENT ══ */}
-        <div className="lg:col-span-4 flex flex-col space-y-4" id="tham-dinh-right-content">
+        <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="tham-dinh-right-content">
 
           {/* ── Search card ── */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">

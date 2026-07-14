@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Switch, Button, ConfigProvider, DatePicker } from 'antd';
 import dayjs from 'dayjs';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -35,6 +36,7 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
         NgayHieuLuc: dates,
         GhiChu: record.GhiChu || '',
         isActive: record.IsActive,
+        CreatedAt: formatDateTime(record.CreatedAt),
       });
     } else if (!open) {
       form.resetFields();
@@ -119,6 +121,13 @@ export default function DetailDotThiModal({ open, onClose, record }: DetailDotTh
                 {record?.IsActive === false ? 'Không hoạt động' : 'Hoạt động'}
               </span>
             </div>
+          </Form.Item>
+
+          <Form.Item
+            name="CreatedAt"
+            label={<span className="text-gray-700 font-medium text-[15px]">Ngày tạo</span>}
+          >
+            <Input disabled className="h-[42px] text-base text-gray-800 cursor-default bg-gray-50 font-medium" />
           </Form.Item>
 
           <div className="flex justify-center gap-4 mt-10 pt-5 border-t border-gray-200">

@@ -12,11 +12,15 @@ class User(Base):
 
     id = Column(String(255), primary_key=True)  # Khóa chính: ID định danh duy nhất của người dùng
     username = Column(String(100), unique=True, nullable=False)  # Tên đăng nhập (duy nhất)
-    email = Column(String(255), unique=True, nullable=False)  # Địa chỉ email (duy nhất)
+    email = Column(String(255), nullable=True)  # Địa chỉ email
     fullName = Column(String(255), nullable=False)  # Họ và tên đầy đủ của người dùng
     password_hash = Column(String(255), nullable=False)  # Mật khẩu đã được mã hóa (Hash)
     role = Column(String(50), default="teacher")  # Vai trò chính của người dùng (vd: admin, reviewer, teacher, student)
-    position = Column(String(100), nullable=True)  # Chức vụ hiện tại (vd: Trưởng phòng, Giáo viên)
+    position = Column(String(100), nullable=True)
+    dateOfBirth = Column(String(50), nullable=True)
+    phoneNumber = Column(String(20), nullable=True)
+    gender = Column(String(20), nullable=True)
+    subjects = Column(Text, nullable=True)  # Store subjects as JSON string or comma-separated  # Chức vụ hiện tại (vd: Trưởng phòng, Giáo viên)
     status = Column(String(50), default="active")  # Trạng thái tài khoản (vd: active, inactive, locked)
     createdAt = Column(String(100), nullable=False)  # Thời gian tạo tài khoản
 

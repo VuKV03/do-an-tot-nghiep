@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Button } from 'antd';
+import { RichTextView } from '../../../utils/htmlContent';
 
 interface ModalChiTietCauHoiProps {
   open: boolean;
@@ -32,7 +33,7 @@ export default function ModalChiTietCauHoi({ open, question, onClose }: ModalChi
 
   const rows = [
     { label: 'Mã câu hỏi', value: question.code || question.id },
-    { label: 'Nội dung câu hỏi', value: question.text },
+    { label: 'Nội dung câu hỏi', value: question.text, isHtml: true },
     { label: 'Loại câu hỏi', value: getTypeLabel(question.type) },
     { label: 'Mức độ câu hỏi', value: getLevelLabel(question.level) },
     { label: 'Thành phần năng lực', value: question.competency || '—' },
@@ -60,7 +61,7 @@ export default function ModalChiTietCauHoi({ open, question, onClose }: ModalChi
             <div key={idx}>
               <div className="text-[11px] text-slate-400 font-medium mb-0.5">{row.label}</div>
               <div className="text-xs text-slate-800 font-semibold bg-slate-50 border border-slate-200 rounded px-3 py-2">
-                {row.value}
+                {row.isHtml ? <RichTextView html={row.value} /> : row.value}
               </div>
             </div>
           ))}

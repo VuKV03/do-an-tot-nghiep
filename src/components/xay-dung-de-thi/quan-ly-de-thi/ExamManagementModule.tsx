@@ -42,6 +42,7 @@ import {
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
+import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalAddGoiDeThiNew from './ModalAddGoiDeThiNew';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
@@ -132,10 +133,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   // Filter computations
   const filteredExamVariants = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
-      const matchesSearch = e.name.toLowerCase().includes(examSearch.toLowerCase()) || e.code.toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
       const matchesSubject = examSubject === 'all' || e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
@@ -144,9 +146,10 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   }, [exams, examSearch, examSubject, examGrade, examStatus]);
 
   const filteredExamRoots = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
       const isRoot = e.source !== 'ai';
-      const matchesSearch = (e.name || '').toLowerCase().includes(examSearch.toLowerCase()) || (e.code || '').toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = (e.name || '').toLowerCase().includes(kw) || (e.code || '').toLowerCase().includes(kw);
       const matchesSubject = examSubject === 'all' || e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isRoot && matchesSearch && matchesSubject && matchesStatus;
@@ -284,51 +287,14 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
     setViewLoading(false);
   };
 
-  // Trước đây file xuất chỉ là text thuần đổi đuôi .docx — Word không mở được (báo lỗi/hỏng file).
-  // Sinh RTF thật (định dạng Word hiểu trực tiếp, không cần thư viện ngoài); escape ký tự có dấu
-  // tiếng Việt theo \uN? vì RTF gốc chỉ hỗ trợ 7-bit ASCII.
-  const escapeRtf = (text: string): string => {
-    let out = '';
-    for (const ch of String(text ?? '')) {
-      const code = ch.codePointAt(0)!;
-      if (ch === '\\' || ch === '{' || ch === '}') out += '\\' + ch;
-      else if (ch === '\n') out += '\\par ';
-      else if (code < 128) out += ch;
-      else out += `\\u${code > 32767 ? code - 65536 : code}?`;
-    }
-    return out;
-  };
-
-  const buildExamRtf = (exam: any, questions: Question[]): string => {
-    const parts: string[] = [
-      `{\\b\\fs28 ${escapeRtf('ĐỀ THI TRẮC NGHIỆM')}}\\par`,
-      `{\\b ${escapeRtf(`Môn: ${exam.subject}`)}}\\par`,
-      `{\\b ${escapeRtf(`Khối: ${exam.grade}`)}}\\par`,
-      '\\par',
-    ];
-    questions.forEach((q, i) => {
-      parts.push(`{\\b ${escapeRtf(`Câu ${i + 1}:`)}} ${escapeRtf(q.text)}\\par`);
-      (q.options || []).forEach((opt, oi) => {
-        parts.push(`${escapeRtf(`${String.fromCharCode(65 + oi)}. ${opt}`)}\\par`);
-      });
-      const answer = Array.isArray(q.correctAnswer) ? q.correctAnswer.join(', ') : q.correctAnswer;
-      parts.push(`{\\i ${escapeRtf(`Đáp án: ${answer ?? ''}`)}}\\par`);
-      parts.push('\\par');
-    });
-    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24 ${parts.join('\n')}}`;
-  };
-
-  // Word export trigger
+  // Word export trigger — file .docx thật (OOXML, thư viện `docx`), không còn là RTF đổi đuôi
+  // như trước (mở được trên Word desktop nhờ tự nhận diện nội dung, nhưng không phải file Word
+  // chuẩn nên có thể lỗi/cảnh báo trên Word Online, LibreOffice, Google Docs...).
   const handleExportWord = async (exam: any) => {
     message.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
     const questions = await fetchExamQuestions(exam.id);
-    const element = document.createElement("a");
-    const file = new Blob([buildExamRtf(exam, questions)], { type: 'application/msword' });
-    element.href = URL.createObjectURL(file);
-    element.download = `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}.doc`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions);
+    triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');
     message.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
 

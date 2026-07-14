@@ -44,6 +44,7 @@ import {
   DatabaseOutlined
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES } from '../data';
+import { RichTextView } from '../utils/htmlContent';
 
 interface ExamPackageModuleProps {
   onNavigateTab: (key: string) => void;
@@ -175,9 +176,10 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
 
   // Filter computations for Exams
   const filteredExams = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
-      const matchesSearch = e.name.toLowerCase().includes(examSearch.toLowerCase()) || 
-                            e.code.toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = e.name.toLowerCase().includes(kw) ||
+                            e.code.toLowerCase().includes(kw);
       const matchesSubject = examSubjectFilter === 'all' || e.subject === examSubjectFilter;
       const matchesGrade = examGradeFilter === 'all' || e.grade === examGradeFilter;
       const matchesStatus = examStatusFilter === 'all' || e.status === examStatusFilter;
@@ -187,9 +189,10 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
 
   // Filter computations for Packages
   const filteredPackages = useMemo(() => {
+    const kw = pkgSearch.trim().toLowerCase();
     return packages.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(pkgSearch.toLowerCase()) ||
-                            p.code.toLowerCase().includes(pkgSearch.toLowerCase());
+      const matchesSearch = p.name.toLowerCase().includes(kw) ||
+                            p.code.toLowerCase().includes(kw);
       const matchesSubject = pkgSubjectFilter === 'all' || p.subject === pkgSubjectFilter;
       return matchesSearch && matchesSubject;
     });
@@ -1248,8 +1251,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                 ) : (
                   selectedExam.questions.map((q, id) => (
                     <div key={id} className="bg-white border rounded-2xl p-4 space-y-2 text-xs">
-                      <div className="flex justify-between items-start">
-                        <strong className="text-slate-800">Câu hỏi {id + 1}: {q.text}</strong>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="text-slate-800 flex-1">
+                          <strong>Câu hỏi {id + 1}:</strong>
+                          <RichTextView html={q.text} />
+                        </div>
                         <Tag color={q.level === 'nhan_biet' || q.level === 'easy' ? 'blue' : 'orange'} className="rounded-md font-bold text-[8px] uppercase m-0 border-transparent">
                           {q.level === 'easy' || q.level === 'nhan_biet' ? 'Nhận biết' : 'Yêu cầu Vận Dụng'}
                         </Tag>

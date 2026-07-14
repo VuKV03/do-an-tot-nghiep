@@ -157,36 +157,40 @@ export default function CategoryAdminModule({
 
   // Filter computations
   const filteredSubjects = useMemo(() => {
+    const kw = subjectSearch.trim().toLowerCase();
     return subjects.filter(s => {
-      const matchSearch = s.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
-                          s.code.toLowerCase().includes(subjectSearch.toLowerCase()) ||
-                          s.description.toLowerCase().includes(subjectSearch.toLowerCase());
+      const matchSearch = s.name.toLowerCase().includes(kw) ||
+                          s.code.toLowerCase().includes(kw) ||
+                          s.description.toLowerCase().includes(kw);
       const matchDept = subjectDeptFilter === 'all' || s.department === subjectDeptFilter;
       return matchSearch && matchDept;
     });
   }, [subjects, subjectSearch, subjectDeptFilter]);
 
   const filteredGrades = useMemo(() => {
+    const kw = gradeSearch.trim().toLowerCase();
     return grades.filter(g => {
-      return g.name.toLowerCase().includes(gradeSearch.toLowerCase()) ||
-             g.code.toLowerCase().includes(gradeSearch.toLowerCase()) ||
-             g.description.toLowerCase().includes(gradeSearch.toLowerCase());
+      return g.name.toLowerCase().includes(kw) ||
+             g.code.toLowerCase().includes(kw) ||
+             g.description.toLowerCase().includes(kw);
     }).sort((a,b) => a.displayOrder - b.displayOrder);
   }, [grades, gradeSearch]);
 
   const filteredLevels = useMemo(() => {
+    const kw = levelSearch.trim().toLowerCase();
     return levels.filter(l => {
-      return l.name.toLowerCase().includes(levelSearch.toLowerCase()) ||
-             l.code.toLowerCase().includes(levelSearch.toLowerCase()) ||
-             l.description.toLowerCase().includes(levelSearch.toLowerCase());
+      return l.name.toLowerCase().includes(kw) ||
+             l.code.toLowerCase().includes(kw) ||
+             l.description.toLowerCase().includes(kw);
     });
   }, [levels, levelSearch]);
 
   const filteredQuestionTypes = useMemo(() => {
+    const kw = typeSearch.trim().toLowerCase();
     return questionTypes.filter(t => {
-      return t.name.toLowerCase().includes(typeSearch.toLowerCase()) ||
-             t.code.toLowerCase().includes(typeSearch.toLowerCase()) ||
-             t.description.toLowerCase().includes(typeSearch.toLowerCase());
+      return t.name.toLowerCase().includes(kw) ||
+             t.code.toLowerCase().includes(kw) ||
+             t.description.toLowerCase().includes(kw);
     });
   }, [questionTypes, typeSearch]);
 

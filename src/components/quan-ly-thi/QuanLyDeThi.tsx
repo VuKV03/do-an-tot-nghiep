@@ -114,9 +114,10 @@ export default function QuanLyDeThi() {
   };
 
   const filteredExams = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
-      const matchesSearch = e.name.toLowerCase().includes(examSearch.toLowerCase()) ||
-        e.code.toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = e.name.toLowerCase().includes(kw) ||
+        e.code.toLowerCase().includes(kw);
       const matchesSubject = examSubjectFilter === 'all' || e.subject === examSubjectFilter;
       const matchesGrade = examGradeFilter === 'all' || e.grade === examGradeFilter;
       return matchesSearch && matchesSubject && matchesGrade;

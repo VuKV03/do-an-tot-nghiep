@@ -18,14 +18,9 @@ from pydantic import BaseModel
 
 from backend.shared.database import get_db
 from backend.exam_service.models import MatrixConfig
+from backend.exam_service.reference_guard import SUBJECT_MAP
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
-
-SUBJECT_MAP = {
-    "mh-toan": "Toán học",
-    "mh-ly": "Vật lí",
-    "mh-anh": "Tiếng Anh",
-}
 
 
 # ─── Pydantic Schemas ───────────────────────────────────────────────

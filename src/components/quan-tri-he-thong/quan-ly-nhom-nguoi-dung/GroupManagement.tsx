@@ -53,8 +53,8 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   // Lọc danh sách nhóm người dùng dựa trên từ khóa tìm kiếm (Mã nhóm và Tên nhóm)
   const filteredGroups = useMemo(() => {
     return userGroups.filter(g => {
-      const matchCode = g.code.toLowerCase().includes(searchCode.toLowerCase());
-      const matchName = g.name.toLowerCase().includes(searchName.toLowerCase());
+      const matchCode = g.code.toLowerCase().includes(searchCode.trim().toLowerCase());
+      const matchName = g.name.toLowerCase().includes(searchName.trim().toLowerCase());
       return matchCode && matchName;
     });
   }, [userGroups, searchCode, searchName]);

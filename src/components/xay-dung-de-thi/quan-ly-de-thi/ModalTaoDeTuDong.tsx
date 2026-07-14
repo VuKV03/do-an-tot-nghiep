@@ -10,6 +10,7 @@ import {
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/mockData';
 import ExamContentDisplay from './ExamContentDisplay';
+import RichTextEditor from '../../RichTextEditor';
 
 interface ModalTaoDeTuDongProps {
   open: boolean;
@@ -716,328 +717,328 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
 
   return (
     <>
-    <Modal
-      title={
-        <div className="border-b pb-2 flex items-center gap-1.5">
-          <ThunderboltOutlined className="text-[#1a3c8b]" />
-          <span className="font-bold text-sm text-[#1a3c8b] italic">Thêm mới tự động</span>
-        </div>
-      }
-      open={open}
-      onCancel={() => { if (!generating && !saving) onCancel(); }}
-      footer={footer}
-      centered
-      width={860}
-    >
-      <div className="pt-3">
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-slate-700 mb-1">Nguồn sinh đề</label>
-          <Segmented
-            block
-            value={sourceMode}
-            onChange={(v) => handleChangeSourceMode(v as SourceMode)}
-            options={[
-              { label: 'Theo ma trận đề', value: 'matrix' },
-              { label: 'Theo cấu hình môn học (AI)', value: 'ai_config' },
-            ]}
-          />
-        </div>
-
-        <Steps
-          current={step}
-          size="small"
-          className="mb-6 font-semibold text-xs"
-          items={stepsItems}
-        />
-
-        <div style={{ minHeight: 520 }}>
-        {sourceMode === 'matrix' && step === 0 && (
-          <div className="animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
-                <Select
-                  placeholder="Chọn môn học" className="w-full text-xs"
-                  value={selectedSubjectId} onChange={setSelectedSubjectId}
-                  options={subjects.map(s => ({ value: s.id, label: s.name }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
-                <Select
-                  placeholder="Chọn khối lớp" className="w-full text-xs"
-                  value={selectedGradeId} onChange={setSelectedGradeId}
-                  options={grades.map(g => ({ value: g.id, label: g.name }))}
-                />
-              </div>
-            </div>
-
-            {selectedSubjectId && selectedGradeId && (
-              <>
-                <div className="mb-2 text-xs text-slate-500">
-                  Chủ đề & tiểu mục của môn <strong>{selectedSubject?.name}</strong> — tick để chọn phạm vi sinh đề (cấu trúc phân cấp cha/con).
-                </div>
-                <Input size="small" placeholder="Tìm kiếm chủ đề..." prefix={<SearchOutlined className="text-slate-400" />}
-                  className="text-xs mb-2" value={searchTopic} onChange={e => setSearchTopic(e.target.value)} allowClear />
-                <div className="border border-slate-200 rounded p-2 overflow-y-auto" style={{ maxHeight: 420 }}>
-                  {loadingTopics ? (
-                    <div className="py-8 text-center"><Spin /></div>
-                  ) : antTreeData.length > 0 ? (
-                    <Tree
-                      checkable blockNode
-                      treeData={filteredTreeData}
-                      checkedKeys={checkedTopicKeys}
-                      onCheck={(keys) => setCheckedTopicKeys(Array.isArray(keys) ? keys : keys.checked)}
-                      className="text-xs"
-                    />
-                  ) : (
-                    <Empty description="Môn học này chưa có chủ đề nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                  )}
-                </div>
-              </>
-            )}
+      <Modal
+        title={
+          <div className="border-b pb-2 flex items-center gap-1.5">
+            <ThunderboltOutlined className="text-[#1a3c8b]" />
+            <span className="font-bold text-sm text-[#1a3c8b] italic">Thêm mới tự động theo ma trận</span>
           </div>
-        )}
+        }
+        open={open}
+        onCancel={() => { if (!generating && !saving) onCancel(); }}
+        footer={footer}
+        centered
+        width={860}
+      >
+        <div className="pt-3">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-700 mb-1">Nguồn sinh đề</label>
+            <Segmented
+              block
+              value={sourceMode}
+              onChange={(v) => handleChangeSourceMode(v as SourceMode)}
+              options={[
+                { label: 'Theo ngân hàng câu hỏi', value: 'matrix' },
+                { label: 'Theo AI', value: 'ai_config' },
+              ]}
+            />
+          </div>
 
-        {sourceMode === 'matrix' && step === 1 && (
-          <div className="animate-in fade-in duration-300">
-            <div className="mb-2 text-xs text-slate-500">
-              Ma trận đề của môn <strong>{selectedSubject?.name}</strong> — chỉ những tiểu mục đã tick ở Bước 1 sẽ được dùng để sinh đề.
-            </div>
-            {loadingMatrices ? (
-              <div className="py-8 text-center"><Spin /></div>
-            ) : matrices.length === 0 ? (
-              <Empty description="Chưa có ma trận đề nào cho môn này — vui lòng tạo ma trận trước." />
-            ) : (
-              <div className="border border-slate-200 rounded divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 420 }}>
-                {matrices.map((m) => (
-                  <div
-                    key={m.id}
-                    onClick={() => handleSelectMatrix(m.id)}
-                    className={`p-3 cursor-pointer text-xs flex items-center justify-between hover:bg-slate-50 ${selectedMatrixId === m.id ? 'bg-blue-50/60' : ''}`}
-                  >
-                    <div>
-                      <div className="font-semibold text-slate-800">{m.name} <span className="text-slate-400 font-mono ml-1">({m.code})</span></div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Tổng {m.totalQuestions || 0} câu · {m.totalScore || 0} điểm · {m.duration || 90} phút</div>
-                    </div>
-                    <input type="radio" readOnly checked={selectedMatrixId === m.id} className="accent-[#2c3e9e]" />
+          <Steps
+            current={step}
+            size="small"
+            className="mb-6 font-semibold text-xs"
+            items={stepsItems}
+          />
+
+          <div style={{ minHeight: 520 }}>
+            {sourceMode === 'matrix' && step === 0 && (
+              <div className="animate-in fade-in duration-300">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
+                    <Select
+                      placeholder="Chọn môn học" className="w-full text-xs"
+                      value={selectedSubjectId} onChange={setSelectedSubjectId}
+                      options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
+                    <Select
+                      placeholder="Chọn khối lớp" className="w-full text-xs"
+                      value={selectedGradeId} onChange={setSelectedGradeId}
+                      options={grades.map(g => ({ value: g.id, label: g.name }))}
+                    />
+                  </div>
+                </div>
+
+                {selectedSubjectId && selectedGradeId && (
+                  <>
+                    <div className="mb-2 text-xs text-slate-500">
+                      Chủ đề & tiểu mục của môn <strong>{selectedSubject?.name}</strong> — tick để chọn phạm vi sinh đề (cấu trúc phân cấp cha/con).
+                    </div>
+                    <Input size="small" placeholder="Tìm kiếm chủ đề..." prefix={<SearchOutlined className="text-slate-400" />}
+                      className="text-xs mb-2" value={searchTopic} onChange={e => setSearchTopic(e.target.value)} allowClear />
+                    <div className="border border-slate-200 rounded p-2 overflow-y-auto" style={{ maxHeight: 420 }}>
+                      {loadingTopics ? (
+                        <div className="py-8 text-center"><Spin /></div>
+                      ) : antTreeData.length > 0 ? (
+                        <Tree
+                          checkable blockNode
+                          treeData={filteredTreeData}
+                          checkedKeys={checkedTopicKeys}
+                          onCheck={(keys) => setCheckedTopicKeys(Array.isArray(keys) ? keys : keys.checked)}
+                          className="text-xs"
+                        />
+                      ) : (
+                        <Empty description="Môn học này chưa có chủ đề nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
-            {loadingMatrixDetail && <div className="py-3 text-center"><Spin size="small" /></div>}
-            {selectedMatrixId && !loadingMatrixDetail && scopedRows.length === 0 && (
-              <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
-                <div>
-                  Ma trận này không có tiểu mục nào trùng với chủ đề đã chọn ở Bước 1 — vui lòng chọn ma trận khác hoặc quay lại Bước 1 để tick thêm tiểu mục.
+
+            {sourceMode === 'matrix' && step === 1 && (
+              <div className="animate-in fade-in duration-300">
+                <div className="mb-2 text-xs text-slate-500">
+                  Ma trận đề của môn <strong>{selectedSubject?.name}</strong> — chỉ những tiểu mục đã tick ở Bước 1 sẽ được dùng để sinh đề.
                 </div>
-                {expectedTopicNames.length > 0 && (
-                  <div className="mt-1.5 text-slate-600">
-                    Ma trận này yêu cầu các tiểu mục: <strong>{expectedTopicNames.join(', ')}</strong>.
+                {loadingMatrices ? (
+                  <div className="py-8 text-center"><Spin /></div>
+                ) : matrices.length === 0 ? (
+                  <Empty description="Chưa có ma trận đề nào cho môn này — vui lòng tạo ma trận trước." />
+                ) : (
+                  <div className="border border-slate-200 rounded divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 420 }}>
+                    {matrices.map((m) => (
+                      <div
+                        key={m.id}
+                        onClick={() => handleSelectMatrix(m.id)}
+                        className={`p-3 cursor-pointer text-xs flex items-center justify-between hover:bg-slate-50 ${selectedMatrixId === m.id ? 'bg-blue-50/60' : ''}`}
+                      >
+                        <div>
+                          <div className="font-semibold text-slate-800">{m.name} <span className="text-slate-400 font-mono ml-1">({m.code})</span></div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">Tổng {m.totalQuestions || 0} câu · {m.totalScore || 0} điểm · {m.duration || 90} phút</div>
+                        </div>
+                        <input type="radio" readOnly checked={selectedMatrixId === m.id} className="accent-[#2c3e9e]" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {loadingMatrixDetail && <div className="py-3 text-center"><Spin size="small" /></div>}
+                {selectedMatrixId && !loadingMatrixDetail && scopedRows.length === 0 && (
+                  <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
+                    <div>
+                      Ma trận này không có tiểu mục nào trùng với chủ đề đã chọn ở Bước 1 — vui lòng chọn ma trận khác hoặc quay lại Bước 1 để tick thêm tiểu mục.
+                    </div>
+                    {expectedTopicNames.length > 0 && (
+                      <div className="mt-1.5 text-slate-600">
+                        Ma trận này yêu cầu các tiểu mục: <strong>{expectedTopicNames.join(', ')}</strong>.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
-          </div>
-        )}
 
-        {sourceMode === 'ai_config' && step === 0 && (
-          <div className="animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
-                <Select
-                  placeholder="Chọn môn học" className="w-full text-xs"
-                  value={selectedSubjectId} onChange={setSelectedSubjectId}
-                  options={subjects.map(s => ({ value: s.id, label: s.name }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
-                <Select
-                  placeholder="Chọn khối lớp" className="w-full text-xs"
-                  value={selectedGradeId} onChange={setSelectedGradeId}
-                  options={grades.map(g => ({ value: g.id, label: g.name }))}
-                />
-              </div>
-            </div>
+            {sourceMode === 'ai_config' && step === 0 && (
+              <div className="animate-in fade-in duration-300">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
+                    <Select
+                      placeholder="Chọn môn học" className="w-full text-xs"
+                      value={selectedSubjectId} onChange={setSelectedSubjectId}
+                      options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Khối lớp <span className="text-red-500">*</span></label>
+                    <Select
+                      placeholder="Chọn khối lớp" className="w-full text-xs"
+                      value={selectedGradeId} onChange={setSelectedGradeId}
+                      options={grades.map(g => ({ value: g.id, label: g.name }))}
+                    />
+                  </div>
+                </div>
 
-            {selectedSubjectId && (
-              loadingSubjectConfig ? (
-                <div className="py-8 text-center"><Spin /></div>
-              ) : configParts.length === 0 ? (
-                <Empty description={`Môn ${selectedSubject?.name} chưa có Cấu hình môn học hợp lệ (Phần I/II/III) — vui lòng cấu hình ở "Danh mục môn học" trước.`} />
-              ) : (
-                <div className="border border-slate-200 rounded divide-y divide-slate-100">
-                  {configParts.map(p => (
-                    <div key={p.key} className="p-3 text-xs flex items-center justify-between">
-                      <span className="font-semibold text-slate-800">{p.content}</span>
-                      <Tag color="blue" className="rounded-md font-bold text-[10px] m-0 border-transparent">{p.count} câu</Tag>
+                {selectedSubjectId && (
+                  loadingSubjectConfig ? (
+                    <div className="py-8 text-center"><Spin /></div>
+                  ) : configParts.length === 0 ? (
+                    <Empty description={`Môn ${selectedSubject?.name} chưa có Cấu hình môn học hợp lệ (Phần I/II/III) — vui lòng cấu hình ở "Danh mục môn học" trước.`} />
+                  ) : (
+                    <div className="border border-slate-200 rounded divide-y divide-slate-100">
+                      {configParts.map(p => (
+                        <div key={p.key} className="p-3 text-xs flex items-center justify-between">
+                          <span className="font-semibold text-slate-800">{p.content}</span>
+                          <Tag color="blue" className="rounded-md font-bold text-[10px] m-0 border-transparent">{p.count} câu</Tag>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )
+                )}
+              </div>
+            )}
+
+            {step === finalStepIndex && (
+              <div className="animate-in fade-in duration-300">
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Tên đề thi <span className="text-red-500">*</span></label>
+                    <Input placeholder="Nhập tên đề thi" className="text-xs" value={examName} onChange={e => setExamName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Mã đề (tuỳ chọn)</label>
+                    <Input placeholder="Tự sinh nếu để trống" className="text-xs" value={examCode} onChange={e => setExamCode(e.target.value)} />
+                  </div>
                 </div>
-              )
+
+                {generating ? (
+                  <div className="py-16 text-center">
+                    <Spin />
+                    <p className="text-xs text-slate-400 font-semibold mt-2">
+                      {sourceMode === 'matrix'
+                        ? 'Đang chọn ngẫu nhiên câu hỏi từ Ngân hàng câu hỏi...'
+                        : 'Đang sinh câu hỏi mới bằng AI theo Cấu hình môn học...'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag color={isUnderfilled ? 'warning' : 'success'} className="rounded-full font-bold text-[11px] px-3 py-1 border-transparent">
+                        {sourceMode === 'matrix'
+                          ? `Đã chọn ${totalFound}/${totalRequested} câu theo ma trận`
+                          : `AI đã sinh ${totalFound}/${totalRequested} câu theo Cấu hình môn học`}
+                      </Tag>
+                      {sourceMode === 'matrix' && underfilledCount > 0 && (
+                        <Tooltip title="Ngân hàng câu hỏi chưa đủ số câu cho một số ô của ma trận (chủ đề/mức độ/loại câu hỏi tương ứng) — có thể bấm Sinh lại hoặc bổ sung thêm câu hỏi vào ngân hàng.">
+                          <span className="text-[11px] text-amber-600 font-semibold cursor-help">
+                            ⚠ {underfilledCount} ô chưa đủ số câu yêu cầu
+                          </span>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <ExamContentDisplay
+                      questions={genQuestions}
+                      allowEdit
+                      regeneratingIndex={regeneratingIndex}
+                      onReplaceQuestion={handleReplaceQuestion}
+                      onEditQuestion={handleEditQuestion}
+                    />
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
+      </Modal>
 
-        {step === finalStepIndex && (
-          <div className="animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Tên đề thi <span className="text-red-500">*</span></label>
-                <Input placeholder="Nhập tên đề thi" className="text-xs" value={examName} onChange={e => setExamName(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Mã đề (tuỳ chọn)</label>
-                <Input placeholder="Tự sinh nếu để trống" className="text-xs" value={examCode} onChange={e => setExamCode(e.target.value)} />
-              </div>
+      <Modal
+        title="Sửa nội dung câu hỏi"
+        open={editingIndex !== null}
+        onCancel={handleCancelEditQuestion}
+        onOk={handleSaveEditedQuestion}
+        okText="Lưu"
+        cancelText="Hủy"
+        width={640}
+        centered
+        destroyOnHidden
+      >
+        {editingDraft && (
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
+              <RichTextEditor
+                minHeight={70}
+                value={editingDraft.text}
+                onChange={(html) => setEditingDraft(prev => (prev ? { ...prev, text: html } : prev))}
+              />
             </div>
 
-            {generating ? (
-              <div className="py-16 text-center">
-                <Spin />
-                <p className="text-xs text-slate-400 font-semibold mt-2">
-                  {sourceMode === 'matrix'
-                    ? 'Đang chọn ngẫu nhiên câu hỏi từ Ngân hàng câu hỏi...'
-                    : 'Đang sinh câu hỏi mới bằng AI theo Cấu hình môn học...'}
-                </p>
+            {editingDraft.type === 'single' && (
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Các phương án (chọn đáp án đúng)</label>
+                <Radio.Group
+                  value={editingDraft.correctAnswer as string}
+                  onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
+                  className="w-full"
+                >
+                  <div className="space-y-2">
+                    {(editingDraft.options || []).map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Radio value={opt} />
+                        <Input
+                          value={opt}
+                          onChange={e => setEditingDraft(prev => {
+                            if (!prev) return prev;
+                            const options = [...(prev.options || [])];
+                            const wasCorrect = prev.correctAnswer === options[idx];
+                            options[idx] = e.target.value;
+                            return { ...prev, options, correctAnswer: wasCorrect ? e.target.value : prev.correctAnswer };
+                          })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Radio.Group>
               </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <Tag color={isUnderfilled ? 'warning' : 'success'} className="rounded-full font-bold text-[11px] px-3 py-1 border-transparent">
-                    {sourceMode === 'matrix'
-                      ? `Đã chọn ${totalFound}/${totalRequested} câu theo ma trận`
-                      : `AI đã sinh ${totalFound}/${totalRequested} câu theo Cấu hình môn học`}
-                  </Tag>
-                  {sourceMode === 'matrix' && underfilledCount > 0 && (
-                    <Tooltip title="Ngân hàng câu hỏi chưa đủ số câu cho một số ô của ma trận (chủ đề/mức độ/loại câu hỏi tương ứng) — có thể bấm Sinh lại hoặc bổ sung thêm câu hỏi vào ngân hàng.">
-                      <span className="text-[11px] text-amber-600 font-semibold cursor-help">
-                        ⚠ {underfilledCount} ô chưa đủ số câu yêu cầu
-                      </span>
-                    </Tooltip>
-                  )}
-                </div>
-                <ExamContentDisplay
-                  questions={genQuestions}
-                  allowEdit
-                  regeneratingIndex={regeneratingIndex}
-                  onReplaceQuestion={handleReplaceQuestion}
-                  onEditQuestion={handleEditQuestion}
-                />
-              </>
             )}
-          </div>
-        )}
-        </div>
-      </div>
-    </Modal>
 
-    <Modal
-      title="Sửa nội dung câu hỏi"
-      open={editingIndex !== null}
-      onCancel={handleCancelEditQuestion}
-      onOk={handleSaveEditedQuestion}
-      okText="Lưu"
-      cancelText="Hủy"
-      width={640}
-      centered
-      destroyOnHidden
-    >
-      {editingDraft && (
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Nội dung câu hỏi</label>
-            <Input.TextArea
-              rows={3}
-              value={editingDraft.text}
-              onChange={e => setEditingDraft(prev => (prev ? { ...prev, text: e.target.value } : prev))}
-            />
-          </div>
-
-          {editingDraft.type === 'single' && (
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Các phương án (chọn đáp án đúng)</label>
-              <Radio.Group
-                value={editingDraft.correctAnswer as string}
-                onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
-                className="w-full"
-              >
+            {editingDraft.type === 'true_false' && (
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Các ý nhận định (a, b, c, d)</label>
                 <div className="space-y-2">
-                  {(editingDraft.options || []).map((opt, idx) => (
+                  {(editingDraft.statements || []).map((st, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <Radio value={opt} />
+                      <span className="w-5 text-slate-400 font-bold">{String.fromCharCode(97 + idx)})</span>
                       <Input
-                        value={opt}
+                        value={st.content}
                         onChange={e => setEditingDraft(prev => {
-                          if (!prev) return prev;
-                          const options = [...(prev.options || [])];
-                          const wasCorrect = prev.correctAnswer === options[idx];
-                          options[idx] = e.target.value;
-                          return { ...prev, options, correctAnswer: wasCorrect ? e.target.value : prev.correctAnswer };
+                          if (!prev || !prev.statements) return prev;
+                          const statements = prev.statements.map((s, i) => (i === idx ? { ...s, content: e.target.value } : s));
+                          return {
+                            ...prev,
+                            statements,
+                            options: statements.map(s => s.content),
+                            correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
+                          };
+                        })}
+                      />
+                      <Switch
+                        checked={st.isCorrect}
+                        checkedChildren="Đúng"
+                        unCheckedChildren="Sai"
+                        onChange={checked => setEditingDraft(prev => {
+                          if (!prev || !prev.statements) return prev;
+                          const statements = prev.statements.map((s, i) => (i === idx ? { ...s, isCorrect: checked } : s));
+                          return {
+                            ...prev,
+                            statements,
+                            correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
+                          };
                         })}
                       />
                     </div>
                   ))}
                 </div>
-              </Radio.Group>
-            </div>
-          )}
-
-          {editingDraft.type === 'true_false' && (
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Các ý nhận định (a, b, c, d)</label>
-              <div className="space-y-2">
-                {(editingDraft.statements || []).map((st, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="w-5 text-slate-400 font-bold">{String.fromCharCode(97 + idx)})</span>
-                    <Input
-                      value={st.content}
-                      onChange={e => setEditingDraft(prev => {
-                        if (!prev || !prev.statements) return prev;
-                        const statements = prev.statements.map((s, i) => (i === idx ? { ...s, content: e.target.value } : s));
-                        return {
-                          ...prev,
-                          statements,
-                          options: statements.map(s => s.content),
-                          correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
-                        };
-                      })}
-                    />
-                    <Switch
-                      checked={st.isCorrect}
-                      checkedChildren="Đúng"
-                      unCheckedChildren="Sai"
-                      onChange={checked => setEditingDraft(prev => {
-                        if (!prev || !prev.statements) return prev;
-                        const statements = prev.statements.map((s, i) => (i === idx ? { ...s, isCorrect: checked } : s));
-                        return {
-                          ...prev,
-                          statements,
-                          correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
-                        };
-                      })}
-                    />
-                  </div>
-                ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {editingDraft.type === 'short' && (
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
-              <Input.TextArea
-                rows={2}
-                value={editingDraft.correctAnswer as string}
-                onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
-              />
-            </div>
-          )}
-        </div>
-      )}
-    </Modal>
+            {editingDraft.type === 'short' && (
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
+                <Input.TextArea
+                  rows={2}
+                  value={editingDraft.correctAnswer as string}
+                  onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

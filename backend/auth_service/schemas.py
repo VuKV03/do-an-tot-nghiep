@@ -2,8 +2,9 @@
 Pydantic schemas for the Auth Service.
 """
 # pyrefly: ignore [missing-import]
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
+import json
 
 
 class LoginRequest(BaseModel):
@@ -21,12 +22,16 @@ class LoginResponse(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str
-    email: str
+    email: Optional[str] = None
     fullName: str
     password: str
     role: Optional[str] = "teacher"
     position: Optional[str] = None
     groups: Optional[list[str]] = None
+    dateOfBirth: Optional[str] = None
+    phoneNumber: Optional[str] = None
+    gender: Optional[str] = None
+    subjects: Optional[list[str]] = None
 
 
 class UpdateRequest(BaseModel):
@@ -37,6 +42,10 @@ class UpdateRequest(BaseModel):
     status: Optional[str] = None
     password: Optional[str] = None
     groups: Optional[list[str]] = None
+    dateOfBirth: Optional[str] = None
+    phoneNumber: Optional[str] = None
+    gender: Optional[str] = None
+    subjects: Optional[list[str]] = None
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
@@ -47,17 +56,29 @@ class UserGroupInfo(BaseModel):
     id: str
     code: str
     name: str
-
 class UserResponse(BaseModel):
     id: str
     username: str
-    email: str
+    email: Optional[str] = None
     fullName: str
     role: str
     position: Optional[str] = None
+    dateOfBirth: Optional[str] = None
+    phoneNumber: Optional[str] = None
+    gender: Optional[str] = None
+    subjects: Optional[list[str]] = None
     status: str
     createdAt: str
     groups: Optional[list[UserGroupInfo]] = []
+
+    @field_validator('subjects', mode='before')
+    def parse_subjects(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v
 
     model_config = {"from_attributes": True}
 

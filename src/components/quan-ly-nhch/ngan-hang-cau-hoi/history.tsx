@@ -147,9 +147,10 @@ export default function QuestionHistoryModal({
   const filteredRecords = useMemo(() => {
     return allRecords.filter((r) => {
       // 1. Text search on description or performer
-      if (appliedFilters.searchText) {
+      const kwSearchText = appliedFilters.searchText.trim();
+      if (kwSearchText) {
         const haystack = `${r.description} ${r.performer}`.toLowerCase();
-        if (!haystack.includes(appliedFilters.searchText.toLowerCase())) return false;
+        if (!haystack.includes(kwSearchText.toLowerCase())) return false;
       }
       // 2. Action filter
       if (appliedFilters.action !== 'all' && r.action !== appliedFilters.action) return false;

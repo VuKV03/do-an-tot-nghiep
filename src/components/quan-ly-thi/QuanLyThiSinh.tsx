@@ -90,10 +90,11 @@ export default function QuanLyThiSinh() {
   const filteredData = useMemo(() => {
     return data.filter(c => {
       // Filter by name, SBD, or CCCD
-      const textMatch = searchText.trim() === '' ||
-        c.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-        c.sbd.toLowerCase().includes(searchText.toLowerCase()) ||
-        c.cccd.toLowerCase().includes(searchText.toLowerCase());
+      const kwText = searchText.trim().toLowerCase();
+      const textMatch = kwText === '' ||
+        c.fullName.toLowerCase().includes(kwText) ||
+        c.sbd.toLowerCase().includes(kwText) ||
+        c.cccd.toLowerCase().includes(kwText);
 
       // Filter by session (kỳ thi)
       const sessionMatch = searchSession === 'all' || c.dotThi === searchSession;

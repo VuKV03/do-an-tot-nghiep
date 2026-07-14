@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from backend.shared.database import get_db
 from backend.exam_service.models import CompetencyComponent
+from backend.exam_service.reference_guard import assert_competency_component_deletable
 from backend.exam_service.schemas import (
     CompetencyComponentCreate, CompetencyComponentUpdate,
     CompetencyComponentResponse, CompetencyComponentListResponse,
@@ -128,6 +129,7 @@ async def delete_competency_component(item_id: str, db: AsyncSession = Depends(g
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy thành phần năng lực.")
+    await assert_competency_component_deletable(db, obj)
     name = obj.name
     await db.delete(obj)
     await db.commit()

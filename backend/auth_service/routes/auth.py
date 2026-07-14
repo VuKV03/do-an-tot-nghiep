@@ -83,10 +83,14 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 @router.post("/register", status_code=201)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Đăng ký tài khoản mới."""
+    # pyrefly: ignore [missing-import]
+    from sqlalchemy import or_
+    conditions = [User.username == body.username]
+    if body.email:
+        conditions.append(User.email == body.email)
+    
     # Check existing
-    existing = await db.execute(
-        select(User).where((User.username == body.username) | (User.email == body.email))
-    )
+    existing = await db.execute(select(User).where(or_(*conditions)))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Tên đăng nhập hoặc email đã tồn tại.")
 
@@ -99,7 +103,11 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         role=body.role or "teacher",
         status="active",
         createdAt=datetime.utcnow().isoformat() + "Z",
-        position=body.position
+        position=body.position,
+        dateOfBirth=body.dateOfBirth,
+        phoneNumber=body.phoneNumber,
+        gender=body.gender,
+        subjects=json.dumps(body.subjects) if body.subjects is not None else None
     )
     db.add(user)
     
@@ -183,6 +191,14 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
         user.role = body.role
     if body.position is not None:
         user.position = body.position
+    if body.dateOfBirth is not None:
+        user.dateOfBirth = body.dateOfBirth
+    if body.phoneNumber is not None:
+        user.phoneNumber = body.phoneNumber
+    if body.gender is not None:
+        user.gender = body.gender
+    if body.subjects is not None:
+        user.subjects = json.dumps(body.subjects)
     if body.status is not None:
         if user.username == "admin" and body.status != "active":
             raise HTTPException(status_code=403, detail="Không thể khóa tài khoản quản trị hệ thống gốc.")
@@ -262,6 +278,19 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
     # Prevent deletion of admin/teacher01 or self if needed (hardcode safety for seed users here if desired)
     if user.username in ["admin"]:
         raise HTTPException(status_code=403, detail="Không thể xóa tài khoản quản trị hệ thống gốc.")
+
+    # Check if user is in QTHT group
+    ugm_result = await db.execute(
+        select(UserGroup.code)
+        .join(UserGroupMember, UserGroupMember.group_id == UserGroup.id)
+        .where(UserGroupMember.user_id == user.id)
+    )
+    group_codes = [r[0] for r in ugm_result.all()]
+    if any(code in ["QTHT", "GRP_ADMIN"] for code in group_codes) or user.role == "admin":
+        raise HTTPException(status_code=403, detail="Không cho phép xóa nhóm QTHT")
+
+    # Delete related records
+    await db.execute(delete(UserGroupMember).where(UserGroupMember.user_id == user_id))
         
     await db.delete(user)
     await db.commit()

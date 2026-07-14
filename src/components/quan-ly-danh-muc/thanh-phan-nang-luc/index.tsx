@@ -3,6 +3,7 @@ import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Empty,
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { competencyComponentApi, subjectCategoryApi, type CompetencyComponentAPI, type SubjectCategoryAPI } from '../../../services/danhMucApi.ts';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -106,9 +107,13 @@ function DetailModal({ open, onClose, record, subjectOptions }: { open: boolean;
       <div className="bg-white rounded-lg shadow-xl w-[580px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Chi tiết thành phần năng lực</div>
         <div className="flex flex-col gap-3">
-          {([['id','ID'],['code','Mã'],['name','Tên'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof CompetencyComponentType, string][]).map(([key, label]) => (
-            <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={String(record[key] ?? '')} className="h-[38px] bg-gray-50 text-gray-800" /></div>
-          ))}
+          {([['id','ID'],['code','Mã'],['name','Tên'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof CompetencyComponentType, string][]).map(([key, label]) => {
+            const isDate = key === 'created_at' || key === 'updated_at';
+            const value = isDate ? formatDateTime(record[key] as string | null) : String(record[key] ?? '');
+            return (
+              <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={value} className="h-[38px] bg-gray-50 text-gray-800" /></div>
+            );
+          })}
           <div><label className="text-gray-600 text-sm font-medium block mb-1">Môn học → {subjectName}</label><Input disabled value={record.subject_id ?? ''} className="h-[38px] bg-gray-50 text-gray-800" /></div>
           <div className="flex items-center gap-3"><label className="text-gray-600 text-sm font-medium">Trạng thái:</label><span className={`px-3 py-1 rounded border text-sm font-medium ${record.is_active ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{record.is_active ? 'Hoạt động' : 'Không hoạt động'}</span></div>
         </div>
@@ -167,7 +172,7 @@ export default function DanhMucThanhPhanNangLuc() {
 
   const filteredData = React.useMemo(() => {
     return data.filter(item => {
-      const kw = searchKeyword.toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
       const matchKeyword = !kw || (item.code?.toLowerCase().includes(kw) || item.name?.toLowerCase().includes(kw));
       const matchActive = searchActive === 'all' || 
         (searchActive === 'true' && item.is_active === true) || 
@@ -242,7 +247,22 @@ export default function DanhMucThanhPhanNangLuc() {
       <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} subjectOptions={subjects.filter(s => s.is_active)} onSave={async (v) => { try { await competencyComponentApi.create({ code: v.code!, name: v.name!, subject_id: v.subject_id ?? null, is_active: v.is_active ?? true, note: v.note ?? '' }); messageApi.success('Thêm thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord} subjectOptions={subjects} onSave={async (v) => { if (!selectedRecord) return false; try { await competencyComponentApi.update(selectedRecord.id, { code: v.code, name: v.name, subject_id: v.subject_id, is_active: v.is_active, note: v.note }); messageApi.success('Cập nhật thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <DetailModal open={isDetailOpen} onClose={() => setIsDetailOpen(false)} record={selectedRecord} subjectOptions={subjects} />
-      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => { try { if (isDeleteMultiple) { await Promise.all(selectedRowKeys.map((k) => competencyComponentApi.delete(String(k)))); setSelectedRowKeys([]); } else if (selectedRecord) { await competencyComponentApi.delete(selectedRecord.id); } messageApi.success('Đã xóa!'); fetchData(); } catch { messageApi.error('Lỗi!'); } }} />
+      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => {
+        if (isDeleteMultiple) {
+          const keys = selectedRowKeys.map(String);
+          const results = await Promise.allSettled(keys.map((k) => competencyComponentApi.delete(k)));
+          const succeeded = keys.filter((_, i) => results[i].status === 'fulfilled');
+          const failed = keys.map((k, i) => ({ k, r: results[i] })).filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
+          if (failed.length === 0) { messageApi.success(`Đã xóa ${succeeded.length} thành phần năng lực!`); }
+          else if (succeeded.length === 0) { messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          else { messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
+        } else if (selectedRecord) {
+          try { await competencyComponentApi.delete(selectedRecord.id); messageApi.success('Đã xóa!'); }
+          catch (e: any) { messageApi.error(e.message || 'Lỗi!'); }
+        }
+        fetchData();
+      }} />
     </ConfigProvider>
   );
 }

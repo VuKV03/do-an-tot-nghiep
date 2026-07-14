@@ -129,10 +129,11 @@ export default function SecurityPolicy({
 
   // Filter Security logs
   const filteredSecurityLogs = useMemo(() => {
+    const kw = securitySearchKey.trim().toLowerCase();
     return securityLogs.filter(log => {
-      const matchSearch = log.user.toLowerCase().includes(securitySearchKey.toLowerCase()) ||
-                          log.action.toLowerCase().includes(securitySearchKey.toLowerCase()) ||
-                          (log.details && log.details.toLowerCase().includes(securitySearchKey.toLowerCase()));
+      const matchSearch = log.user.toLowerCase().includes(kw) ||
+                          log.action.toLowerCase().includes(kw) ||
+                          (log.details && log.details.toLowerCase().includes(kw));
       const matchLevel = securityFilterLevel === 'all' || log.level === securityFilterLevel;
       return matchSearch && matchLevel;
     });

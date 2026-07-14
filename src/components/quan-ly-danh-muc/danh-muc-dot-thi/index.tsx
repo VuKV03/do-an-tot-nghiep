@@ -7,6 +7,7 @@ import UpdateDotThiModal from './update.tsx';
 import DetailDotThiModal from './detail.tsx';
 import DeleteDotThiModal from './delete.tsx';
 import { examPeriodApi } from '../../../services/danhMucApi.ts';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -130,9 +131,10 @@ export default function DanhMucDotThi() {
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchTen = !searchTen ||
-        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) ||
-        item.Ma.toLowerCase().includes(searchTen.toLowerCase());
+      const kwTen = searchTen.trim().toLowerCase();
+      const matchTen = !kwTen ||
+        item.Ten.toLowerCase().includes(kwTen) ||
+        item.Ma.toLowerCase().includes(kwTen);
 
       const matchTinhTrang = searchTinhTrang === 'Tất cả' ||
         (searchTinhTrang === 'Hoạt động' && item.IsActive) ||
@@ -172,7 +174,7 @@ export default function DanhMucDotThi() {
       title: 'Ngày tạo',
       dataIndex: 'CreatedAt',
       key: 'CreatedAt',
-      render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '',
+      render: (v) => formatDateTime(v),
     },
     {
       title: 'Ngày bắt đầu',

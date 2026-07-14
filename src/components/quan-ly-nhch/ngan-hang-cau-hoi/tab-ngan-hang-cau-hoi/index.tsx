@@ -27,6 +27,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
+import { stripHtmlToText } from '../../../../utils/htmlContent';
 import { SUBJECTS, GRADES } from '../../../../data';
 import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi } from '../../../../services/danhMucApi.ts';
 
@@ -283,9 +284,10 @@ export default function QuestionBankModule({
 
       // Match actions based on clicking the "Tìm kiếm" button (appliedFilters state)
       // 4. Keyword search
-      if (appliedFilters.keyword) {
-        const textToSearch = `${q.code} ${q.text} ${q.creator}`.toLowerCase();
-        if (!textToSearch.includes(appliedFilters.keyword.toLowerCase())) return false;
+      const kwKeyword = appliedFilters.keyword.trim();
+      if (kwKeyword) {
+        const textToSearch = `${q.code} ${stripHtmlToText(q.text)} ${q.creator}`.toLowerCase();
+        if (!textToSearch.includes(kwKeyword.toLowerCase())) return false;
       }
       // 5. Question Type
       if (appliedFilters.type !== 'all' && q.type !== appliedFilters.type) return false;
@@ -520,21 +522,24 @@ export default function QuestionBankModule({
       title: 'Nội dung câu hỏi',
       dataIndex: 'text',
       width: 350,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <div
-            className="text-slate-800 font-medium text-xs hover:text-[#002147] transition-all cursor-pointer"
-            style={{
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              maxWidth: '320px',
-            }}
-          >
-            {text}
-          </div>
-        </Tooltip>
-      )
+      render: (text: string) => {
+        const plainText = stripHtmlToText(text);
+        return (
+          <Tooltip title={plainText}>
+            <div
+              className="text-slate-700 font-normal text-xs hover:text-[#002147] transition-all cursor-pointer"
+              style={{
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                maxWidth: '320px',
+              }}
+            >
+              {plainText}
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: 'Loại câu hỏi',
@@ -579,10 +584,7 @@ export default function QuestionBankModule({
       title: 'Trạng thái',
       dataIndex: 'status',
       width: 120,
-      render: (status: QuestionStatus, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (isAI) return null;
-
+      render: (status: QuestionStatus) => {
         switch (status) {
           case 'approved':
             return (
@@ -613,53 +615,18 @@ export default function QuestionBankModule({
       }
     },
     {
-      title: 'Trạng thái của câu AI tạo',
-      width: 140,
-      render: (_: any, record: Question) => {
-        const isAI = record.creator.includes('AI') || record.creator.includes('SmartTest');
-        if (!isAI) return null;
-
-        if (record.status === 'approved') {
-          return (
-            <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
-              Đã thẩm định
-            </span>
-          );
-        }
-        if (record.status === 'rejected') {
-          return (
-            <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
-              Từ chối
-            </span>
-          );
-        }
-
-        return (
-          <Button
-            size="small"
-            className="rounded border border-slate-300 text-slate-800 bg-white font-bold text-[10px] hover:bg-slate-50 h-6 px-3 flex items-center justify-center cursor-pointer"
-            onClick={() => {
-              setIsAIOpen(true);
-            }}
-            style={{ cursor: 'pointer' }}
-          >
-            Tạo mới
-          </Button>
-        );
-      }
-    },
-    {
       title: 'Thao tác',
       key: 'actions',
       width: 100,
       align: 'center' as const,
       render: (_: any, record: Question) => {
-        const canEdit = record.status === 'draft' || record.status === 'rejected';
+        const canSendReview = record.status === 'draft' || record.status === 'rejected';
+        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
         const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
 
         const menuItems: MenuProps['items'] = [];
 
-        if (canEdit) {
+        if (canSendReview) {
           menuItems.push({
             key: 'send-review',
             label: <span className="text-xs font-semibold text-slate-700">Gửi thẩm định/phản biện</span>,
@@ -707,7 +674,7 @@ export default function QuestionBankModule({
                 />
               </Tooltip>
             )}
-            {canEdit && (
+            {canEditQuestion && (
               <Tooltip title="Chỉnh sửa">
                 <Button
                   type="text"
@@ -772,12 +739,12 @@ export default function QuestionBankModule({
       </div>
 
       {activeTab === 'bank' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch animate-in fade-in duration-300" id="question-bank-container">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch lg:max-h-[calc(100vh-170px)] animate-in fade-in duration-300" id="question-bank-container">
 
-      {/* 20% Left Column Sidebar Filters Card */}
+      {/* 20% Left Column Sidebar Filters Card — vị trí cố định, không di chuyển theo scroll */}
       <div
         id="question-bank-left-sidebar"
-        className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 h-[calc(100vh-140px)] sticky top-24 overflow-y-auto flex flex-col"
+        className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
       >
         <div className="space-y-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wide">
@@ -844,7 +811,7 @@ export default function QuestionBankModule({
       </div>
 
       {/* 80% Right Column Content Area */}
-      <div className="lg:col-span-4 flex flex-col space-y-4" id="question-bank-right-content">
+      <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="question-bank-right-content">
 
         {/* Tìm kiếm thông tin Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
@@ -1196,28 +1163,6 @@ export default function QuestionBankModule({
         selectedCount={selectedRowKeys.length}
       />
 
-      <UpdateQuestionModal
-        open={isUpdateOpen}
-        onClose={() => {
-          setIsUpdateOpen(false);
-          setUpdateQuestion(null);
-        }}
-        onSave={(q) => {
-          if (onUpdateQuestion) onUpdateQuestion(q);
-          fetchQuestions();
-        }}
-        onSendReview={(q) => {
-          if (onUpdateQuestion) onUpdateQuestion(q);
-          fetchQuestions();
-        }}
-        initialType="single"
-        subject={actualSubject || updateQuestion?.subject || ''}
-        grade={actualGrade || updateQuestion?.grade || ''}
-        selectedTopicKey={selectedTopicKey}
-        topicTreeData={topicTreeData}
-        initialQuestion={updateQuestion || undefined}
-      />
-
       <ReviewModal
         visible={isReviewOpen}
         onClose={() => {
@@ -1242,8 +1187,36 @@ export default function QuestionBankModule({
           onApproveQuestion={handleApproveQuestion}
           onRejectQuestion={handleRejectQuestion}
           onBulkReviewQuestions={handleBulkReviewQuestions}
+          onEditQuestion={(record) => {
+            setUpdateQuestion(record);
+            setIsUpdateOpen(true);
+          }}
         />
       )}
+
+      {/* Luôn mount modal Cập nhật bất kể đang ở tab nào — vì nút "Chỉnh sửa" có thể được bấm
+          từ cả tab Ngân hàng câu hỏi và tab Thẩm định */}
+      <UpdateQuestionModal
+        open={isUpdateOpen}
+        onClose={() => {
+          setIsUpdateOpen(false);
+          setUpdateQuestion(null);
+        }}
+        onSave={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        onSendReview={(q) => {
+          if (onUpdateQuestion) onUpdateQuestion(q);
+          fetchQuestions();
+        }}
+        initialType="single"
+        subject={actualSubject || updateQuestion?.subject || ''}
+        grade={actualGrade || updateQuestion?.grade || ''}
+        selectedTopicKey={selectedTopicKey}
+        topicTreeData={topicTreeData}
+        initialQuestion={updateQuestion || undefined}
+      />
     </div>
   );
 }

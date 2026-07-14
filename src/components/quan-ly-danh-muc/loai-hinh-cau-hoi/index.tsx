@@ -3,6 +3,7 @@ import { Table, Input, DatePicker, Button, Space, ConfigProvider, Empty, Spin, m
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { questionTypeApi, type QuestionTypeAPI } from '../../../services/danhMucApi.ts';
+import { formatDateTime } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -79,9 +80,13 @@ function DetailModal({ open, onClose, record }: { open: boolean; onClose: () => 
       <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Chi tiết loại hình câu hỏi</div>
         <div className="flex flex-col gap-4">
-          {([['id','id'],['code','Mã loại hình'],['name','Tên loại hình'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof QuestionTypeType, string][]).map(([key, label]) => (
-            <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={String(record[key] ?? '')} className="h-[38px] bg-gray-50 text-gray-800" /></div>
-          ))}
+          {([['id','id'],['code','Mã loại hình'],['name','Tên loại hình'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof QuestionTypeType, string][]).map(([key, label]) => {
+            const isDate = key === 'created_at' || key === 'updated_at';
+            const value = isDate ? formatDateTime(record[key] as string | null) : String(record[key] ?? '');
+            return (
+              <div key={key}><label className="text-gray-600 text-sm font-medium block mb-1">{label}</label><Input disabled value={value} className="h-[38px] bg-gray-50 text-gray-800" /></div>
+            );
+          })}
         </div>
         <div className="flex justify-center mt-6 pt-4 border-t border-gray-200">
           <Button onClick={onClose} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
@@ -133,7 +138,7 @@ export default function DanhMucLoaiHinhCauHoi() {
 
   const filteredData = React.useMemo(() => {
     return data.filter(item => {
-      const kw = searchKeyword.toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
       const matchKeyword = !kw || (item.code?.toLowerCase().includes(kw) || item.name?.toLowerCase().includes(kw));
       let matchDate = true;
       if (searchDates && searchDates[0] && searchDates[1] && item.created_at) {
@@ -206,7 +211,22 @@ export default function DanhMucLoaiHinhCauHoi() {
       <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSave={async (v) => { try { await questionTypeApi.create({ code: v.code!, name: v.name!, note: v.note ?? '' }); messageApi.success('Thêm thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord} onSave={async (v) => { if (!selectedRecord) return false; try { await questionTypeApi.update(selectedRecord.id, { code: v.code, name: v.name, note: v.note }); messageApi.success('Cập nhật thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <DetailModal open={isDetailOpen} onClose={() => setIsDetailOpen(false)} record={selectedRecord} />
-      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => { try { if (isDeleteMultiple) { await Promise.all(selectedRowKeys.map((k) => questionTypeApi.delete(String(k)))); setSelectedRowKeys([]); } else if (selectedRecord) { await questionTypeApi.delete(selectedRecord.id); } messageApi.success('Đã xóa!'); fetchData(); } catch { messageApi.error('Lỗi!'); } }} />
+      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => {
+        if (isDeleteMultiple) {
+          const keys = selectedRowKeys.map(String);
+          const results = await Promise.allSettled(keys.map((k) => questionTypeApi.delete(k)));
+          const succeeded = keys.filter((_, i) => results[i].status === 'fulfilled');
+          const failed = keys.map((k, i) => ({ k, r: results[i] })).filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
+          if (failed.length === 0) { messageApi.success(`Đã xóa ${succeeded.length} loại hình câu hỏi!`); }
+          else if (succeeded.length === 0) { messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          else { messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
+        } else if (selectedRecord) {
+          try { await questionTypeApi.delete(selectedRecord.id); messageApi.success('Đã xóa!'); }
+          catch (e: any) { messageApi.error(e.message || 'Lỗi!'); }
+        }
+        fetchData();
+      }} />
     </ConfigProvider>
   );
 }
