@@ -8,7 +8,6 @@ import {
   message,
   Modal,
   Spin,
-  Tag,
   Badge,
   Tooltip,
   Steps,
@@ -295,16 +294,26 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
     setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  // Status tag helper
-  const renderStatusTag = (status: string) => {
-    switch (status) {
-      case 'approved': return <Tag color="green" className="rounded-full text-[11px] font-medium px-3">Đã thẩm định</Tag>;
-      case 'rejected': return <Tag color="red" className="rounded-full text-[11px] font-medium px-3">Từ chối</Tag>;
-      case 'new': return <Tag color="default" className="rounded-full text-[11px] font-medium px-3">Nháp</Tag>;
-      case 'pending': return <Tag color="gold" className="rounded-full text-[11px] font-medium px-3">Chờ thẩm định</Tag>;
-      default: return <Tag className="rounded-full text-[11px] font-medium px-3">{status}</Tag>;
-    }
+  // Status tag helper — dùng span tự style (thay vì màu preset của antd Tag, viền quá mờ) để
+  // kiểm soát viền rõ nét + kích thước cố định + căn giữa chữ đồng nhất giữa các trạng thái.
+  const STATUS_TAG_BASE = "rounded text-[11px] font-semibold inline-flex items-center justify-center w-28 h-6 text-center leading-none border";
+  const STATUS_TAG_COLORS: Record<string, string> = {
+    approved: "bg-green-50 text-green-700 border-green-400",
+    rejected: "bg-red-50 text-red-700 border-red-400",
+    new: "bg-slate-100 text-slate-600 border-slate-300",
+    pending: "bg-amber-50 text-amber-700 border-amber-400",
   };
+  const STATUS_TAG_LABELS: Record<string, string> = {
+    approved: "Đã thẩm định",
+    rejected: "Từ chối",
+    new: "Nháp",
+    pending: "Chờ thẩm định",
+  };
+  const renderStatusTag = (status: string) => (
+    <span className={`${STATUS_TAG_BASE} ${STATUS_TAG_COLORS[status] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
+      {STATUS_TAG_LABELS[status] || status}
+    </span>
+  );
 
   // Pagination helpers
   const totalPages = Math.ceil(tableTotalRows / pageSize);
