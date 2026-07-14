@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from backend.shared.database import get_db
 from backend.exam_service.models import QuestionType
+from backend.exam_service.reference_guard import assert_question_type_deletable
 from backend.exam_service.schemas import (
     QuestionTypeCreate, QuestionTypeUpdate,
     QuestionTypeResponse, QuestionTypeListResponse,
@@ -112,6 +113,7 @@ async def delete_question_type(item_id: str, db: AsyncSession = Depends(get_db))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại hình câu hỏi.")
+    await assert_question_type_deletable(db, obj)
     name = obj.name
     await db.delete(obj)
     await db.commit()

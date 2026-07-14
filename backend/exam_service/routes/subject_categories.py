@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from backend.shared.database import get_db
 from backend.exam_service.models import SubjectCategory
+from backend.exam_service.reference_guard import assert_subject_deletable
 from backend.exam_service.schemas import (
     SubjectCategoryCreate, SubjectCategoryUpdate,
     SubjectCategoryResponse, SubjectCategoryListResponse,
@@ -101,6 +102,7 @@ async def delete_subject_category(item_id: str, db: AsyncSession = Depends(get_d
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy môn học.")
+    await assert_subject_deletable(db, obj)
     name = obj.name
     await db.delete(obj)
     await db.commit()

@@ -389,23 +389,31 @@ export default function DanhMucMonHoc() {
           isMultiple={isDeleteMultiple}
           multipleCount={selectedRowKeys.length}
           onConfirm={async () => {
-            try {
-              if (isDeleteMultiple) {
-                await Promise.all(
-                  selectedRowKeys.map((k) =>
-                    subjectCategoryApi.delete(String(k)),
-                  ),
-                );
-                messageApi.success(`Đã xóa ${selectedRowKeys.length} môn học!`);
-                setSelectedRowKeys([]);
-              } else if (selectedRecord) {
+            if (isDeleteMultiple) {
+              const keys = selectedRowKeys.map(String);
+              const results = await Promise.allSettled(keys.map((k) => subjectCategoryApi.delete(k)));
+              const succeeded = keys.filter((_, i) => results[i].status === 'fulfilled');
+              const failed = keys
+                .map((k, i) => ({ k, r: results[i] }))
+                .filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
+
+              if (failed.length === 0) {
+                messageApi.success(`Đã xóa ${succeeded.length} môn học!`);
+              } else if (succeeded.length === 0) {
+                messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
+              } else {
+                messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
+              }
+              setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
+            } else if (selectedRecord) {
+              try {
                 await subjectCategoryApi.delete(selectedRecord.id);
                 messageApi.success('Đã xóa môn học!');
+              } catch (e: any) {
+                messageApi.error(e.message || 'Lỗi khi xóa môn học!');
               }
-              fetchData();
-            } catch {
-              messageApi.error('Lỗi khi xóa môn học!');
             }
+            fetchData();
           }}
         />
 

@@ -224,7 +224,22 @@ export default function DanhMucKhoiLop() {
       <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSave={async (v) => { try { await gradeLevelApi.create({ code: v.code!, name: v.name!, is_active: v.is_active ?? true, note: v.note ?? '' }); messageApi.success('Thêm thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord} onSave={async (v) => { if (!selectedRecord) return false; try { await gradeLevelApi.update(selectedRecord.id, { code: v.code, name: v.name, is_active: v.is_active, note: v.note }); messageApi.success('Cập nhật thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
       <DetailModal open={isDetailOpen} onClose={() => setIsDetailOpen(false)} record={selectedRecord} />
-      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => { try { if (isDeleteMultiple) { await Promise.all(selectedRowKeys.map((k) => gradeLevelApi.delete(String(k)))); setSelectedRowKeys([]); } else if (selectedRecord) { await gradeLevelApi.delete(selectedRecord.id); } messageApi.success('Đã xóa!'); fetchData(); } catch { messageApi.error('Lỗi!'); } }} />
+      <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => {
+        if (isDeleteMultiple) {
+          const keys = selectedRowKeys.map(String);
+          const results = await Promise.allSettled(keys.map((k) => gradeLevelApi.delete(k)));
+          const succeeded = keys.filter((_, i) => results[i].status === 'fulfilled');
+          const failed = keys.map((k, i) => ({ k, r: results[i] })).filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
+          if (failed.length === 0) { messageApi.success(`Đã xóa ${succeeded.length} khối lớp!`); }
+          else if (succeeded.length === 0) { messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          else { messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
+        } else if (selectedRecord) {
+          try { await gradeLevelApi.delete(selectedRecord.id); messageApi.success('Đã xóa!'); }
+          catch (e: any) { messageApi.error(e.message || 'Lỗi!'); }
+        }
+        fetchData();
+      }} />
     </ConfigProvider>
   );
 }

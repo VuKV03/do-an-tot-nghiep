@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from backend.shared.database import get_db
 from backend.exam_service.models import ExamPeriod
+from backend.exam_service.reference_guard import assert_exam_period_deletable
 from backend.exam_service.schemas import (
     ExamPeriodCreate, ExamPeriodUpdate,
     ExamPeriodResponse, ExamPeriodListResponse,
@@ -116,6 +117,7 @@ async def delete_exam_period(item_id: str, db: AsyncSession = Depends(get_db)):
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy kỳ thi.")
+    await assert_exam_period_deletable(db, obj)
     name = obj.name
     await db.delete(obj)
     await db.commit()
