@@ -90,8 +90,8 @@ export default function AddUserToGroupModal({
               })
             }}
             dataSource={allUsers.filter(u =>
-              u.username?.toLowerCase().includes(searchUserAdd.toLowerCase()) ||
-              u.fullName?.toLowerCase().includes(searchUserAdd.toLowerCase())
+              u.username?.toLowerCase().includes(searchUserAdd.trim().toLowerCase()) ||
+              u.fullName?.toLowerCase().includes(searchUserAdd.trim().toLowerCase())
             )}
             rowKey="id"
             pagination={{

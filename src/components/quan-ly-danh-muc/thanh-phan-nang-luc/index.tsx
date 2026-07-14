@@ -172,7 +172,7 @@ export default function DanhMucThanhPhanNangLuc() {
 
   const filteredData = React.useMemo(() => {
     return data.filter(item => {
-      const kw = searchKeyword.toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
       const matchKeyword = !kw || (item.code?.toLowerCase().includes(kw) || item.name?.toLowerCase().includes(kw));
       const matchActive = searchActive === 'all' || 
         (searchActive === 'true' && item.is_active === true) || 

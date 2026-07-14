@@ -164,7 +164,7 @@ export default function ModalChonCauHoi({
       if (fType !== 'all' && q.type !== fType) return false;
       if (fLevel !== 'all' && q.level !== fLevel) return false;
       if (fStatus !== 'all' && q.status !== fStatus) return false;
-      if (searchName.trim() && !`${q.code} ${stripHtmlToText(q.text)}`.toLowerCase().includes(searchName.toLowerCase())) return false;
+      if (searchName.trim() && !`${q.code} ${stripHtmlToText(q.text)}`.toLowerCase().includes(searchName.trim().toLowerCase())) return false;
       if (selectedTopicKey) {
         const isMatchOrDescendant = (nodeId: string, targetId: string): boolean => {
           if (nodeId === targetId) return true;

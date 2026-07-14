@@ -33,9 +33,10 @@ export default function QuanLyThi() {
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => {
       // Filter by name or session_code
-      const nameMatch = searchName.trim() === '' ||
-        s.name.toLowerCase().includes(searchName.toLowerCase()) ||
-        (s.session_code && s.session_code.toLowerCase().includes(searchName.toLowerCase()));
+      const kwName = searchName.trim().toLowerCase();
+      const nameMatch = kwName === '' ||
+        s.name.toLowerCase().includes(kwName) ||
+        (s.session_code && s.session_code.toLowerCase().includes(kwName));
 
       // Filter by status
       const statusMatch = searchStatus === 'all' || s.status === searchStatus;

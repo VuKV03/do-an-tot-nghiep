@@ -336,9 +336,10 @@ export default function ChuDeCauHoi() {
     }));
 
     const filteredFlat = mapped.filter((item) => {
-      const matchTen = !searchTen || 
-        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) || 
-        item.Ma.toLowerCase().includes(searchTen.toLowerCase());
+      const kwTen = searchTen.trim().toLowerCase();
+      const matchTen = !kwTen ||
+        item.Ten.toLowerCase().includes(kwTen) ||
+        item.Ma.toLowerCase().includes(kwTen);
       
       const matchMonHoc = !filterMonHoc || item.IdMonHoc === filterMonHoc;
       const matchKhoiLop = filterKhoiLop.length === 0 || filterKhoiLop.includes(item.IdKhoiLop);

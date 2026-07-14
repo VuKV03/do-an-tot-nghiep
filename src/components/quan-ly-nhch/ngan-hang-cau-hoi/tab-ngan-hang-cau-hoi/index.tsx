@@ -284,9 +284,10 @@ export default function QuestionBankModule({
 
       // Match actions based on clicking the "Tìm kiếm" button (appliedFilters state)
       // 4. Keyword search
-      if (appliedFilters.keyword) {
+      const kwKeyword = appliedFilters.keyword.trim();
+      if (kwKeyword) {
         const textToSearch = `${q.code} ${stripHtmlToText(q.text)} ${q.creator}`.toLowerCase();
-        if (!textToSearch.includes(appliedFilters.keyword.toLowerCase())) return false;
+        if (!textToSearch.includes(kwKeyword.toLowerCase())) return false;
       }
       // 5. Question Type
       if (appliedFilters.type !== 'all' && q.type !== appliedFilters.type) return false;

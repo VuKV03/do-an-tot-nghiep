@@ -138,7 +138,7 @@ export default function DanhMucLoaiHinhCauHoi() {
 
   const filteredData = React.useMemo(() => {
     return data.filter(item => {
-      const kw = searchKeyword.toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
       const matchKeyword = !kw || (item.code?.toLowerCase().includes(kw) || item.name?.toLowerCase().includes(kw));
       let matchDate = true;
       if (searchDates && searchDates[0] && searchDates[1] && item.created_at) {

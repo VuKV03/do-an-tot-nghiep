@@ -107,7 +107,7 @@ export default function DanhMucMonHoc() {
 
   const filteredData = React.useMemo(() => {
     return data.filter((item) => {
-      const kw = searchKeyword.toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
       const matchKeyword =
         !kw ||
         item.code?.toLowerCase().includes(kw) ||

@@ -133,10 +133,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   // Filter computations
   const filteredExamVariants = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
-      const matchesSearch = e.name.toLowerCase().includes(examSearch.toLowerCase()) || e.code.toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
       const matchesSubject = examSubject === 'all' || e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
@@ -145,9 +146,10 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   }, [exams, examSearch, examSubject, examGrade, examStatus]);
 
   const filteredExamRoots = useMemo(() => {
+    const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
       const isRoot = e.source !== 'ai';
-      const matchesSearch = (e.name || '').toLowerCase().includes(examSearch.toLowerCase()) || (e.code || '').toLowerCase().includes(examSearch.toLowerCase());
+      const matchesSearch = (e.name || '').toLowerCase().includes(kw) || (e.code || '').toLowerCase().includes(kw);
       const matchesSubject = examSubject === 'all' || e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isRoot && matchesSearch && matchesSubject && matchesStatus;

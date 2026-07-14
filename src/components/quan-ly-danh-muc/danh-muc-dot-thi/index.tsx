@@ -131,9 +131,10 @@ export default function DanhMucDotThi() {
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchTen = !searchTen ||
-        item.Ten.toLowerCase().includes(searchTen.toLowerCase()) ||
-        item.Ma.toLowerCase().includes(searchTen.toLowerCase());
+      const kwTen = searchTen.trim().toLowerCase();
+      const matchTen = !kwTen ||
+        item.Ten.toLowerCase().includes(kwTen) ||
+        item.Ma.toLowerCase().includes(kwTen);
 
       const matchTinhTrang = searchTinhTrang === 'Tất cả' ||
         (searchTinhTrang === 'Hoạt động' && item.IsActive) ||

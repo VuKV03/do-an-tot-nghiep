@@ -428,19 +428,20 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
 
   // --- Search tree ---
   const treeData = useMemo(() => {
-    if (!searchValue) return dataChuDeSelect;
+    const kw = searchValue.trim().toLowerCase();
+    if (!kw) return dataChuDeSelect;
     const loop = (data: TreeDataNode[]): TreeDataNode[] =>
       data.map(item => {
         const title = String(item.title);
-        const idx = title.toLowerCase().indexOf(searchValue.toLowerCase());
+        const idx = title.toLowerCase().indexOf(kw);
         const label = idx > -1
-          ? <span>{title.substring(0, idx)}<span className="text-red-500 font-bold">{title.substring(idx, idx + searchValue.length)}</span>{title.substring(idx + searchValue.length)}</span>
+          ? <span>{title.substring(0, idx)}<span className="text-red-500 font-bold">{title.substring(idx, idx + kw.length)}</span>{title.substring(idx + kw.length)}</span>
           : <span>{title}</span>;
         return { ...item, title: label, children: item.children ? loop(item.children) : undefined } as TreeDataNode;
       }).filter(item => {
         const orig = dataChuDeSelect && flattenTree(dataChuDeSelect).find(n => n.key === item.key);
         const origTitle = String(orig?.title || '');
-        const match = origTitle.toLowerCase().includes(searchValue.toLowerCase());
+        const match = origTitle.toLowerCase().includes(kw);
         return match || (item.children && item.children.length > 0);
       });
     return loop(dataChuDeSelect);

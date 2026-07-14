@@ -146,8 +146,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
-      const matchUsername = u.username.toLowerCase().includes(searchUsername.toLowerCase());
-      const matchFullName = u.fullName.toLowerCase().includes(searchFullName.toLowerCase());
+      const matchUsername = u.username.toLowerCase().includes(searchUsername.trim().toLowerCase());
+      const matchFullName = u.fullName.toLowerCase().includes(searchFullName.trim().toLowerCase());
       const matchRole = userRoleFilter === 'all' || u.role === userRoleFilter;
       return matchUsername && matchFullName && matchRole;
     });

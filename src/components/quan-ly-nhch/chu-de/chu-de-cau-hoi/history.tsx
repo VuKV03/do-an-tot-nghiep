@@ -59,7 +59,7 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
 
   const filteredData = useMemo(() => {
     return rawData.filter((item) => {
-      const matchText = !searchNoiDung || item.note.toLowerCase().includes(searchNoiDung.toLowerCase());
+      const matchText = !searchNoiDung.trim() || item.note.toLowerCase().includes(searchNoiDung.trim().toLowerCase());
       
       const matchAction = searchAction === 'Tất cả' || item.action === searchAction;
 

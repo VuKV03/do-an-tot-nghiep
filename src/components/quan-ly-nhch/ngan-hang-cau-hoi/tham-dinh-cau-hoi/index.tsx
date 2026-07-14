@@ -439,7 +439,7 @@ export default function ThamDinhCauHoiTab({
     clean(roots);
 
     if (!topicSearch.trim()) return roots;
-    const kw = topicSearch.toLowerCase();
+    const kw = topicSearch.trim().toLowerCase();
     
     const filterTree = (nodes: any[]): any[] => {
       return nodes.reduce((acc, node) => {
@@ -473,9 +473,10 @@ export default function ThamDinhCauHoiTab({
         );
         if (q.topicId !== selectedTopicKey && !isChild) return false;
       }
-      if (applied.keyword) {
+      const kw = applied.keyword.trim();
+      if (kw) {
         const hay = `${q.code} ${stripHtmlToText(q.text)} ${q.creator}`.toLowerCase();
-        if (!hay.includes(applied.keyword.toLowerCase())) return false;
+        if (!hay.includes(kw.toLowerCase())) return false;
       }
       if (applied.grades.length > 0 && !applied.grades.includes(q.grade)) return false;
       if (applied.type   !== 'all' && q.type   !== applied.type)   return false;

@@ -267,9 +267,10 @@ export default function ThamDinhChuDeMain() {
     }));
 
     const filteredFlat = mapped.filter((item) => {
-      const matchText = !searchText ||
-        item.Ten.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.Ma.toLowerCase().includes(searchText.toLowerCase());
+      const kwText = searchText.trim().toLowerCase();
+      const matchText = !kwText ||
+        item.Ten.toLowerCase().includes(kwText) ||
+        item.Ma.toLowerCase().includes(kwText);
 
       const matchSubject = !searchSubject || item.MonHoc === searchSubject;
       const matchGrade = searchGrade.length === 0 || searchGrade.includes(item.KhoiLop);
