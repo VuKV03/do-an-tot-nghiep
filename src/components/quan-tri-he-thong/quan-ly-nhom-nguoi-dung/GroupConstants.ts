@@ -5,7 +5,8 @@ export const MENU_STRUCTURE = [
     label: 'Xây dựng đề thi',
     children: [
       { key: 'quan-ly-ma-tran-de', label: 'Quản lý ma trận đề' },
-      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề thi & gói đề' }
+      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề thi' },
+      { key: 'quan-ly-goi-de', label: 'Quản lý gói đề' }
     ]
   },
   {
@@ -45,6 +46,7 @@ export const PERMISSION_MAP: Record<string, string[]> = {
   'xay-dung-de': ['matrices.manage', 'matrices.submit', 'matrices.approve', 'exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
   'quan-ly-ma-tran-de': ['matrices.manage', 'matrices.submit', 'matrices.approve'],
   'quan-ly-de-thi-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'quan-ly-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
 
   'to-chuc-thi': ['sessions.manage', 'sessions.monitor', 'results.view'],
   'quan-ly-ky-thi': ['sessions.manage', 'sessions.monitor'],

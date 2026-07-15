@@ -17,6 +17,7 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
     'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
     'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
     'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'quan-ly-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
 
     'to-chuc-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
     'quan-ly-ky-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],

@@ -2,7 +2,8 @@ export const getBreadcrumbTitle = (activeMenuKey: string) => {
   switch (activeMenuKey) {
     case 'dashboard': return 'Bảng tổng quan điều khiển';
     case 'quan-ly-ma-tran-de': return 'Xây dựng đề thi/ Quản lý ma trận đề';
-    case 'quan-ly-de-thi-goi-de': return 'Xây dựng đề thi / Quản lý đề thi & gói đề';
+    case 'quan-ly-de-thi-goi-de': return 'Xây dựng đề thi / Quản lý đề thi';
+    case 'quan-ly-goi-de': return 'Xây dựng đề thi / Quản lý gói đề';
     case 'quan-ly-ky-thi': return 'Tổ chức thi / Quản lý kỳ thi';
     case 'quan-ly-thi-sinh': return 'Tổ chức thi / Quản lý thí sinh';
     case 'quan-ly-de-thi': return 'Tổ chức thi / Quản lý đề thi';

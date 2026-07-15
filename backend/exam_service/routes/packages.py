@@ -72,7 +72,9 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         name=body.name,
         subject=body.subject,
         grade=body.grade,
-        status="active",
+        # "pending" ngay khi tạo — mirror cách exams.py đặt status="pending" lúc tạo đề thi, để
+        # gói đề mới hiện diện ngay trong tab "Thẩm định/phản biện gói đề" không cần bước gửi riêng.
+        status="pending",
         examsCount=len(body.examIds) if body.examIds else 0,
         examIds=json.dumps(body.examIds or [], ensure_ascii=False),
         downloadsCount=0,
