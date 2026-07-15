@@ -20,6 +20,7 @@ import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule'
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
+import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
 import QuanLyThi from './components/quan-ly-thi/QuanLyKyThi';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
 import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
@@ -248,6 +249,10 @@ export default function App() {
           <ExamManagementModule
             onNavigateTab={(key) => setActiveMenuKey(key)}
           />
+        );
+      case 'quan-ly-goi-de':
+        return (
+          <PackageManagementModule initialTab={targetSubTab as 'list' | 'review'} />
         );
       case 'quan-ly-ky-thi':
         return <QuanLyThi />;

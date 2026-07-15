@@ -251,7 +251,7 @@ export default function QuanLyDeThi() {
             defaultPageSize: 10,
           }}
           locale={{
-            emptyText: 'Không có đề thi nào sẵn sàng. Vui lòng sang tab "Quản lý đề thi & gói đề" để duyệt (Phát hành) đề thi.'
+            emptyText: 'Không có đề thi nào sẵn sàng. Vui lòng sang tab "Quản lý đề thi" để duyệt (Phát hành) đề thi.'
           }}
           columns={[
             {
