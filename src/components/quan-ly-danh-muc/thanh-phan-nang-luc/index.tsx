@@ -19,19 +19,32 @@ export interface CompetencyComponentType {
 }
 
 // ─── Inline modals ──────────────────────────────────────────────────
+type FieldErrors = { code?: string; name?: string };
+
+function validateCodeName(form: { code?: string; name?: string }, entityLabel: string): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!form.code?.trim()) errors.code = `Vui lòng nhập mã ${entityLabel}`;
+  if (!form.name?.trim()) errors.name = `Vui lòng nhập tên ${entityLabel}`;
+  return errors;
+}
+
 function CreateModal({ open, onClose, onSave, subjectOptions }: {
   open: boolean; onClose: () => void;
   onSave: (v: Partial<CompetencyComponentType>) => Promise<boolean>;
   subjectOptions: SubjectCategoryAPI[];
 }) {
   const [form, setForm] = React.useState<Partial<CompetencyComponentType>>({ is_active: true });
+  const [errors, setErrors] = React.useState<FieldErrors>({});
+  useEffect(() => { if (open) { setForm({ is_active: true }); setErrors({}); } }, [open]);
   const handleSave = async () => {
-    if (form.code && form.name) {
-      const success = await onSave(form);
-      if (success) {
-        setForm({ is_active: true });
-        onClose();
-      }
+    const nextErrors = validateCodeName(form, 'thành phần năng lực');
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    const success = await onSave(form);
+    if (success) {
+      setForm({ is_active: true });
+      onClose();
     }
   };
   return open ? (
@@ -42,8 +55,16 @@ function CreateModal({ open, onClose, onSave, subjectOptions }: {
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn học</label>
             <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn học" allowClear />
           </div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label>
+            <Input status={errors.code ? 'error' : undefined} className="h-[42px]" value={form.code} onChange={e => { setForm(f => ({ ...f, code: e.target.value })); setErrors(er => ({ ...er, code: undefined })); }} />
+            {errors.code && <div className="text-red-500 text-xs mt-1">{errors.code}</div>}
+          </div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label>
+            <Input status={errors.name ? 'error' : undefined} className="h-[42px]" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors(er => ({ ...er, name: undefined })); }} />
+            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+          </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
           <div className="flex items-center gap-3">
             <label className="text-gray-700 font-medium text-[15px]">Trạng thái</label>
@@ -52,7 +73,7 @@ function CreateModal({ open, onClose, onSave, subjectOptions }: {
           </div>
         </div>
         <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
-          <Button onClick={() => { setForm({ is_active: true }); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+          <Button onClick={() => { setForm({ is_active: true }); setErrors({}); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
           <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
         </div>
       </div>
@@ -66,8 +87,13 @@ function UpdateModal({ open, onClose, record, onSave, subjectOptions }: {
   subjectOptions: SubjectCategoryAPI[];
 }) {
   const [form, setForm] = React.useState<Partial<CompetencyComponentType>>({});
-  useEffect(() => { if (open && record) setForm({ code: record.code, name: record.name, subject_id: record.subject_id, is_active: record.is_active, note: record.note || '' }); }, [open, record]);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
+  useEffect(() => { if (open && record) { setForm({ code: record.code, name: record.name, subject_id: record.subject_id, is_active: record.is_active, note: record.note || '' }); setErrors({}); } }, [open, record]);
   const handleSave = async () => {
+    const nextErrors = validateCodeName(form, 'thành phần năng lực');
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     const success = await onSave(form);
     if (success) {
       onClose();
@@ -81,8 +107,16 @@ function UpdateModal({ open, onClose, record, onSave, subjectOptions }: {
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Môn học</label>
             <Select className="h-10 w-full" value={form.subject_id ?? undefined} onChange={v => setForm(f => ({ ...f, subject_id: v }))} options={subjectOptions.map(m => ({ value: m.id, label: `${m.code} — ${m.name}` }))} placeholder="Chọn môn học" allowClear />
           </div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Mã <span className="text-red-500">*</span></label>
+            <Input status={errors.code ? 'error' : undefined} className="h-[42px]" value={form.code} onChange={e => { setForm(f => ({ ...f, code: e.target.value })); setErrors(er => ({ ...er, code: undefined })); }} />
+            {errors.code && <div className="text-red-500 text-xs mt-1">{errors.code}</div>}
+          </div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Tên <span className="text-red-500">*</span></label>
+            <Input status={errors.name ? 'error' : undefined} className="h-[42px]" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors(er => ({ ...er, name: undefined })); }} />
+            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+          </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
           <div className="flex items-center gap-3">
             <label className="text-gray-700 font-medium text-[15px]">Trạng thái</label>

@@ -18,15 +18,28 @@ export interface QuestionTypeType {
 }
 
 // ─── Inline modals ──────────────────────────────────────────────────
+type FieldErrors = { code?: string; name?: string };
+
+function validateCodeName(form: { code?: string; name?: string }, entityLabel: string): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!form.code?.trim()) errors.code = `Vui lòng nhập mã ${entityLabel}`;
+  if (!form.name?.trim()) errors.name = `Vui lòng nhập tên ${entityLabel}`;
+  return errors;
+}
+
 function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (v: Partial<QuestionTypeType>) => Promise<boolean> }) {
   const [form, setForm] = React.useState<Partial<QuestionTypeType>>({});
+  const [errors, setErrors] = React.useState<FieldErrors>({});
+  useEffect(() => { if (open) { setForm({}); setErrors({}); } }, [open]);
   const handleSave = async () => {
-    if (form.code && form.name) {
-      const success = await onSave(form);
-      if (success) {
-        setForm({});
-        onClose();
-      }
+    const nextErrors = validateCodeName(form, 'loại hình câu hỏi');
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    const success = await onSave(form);
+    if (success) {
+      setForm({});
+      onClose();
     }
   };
   return open ? (
@@ -34,12 +47,20 @@ function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => 
       <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Thêm mới loại hình câu hỏi</div>
         <div className="flex flex-col gap-4">
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã loại hình <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên loại hình <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Mã loại hình <span className="text-red-500">*</span></label>
+            <Input status={errors.code ? 'error' : undefined} className="h-[42px]" value={form.code} onChange={e => { setForm(f => ({ ...f, code: e.target.value })); setErrors(er => ({ ...er, code: undefined })); }} />
+            {errors.code && <div className="text-red-500 text-xs mt-1">{errors.code}</div>}
+          </div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Tên loại hình <span className="text-red-500">*</span></label>
+            <Input status={errors.name ? 'error' : undefined} className="h-[42px]" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors(er => ({ ...er, name: undefined })); }} />
+            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+          </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
         </div>
         <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
-          <Button onClick={() => { setForm({}); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+          <Button onClick={() => { setForm({}); setErrors({}); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
           <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
         </div>
       </div>
@@ -49,8 +70,13 @@ function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => 
 
 function UpdateModal({ open, onClose, record, onSave }: { open: boolean; onClose: () => void; record: QuestionTypeType | null; onSave: (v: Partial<QuestionTypeType>) => Promise<boolean> }) {
   const [form, setForm] = React.useState<Partial<QuestionTypeType>>({});
-  useEffect(() => { if (open && record) setForm({ code: record.code, name: record.name, note: record.note || '' }); }, [open, record]);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
+  useEffect(() => { if (open && record) { setForm({ code: record.code, name: record.name, note: record.note || '' }); setErrors({}); } }, [open, record]);
   const handleSave = async () => {
+    const nextErrors = validateCodeName(form, 'loại hình câu hỏi');
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     const success = await onSave(form);
     if (success) {
       onClose();
@@ -61,8 +87,16 @@ function UpdateModal({ open, onClose, record, onSave }: { open: boolean; onClose
       <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Cập nhật loại hình câu hỏi</div>
         <div className="flex flex-col gap-4">
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Mã loại hình <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} /></div>
-          <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Tên loại hình <span className="text-red-500">*</span></label><Input className="h-[42px]" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Mã loại hình <span className="text-red-500">*</span></label>
+            <Input status={errors.code ? 'error' : undefined} className="h-[42px]" value={form.code} onChange={e => { setForm(f => ({ ...f, code: e.target.value })); setErrors(er => ({ ...er, code: undefined })); }} />
+            {errors.code && <div className="text-red-500 text-xs mt-1">{errors.code}</div>}
+          </div>
+          <div>
+            <label className="text-gray-700 font-medium text-[15px] block mb-1">Tên loại hình <span className="text-red-500">*</span></label>
+            <Input status={errors.name ? 'error' : undefined} className="h-[42px]" value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors(er => ({ ...er, name: undefined })); }} />
+            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+          </div>
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
         </div>
         <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
