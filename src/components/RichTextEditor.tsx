@@ -50,6 +50,16 @@ function buildTableHtml(rows: number, cols: number): string {
   return `<table style="border-collapse:collapse;margin:8px 0;">${body}</table><p><br></p>`;
 }
 
+/** Ký tự đặc biệt / toán học thường dùng khi soạn câu hỏi thi — chèn dạng text thuần, hiển thị bình thường ở mọi nơi */
+const SPECIAL_CHAR_GROUPS: { label: string; chars: string[] }[] = [
+  { label: 'Toán học', chars: ['±', '×', '÷', '≠', '≈', '≡', '≤', '≥', '∞', '√', '∛', '∑', '∏', '∫', '∂', '∇', '°', '′', '″', '‰', '%'] },
+  { label: 'Số mũ / phân số', chars: ['²', '³', 'ⁿ', '½', '⅓', '⅔', '¼', '¾', '⅕', '⅛'] },
+  { label: 'Chữ Hy Lạp', chars: ['α', 'β', 'γ', 'δ', 'ε', 'θ', 'λ', 'μ', 'π', 'ρ', 'σ', 'φ', 'ω', 'Δ', 'Σ', 'Φ', 'Ω', 'Π'] },
+  { label: 'Tập hợp / logic', chars: ['∈', '∉', '⊂', '⊆', '⊄', '∪', '∩', '∅', '∀', '∃', '¬', '∧', '∨', '⇒', '⇔'] },
+  { label: 'Mũi tên', chars: ['→', '←', '↔', '↑', '↓', '⇌'] },
+  { label: 'Khác', chars: ['•', '§', '¶', '©', '®', '™', '…', '–', '—', '№'] },
+];
+
 /** Tách các <img> ra khỏi HTML thành danh sách "đính kèm" riêng, phần còn lại là nội dung text thuần túy */
 function splitHtmlIntoAttachmentsAndText(html: string): { attachments: Attachment[]; textHtml: string } {
   if (!html || !isLikelyHtml(html)) return { attachments: [], textHtml: html || '' };
@@ -76,6 +86,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [hoverCell, setHoverCell] = useState({ rows: 0, cols: 0 });
   const [isInTable, setIsInTable] = useState(false);
+  const [showSymbolPicker, setShowSymbolPicker] = useState(false);
 
   // Đồng bộ giá trị từ ngoài vào (vd: reset form, tải dữ liệu để sửa) — tách ảnh đính kèm ra khỏi
   // phần text, chỉ khi editor không đang được focus để tránh nhảy con trỏ giữa lúc gõ.
@@ -287,6 +298,13 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     exec('createLink', url);
   };
 
+  /** Chèn ký tự đặc biệt/toán học dạng text thuần tại vị trí con trỏ — không đóng popup để chèn liên tiếp nhiều ký tự */
+  const insertSymbol = (char: string) => {
+    focusEditor();
+    document.execCommand('insertText', false, char);
+    emitChange();
+  };
+
   const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors';
 
   return (
@@ -381,6 +399,45 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
               <div className="text-[11px] text-slate-500 text-center mt-1 font-medium">
                 {hoverCell.rows > 0 ? `${hoverCell.rows} × ${hoverCell.cols}` : 'Chọn số dòng × cột'}
               </div>
+            </div>
+          )}
+        </div>
+        <span className="w-px h-4 bg-slate-300 mx-1" />
+        <div className="relative">
+          <button
+            type="button"
+            className={btnClass}
+            style={{ cursor: 'pointer' }}
+            title="Chèn ký tự đặc biệt / toán học"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowSymbolPicker((v) => !v)}
+          >
+            Ω
+          </button>
+          {showSymbolPicker && (
+            <div
+              className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 w-72 max-h-72 overflow-y-auto"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {SPECIAL_CHAR_GROUPS.map((group) => (
+                <div key={group.label} className="mb-2 last:mb-0">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{group.label}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {group.chars.map((char) => (
+                      <button
+                        key={char}
+                        type="button"
+                        onClick={() => insertSymbol(char)}
+                        className="w-7 h-7 flex items-center justify-center text-[15px] rounded border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 text-slate-700"
+                        style={{ cursor: 'pointer' }}
+                        title={char}
+                      >
+                        {char}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
