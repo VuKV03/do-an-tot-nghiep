@@ -44,7 +44,6 @@ import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import ModalDeRiengLe from './ModalDeRiengLe';
-import ModalAddGoiDeThiNew from './ModalAddGoiDeThiNew';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
 import ExamContentDisplay from './ExamContentDisplay';
@@ -85,7 +84,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
   const [isTuDongMoiOpen, setIsTuDongMoiOpen] = useState(false);
-  const [isAddGoiDeOpen, setIsAddGoiDeOpen] = useState(false);
   const [isSinhHoanViOpen, setIsSinhHoanViOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<any | null>(null);
@@ -958,15 +956,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
         onCancel={() => setIsTuDongMoiOpen(false)}
         onSuccess={() => {
           setIsTuDongMoiOpen(false);
-          fetchData();
-        }}
-      />
-
-      <ModalAddGoiDeThiNew
-        open={isAddGoiDeOpen}
-        onCancel={() => setIsAddGoiDeOpen(false)}
-        onSuccess={() => {
-          setIsAddGoiDeOpen(false);
           fetchData();
         }}
       />
