@@ -71,6 +71,45 @@ const SECTION_LABELS = {
   p3: 'Phần III',
 };
 
+/** Phím điều hướng/chỉnh sửa luôn được phép, không phải ký tự nhập số. */
+const NUMERIC_CONTROL_KEYS = new Set([
+  'Backspace',
+  'Delete',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Tab',
+  'Home',
+  'End',
+  'Enter',
+  'Escape',
+]);
+
+/** Chặn ngay tại thao tác gõ phím thay vì để nhập rồi làm tròn/cắt sau — không cho
+ * gõ dấu phẩy, dấu âm, ký tự chữ,... Chỉ số thập phân (điểm theo ý) mới cho gõ dấu chấm. */
+function handleNumericKeyDown(
+  event: React.KeyboardEvent<HTMLInputElement>,
+  allowDecimalPoint: boolean,
+) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (NUMERIC_CONTROL_KEYS.has(event.key)) return;
+  const isDigit = /^[0-9]$/.test(event.key);
+  const isAllowedDecimalPoint = allowDecimalPoint && event.key === '.';
+  if (!isDigit && !isAllowedDecimalPoint) {
+    event.preventDefault();
+  }
+}
+
+/** Chốt chặn cho trường hợp dán (paste) văn bản có ký tự không hợp lệ. */
+function sanitizeNumericInput(
+  value: string | undefined,
+  allowDecimalPoint: boolean,
+): string {
+  const raw = value ?? '';
+  return allowDecimalPoint ? raw.replace(/[^0-9.]/g, '') : raw.replace(/[^0-9]/g, '');
+}
+
 function NumberField({
   name,
   label,
@@ -78,7 +117,7 @@ function NumberField({
   requiredMessage,
   min = 1,
   step,
-  precision,
+  integerOnly = true,
   extraRules,
   dependencies,
   disabled,
@@ -90,7 +129,7 @@ function NumberField({
   requiredMessage?: string;
   min?: number;
   step?: number;
-  precision?: number;
+  integerOnly?: boolean;
   extraRules?: Rule[];
   dependencies?: (keyof SubjectConfigFormValues)[];
   disabled?: boolean;
@@ -103,6 +142,8 @@ function NumberField({
   if (extraRules) {
     rules.push(...extraRules);
   }
+
+  const allowDecimalPoint = !integerOnly;
 
   return (
     <Form.Item
@@ -120,8 +161,15 @@ function NumberField({
         className='w-full h-9'
         min={min}
         step={step}
-        precision={precision}
         disabled={disabled}
+        onKeyDown={(event) => handleNumericKeyDown(event, allowDecimalPoint)}
+        onPaste={(event) => {
+          const pasted = event.clipboardData.getData('text');
+          const cleaned = sanitizeNumericInput(pasted, allowDecimalPoint);
+          if (cleaned !== pasted) {
+            event.preventDefault();
+          }
+        }}
       />
     </Form.Item>
   );
@@ -182,24 +230,28 @@ function PartScoringFields({
             label='01 ý đúng'
             min={0}
             step={0.25}
+            integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[1]}
             label='02 ý đúng'
             min={0}
             step={0.25}
+            integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[2]}
             label='03 ý đúng'
             min={0}
             step={0.25}
+            integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[3]}
             label='04 ý đúng'
             min={0}
             step={0.25}
+            integerOnly={false}
           />
         </div>
       </div>
@@ -215,7 +267,6 @@ function PartScoringFields({
             label='Điểm của mỗi câu trả lời đúng'
             min={0}
             step={1}
-            precision={0}
           />
         </div>
       </div>
