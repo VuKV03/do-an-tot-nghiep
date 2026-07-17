@@ -94,6 +94,68 @@ export function restoreFormulas(sanitizedHtml: string, store: Map<string, string
   return doc.body.innerHTML;
 }
 
+/** Nhận diện công thức LaTeX có dấu phân cách rõ ràng trong văn bản dán vào (copy từ ChatGPT, tài
+ * liệu LaTeX, web...): `$$...$$`, `\[...\]` (khối), `\(...\)` (nội dòng), hoặc cả 1 môi trường
+ * `\begin{...}...\end{...}` (ma trận, hệ phương trình...) dù không có dấu $ bao ngoài.
+ * Cố ý KHÔNG nhận `$...$` đơn — dễ nhận nhầm với giá tiền kiểu "$5, $10" (đề bài toán tài chính)
+ * thành công thức, gây lỗi ngoài ý muốn. */
+const DELIMITED_FORMULA_PATTERN =
+  /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\5\})/g;
+
+/** Dấu thanh tiếng Việt — 1 dòng văn bản tiếng Việt bình thường hầu như luôn chứa ít nhất 1 ký tự
+ * này; mã LaTeX gốc thì gần như không bao giờ có, dùng để tránh nhận nhầm câu văn thành công thức. */
+const VIETNAMESE_DIACRITIC_PATTERN =
+  /[àáạảãăằắặẳẵâầấậẩẫèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃĂẰẮẶẲẴÂẦẤẬẨẪÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/;
+
+/** Có lệnh LaTeX (\frac, \sqrt, \alpha, \left,...) */
+const LATEX_COMMAND_PATTERN = /\\[a-zA-Z]+/;
+/** Cú pháp mũ/chỉ số kiểu mã nguồn: x^2, a_{i},... */
+const LATEX_SUPSUB_PATTERN = /[a-zA-Z0-9)\]}][\^_]\{?[a-zA-Z0-9\\]/;
+
+/** 1 dòng "trông giống" mã LaTeX gốc chưa có dấu phân cách — không dấu tiếng Việt, có lệnh LaTeX
+ * hoặc cú pháp mũ/chỉ số. Dùng để tự convert cả khi người dùng dán thẳng công thức không bọc $...$. */
+function looksLikeRawLatex(segment: string): boolean {
+  const trimmed = segment.trim();
+  if (!trimmed) return false;
+  if (VIETNAMESE_DIACRITIC_PATTERN.test(trimmed)) return false;
+  return LATEX_COMMAND_PATTERN.test(trimmed) || LATEX_SUPSUB_PATTERN.test(trimmed);
+}
+
+/** Xử lý phần văn bản NẰM NGOÀI các khối có dấu phân cách — vẫn dò từng dòng xem có phải mã LaTeX
+ * trần (không dấu $/\[.../\]) hay không, còn lại giữ nguyên dạng chữ thường. */
+function processPlainSegment(segment: string): string {
+  return segment
+    .split('\n')
+    .map((line) => (looksLikeRawLatex(line) ? buildFormulaHtml(line.trim()) : escapeHtml(line)))
+    .join('<br>');
+}
+
+/** Chuyển văn bản thuần dán vào thành HTML: đoạn nhận diện là LaTeX (có dấu phân cách hoặc trông
+ * giống mã nguồn LaTeX trần) được render thành công thức toán học ngay, phần còn lại giữ nguyên
+ * dạng chữ (đã escape để không lọt HTML lạ, giữ xuống dòng bằng <br>). */
+export function buildPastedHtml(text: string): { html: string; hasFormula: boolean } {
+  DELIMITED_FORMULA_PATTERN.lastIndex = 0;
+  let lastIndex = 0;
+  let html = '';
+  let match: RegExpExecArray | null;
+
+  while ((match = DELIMITED_FORMULA_PATTERN.exec(text))) {
+    if (match.index > lastIndex) {
+      html += processPlainSegment(text.slice(lastIndex, match.index));
+    }
+    const latex = (match[1] ?? match[2] ?? match[3] ?? match[4] ?? '').trim();
+    if (latex) {
+      html += buildFormulaHtml(latex);
+    }
+    lastIndex = DELIMITED_FORMULA_PATTERN.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    html += processPlainSegment(text.slice(lastIndex));
+  }
+
+  return { html, hasFormula: html.includes(FORMULA_CLASS) };
+}
+
 /** Mẫu công thức thường dùng — chèn nhanh vào ô nhập LaTeX cho người chưa quen cú pháp */
 export const FORMULA_TEMPLATES: { label: string; latex: string }[] = [
   { label: 'Phân số', latex: '\\frac{a}{b}' },

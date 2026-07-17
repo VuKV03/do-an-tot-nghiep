@@ -5,6 +5,7 @@ import { isLikelyHtml, sanitizeHtml } from '../utils/htmlContent';
 import { compressImageFile } from '../utils/imageCompress';
 import {
   buildFormulaHtml,
+  buildPastedHtml,
   findFormulaElement,
   getFormulaLatex,
   renderLatexToHtml,
@@ -660,7 +661,14 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           }
 
           const text = e.clipboardData.getData('text/plain');
-          document.execCommand('insertText', false, text);
+          // Văn bản dán vào có thể chứa công thức LaTeX (copy từ ChatGPT, tài liệu LaTeX...) — nhận
+          // diện $$...$$ / \[...\] / \(...\) và tự động chuyển thành công thức hiển thị luôn.
+          const { html, hasFormula } = buildPastedHtml(text);
+          if (hasFormula) {
+            document.execCommand('insertHTML', false, html);
+          } else {
+            document.execCommand('insertText', false, text);
+          }
           emitChange();
         }}
       />
