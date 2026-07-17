@@ -1,6 +1,7 @@
 import { SystemUser } from '../types';
 
 export const checkUserPermission = (currentUser: SystemUser | null, key: string) => {
+  if (key === 'dashboard' || key === 'no-access') return true;
   // Cho phép truy cập toàn bộ nếu role là admin HOẶC user thuộc nhóm GRP_ADMIN
   if (currentUser?.role === 'admin') return true;
   if (currentUser?.groups?.some(g => g.code === 'GRP_ADMIN')) return true;
@@ -14,25 +15,25 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
   });
 
   const permissionMap: Record<string, string[]> = {
-    'xay-dung-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view', 'exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    'quan-ly-ma-tran-de': ['matrix.create', 'matrix.edit', 'matrix.delete', 'matrix.view'],
-    'quan-ly-de-thi-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    'quan-ly-goi-de': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'xay-dung-de': ['matrices.manage', 'matrices.submit', 'matrices.approve', 'exams.manage', 'exams.submit', 'exams.approve'],
+    'quan-ly-ma-tran-de': ['matrices.manage', 'matrices.submit', 'matrices.approve'],
+    'quan-ly-de-thi-goi-de': ['exams.manage', 'exams.submit', 'exams.approve'],
+    'quan-ly-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export'],
 
-    'to-chuc-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    'quan-ly-ky-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    'quan-ly-thi-sinh': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
-    'quan-ly-ket-qua-thi': ['exams.create', 'exams.view', 'exams.delete', 'exams.edit'],
+    'to-chuc-thi': ['exams.generate_variants', 'exams.export', 'exams.test_run'],
+    'quan-ly-ky-thi': ['exams.generate_variants', 'exams.export', 'exams.test_run'],
+    'quan-ly-thi-sinh': ['exams.generate_variants', 'exams.export', 'exams.test_run'],
+    'quan-ly-ket-qua-thi': ['exams.generate_variants', 'exams.export', 'exams.test_run'],
 
-    'quan-ly-nhch': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
-    'chu-de-cau-hoi': ['questions.view', 'questions.approve', 'questions.review'],
-    'ngan-hang-cau-hoi': ['questions.view', 'questions.create', 'questions.edit', 'questions.delete', 'questions.approve', 'questions.review'],
-    'thong-ke-nhch': ['questions.view', 'questions.approve', 'questions.review'],
+    'quan-ly-nhch': ['topics.manage', 'topics.submit', 'topics.approve', 'questions.manage', 'questions.submit', 'questions.approve'],
+    'chu-de-cau-hoi': ['topics.manage', 'topics.submit', 'topics.approve'],
+    'ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.approve'],
+    'thong-ke-nhch': ['questions.manage', 'questions.submit', 'questions.approve', 'topics.manage', 'topics.submit', 'topics.approve'],
 
     'quan-tri-he-thong': ['system.users', 'system.groups', 'system.policies'],
     'quan-ly-nguoi-dung': ['system.users'],
     'quan-ly-nhom-nguoi-dung': ['system.groups'],
-    'chinh-sach-bao-mat': ['system.policies'],
+    'chinh-sach-bao-mat': ['system.policies', 'system.users', 'system.groups'],
 
     'quan-tri-danh-muc': ['system.categories'],
     'danh-muc-mon-hoc': ['system.categories'],

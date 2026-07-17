@@ -132,3 +132,56 @@ async def delete_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(package)
     await db.commit()
     return {"success": True, "message": f'Đã giải tán thành công gói đề: "{name}"'}
+
+
+@router.post("/{pkg_id}/publish")
+async def publish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
+    """Phát thi một gói đề (chuyển sang Active)."""
+    result = await db.execute(select(Package).where(Package.id == pkg_id))
+    package = result.scalar_one_or_none()
+    if not package:
+        raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi yêu cầu.")
+
+    # Kiểm tra xem Môn thi của gói đề này đã có gói nào đang "active" chưa
+    active_result = await db.execute(
+        select(Package).where(
+            Package.subject == package.subject,
+            Package.status == "active",
+            Package.id != pkg_id
+        )
+    )
+    active_package = active_result.scalar_one_or_none()
+    if active_package:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Môn {package.subject} đang có Gói đề {active_package.name} được phát. Vui lòng tắt Gói đề đó trước."
+        )
+
+    package.status = "active"
+    await db.commit()
+    await db.refresh(package)
+
+    return {
+        "success": True,
+        "message": f"Đã phát thi gói đề {package.name} thành công!",
+        "data": _build_package_response(package),
+    }
+
+
+@router.post("/{pkg_id}/unpublish")
+async def unpublish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
+    """Tắt phát thi một gói đề (chuyển sang Inactive)."""
+    result = await db.execute(select(Package).where(Package.id == pkg_id))
+    package = result.scalar_one_or_none()
+    if not package:
+        raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi yêu cầu.")
+
+    package.status = "inactive"
+    await db.commit()
+    await db.refresh(package)
+
+    return {
+        "success": True,
+        "message": f"Đã tắt phát thi gói đề {package.name} thành công!",
+        "data": _build_package_response(package),
+    }

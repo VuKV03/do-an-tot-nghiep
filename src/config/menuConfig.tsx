@@ -22,9 +22,7 @@ export const rawMenuItems = [
     icon: <CheckSquareOutlined />,
     label: 'Tổ chức thi',
     children: [
-      { key: 'quan-ly-ky-thi', label: 'Quản lý kỳ thi' },
       { key: 'quan-ly-thi-sinh', label: 'Quản lý thí sinh' },
-      { key: 'quan-ly-de-thi', label: 'Quản lý đề thi' },
       { key: 'quan-ly-ket-qua-thi', label: 'Quản lý kết quả thi' }
     ]
   },

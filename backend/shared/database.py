@@ -31,8 +31,8 @@ class Base(DeclarativeBase):
 engine = create_async_engine(
     db_config.url,
     echo=False,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=1,
+    max_overflow=5,
     pool_recycle=3600,
     pool_pre_ping=True,
     connect_args={"ssl": ssl_context} if db_config.USE_SSL else {}
@@ -59,23 +59,27 @@ async def ensure_database_exists():
     """Create the database if it doesn't exist yet (runs before ORM init)."""
     # pyrefly: ignore [missing-import]
     import aiomysql
-    conn = await aiomysql.connect(
-        host=db_config.HOST,
-        port=db_config.PORT,
-        user=db_config.USER,
-        password=db_config.PASSWORD,
-        ssl=ssl_context if db_config.USE_SSL else None,
-    )
+    import pymysql.err
     try:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{db_config.NAME}` "
-                f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-            )
-        await conn.commit()
-        print(f"[Database] Database '{db_config.NAME}' sẵn sàng.")
-    finally:
-        conn.close()
+        conn = await aiomysql.connect(
+            host=db_config.HOST,
+            port=db_config.PORT,
+            user=db_config.USER,
+            password=db_config.PASSWORD,
+            ssl=ssl_context if db_config.USE_SSL else None,
+        )
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    f"CREATE DATABASE IF NOT EXISTS `{db_config.NAME}` "
+                    f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                )
+            await conn.commit()
+            print(f"[Database] Database '{db_config.NAME}' sẵn sàng.")
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[Database] Could not verify/create database (might be restricted on cloud): {e}")
 
 
 async def init_tables():

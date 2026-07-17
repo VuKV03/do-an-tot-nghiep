@@ -10,8 +10,8 @@ async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     print("=" * 60)
     print("[QuanLyThi Service] Starting on Port 8005...")
-    await ensure_database_exists()
-    await init_tables()
+    # await ensure_database_exists()
+    # await init_tables()
     print("[QuanLyThi Service] Ready!")
     print("=" * 60)
     yield
@@ -42,6 +42,7 @@ app.include_router(portal_router, prefix="/api/exam/portal", tags=["Portal"])
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "quanlythi-service", "port": 8005}
+
 
 if __name__ == "__main__":
     # pyrefly: ignore [missing-import]

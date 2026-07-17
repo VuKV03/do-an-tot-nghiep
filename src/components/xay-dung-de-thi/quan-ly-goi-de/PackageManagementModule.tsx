@@ -24,6 +24,8 @@ import {
   UpOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
@@ -136,11 +138,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         return <Tag color="warning" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Chờ thẩm định</Tag>;
       case '3':
       case 'approved':
-      case 'active':
         return <Tag color="success" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đã thẩm định</Tag>;
+      case 'active':
+        return <Tag color="processing" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đang phát</Tag>;
+      case 'inactive':
+        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Ngừng phát</Tag>;
       case '4':
       case 'rejected':
-      case 'inactive':
         return <Tag color="error" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Từ chối</Tag>;
       default:
         return <Tag className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">{status}</Tag>;
@@ -190,6 +194,40 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }
     } catch {
       message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+    }
+  };
+
+  const handlePublishPackage = async (pkg: any) => {
+    try {
+      const res = await fetch(`/api/exams/packages/${pkg.id}/publish`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success(json.message || `Đã phát thi gói đề "${pkg.name}".`);
+        fetchData();
+      } else {
+        message.error(json.detail || json.error || 'Lỗi khi phát thi gói đề.');
+      }
+    } catch {
+      message.error('Lỗi kết nối khi phát thi gói đề.');
+    }
+  };
+
+  const handleUnpublishPackage = async (pkg: any) => {
+    try {
+      const res = await fetch(`/api/exams/packages/${pkg.id}/unpublish`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success(json.message || `Đã tắt phát thi gói đề "${pkg.name}".`);
+        fetchData();
+      } else {
+        message.error(json.detail || json.error || 'Lỗi khi tắt phát thi gói đề.');
+      }
+    } catch {
+      message.error('Lỗi kết nối khi tắt phát thi gói đề.');
     }
   };
 
@@ -289,8 +327,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         <button
           onClick={() => { setActiveTab('list'); setSelectedPkgIds([]); }}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
         >
           Gói đề
@@ -298,8 +336,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         <button
           onClick={() => { setActiveTab('review'); setSelectedPkgIds([]); }}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
         >
           Thẩm định/phản biện gói đề
@@ -331,7 +369,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                   allowClear
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Đợt thi</label>
                 <Select
                   value={pkgPeriodId}
@@ -339,7 +377,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                   className="w-full text-xs"
                   options={[{ value: 'all', label: 'Tất cả' }, ...examPeriods.map(p => ({ value: p.id, label: p.name }))]}
                 />
-              </div>
+              </div> */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
                 <Select
@@ -502,6 +540,28 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                                 </Tooltip>
                               </Popconfirm>
                             </>
+                          )}
+                          {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && (
+                            <Popconfirm
+                              title={`Phát thi gói đề "${row.name}"?`}
+                              okText="Phát thi" cancelText="Hủy"
+                              onConfirm={() => handlePublishPackage(row)}
+                            >
+                              <Tooltip title="Cho thi">
+                                <Button size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                              </Tooltip>
+                            </Popconfirm>
+                          )}
+                          {row.status === 'active' && activeTab === 'list' && (
+                            <Popconfirm
+                              title={`Tắt phát thi gói đề "${row.name}"?`}
+                              okText="Tắt phát" cancelText="Hủy"
+                              onConfirm={() => handleUnpublishPackage(row)}
+                            >
+                              <Tooltip title="Tắt phát thi">
+                                <Button size="small" type="text" icon={<PauseCircleOutlined className="text-orange-500" />} className="cursor-pointer" />
+                              </Tooltip>
+                            </Popconfirm>
                           )}
                           <Tooltip title="Xem chi tiết gói đề">
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}

@@ -3,33 +3,10 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-# ================= Exam Session =================
-class ExamSessionBase(BaseModel):
-    name: str
-    session_code: Optional[str] = None
-    exam_id: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    duration_minutes: int = 60
-    status: str = "pending"
-
-class ExamSessionCreate(ExamSessionBase):
-    pass
-
-class ExamSessionUpdate(BaseModel):
-    name: Optional[str] = None
-    session_code: Optional[str] = None
-    exam_id: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    duration_minutes: Optional[int] = None
-    status: Optional[str] = None
-
-class ExamSessionResponse(ExamSessionBase):
-    id: str
-
-    class Config:
-        from_attributes = True
+# pyrefly: ignore [missing-import]
+from pydantic import BaseModel
+from typing import List, Optional
+from datetime import datetime
 
 # ================= Exam Candidate =================
 class ExamCandidateBase(BaseModel):
@@ -38,33 +15,28 @@ class ExamCandidateBase(BaseModel):
     cccd: Optional[str] = None
     gender: Optional[str] = None
     dob: Optional[str] = None
-    diem_thi: Optional[str] = None
     note: Optional[str] = None
-    registered_subjects: Optional[str] = None
-    status: str = "not_started"
 
 class ExamCandidateCreate(ExamCandidateBase):
     password: str
+    subjects: List[str] = []
 
 class ExamCandidateResponse(ExamCandidateBase):
     id: str
-    session_id: str
+    subjects: List[str] = []
 
     class Config:
         from_attributes = True
 
 class ExamCandidateUpdate(BaseModel):
-    session_id: Optional[str] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
-    status: Optional[str] = None
     cccd: Optional[str] = None
     gender: Optional[str] = None
     dob: Optional[str] = None
-    diem_thi: Optional[str] = None
     note: Optional[str] = None
-    registered_subjects: Optional[str] = None
+    subjects: Optional[List[str]] = None
 
 # ================= Exam Result =================
 class ExamResultBase(BaseModel):
@@ -77,12 +49,17 @@ class ExamResultBase(BaseModel):
 
 class ExamResultCreate(ExamResultBase):
     candidate_id: str
-    session_id: str
+    package_id: Optional[str] = None
+    exam_id: Optional[str] = None
+    subject: Optional[str] = None
 
 class ExamResultResponse(ExamResultBase):
     id: str
     candidate_id: str
-    session_id: str
+    package_id: Optional[str] = None
+    exam_id: Optional[str] = None
+    subject: Optional[str] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -96,3 +73,18 @@ class SubmitDraftRequest(BaseModel):
 
 class SubmitFinalRequest(BaseModel):
     answers_json: str
+
+class CandidateHistoryItem(BaseModel):
+    id: str
+    subject: Optional[str] = None
+    package_name: Optional[str] = None
+    exam_code: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    score: Optional[float] = None
+    total_correct: Optional[int] = None
+    total_questions: Optional[int] = None
+
+class CandidateHistoryResponse(BaseModel):
+    candidate_id: str
+    full_name: str
+    history: List[CandidateHistoryItem]

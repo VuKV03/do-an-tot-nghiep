@@ -8,12 +8,14 @@ const { Title, Text } = Typography;
 
 interface ExamPortalProps {
   currentUser: SystemUser;
+  subject: string;
   onLogout: () => void;
+  onExamStart?: () => void;
   mode?: 'taking' | 'preview';
   previewExamData?: any;
 }
 
-export default function ExamPortal({ currentUser, onLogout, mode = 'taking', previewExamData }: ExamPortalProps) {
+export default function ExamPortal({ currentUser, subject, onLogout, onExamStart, mode = 'taking', previewExamData }: ExamPortalProps) {
   const [loading, setLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -43,16 +45,16 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
   const fetchSessionInfo = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`/api/exam/portal/me/session-info?candidate_id=${currentUser.id}`, {
+      const res = await fetch(`/api/exam/portal/me/exam-info?candidate_id=${currentUser.id}&subject=${encodeURIComponent(subject)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       const data = await res.json();
-      if (res.ok && (data.success || data.session)) {
+      if (res.ok && (data.success || data.exam)) {
         const payload = data.data || data;
         setSessionInfo(payload);
-        const duration = payload.session?.duration_minutes || 45;
+        const duration = payload.exam?.duration || 45;
         setTimeLeft(duration * 60);
       } else {
         message.error(data.detail || 'Không thể tải thông tin kỳ thi.');
@@ -114,7 +116,7 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
     }
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`/api/exam/portal/submit-draft?candidate_id=${currentUser.id}`, {
+      const res = await fetch(`/api/exam/portal/submit-draft?result_id=${sessionInfo?.result_info?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +146,7 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
     setSubmitting(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`/api/exam/portal/submit-final?candidate_id=${currentUser.id}`, {
+      const res = await fetch(`/api/exam/portal/submit-final?result_id=${sessionInfo?.result_info?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,10 +272,10 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
     return (
       <div className="flex flex-col min-h-screen w-full bg-[#f4f6f9] items-center justify-center py-12 px-4 font-sans">
         <h1 className="text-[28px] text-slate-800 uppercase mb-3 font-medium tracking-wide text-center">
-          {sessionInfo.session?.name ? sessionInfo.session.name.toUpperCase() : 'KỲ THI TRỰC TUYẾN'}
+          {sessionInfo.exam?.name ? sessionInfo.exam.name.toUpperCase() : `KỲ THI MÔN ${sessionInfo.exam?.subject || 'TRỰC TUYẾN'}`}
         </h1>
         <p className="text-slate-800 mb-12 text-[15px]">
-          Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({sessionInfo.session?.start_time ? new Date(sessionInfo.session.start_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '09:00'} - {sessionInfo.session?.end_time ? new Date(sessionInfo.session.end_time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '11:00'})
+          Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})})
         </p>
 
         <div className="flex flex-col md:flex-row gap-6 max-w-[960px] w-full mb-10">
@@ -282,8 +284,8 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
             <div className="space-y-6 text-slate-800 font-bold text-[15px]">
               <div><span className="text-slate-500 mr-2 font-normal">Họ và tên:</span> {currentUser.fullName}</div>
               <div><span className="text-slate-500 mr-2 font-normal">SBD:</span> {currentUser.username}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Ngày sinh:</span> {sessionInfo.candidate?.dob || '30/05/2007'}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> {sessionInfo.candidate?.gender || 'Nữ'}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Ngày sinh:</span> Đang cập nhật</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> Đang cập nhật</div>
             </div>
           </div>
           <div className="flex-1 bg-white p-8 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
@@ -291,7 +293,7 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
             <div className="space-y-6 text-slate-800 font-bold text-[15px]">
               <div><span className="text-slate-500 mr-2 font-normal">Môn thi:</span> {sessionInfo.exam?.subject || 'Toán học'}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Số lượng câu hỏi:</span> {totalQuestions}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Thời gian làm bài (phút):</span> {sessionInfo.session?.duration_minutes || 60}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Thời gian làm bài (phút):</span> {sessionInfo.exam?.duration || 45}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> 10</div>
             </div>
           </div>
@@ -305,7 +307,7 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
 
         <div className="flex justify-center gap-4 w-full">
           <Button size="large" className="px-8 h-11 text-slate-600 font-medium border-slate-300 rounded hover:text-slate-800 hover:border-slate-400" onClick={onLogout}>Thoát</Button>
-          <Button type="primary" size="large" className="px-8 h-11 font-medium bg-[#1677ff] rounded shadow-sm hover:bg-blue-600" onClick={() => setViewMode('taking')}>
+          <Button type="primary" size="large" className="px-8 h-11 font-medium bg-[#1677ff] rounded shadow-sm hover:bg-blue-600" onClick={() => { setViewMode('taking'); onExamStart?.(); }}>
             Bắt đầu làm bài
           </Button>
         </div>
@@ -487,7 +489,7 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
         <div className="flex flex-col text-xs font-medium tracking-wide" style={{ color: 'white' }}>
           <div className="font-bold text-sm mb-0.5 tracking-wider" style={{ color: 'white' }}>HỆ THỐNG THI TRỰC TUYẾN</div>
           <div className="flex gap-6 opacity-90 text-[11px]" style={{ color: 'white' }}>
-            <span style={{ color: 'white' }}>Kỳ thi: {sessionInfo.session?.name || 'Đang cập nhật'}</span>
+            <span style={{ color: 'white' }}>Kỳ thi: {sessionInfo.exam?.name || 'Đang cập nhật'}</span>
             <span style={{ color: 'white' }}>Môn thi: {sessionInfo.exam?.subject || 'Chưa xác định'}</span>
             <span style={{ color: 'white' }}>Ngày thi: {new Date().toLocaleDateString('vi-VN')}</span>
             <span style={{ color: 'white' }}>Thí sinh: {currentUser?.fullName || 'Đang cập nhật'}</span>
@@ -790,14 +792,23 @@ export default function ExamPortal({ currentUser, onLogout, mode = 'taking', pre
           )}
 
           <div className="w-full space-y-5 text-[15px] text-slate-800 mx-auto max-w-[340px]">
-            <div className="grid grid-cols-[180px_auto] gap-2 items-center">
-              <span className="text-slate-700">Số câu đã trả lời:</span>
-              <strong className="text-[#22c55e] font-bold text-[17px]">{answeredCount}/{totalQuestions}</strong>
-            </div>
-            <div className="grid grid-cols-[180px_auto] gap-2 items-center">
-              <span className="text-slate-700">Số điểm đạt được:</span>
-              <strong className="text-[#22c55e] font-bold text-[17px]">{examResultData?.score?.toString().replace('.', ',')}/10</strong>
-            </div>
+            {examResultData && examResultData.score !== undefined ? (
+              <>
+                <div className="grid grid-cols-[180px_auto] gap-2 items-center">
+                  <span className="text-slate-700">Điểm số:</span>
+                  <strong className="text-[#1677ff] font-bold text-[17px]">{examResultData.score} / 10</strong>
+                </div>
+                <div className="grid grid-cols-[180px_auto] gap-2 items-center">
+                  <span className="text-slate-700">Số câu đúng:</span>
+                  <strong className="text-[#22c55e] font-bold text-[17px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-[180px_auto] gap-2 items-center">
+                <span className="text-slate-700">Số câu đã trả lời:</span>
+                <strong className="text-[#22c55e] font-bold text-[17px]">{answeredCount}/{totalQuestions}</strong>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
