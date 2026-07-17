@@ -35,18 +35,35 @@ type SubjectConfigFormValues = {
   p1_from?: number;
   p1_to?: number;
   points_for_a_correct_answers_p1?: number;
+  points_for_1_correct_idea_p1?: number;
+  points_for_2_correct_idea_p1?: number;
+  points_for_3_correct_idea_p1?: number;
+  points_for_4_correct_idea_p1?: number;
   type_id_p2?: string;
   p2_from?: number;
   p2_to?: number;
-  points_for_1_correct_idea?: number;
-  points_for_2_correct_idea?: number;
-  points_for_3_correct_idea?: number;
-  points_for_4_correct_idea?: number;
+  points_for_a_correct_answers_p2?: number;
+  points_for_1_correct_idea_p2?: number;
+  points_for_2_correct_idea_p2?: number;
+  points_for_3_correct_idea_p2?: number;
+  points_for_4_correct_idea_p2?: number;
   type_id_p3?: string;
   p3_from?: number;
   p3_to?: number;
   points_for_a_correct_answers_p3?: number;
+  points_for_1_correct_idea_p3?: number;
+  points_for_2_correct_idea_p3?: number;
+  points_for_3_correct_idea_p3?: number;
+  points_for_4_correct_idea_p3?: number;
 };
+
+type PartKey = 'p1' | 'p2' | 'p3';
+
+type DsFlags = Record<PartKey, boolean>;
+
+/** Mã loại câu hỏi được coi là "Đúng/Sai" — phần này sẽ tính điểm theo số ý đúng
+ * thay vì điểm cố định cho mỗi câu trả lời đúng. */
+const DS_QUESTION_TYPE_CODE = 'DS';
 
 const SECTION_LABELS = {
   p1: 'Phần I',
@@ -134,6 +151,74 @@ function TypeSelectField({
   );
 }
 
+/** Hiển thị cách tính điểm của 1 phần: nếu loại câu hỏi đã chọn là 'DS' (Đúng/Sai)
+ * thì tính theo số ý đúng, ngược lại tính điểm cố định cho mỗi câu trả lời đúng. */
+function PartScoringFields({
+  isDs,
+  answerFieldName,
+  ideaFieldNames,
+}: {
+  isDs: boolean;
+  answerFieldName: keyof SubjectConfigFormValues;
+  ideaFieldNames: [
+    keyof SubjectConfigFormValues,
+    keyof SubjectConfigFormValues,
+    keyof SubjectConfigFormValues,
+    keyof SubjectConfigFormValues,
+  ];
+}) {
+  if (isDs) {
+    return (
+      <div className='mt-3 pt-3 border-t border-gray-100'>
+        <p className='text-gray-500 text-xs font-medium mb-2'>
+          Điểm theo số ý trả lời đúng trong 01 câu
+        </p>
+        <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+          <NumberField
+            name={ideaFieldNames[0]}
+            label='01 ý đúng'
+            min={0}
+            step={0.25}
+          />
+          <NumberField
+            name={ideaFieldNames[1]}
+            label='02 ý đúng'
+            min={0}
+            step={0.25}
+          />
+          <NumberField
+            name={ideaFieldNames[2]}
+            label='03 ý đúng'
+            min={0}
+            step={0.25}
+          />
+          <NumberField
+            name={ideaFieldNames[3]}
+            label='04 ý đúng'
+            min={0}
+            step={0.25}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className='mt-3 pt-3 border-t border-gray-100'>
+      <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+        <div className='col-span-2'>
+          <NumberField
+            name={answerFieldName}
+            label='Điểm của mỗi câu trả lời đúng'
+            min={0}
+            step={0.25}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CauHinhMonHocModal({
   open,
   onClose,
@@ -155,6 +240,12 @@ export default function CauHinhMonHocModal({
     [questionTypes],
   );
 
+  const getTypeCode = (typeId?: string): string | undefined =>
+    questionTypes.find((item) => item.id === typeId)?.code;
+
+  const isDsType = (typeId?: string): boolean =>
+    (getTypeCode(typeId) ?? '').trim().toUpperCase() === DS_QUESTION_TYPE_CODE;
+
   const makeToRule = (fromName: keyof SubjectConfigFormValues): Rule => ({
     validator: (_, toValue) => {
       const fromValue = form.getFieldValue(fromName);
@@ -170,9 +261,16 @@ export default function CauHinhMonHocModal({
   const watchedValues = Form.useWatch([], form) as
     | SubjectConfigFormValues
     | undefined;
+
+  const dsFlags: DsFlags = {
+    p1: isDsType(watchedValues?.type_id_p1),
+    p2: isDsType(watchedValues?.type_id_p2),
+    p3: isDsType(watchedValues?.type_id_p3),
+  };
+
   const maxTotalScore = useMemo(
-    () => computeMaxTotalScore(watchedValues ?? {}),
-    [watchedValues],
+    () => computeMaxTotalScore(watchedValues ?? {}, dsFlags),
+    [watchedValues, dsFlags.p1, dsFlags.p2, dsFlags.p3],
   );
   const scaleValue = watchedValues?.scale;
   const isOverScale = scaleValue != null && maxTotalScore > scaleValue;
@@ -235,7 +333,13 @@ export default function CauHinhMonHocModal({
     try {
       const values = (await form.validateFields()) as SubjectConfigFormValues;
 
-      const totalScore = computeMaxTotalScore(values);
+      const submitDsFlags: DsFlags = {
+        p1: isDsType(values.type_id_p1),
+        p2: isDsType(values.type_id_p2),
+        p3: isDsType(values.type_id_p3),
+      };
+
+      const totalScore = computeMaxTotalScore(values, submitDsFlags);
       if (values.scale != null && totalScore > values.scale) {
         messageApi.error(
           `Tổng điểm tối đa của cấu trúc đề (${formatScore(totalScore)}) đang vượt quá thang điểm (${values.scale}). Vui lòng điều chỉnh lại điểm hoặc số câu hỏi.`,
@@ -250,7 +354,7 @@ export default function CauHinhMonHocModal({
         content_p1: SECTION_LABELS.p1,
         content_p2: SECTION_LABELS.p2,
         content_p3: SECTION_LABELS.p3,
-        ...normalizePayload(values),
+        ...normalizePayload(values, submitDsFlags),
       };
 
       if (configId) {
@@ -423,15 +527,17 @@ export default function CauHinhMonHocModal({
                         dependencies={['p1_from']}
                         extraRules={[makeToRule('p1_from')]}
                       />
-                      <div className='col-span-2'>
-                        <NumberField
-                          name='points_for_a_correct_answers_p1'
-                          label='Điểm của mỗi câu trả lời đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                      </div>
                     </div>
+                    <PartScoringFields
+                      isDs={dsFlags.p1}
+                      answerFieldName='points_for_a_correct_answers_p1'
+                      ideaFieldNames={[
+                        'points_for_1_correct_idea_p1',
+                        'points_for_2_correct_idea_p1',
+                        'points_for_3_correct_idea_p1',
+                        'points_for_4_correct_idea_p1',
+                      ]}
+                    />
                   </div>
 
                   <div className='border border-gray-200 rounded-lg p-3'>
@@ -459,38 +565,16 @@ export default function CauHinhMonHocModal({
                         extraRules={[makeToRule('p2_from')]}
                       />
                     </div>
-
-                    <div className='mt-3 pt-3 border-t border-gray-100'>
-                      <p className='text-gray-500 text-xs font-medium mb-2'>
-                        Điểm theo số ý trả lời đúng trong 01 câu
-                      </p>
-                      <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
-                        <NumberField
-                          name='points_for_1_correct_idea'
-                          label='01 ý đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                        <NumberField
-                          name='points_for_2_correct_idea'
-                          label='02 ý đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                        <NumberField
-                          name='points_for_3_correct_idea'
-                          label='03 ý đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                        <NumberField
-                          name='points_for_4_correct_idea'
-                          label='04 ý đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                      </div>
-                    </div>
+                    <PartScoringFields
+                      isDs={dsFlags.p2}
+                      answerFieldName='points_for_a_correct_answers_p2'
+                      ideaFieldNames={[
+                        'points_for_1_correct_idea_p2',
+                        'points_for_2_correct_idea_p2',
+                        'points_for_3_correct_idea_p2',
+                        'points_for_4_correct_idea_p2',
+                      ]}
+                    />
                   </div>
 
                   <div className='border border-gray-200 rounded-lg p-3'>
@@ -517,15 +601,17 @@ export default function CauHinhMonHocModal({
                         dependencies={['p3_from']}
                         extraRules={[makeToRule('p3_from')]}
                       />
-                      <div className='col-span-2'>
-                        <NumberField
-                          name='points_for_a_correct_answers_p3'
-                          label='Điểm của mỗi câu trả lời đúng'
-                          min={0}
-                          step={0.25}
-                        />
-                      </div>
                     </div>
+                    <PartScoringFields
+                      isDs={dsFlags.p3}
+                      answerFieldName='points_for_a_correct_answers_p3'
+                      ideaFieldNames={[
+                        'points_for_1_correct_idea_p3',
+                        'points_for_2_correct_idea_p3',
+                        'points_for_3_correct_idea_p3',
+                        'points_for_4_correct_idea_p3',
+                      ]}
+                    />
                   </div>
                 </div>
               </section>
@@ -549,51 +635,131 @@ function mapConfigToFormValues(
     number_to_create: config.number_to_create ?? undefined,
     questions_number: config.questions_number ?? undefined,
     scale: config.scale ?? undefined,
+
     type_id_p1: config.type_id_p1 ?? undefined,
     p1_from: 1,
     p1_to: config.p1_to ?? undefined,
     points_for_a_correct_answers_p1: toNumber(
       config.points_for_a_correct_answers_p1,
     ),
+    points_for_1_correct_idea_p1: toNumber(
+      config.points_for_1_correct_idea_p1,
+    ),
+    points_for_2_correct_idea_p1: toNumber(
+      config.points_for_2_correct_idea_p1,
+    ),
+    points_for_3_correct_idea_p1: toNumber(
+      config.points_for_3_correct_idea_p1,
+    ),
+    points_for_4_correct_idea_p1: toNumber(
+      config.points_for_4_correct_idea_p1,
+    ),
+
     type_id_p2: config.type_id_p2 ?? undefined,
     p2_from: 1,
     p2_to: config.p2_to ?? undefined,
-    points_for_1_correct_idea: toNumber(config.points_for_1_correct_idea),
-    points_for_2_correct_idea: toNumber(config.points_for_2_correct_idea),
-    points_for_3_correct_idea: toNumber(config.points_for_3_correct_idea),
-    points_for_4_correct_idea: toNumber(config.points_for_4_correct_idea),
+    points_for_a_correct_answers_p2: toNumber(
+      config.points_for_a_correct_answers_p2,
+    ),
+    points_for_1_correct_idea_p2: toNumber(
+      config.points_for_1_correct_idea_p2,
+    ),
+    points_for_2_correct_idea_p2: toNumber(
+      config.points_for_2_correct_idea_p2,
+    ),
+    points_for_3_correct_idea_p2: toNumber(
+      config.points_for_3_correct_idea_p2,
+    ),
+    points_for_4_correct_idea_p2: toNumber(
+      config.points_for_4_correct_idea_p2,
+    ),
+
     type_id_p3: config.type_id_p3 ?? undefined,
     p3_from: 1,
     p3_to: config.p3_to ?? undefined,
     points_for_a_correct_answers_p3: toNumber(
       config.points_for_a_correct_answers_p3,
     ),
+    points_for_1_correct_idea_p3: toNumber(
+      config.points_for_1_correct_idea_p3,
+    ),
+    points_for_2_correct_idea_p3: toNumber(
+      config.points_for_2_correct_idea_p3,
+    ),
+    points_for_3_correct_idea_p3: toNumber(
+      config.points_for_3_correct_idea_p3,
+    ),
+    points_for_4_correct_idea_p3: toNumber(
+      config.points_for_4_correct_idea_p3,
+    ),
   };
 }
 
-function normalizePayload(values: SubjectConfigFormValues) {
+/** Với mỗi phần: chỉ lưu bộ điểm khớp với cách tính điểm đang hiển thị (theo câu
+ * hay theo ý) — bộ còn lại được ghi null để không lưu dữ liệu không còn áp dụng. */
+function normalizePayload(values: SubjectConfigFormValues, dsFlags: DsFlags) {
   return {
     time: values.time ?? null,
     number_to_create: values.number_to_create ?? null,
     questions_number: values.questions_number ?? null,
     scale: values.scale ?? null,
+
     type_id_p1: values.type_id_p1 ?? null,
     p1_from: values.p1_from ?? null,
     p1_to: values.p1_to ?? null,
-    points_for_a_correct_answers_p1:
-      values.points_for_a_correct_answers_p1 ?? null,
+    points_for_a_correct_answers_p1: dsFlags.p1
+      ? null
+      : (values.points_for_a_correct_answers_p1 ?? null),
+    points_for_1_correct_idea_p1: dsFlags.p1
+      ? (values.points_for_1_correct_idea_p1 ?? null)
+      : null,
+    points_for_2_correct_idea_p1: dsFlags.p1
+      ? (values.points_for_2_correct_idea_p1 ?? null)
+      : null,
+    points_for_3_correct_idea_p1: dsFlags.p1
+      ? (values.points_for_3_correct_idea_p1 ?? null)
+      : null,
+    points_for_4_correct_idea_p1: dsFlags.p1
+      ? (values.points_for_4_correct_idea_p1 ?? null)
+      : null,
+
     type_id_p2: values.type_id_p2 ?? null,
     p2_from: values.p2_from ?? null,
     p2_to: values.p2_to ?? null,
-    points_for_1_correct_idea: values.points_for_1_correct_idea ?? null,
-    points_for_2_correct_idea: values.points_for_2_correct_idea ?? null,
-    points_for_3_correct_idea: values.points_for_3_correct_idea ?? null,
-    points_for_4_correct_idea: values.points_for_4_correct_idea ?? null,
+    points_for_a_correct_answers_p2: dsFlags.p2
+      ? null
+      : (values.points_for_a_correct_answers_p2 ?? null),
+    points_for_1_correct_idea_p2: dsFlags.p2
+      ? (values.points_for_1_correct_idea_p2 ?? null)
+      : null,
+    points_for_2_correct_idea_p2: dsFlags.p2
+      ? (values.points_for_2_correct_idea_p2 ?? null)
+      : null,
+    points_for_3_correct_idea_p2: dsFlags.p2
+      ? (values.points_for_3_correct_idea_p2 ?? null)
+      : null,
+    points_for_4_correct_idea_p2: dsFlags.p2
+      ? (values.points_for_4_correct_idea_p2 ?? null)
+      : null,
+
     type_id_p3: values.type_id_p3 ?? null,
     p3_from: values.p3_from ?? null,
     p3_to: values.p3_to ?? null,
-    points_for_a_correct_answers_p3:
-      values.points_for_a_correct_answers_p3 ?? null,
+    points_for_a_correct_answers_p3: dsFlags.p3
+      ? null
+      : (values.points_for_a_correct_answers_p3 ?? null),
+    points_for_1_correct_idea_p3: dsFlags.p3
+      ? (values.points_for_1_correct_idea_p3 ?? null)
+      : null,
+    points_for_2_correct_idea_p3: dsFlags.p3
+      ? (values.points_for_2_correct_idea_p3 ?? null)
+      : null,
+    points_for_3_correct_idea_p3: dsFlags.p3
+      ? (values.points_for_3_correct_idea_p3 ?? null)
+      : null,
+    points_for_4_correct_idea_p3: dsFlags.p3
+      ? (values.points_for_4_correct_idea_p3 ?? null)
+      : null,
   };
 }
 
@@ -612,22 +778,71 @@ function countQuestions(from?: number, to?: number): number {
   return to - from + 1;
 }
 
-function computeMaxTotalScore(values: SubjectConfigFormValues): number {
-  const p1Max =
-    countQuestions(values.p1_from, values.p1_to) *
-    (values.points_for_a_correct_answers_p1 ?? 0);
+function partMaxScore(
+  from: number | undefined,
+  to: number | undefined,
+  isDs: boolean,
+  answerPoints: number | undefined,
+  ideaPoints: [
+    number | undefined,
+    number | undefined,
+    number | undefined,
+    number | undefined,
+  ],
+): number {
+  const count = countQuestions(from, to);
+  if (isDs) {
+    const perQuestionMax = Math.max(
+      ideaPoints[0] ?? 0,
+      ideaPoints[1] ?? 0,
+      ideaPoints[2] ?? 0,
+      ideaPoints[3] ?? 0,
+    );
+    return count * perQuestionMax;
+  }
+  return count * (answerPoints ?? 0);
+}
 
-  const p2PerQuestionMax = Math.max(
-    values.points_for_1_correct_idea ?? 0,
-    values.points_for_2_correct_idea ?? 0,
-    values.points_for_3_correct_idea ?? 0,
-    values.points_for_4_correct_idea ?? 0,
+function computeMaxTotalScore(
+  values: SubjectConfigFormValues,
+  dsFlags: DsFlags,
+): number {
+  const p1Max = partMaxScore(
+    values.p1_from,
+    values.p1_to,
+    dsFlags.p1,
+    values.points_for_a_correct_answers_p1,
+    [
+      values.points_for_1_correct_idea_p1,
+      values.points_for_2_correct_idea_p1,
+      values.points_for_3_correct_idea_p1,
+      values.points_for_4_correct_idea_p1,
+    ],
   );
-  const p2Max = countQuestions(values.p2_from, values.p2_to) * p2PerQuestionMax;
-
-  const p3Max =
-    countQuestions(values.p3_from, values.p3_to) *
-    (values.points_for_a_correct_answers_p3 ?? 0);
+  const p2Max = partMaxScore(
+    values.p2_from,
+    values.p2_to,
+    dsFlags.p2,
+    values.points_for_a_correct_answers_p2,
+    [
+      values.points_for_1_correct_idea_p2,
+      values.points_for_2_correct_idea_p2,
+      values.points_for_3_correct_idea_p2,
+      values.points_for_4_correct_idea_p2,
+    ],
+  );
+  const p3Max = partMaxScore(
+    values.p3_from,
+    values.p3_to,
+    dsFlags.p3,
+    values.points_for_a_correct_answers_p3,
+    [
+      values.points_for_1_correct_idea_p3,
+      values.points_for_2_correct_idea_p3,
+      values.points_for_3_correct_idea_p3,
+      values.points_for_4_correct_idea_p3,
+    ],
+  );
 
   return Math.round((p1Max + p2Max + p3Max) * 100) / 100;
 }

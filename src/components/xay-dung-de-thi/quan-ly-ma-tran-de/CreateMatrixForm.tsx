@@ -130,25 +130,66 @@ const fetchSubjectMatrixConfig = async (
     return { cd, chuDe, subjectConfig: null };
   }
 
+  // Mỗi phần tự quyết định cách tính điểm dựa trên loại câu hỏi đã chọn: loại có mã
+  // 'DS' (Đúng/Sai) tính theo số ý đúng (dùng mức 4 ý đúng làm điểm đại diện cho cả
+  // phần, giống cách tính cũ vốn chỉ áp dụng cho Phần II), các loại khác tính theo câu.
+  const isDsCode = (code?: string) => (code ?? '').trim().toUpperCase() === 'DS';
+
+  const buildPart = (
+    typeId: string | null | undefined,
+    from: number | null | undefined,
+    to: number | null | undefined,
+    content: string | null | undefined,
+    answerPoints: unknown,
+    ideaPoints: [unknown, unknown, unknown, unknown],
+  ) => {
+    const type = typeId ? typeMap.get(typeId) : undefined;
+    if (isDsCode(type?.code)) {
+      return {
+        typeId, from, to, content,
+        diem: toNum(ideaPoints[3]),
+        diem_theo_y: {
+          y1: toNum(ideaPoints[0]),
+          y2: toNum(ideaPoints[1]),
+          y3: toNum(ideaPoints[2]),
+          y4: toNum(ideaPoints[3]),
+        },
+      };
+    }
+    return { typeId, from, to, content, diem: toNum(answerPoints) };
+  };
+
   const parts = [
-    {
-      typeId: subjectConfig.type_id_p1, from: subjectConfig.p1_from, to: subjectConfig.p1_to,
-      content: subjectConfig.content_p1, diem: toNum(subjectConfig.points_for_a_correct_answers_p1),
-    },
-    {
-      typeId: subjectConfig.type_id_p2, from: subjectConfig.p2_from, to: subjectConfig.p2_to,
-      content: subjectConfig.content_p2, diem: toNum(subjectConfig.points_for_4_correct_idea),
-      diem_theo_y: {
-        y1: toNum(subjectConfig.points_for_1_correct_idea),
-        y2: toNum(subjectConfig.points_for_2_correct_idea),
-        y3: toNum(subjectConfig.points_for_3_correct_idea),
-        y4: toNum(subjectConfig.points_for_4_correct_idea),
-      },
-    },
-    {
-      typeId: subjectConfig.type_id_p3, from: subjectConfig.p3_from, to: subjectConfig.p3_to,
-      content: subjectConfig.content_p3, diem: toNum(subjectConfig.points_for_a_correct_answers_p3),
-    },
+    buildPart(
+      subjectConfig.type_id_p1, subjectConfig.p1_from, subjectConfig.p1_to, subjectConfig.content_p1,
+      subjectConfig.points_for_a_correct_answers_p1,
+      [
+        subjectConfig.points_for_1_correct_idea_p1,
+        subjectConfig.points_for_2_correct_idea_p1,
+        subjectConfig.points_for_3_correct_idea_p1,
+        subjectConfig.points_for_4_correct_idea_p1,
+      ],
+    ),
+    buildPart(
+      subjectConfig.type_id_p2, subjectConfig.p2_from, subjectConfig.p2_to, subjectConfig.content_p2,
+      subjectConfig.points_for_a_correct_answers_p2,
+      [
+        subjectConfig.points_for_1_correct_idea_p2,
+        subjectConfig.points_for_2_correct_idea_p2,
+        subjectConfig.points_for_3_correct_idea_p2,
+        subjectConfig.points_for_4_correct_idea_p2,
+      ],
+    ),
+    buildPart(
+      subjectConfig.type_id_p3, subjectConfig.p3_from, subjectConfig.p3_to, subjectConfig.content_p3,
+      subjectConfig.points_for_a_correct_answers_p3,
+      [
+        subjectConfig.points_for_1_correct_idea_p3,
+        subjectConfig.points_for_2_correct_idea_p3,
+        subjectConfig.points_for_3_correct_idea_p3,
+        subjectConfig.points_for_4_correct_idea_p3,
+      ],
+    ),
   ];
 
   cd.ds_loai_cau_hoi = parts
