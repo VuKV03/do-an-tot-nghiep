@@ -13,6 +13,7 @@ import {
   DatePicker,
   Popconfirm,
   Pagination,
+  Tabs,
 } from 'antd';
 import {
   DeleteOutlined,
@@ -32,6 +33,7 @@ import JSZip from 'jszip';
 import { Question } from '../../../types';
 import { subjectCategoryApi, examPeriodApi, bankQuestionApi, type SubjectCategoryAPI, type ExamPeriodAPI } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import ExamContentDisplay from '../quan-ly-de-thi/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
 
@@ -66,6 +68,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [viewQuestionsByExamId, setViewQuestionsByExamId] = useState<Record<string, Question[]>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -311,6 +315,47 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
     } catch {
       message.error({ content: 'Lỗi khi tải gói đề.', key: 'pkg-dl' });
     }
+  };
+
+  // Xem chi tiết gói đề — tải nội dung câu hỏi thật của TỪNG đề trong gói (đề gốc + các đề hoán
+  // vị), UI dạng Tabs giống hệt "Sinh đề hoán vị" (ModalSinhDeHoanVi.tsx): mỗi tab 1 đề, render
+  // qua ExamContentDisplay. examIds[0] luôn là đề gốc — đúng theo cách ModalSinhDeHoanVi.tsx lưu
+  // package (`examIds: [exam.id, ...newExamIds]`), các phần tử còn lại là đề hoán vị.
+  const handleOpenView = async (pkg: any) => {
+    setViewPkg(pkg);
+    setIsViewOpen(true);
+    setViewLoading(true);
+    try {
+      const res = await bankQuestionApi.list();
+      const allQuestions = res.data || [];
+      const map: Record<string, Question[]> = {};
+      (pkg.examIds || []).forEach((examId: string) => {
+        map[examId] = allQuestions
+          .filter(q => q.examId === examId)
+          .map((q): Question => ({
+            id: q.id, code: q.code, text: q.text, type: q.type, level: q.level, status: q.status,
+            subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
+            subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
+            statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
+          }));
+      });
+      setViewQuestionsByExamId(map);
+    } catch {
+      message.error('Không tải được nội dung các đề trong gói.');
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const handleCloseView = () => {
+    setIsViewOpen(false);
+    setViewPkg(null);
+    setViewQuestionsByExamId({});
+  };
+
+  const handleDownloadSingleExam = async (exam: any, qs: Question[]) => {
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
+    triggerBlobDownload(blob, exam.code, 'docx');
   };
 
   const handleExportExcel = () => {
@@ -565,7 +610,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                           )}
                           <Tooltip title="Xem chi tiết gói đề">
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => { setViewPkg(row); setIsViewOpen(true); }} className="cursor-pointer" />
+                              onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
                           <Tooltip title="Tải gói đề thi">
                             <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
@@ -606,7 +651,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         )}
       </div>
 
-      {/* Modal: Xem chi tiết gói đề */}
+      {/* Modal: Xem chi tiết gói đề — đề gốc + các đề hoán vị, UI dạng Tabs giống Sinh đề hoán vị */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -615,37 +660,53 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           </div>
         }
         open={isViewOpen}
-        onCancel={() => { setIsViewOpen(false); setViewPkg(null); }}
+        onCancel={handleCloseView}
         footer={[
-          <Button key="close" onClick={() => { setIsViewOpen(false); setViewPkg(null); }} className="rounded font-semibold text-xs">Đóng</Button>,
+          <Button key="close" onClick={handleCloseView} className="rounded font-semibold text-xs">Đóng</Button>,
         ]}
         centered
-        width={640}
+        width={900}
       >
         {viewPkg && (
-          <div className="text-xs space-y-3">
-            <div className="font-semibold text-slate-800">{viewPkg.name}</div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className="text-left py-2 px-2 text-slate-600 font-bold">Mã đề</th>
-                  <th className="text-left py-2 px-2 text-slate-600 font-bold">Tên đề</th>
-                  <th className="text-center py-2 px-2 text-slate-600 font-bold">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(viewPkg.examIds || []).map((id: string) => {
-                  const exam = examsById.get(id);
-                  return (
-                    <tr key={id} className="border-b border-slate-100">
-                      <td className="py-2 px-2 font-mono">{exam?.code || id}</td>
-                      <td className="py-2 px-2">{exam?.name || '—'}</td>
-                      <td className="py-2 px-2 text-center">{exam ? getStatusTag(exam.status) : '—'}</td>
-                    </tr>
-                  );
+          <div className="pt-1 text-xs">
+            <div className="text-slate-500 mb-3">Gói đề: <strong>{viewPkg.name}</strong> ({viewPkg.code})</div>
+            {viewLoading ? (
+              <div className="py-16 text-center"><Spin /></div>
+            ) : (viewPkg.examIds || []).length === 0 ? (
+              <Empty description="Gói đề này chưa có đề thi nào." className="py-12" />
+            ) : (
+              <Tabs
+                size="small"
+                items={(viewPkg.examIds || []).map((examId: string, idx: number) => {
+                  const exam = examsById.get(examId);
+                  const qs = viewQuestionsByExamId[examId] || [];
+                  const label = idx === 0
+                    ? `Đề gốc${exam ? ` (${exam.code})` : ''}`
+                    : `Đề hoán vị ${idx}${exam ? ` (${exam.code})` : ''}`;
+                  return {
+                    key: examId,
+                    label,
+                    children: (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-[11px] text-slate-500">
+                            {exam ? <>Trạng thái: {getStatusTag(exam.status)}</> : 'Không tìm thấy dữ liệu đề này.'}
+                          </div>
+                          {exam && (
+                            <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadSingleExam(exam, qs)} disabled={qs.length === 0} className="rounded text-xs">
+                              Tải xuống
+                            </Button>
+                          )}
+                        </div>
+                        <div className="border border-slate-200 rounded p-2">
+                          <ExamContentDisplay questions={qs} allowEdit={false} />
+                        </div>
+                      </div>
+                    ),
+                  };
                 })}
-              </tbody>
-            </table>
+              />
+            )}
           </div>
         )}
       </Modal>
