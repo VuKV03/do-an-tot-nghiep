@@ -91,7 +91,7 @@ function DetailModal({ open, onClose, record }: { open: boolean; onClose: () => 
       <div className="bg-white rounded-lg shadow-xl w-[560px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-4">Chi tiết khối lớp</div>
         <div className="flex flex-col gap-3">
-          {([['id','ID'],['code','Mã'],['name','Tên'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof GradeLevelType, string][]).map(([key, label]) => {
+          {([['code','Mã'],['name','Tên'],['note','Ghi chú'],['created_at','Ngày tạo'],['updated_at','Ngày cập nhật']] as [keyof GradeLevelType, string][]).map(([key, label]) => {
             const isDate = key === 'created_at' || key === 'updated_at';
             const value = isDate ? formatDateTime(record[key] as string | null) : String(record[key] ?? '');
             return (
