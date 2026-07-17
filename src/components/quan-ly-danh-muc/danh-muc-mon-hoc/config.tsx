@@ -78,6 +78,7 @@ function NumberField({
   requiredMessage,
   min = 1,
   step,
+  precision,
   extraRules,
   dependencies,
   disabled,
@@ -89,6 +90,7 @@ function NumberField({
   requiredMessage?: string;
   min?: number;
   step?: number;
+  precision?: number;
   extraRules?: Rule[];
   dependencies?: (keyof SubjectConfigFormValues)[];
   disabled?: boolean;
@@ -118,6 +120,7 @@ function NumberField({
         className='w-full h-9'
         min={min}
         step={step}
+        precision={precision}
         disabled={disabled}
       />
     </Form.Item>
@@ -211,7 +214,8 @@ function PartScoringFields({
             name={answerFieldName}
             label='Điểm của mỗi câu trả lời đúng'
             min={0}
-            step={0.25}
+            step={1}
+            precision={0}
           />
         </div>
       </div>
