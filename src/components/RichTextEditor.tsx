@@ -99,9 +99,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     emitChange(next);
   };
 
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = '';
+  const addImageFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     const invalid = files.find((f) => !f.type.startsWith('image/'));
@@ -133,6 +131,12 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     } finally {
       setIsProcessingImage(false);
     }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    await addImageFiles(files);
   };
 
   const handleInsertLink = () => {
@@ -232,8 +236,19 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         onBlur={() => { isFocusedRef.current = false; emitChange(); }}
         onInput={() => emitChange()}
         onPaste={(e) => {
-          // Dán dạng text thuần để tránh mang theo style lạ/script từ nguồn ngoài
           e.preventDefault();
+          // Nếu clipboard có ảnh (chụp màn hình, copy ảnh từ nơi khác...) thì đưa vào dải đính
+          // kèm giống nút "Chèn ảnh"; phần text luôn dán dạng thuần để tránh mang theo style lạ.
+          const imageFiles = Array.from(e.clipboardData.items)
+            .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+            .map((item) => item.getAsFile())
+            .filter((file): file is File => !!file);
+
+          if (imageFiles.length > 0) {
+            void addImageFiles(imageFiles);
+            return;
+          }
+
           const text = e.clipboardData.getData('text/plain');
           document.execCommand('insertText', false, text);
           emitChange();
