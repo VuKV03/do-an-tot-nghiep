@@ -223,7 +223,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   }
 
   const questions = sessionInfo.questions && sessionInfo.questions.length > 0 ? sessionInfo.questions : [];
-  
+
   if (questions.length === 0 && viewMode !== 'waiting') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50 font-sans">
@@ -275,17 +275,17 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
           {sessionInfo.exam?.name ? sessionInfo.exam.name.toUpperCase() : `KỲ THI MÔN ${sessionInfo.exam?.subject || 'TRỰC TUYẾN'}`}
         </h1>
         <p className="text-slate-800 mb-12 text-[15px]">
-          Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})})
+          Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
         </p>
 
         <div className="flex flex-col md:flex-row gap-6 max-w-[960px] w-full mb-10">
           <div className="flex-1 bg-white p-8 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
             <h3 className="text-blue-800 font-bold mb-6 uppercase tracking-wider text-[15px]">THÍ SINH</h3>
             <div className="space-y-6 text-slate-800 font-bold text-[15px]">
-              <div><span className="text-slate-500 mr-2 font-normal">Họ và tên:</span> {currentUser.fullName}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">SBD:</span> {currentUser.username}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Ngày sinh:</span> Đang cập nhật</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> Đang cập nhật</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Họ và tên:</span> {sessionInfo?.candidate_info?.fullName || currentUser.fullName}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">SBD:</span> {sessionInfo?.candidate_info?.username || currentUser.username}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Ngày sinh:</span> {sessionInfo?.candidate_info?.dob || currentUser.dob || 'Đang cập nhật'}</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Giới tính:</span> {sessionInfo?.candidate_info?.gender || currentUser.gender || 'Đang cập nhật'}</div>
             </div>
           </div>
           <div className="flex-1 bg-white p-8 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
@@ -324,10 +324,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
             <div className="h-14 border-b flex items-center px-6 shrink-0 bg-white">
               <span className="font-medium text-slate-700 uppercase tracking-wide">RÀ SOÁT BÀI THI</span>
             </div>
-            
+
             <div className="p-4 px-6 border-b flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-slate-700 shrink-0 bg-white">
-              <div>Họ và tên: <span className="text-blue-800 font-bold ml-1">{currentUser.fullName}</span></div>
-              <div>SBD: <span className="text-blue-800 font-bold ml-1">{currentUser.username}</span></div>
+              <div>Họ và tên: <span className="text-blue-800 font-bold ml-1">{sessionInfo?.candidate_info?.fullName || currentUser.fullName}</span></div>
+              <div>SBD: <span className="text-blue-800 font-bold ml-1">{sessionInfo?.candidate_info?.username || currentUser.username}</span></div>
               <div>Môn thi: <span className="text-blue-800 font-bold ml-1">{sessionInfo.exam?.subject || 'TOÁN'}</span></div>
               <div className="md:hidden">Số câu đã trả lời: <span className="text-red-600 font-bold ml-1">{answeredCount}/{totalQuestions}</span></div>
             </div>
@@ -336,7 +336,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               {Object.keys(parts).map((partKey) => (
                 <div key={partKey} className="space-y-6">
                   <div className="font-bold text-blue-900 uppercase">PHẦN {getTypeDisplayName(partKey).toUpperCase()}:</div>
-                  
+
                   {parts[partKey].map((q: any) => {
                     const globalIdx = getQuestionGlobalIndex(q.id);
                     return (
@@ -361,16 +361,16 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                                     const parts = currentAns ? currentAns.split(', ') : [];
                                     const isTrue = parts[oIdx] === `${oIdx + 1}. Đúng`;
                                     const isFalse = parts[oIdx] === `${oIdx + 1}. Sai`;
-                                    
+
                                     return (
                                       <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
                                         <td className="py-3 px-4 text-center font-bold">{letter})</td>
                                         <td className="py-3 px-4">{opt}</td>
                                         <td className="py-3 px-4 text-center border-l border-slate-100">
-                                          <Radio 
-                                            checked={isTrue} 
+                                          <Radio
+                                            checked={isTrue}
                                             onChange={() => {
-                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({length: q.options.length}).map((_, i) => `${i + 1}. `))];
+                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({ length: q.options.length }).map((_, i) => `${i + 1}. `))];
                                               newParts[oIdx] = `${oIdx + 1}. Đúng`;
                                               handleSelectAnswer(q.id, newParts.join(', '));
                                             }}
@@ -378,10 +378,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                                           />
                                         </td>
                                         <td className="py-3 px-4 text-center border-l border-slate-100">
-                                          <Radio 
-                                            checked={isFalse} 
+                                          <Radio
+                                            checked={isFalse}
                                             onChange={() => {
-                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({length: q.options.length}).map((_, i) => `${i + 1}. `))];
+                                              const newParts = [...(parts.length === q.options.length ? parts : Array.from({ length: q.options.length }).map((_, i) => `${i + 1}. `))];
                                               newParts[oIdx] = `${oIdx + 1}. Sai`;
                                               handleSelectAnswer(q.id, newParts.join(', '));
                                             }}
@@ -397,9 +397,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                           </div>
                         ) : (!q.options || q.options.length === 0 || q.type_code?.toLowerCase().includes('ngan') || q.type_code === 'TLN') ? (
                           <div className="pl-12">
-                            <Input 
-                              placeholder="Nhập câu trả lời của bạn..." 
-                              value={answers[q.id] || ''} 
+                            <Input
+                              placeholder="Nhập câu trả lời của bạn..."
+                              value={answers[q.id] || ''}
                               onChange={(e) => handleSelectAnswer(q.id, e.target.value)}
                               className="w-full max-w-md"
                             />
@@ -421,7 +421,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                   })}
                 </div>
               ))}
-              
+
               <div className="flex justify-center gap-4 pt-10 pb-10">
                 <Button size="large" className="px-8 font-bold text-blue-700 border-blue-600 rounded" onClick={() => setViewMode('taking')}>Quay lại</Button>
                 <Button type="primary" size="large" className="px-8 font-bold bg-blue-800 rounded" onClick={handleSubmitFinal} loading={submitting}>Nộp bài</Button>
@@ -438,7 +438,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               </div>
               <Button type="text" onClick={() => setViewMode('taking')} className="text-slate-400 hover:text-slate-600 px-2 text-xl" icon={<span className="leading-none pb-1 font-light">&times;</span>} />
             </div>
-            
+
             <div className="p-6 flex-1 overflow-y-auto">
               <div className="text-sm text-slate-700 mb-6">
                 Số câu đã trả lời: <span className="font-bold ml-1">{answeredCount}/{totalQuestions}</span>
@@ -489,10 +489,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
         <div className="flex flex-col text-xs font-medium tracking-wide" style={{ color: 'white' }}>
           <div className="font-bold text-sm mb-0.5 tracking-wider" style={{ color: 'white' }}>HỆ THỐNG THI TRỰC TUYẾN</div>
           <div className="flex gap-6 opacity-90 text-[11px]" style={{ color: 'white' }}>
-            <span style={{ color: 'white' }}>Kỳ thi: {sessionInfo.exam?.name || 'Đang cập nhật'}</span>
+            <span style={{ color: 'white' }}>Mã đề thi: {sessionInfo.exam?.code || sessionInfo.exam?.name || 'Đang cập nhật'}</span>
             <span style={{ color: 'white' }}>Môn thi: {sessionInfo.exam?.subject || 'Chưa xác định'}</span>
             <span style={{ color: 'white' }}>Ngày thi: {new Date().toLocaleDateString('vi-VN')}</span>
-            <span style={{ color: 'white' }}>Thí sinh: {currentUser?.fullName || 'Đang cập nhật'}</span>
+            <span style={{ color: 'white' }}>Thí sinh: {sessionInfo?.candidate_info?.fullName || currentUser?.fullName || 'Đang cập nhật'}</span>
           </div>
         </div>
 
@@ -501,7 +501,6 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
             <ClockCircleOutlined className="text-xl" style={{ color: 'white' }} />
             <div className="flex flex-col items-center leading-none" style={{ color: 'white' }}>
               <span className="font-bold text-xl font-mono" style={{ color: 'white' }}>{formatTime(timeLeft)}</span>
-              <span className="text-[10px] text-yellow-300 font-bold">(+05 phút)</span>
             </div>
           </div>
 
@@ -573,140 +572,140 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
         <div className="flex-1 overflow-y-auto px-4 sm:px-10 py-6 sm:py-8 w-full flex justify-center">
           <div className="w-full max-w-[1200px] bg-white p-6 sm:p-10 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-slate-100 h-fit">
             {(() => {
-            const currentTypeKey = getTypeGroupKey(currentQ.type_code);
-            const partQuestions = parts[currentTypeKey] || [];
-            if (partQuestions.length === 0) return null;
-            const startIdx = getQuestionGlobalIndex(partQuestions[0].id) + 1;
-            const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
-            
-            let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
-            if (currentTypeKey === 'true_false') {
-              partDesc = "Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.";
-            } else if (currentTypeKey === 'short') {
-              partDesc = "Thí sinh trả lời bằng cách nhập đáp án vào ô trống.";
-            }
+              const currentTypeKey = getTypeGroupKey(currentQ.type_code);
+              const partQuestions = parts[currentTypeKey] || [];
+              if (partQuestions.length === 0) return null;
+              const startIdx = getQuestionGlobalIndex(partQuestions[0].id) + 1;
+              const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
 
-            return (
-              <div className="mb-8 flex flex-wrap items-center gap-4 text-[#1a365d]">
-                <span className="font-bold uppercase tracking-wider text-[15px] whitespace-nowrap">PHẦN {getTypeDisplayName(currentTypeKey).toUpperCase()}:</span>
-                <span className="text-[15px] font-medium">Thí sinh trả lời từ câu {startIdx} đến câu {endIdx}. {partDesc}</span>
-              </div>
-            );
-          })()}
+              let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
+              if (currentTypeKey === 'true_false') {
+                partDesc = "Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.";
+              } else if (currentTypeKey === 'short') {
+                partDesc = "Thí sinh trả lời bằng cách nhập đáp án vào ô trống.";
+              }
 
-          <div className="flex gap-6 max-w-full">
-            <div className="flex-1">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
-                  Câu {currentQuestionIdx + 1}:
+              return (
+                <div className="mb-8 flex flex-wrap items-center gap-4 text-[#1a365d]">
+                  <span className="font-bold uppercase tracking-wider text-[15px] whitespace-nowrap">PHẦN {getTypeDisplayName(currentTypeKey).toUpperCase()}:</span>
+                  <span className="text-[15px] font-medium">Thí sinh trả lời từ câu {startIdx} đến câu {endIdx}. {partDesc}</span>
                 </div>
-                <div className="text-[15px] text-slate-800 font-medium leading-relaxed flex-1">
-                  {currentQ.content}
-                </div>
-                <div
-                  className="cursor-pointer shrink-0 ml-4 flex flex-col items-center justify-center p-2 rounded-lg transition-all hover:bg-slate-100"
-                  onClick={() => toggleFlag(currentQ.id)}
-                  title="Đánh dấu câu hỏi này"
-                >
-                  {flagged[currentQ.id] ? (
-                    <FlagFilled className="text-xl text-yellow-500 drop-shadow-md mb-1" />
-                  ) : (
-                    <FlagOutlined className="text-xl text-slate-400 hover:text-slate-500 mb-1" />
-                  )}
-                  <span className={`text-[11px] font-semibold ${flagged[currentQ.id] ? 'text-yellow-600' : 'text-slate-500'}`}>
-                    Đánh dấu
-                  </span>
-                </div>
-              </div>
+              );
+            })()}
 
-              <div className="space-y-4 pl-[54px] pr-12">
-                {currentQ.type_code === 'true_false' || currentQ.type_code?.toLowerCase() === 'đs' || currentQ.type_code?.toLowerCase() === 'ds' ? (
-                  <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-left text-[15px] text-slate-800">
-                      <thead className="bg-slate-100 border-b border-slate-200">
-                        <tr>
-                          <th className="py-3 px-4 font-bold text-slate-700 w-12 text-center">Ý</th>
-                          <th className="py-3 px-4 font-bold text-slate-700">Phát biểu</th>
-                          <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Đúng</th>
-                          <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Sai</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {currentQ.options.map((opt: string, oIdx: number) => {
-                          const letter = String.fromCharCode(97 + oIdx); // a, b, c, d
-                          const currentAns = answers[currentQ.id] || "";
-                          const parts = currentAns ? currentAns.split(', ') : [];
-                          const isTrue = parts[oIdx] === `${oIdx + 1}. Đúng`;
-                          const isFalse = parts[oIdx] === `${oIdx + 1}. Sai`;
-                          
-                          return (
-                            <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
-                              <td className="py-3.5 px-4 text-center font-bold">{letter})</td>
-                              <td className="py-3.5 px-4">{opt}</td>
-                              <td className="py-3.5 px-4 text-center border-l border-slate-100">
-                                <Radio 
-                                  checked={isTrue} 
-                                  onChange={() => {
-                                    const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({length: currentQ.options.length}).map((_, i) => `${i + 1}. `))];
-                                    newParts[oIdx] = `${oIdx + 1}. Đúng`;
-                                    handleSelectAnswer(currentQ.id, newParts.join(', '));
-                                  }}
-                                  className="m-0"
-                                />
-                              </td>
-                              <td className="py-3.5 px-4 text-center border-l border-slate-100">
-                                <Radio 
-                                  checked={isFalse} 
-                                  onChange={() => {
-                                    const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({length: currentQ.options.length}).map((_, i) => `${i + 1}. `))];
-                                    newParts[oIdx] = `${oIdx + 1}. Sai`;
-                                    handleSelectAnswer(currentQ.id, newParts.join(', '));
-                                  }}
-                                  className="m-0"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+            <div className="flex gap-6 max-w-full">
+              <div className="flex-1">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
+                    Câu {currentQuestionIdx + 1}:
                   </div>
-                ) : (!currentQ.options || currentQ.options.length === 0 || currentQ.type_code?.toLowerCase().includes('ngan') || currentQ.type_code === 'TLN') ? (
-                  <Input.TextArea
-                    placeholder="Nhập câu trả lời của bạn vào đây..."
-                    rows={4}
-                    value={answers[currentQ.id] || ''}
-                    onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
-                    className="w-full text-[15px] p-3 rounded shadow-none border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
-                ) : (
-                  <Radio.Group
-                    onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
-                    value={answers[currentQ.id]}
-                    className="flex flex-col gap-2 w-full"
+                  <div className="text-[15px] text-slate-800 font-medium leading-relaxed flex-1">
+                    {currentQ.content}
+                  </div>
+                  <div
+                    className="cursor-pointer shrink-0 ml-4 flex flex-col items-center justify-center p-2 rounded-lg transition-all hover:bg-slate-100"
+                    onClick={() => toggleFlag(currentQ.id)}
+                    title="Đánh dấu câu hỏi này"
                   >
-                    {currentQ.options.map((opt: string, oIdx: number) => {
-                      const letter = String.fromCharCode(65 + oIdx);
-                      const isSelected = answers[currentQ.id] === letter;
-                      return (
-                        <Radio 
-                          key={letter} 
-                          value={letter} 
-                          className="text-[15px] text-slate-800 font-normal w-full m-0 py-1"
-                        >
-                          <span className={`font-bold mr-1 ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{letter}.</span> 
-                          <span>{opt.substring(3)}</span>
-                        </Radio>
-                      );
-                    })}
-                  </Radio.Group>
-                )}
-              </div>
-            </div>
+                    {flagged[currentQ.id] ? (
+                      <FlagFilled className="text-xl text-yellow-500 drop-shadow-md mb-1" />
+                    ) : (
+                      <FlagOutlined className="text-xl text-slate-400 hover:text-slate-500 mb-1" />
+                    )}
+                    <span className={`text-[11px] font-semibold ${flagged[currentQ.id] ? 'text-yellow-600' : 'text-slate-500'}`}>
+                      Đánh dấu
+                    </span>
+                  </div>
+                </div>
 
-            {/* Scroll bar placeholder spacing similar to the image */}
-            <div className="w-1.5 h-64 bg-slate-200 rounded-full shrink-0 hidden md:block"></div>
-          </div>
+                <div className="space-y-4 pl-[54px] pr-12">
+                  {currentQ.type_code === 'true_false' || currentQ.type_code?.toLowerCase() === 'đs' || currentQ.type_code?.toLowerCase() === 'ds' ? (
+                    <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-[15px] text-slate-800">
+                        <thead className="bg-slate-100 border-b border-slate-200">
+                          <tr>
+                            <th className="py-3 px-4 font-bold text-slate-700 w-12 text-center">Ý</th>
+                            <th className="py-3 px-4 font-bold text-slate-700">Phát biểu</th>
+                            <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Đúng</th>
+                            <th className="py-3 px-4 font-bold text-slate-700 w-24 text-center">Sai</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {currentQ.options.map((opt: string, oIdx: number) => {
+                            const letter = String.fromCharCode(97 + oIdx); // a, b, c, d
+                            const currentAns = answers[currentQ.id] || "";
+                            const parts = currentAns ? currentAns.split(', ') : [];
+                            const isTrue = parts[oIdx] === `${oIdx + 1}. Đúng`;
+                            const isFalse = parts[oIdx] === `${oIdx + 1}. Sai`;
+
+                            return (
+                              <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
+                                <td className="py-3.5 px-4 text-center font-bold">{letter})</td>
+                                <td className="py-3.5 px-4">{opt}</td>
+                                <td className="py-3.5 px-4 text-center border-l border-slate-100">
+                                  <Radio
+                                    checked={isTrue}
+                                    onChange={() => {
+                                      const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({ length: currentQ.options.length }).map((_, i) => `${i + 1}. `))];
+                                      newParts[oIdx] = `${oIdx + 1}. Đúng`;
+                                      handleSelectAnswer(currentQ.id, newParts.join(', '));
+                                    }}
+                                    className="m-0"
+                                  />
+                                </td>
+                                <td className="py-3.5 px-4 text-center border-l border-slate-100">
+                                  <Radio
+                                    checked={isFalse}
+                                    onChange={() => {
+                                      const newParts = [...(parts.length === currentQ.options.length ? parts : Array.from({ length: currentQ.options.length }).map((_, i) => `${i + 1}. `))];
+                                      newParts[oIdx] = `${oIdx + 1}. Sai`;
+                                      handleSelectAnswer(currentQ.id, newParts.join(', '));
+                                    }}
+                                    className="m-0"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (!currentQ.options || currentQ.options.length === 0 || currentQ.type_code?.toLowerCase().includes('ngan') || currentQ.type_code === 'TLN') ? (
+                    <Input.TextArea
+                      placeholder="Nhập câu trả lời của bạn vào đây..."
+                      rows={4}
+                      value={answers[currentQ.id] || ''}
+                      onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
+                      className="w-full text-[15px] p-3 rounded shadow-none border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                  ) : (
+                    <Radio.Group
+                      onChange={(e) => handleSelectAnswer(currentQ.id, e.target.value)}
+                      value={answers[currentQ.id]}
+                      className="flex flex-col gap-2 w-full"
+                    >
+                      {currentQ.options.map((opt: string, oIdx: number) => {
+                        const letter = String.fromCharCode(65 + oIdx);
+                        const isSelected = answers[currentQ.id] === letter;
+                        return (
+                          <Radio
+                            key={letter}
+                            value={letter}
+                            className="text-[15px] text-slate-800 font-normal w-full m-0 py-1"
+                          >
+                            <span className={`font-bold mr-1 ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{letter}.</span>
+                            <span>{opt.substring(3)}</span>
+                          </Radio>
+                        );
+                      })}
+                    </Radio.Group>
+                  )}
+                </div>
+              </div>
+
+              {/* Scroll bar placeholder spacing similar to the image */}
+              <div className="w-1.5 h-64 bg-slate-200 rounded-full shrink-0 hidden md:block"></div>
+            </div>
           </div>
         </div>
       </Content>
@@ -749,9 +748,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
           </div>
           <div className="flex gap-4">
             {mode !== 'preview' && (
-              <Button 
-                className="bg-blue-50 text-blue-800 border-blue-200 font-medium px-6 h-8 text-[13px] hover:bg-blue-100" 
-                onClick={handleSubmitDraft} 
+              <Button
+                className="bg-blue-50 text-blue-800 border-blue-200 font-medium px-6 h-8 text-[13px] hover:bg-blue-100"
+                onClick={handleSubmitDraft}
                 loading={submitting}
               >
                 LƯU BÀI TẠM
@@ -767,7 +766,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
         onCancel={onLogout}
         footer={
           <div className="flex justify-center w-full py-3">
-            <Button 
+            <Button
               className="px-10 h-8 text-[#1677ff] border-[#1677ff] font-medium rounded hover:bg-blue-50"
               onClick={onLogout}
             >

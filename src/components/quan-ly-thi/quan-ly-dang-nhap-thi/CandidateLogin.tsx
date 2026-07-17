@@ -36,7 +36,9 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
           fullName: data.candidate.fullName,
           email: '',
           role: 'candidate',
-          status: 'active'
+          status: 'active',
+          dob: data.candidate.dob,
+          gender: data.candidate.gender
         };
         localStorage.setItem('user_info', JSON.stringify(candidateUser));
 

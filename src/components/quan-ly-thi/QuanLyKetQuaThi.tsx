@@ -18,6 +18,7 @@ interface ExamResultRow {
   full_name: string;
   sbd: string;
   exam_id: string;
+  exam_code?: string;
   status: string; // Đang làm, Đã nộp
   score: number | null;
   started_at: string | null;
@@ -92,7 +93,7 @@ export default function QuanLyKetQuaThi() {
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, index) => index + 1 },
     { title: 'Họ tên thí sinh', dataIndex: 'full_name', key: 'full_name', className: 'font-medium text-slate-800' },
     { title: 'SBD', dataIndex: 'sbd', key: 'sbd' },
-    { title: 'Mã đề đã làm', dataIndex: 'exam_id', key: 'exam_id' },
+    { title: 'Mã đề đã làm', dataIndex: 'exam_code', key: 'exam_code' },
     { 
       title: 'Trạng thái', 
       dataIndex: 'status', 

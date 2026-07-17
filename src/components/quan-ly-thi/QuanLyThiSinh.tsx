@@ -22,7 +22,8 @@ import {
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-  PlusOutlined
+  PlusOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { quanLyThiAdminApi } from '../../services/quanLyThiApi';
@@ -76,6 +77,10 @@ export default function QuanLyThiSinh() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [candidateToDelete, setCandidateToDelete] = useState<Candidate | null>(null);
+
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [candidateToReset, setCandidateToReset] = useState<Candidate | null>(null);
+  const [selectedSubjectToReset, setSelectedSubjectToReset] = useState<string>('');
 
   const [data, setData] = useState<Candidate[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<{ label: string, value: string }[]>([]);
@@ -205,6 +210,17 @@ export default function QuanLyThiSinh() {
       align: 'center',
       render: (_, record) => (
         <Space size="middle">
+          <Tooltip title="Thi lại">
+            <Button
+              type="text"
+              icon={<ReloadOutlined className="text-green-600" />}
+              className="bg-green-50 border border-green-100 hover:bg-green-100 p-0 w-8 h-8 flex items-center justify-center rounded"
+              onClick={() => {
+                setCandidateToReset(record);
+                setResetModalVisible(true);
+              }}
+            />
+          </Tooltip>
           <Button
             type="text"
             icon={<EditOutlined className="text-blue-600" />}
@@ -309,6 +325,20 @@ export default function QuanLyThiSinh() {
       fetchCandidates();
     } catch (err: any) {
       message.error(err.message || 'Lỗi khi xóa thí sinh');
+    }
+  };
+
+  const handleReset = async () => {
+    if (!candidateToReset || !selectedSubjectToReset) return;
+    try {
+      await quanLyThiAdminApi.resetCandidateExamResult(candidateToReset.id, selectedSubjectToReset);
+      message.success(`Đã đặt lại kết quả môn ${selectedSubjectToReset} cho thí sinh ${candidateToReset.fullName}!`);
+      setResetModalVisible(false);
+      setCandidateToReset(null);
+      setSelectedSubjectToReset('');
+      fetchCandidates();
+    } catch (err: any) {
+      message.error(err.message || 'Lỗi khi đặt lại kết quả thi');
     }
   };
 
@@ -458,12 +488,23 @@ export default function QuanLyThiSinh() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="Số CCCD/ Hộ chiếu" name="cccd">
-                  <Input placeholder="Nhập số CCCD" />
+                <Form.Item
+                  label="Số CCCD/ Hộ chiếu"
+                  name="cccd"
+                  getValueFromEvent={(e) => e.target.value.replace(/[^0-9]/g, '')}
+                  rules={[
+                    { pattern: /^[0-9]*$/, message: 'Chỉ được nhập số' }
+                  ]}
+                >
+                  <Input placeholder="Nhập số CCCD" maxLength={12} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="Giới tính" name="gender">
+                <Form.Item
+                  label="Giới tính"
+                  name="gender"
+                  rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}
+                >
                   <Select placeholder="Chọn">
                     <Select.Option value="Nam">Nam</Select.Option>
                     <Select.Option value="Nữ">Nữ</Select.Option>
@@ -472,7 +513,11 @@ export default function QuanLyThiSinh() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="Ngày sinh" name="dob">
+                <Form.Item
+                  label="Ngày sinh"
+                  name="dob"
+                  rules={[{ required: true, message: 'Vui lòng chọn ngày sinh' }]}
+                >
                   <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="dd/mm/yyyy" />
                 </Form.Item>
               </Col>
@@ -529,6 +574,36 @@ export default function QuanLyThiSinh() {
             : `Bạn có chắc chắn muốn xóa ${selectedRowKeys.length} bản ghi thí sinh?`
           }
         </p>
+      </Modal>
+
+      <Modal
+        title={<span className="text-slate-800 font-semibold">Xác nhận Thi lại</span>}
+        open={resetModalVisible}
+        onCancel={() => {
+          setResetModalVisible(false);
+          setCandidateToReset(null);
+          setSelectedSubjectToReset('');
+        }}
+        footer={[
+          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" onClick={() => {
+            setResetModalVisible(false);
+            setCandidateToReset(null);
+            setSelectedSubjectToReset('');
+          }}>Đóng</Button>,
+          <Button key="reset" type="primary" className="bg-green-600 rounded-lg font-medium px-8 hover:bg-green-700" onClick={handleReset} disabled={!selectedSubjectToReset}>Khôi phục</Button>
+        ]}
+      >
+        <p className="py-4 text-slate-700 text-base">
+          Bạn muốn cho thí sinh <b>{candidateToReset?.fullName}</b> thi lại môn nào?
+          <br /><span className="text-sm text-red-500 italic">(Thao tác này sẽ xóa kết quả thi trước đó của môn học được chọn)</span>
+        </p>
+        <Select
+          className="w-full"
+          placeholder="Chọn môn học để thi lại"
+          value={selectedSubjectToReset || undefined}
+          onChange={(val) => setSelectedSubjectToReset(val)}
+          options={candidateToReset?.registeredSubjects?.map(subj => ({ label: subj, value: subj })) || []}
+        />
       </Modal>
 
     </div >
