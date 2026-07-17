@@ -11,6 +11,7 @@ import {
   Spin,
   message,
 } from 'antd';
+import type { Rule } from 'antd/es/form';
 import type { SubjectCategoryType } from './index';
 import {
   questionTypeApi,
@@ -60,6 +61,10 @@ function NumberField({
   requiredMessage,
   min = 1,
   step,
+  extraRules,
+  dependencies,
+  disabled,
+  initialValue,
 }: {
   name: keyof SubjectConfigFormValues;
   label: string;
@@ -67,7 +72,19 @@ function NumberField({
   requiredMessage?: string;
   min?: number;
   step?: number;
+  extraRules?: Rule[];
+  dependencies?: (keyof SubjectConfigFormValues)[];
+  disabled?: boolean;
+  initialValue?: number;
 }) {
+  const rules: Rule[] = [];
+  if (required) {
+    rules.push({ required: true, message: requiredMessage });
+  }
+  if (extraRules) {
+    rules.push(...extraRules);
+  }
+
   return (
     <Form.Item
       name={name}
@@ -75,11 +92,17 @@ function NumberField({
         <span className='text-gray-600 text-sm font-medium'>{label}</span>
       }
       className='!mb-0'
-      rules={
-        required ? [{ required: true, message: requiredMessage }] : undefined
-      }
+      rules={rules}
+      dependencies={dependencies}
+      initialValue={initialValue}
     >
-      <InputNumber placeholder='Nhập' className='w-full h-9' min={min} step={step} />
+      <InputNumber
+        placeholder='Nhập'
+        className='w-full h-9'
+        min={min}
+        step={step}
+        disabled={disabled}
+      />
     </Form.Item>
   );
 }
@@ -131,6 +154,18 @@ export default function CauHinhMonHocModal({
       })),
     [questionTypes],
   );
+
+  const makeToRule = (fromName: keyof SubjectConfigFormValues): Rule => ({
+    validator: (_, toValue) => {
+      const fromValue = form.getFieldValue(fromName);
+      if (toValue == null || fromValue == null || toValue >= fromValue) {
+        return Promise.resolve();
+      }
+      return Promise.reject(
+        new Error('Đến câu phải lớn hơn hoặc bằng Từ câu'),
+      );
+    },
+  });
 
   const watchedValues = Form.useWatch([], form) as
     | SubjectConfigFormValues
@@ -376,8 +411,18 @@ export default function CauHinhMonHocModal({
                           options={typeOptions}
                         />
                       </div>
-                      <NumberField name='p1_from' label='Từ câu' />
-                      <NumberField name='p1_to' label='Đến câu' />
+                      <NumberField
+                        name='p1_from'
+                        label='Từ câu'
+                        disabled
+                        initialValue={1}
+                      />
+                      <NumberField
+                        name='p1_to'
+                        label='Đến câu'
+                        dependencies={['p1_from']}
+                        extraRules={[makeToRule('p1_from')]}
+                      />
                       <div className='col-span-2'>
                         <NumberField
                           name='points_for_a_correct_answers_p1'
@@ -401,8 +446,18 @@ export default function CauHinhMonHocModal({
                           options={typeOptions}
                         />
                       </div>
-                      <NumberField name='p2_from' label='Từ câu' />
-                      <NumberField name='p2_to' label='Đến câu' />
+                      <NumberField
+                        name='p2_from'
+                        label='Từ câu'
+                        disabled
+                        initialValue={1}
+                      />
+                      <NumberField
+                        name='p2_to'
+                        label='Đến câu'
+                        dependencies={['p2_from']}
+                        extraRules={[makeToRule('p2_from')]}
+                      />
                     </div>
 
                     <div className='mt-3 pt-3 border-t border-gray-100'>
@@ -450,8 +505,18 @@ export default function CauHinhMonHocModal({
                           options={typeOptions}
                         />
                       </div>
-                      <NumberField name='p3_from' label='Từ câu' />
-                      <NumberField name='p3_to' label='Đến câu' />
+                      <NumberField
+                        name='p3_from'
+                        label='Từ câu'
+                        disabled
+                        initialValue={1}
+                      />
+                      <NumberField
+                        name='p3_to'
+                        label='Đến câu'
+                        dependencies={['p3_from']}
+                        extraRules={[makeToRule('p3_from')]}
+                      />
                       <div className='col-span-2'>
                         <NumberField
                           name='points_for_a_correct_answers_p3'
@@ -485,20 +550,20 @@ function mapConfigToFormValues(
     questions_number: config.questions_number ?? undefined,
     scale: config.scale ?? undefined,
     type_id_p1: config.type_id_p1 ?? undefined,
-    p1_from: config.p1_from ?? undefined,
+    p1_from: 1,
     p1_to: config.p1_to ?? undefined,
     points_for_a_correct_answers_p1: toNumber(
       config.points_for_a_correct_answers_p1,
     ),
     type_id_p2: config.type_id_p2 ?? undefined,
-    p2_from: config.p2_from ?? undefined,
+    p2_from: 1,
     p2_to: config.p2_to ?? undefined,
     points_for_1_correct_idea: toNumber(config.points_for_1_correct_idea),
     points_for_2_correct_idea: toNumber(config.points_for_2_correct_idea),
     points_for_3_correct_idea: toNumber(config.points_for_3_correct_idea),
     points_for_4_correct_idea: toNumber(config.points_for_4_correct_idea),
     type_id_p3: config.type_id_p3 ?? undefined,
-    p3_from: config.p3_from ?? undefined,
+    p3_from: 1,
     p3_to: config.p3_to ?? undefined,
     points_for_a_correct_answers_p3: toNumber(
       config.points_for_a_correct_answers_p3,
