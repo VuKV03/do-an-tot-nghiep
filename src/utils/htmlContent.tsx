@@ -7,7 +7,7 @@ import parse, { Element as ParserElement, type HTMLReactParserOptions } from 'ht
 const VIEW_THUMB_WIDTH = 140;
 
 /** Các thẻ/thuộc tính được phép trong nội dung câu hỏi soạn từ RichTextEditor */
-const ALLOWED_TAGS = ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'span', 'font', 'p', 'div', 'br', 'h1', 'h2', 'img', 'a'];
+const ALLOWED_TAGS = ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'span', 'font', 'p', 'div', 'br', 'h1', 'h2', 'img', 'a', 'table', 'thead', 'tbody', 'tr', 'td', 'th'];
 const ALLOWED_ATTR = ['style', 'src', 'alt', 'width', 'height', 'href', 'target', 'rel', 'face', 'size', 'color'];
 
 /** Nhận diện một chuỗi có phải HTML (do RichTextEditor sinh ra) hay chỉ là text thuần (vd: AI sinh, dữ liệu cũ) */
@@ -27,6 +27,9 @@ export function stripHtmlToText(value: string | undefined | null): string {
   if (!value) return '';
   if (!isLikelyHtml(value)) return value;
   const doc = new DOMParser().parseFromString(value, 'text/html');
+  // Bỏ hẳn bảng — bảng danh sách/tìm kiếm chỉ cần xem nội dung câu hỏi (đoạn văn), không cần
+  // hiện nội dung từng ô bảng chèn thêm.
+  doc.querySelectorAll('table').forEach((table) => table.remove());
   return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
