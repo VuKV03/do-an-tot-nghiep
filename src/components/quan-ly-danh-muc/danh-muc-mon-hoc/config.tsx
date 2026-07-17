@@ -330,6 +330,14 @@ export default function CauHinhMonHocModal({
   const scaleValue = watchedValues?.scale;
   const isOverScale = scaleValue != null && maxTotalScore > scaleValue;
 
+  const totalQuestionCount = useMemo(
+    () => computeTotalQuestionCount(watchedValues ?? {}),
+    [watchedValues],
+  );
+  const questionsNumberValue = watchedValues?.questions_number;
+  const isQuestionCountMismatch =
+    questionsNumberValue != null && totalQuestionCount !== questionsNumberValue;
+
   useEffect(() => {
     if (!open || !record) return;
 
@@ -398,6 +406,14 @@ export default function CauHinhMonHocModal({
       if (values.scale != null && totalScore > values.scale) {
         messageApi.error(
           `Tổng điểm tối đa của cấu trúc đề (${formatScore(totalScore)}) đang vượt quá thang điểm (${values.scale}). Vui lòng điều chỉnh lại điểm hoặc số câu hỏi.`,
+        );
+        return;
+      }
+
+      const totalQuestions = computeTotalQuestionCount(values);
+      if (values.questions_number != null && totalQuestions !== values.questions_number) {
+        messageApi.error(
+          `Tổng số câu của các phần (${totalQuestions}) không khớp với Số câu hỏi (${values.questions_number}). Vui lòng điều chỉnh lại "Đến câu" của từng phần hoặc Số câu hỏi.`,
         );
         return;
       }
@@ -539,17 +555,36 @@ export default function CauHinhMonHocModal({
                     Cấu trúc môn học và cách tính điểm{' '}
                     <span className='text-red-500'>*</span>
                   </h3>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full border ${
-                      isOverScale
-                        ? 'bg-red-50 text-red-600 border-red-200'
-                        : 'bg-gray-50 text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    Tổng điểm tối đa: {formatScore(maxTotalScore)}
-                    {scaleValue != null ? ` / ${scaleValue}` : ''}
-                  </span>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${
+                        isQuestionCountMismatch
+                          ? 'bg-red-50 text-red-600 border-red-200'
+                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      Tổng số câu: {totalQuestionCount}
+                      {questionsNumberValue != null ? ` / ${questionsNumberValue}` : ''}
+                    </span>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${
+                        isOverScale
+                          ? 'bg-red-50 text-red-600 border-red-200'
+                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      Tổng điểm tối đa: {formatScore(maxTotalScore)}
+                      {scaleValue != null ? ` / ${scaleValue}` : ''}
+                    </span>
+                  </div>
                 </div>
+                {isQuestionCountMismatch && (
+                  <p className='text-red-500 text-xs mb-3'>
+                    Tổng số câu của các phần đang không khớp với Số câu hỏi.
+                    Vui lòng điều chỉnh lại "Đến câu" của từng phần hoặc Số
+                    câu hỏi trước khi lưu.
+                  </p>
+                )}
                 {isOverScale && (
                   <p className='text-red-500 text-xs mb-3'>
                     Tổng điểm tối đa đang vượt quá thang điểm. Vui lòng điều
@@ -831,6 +866,14 @@ function countQuestions(from?: number, to?: number): number {
     return 0;
   }
   return to - from + 1;
+}
+
+function computeTotalQuestionCount(values: SubjectConfigFormValues): number {
+  return (
+    countQuestions(values.p1_from, values.p1_to) +
+    countQuestions(values.p2_from, values.p2_to) +
+    countQuestions(values.p3_from, values.p3_to)
+  );
 }
 
 function partMaxScore(
