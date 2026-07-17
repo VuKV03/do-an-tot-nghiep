@@ -53,6 +53,64 @@ const SECTION_LABELS = {
   p3: 'Phần III',
 };
 
+function NumberField({
+  name,
+  label,
+  required,
+  requiredMessage,
+  min = 1,
+  step,
+}: {
+  name: keyof SubjectConfigFormValues;
+  label: string;
+  required?: boolean;
+  requiredMessage?: string;
+  min?: number;
+  step?: number;
+}) {
+  return (
+    <Form.Item
+      name={name}
+      label={
+        <span className='text-gray-600 text-sm font-medium'>{label}</span>
+      }
+      className='!mb-0'
+      rules={
+        required ? [{ required: true, message: requiredMessage }] : undefined
+      }
+    >
+      <InputNumber placeholder='Nhập' className='w-full h-9' min={min} step={step} />
+    </Form.Item>
+  );
+}
+
+function TypeSelectField({
+  name,
+  label,
+  options,
+}: {
+  name: keyof SubjectConfigFormValues;
+  label: string;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <Form.Item
+      name={name}
+      label={
+        <span className='text-gray-600 text-sm font-medium'>{label}</span>
+      }
+      className='!mb-0'
+    >
+      <Select
+        placeholder='Chọn loại câu hỏi'
+        className='w-full h-9'
+        options={options}
+        allowClear
+      />
+    </Form.Item>
+  );
+}
+
 export default function CauHinhMonHocModal({
   open,
   onClose,
@@ -73,6 +131,16 @@ export default function CauHinhMonHocModal({
       })),
     [questionTypes],
   );
+
+  const watchedValues = Form.useWatch([], form) as
+    | SubjectConfigFormValues
+    | undefined;
+  const maxTotalScore = useMemo(
+    () => computeMaxTotalScore(watchedValues ?? {}),
+    [watchedValues],
+  );
+  const scaleValue = watchedValues?.scale;
+  const isOverScale = scaleValue != null && maxTotalScore > scaleValue;
 
   useEffect(() => {
     if (!open || !record) return;
@@ -131,6 +199,15 @@ export default function CauHinhMonHocModal({
 
     try {
       const values = (await form.validateFields()) as SubjectConfigFormValues;
+
+      const totalScore = computeMaxTotalScore(values);
+      if (values.scale != null && totalScore > values.scale) {
+        messageApi.error(
+          `Tổng điểm tối đa của cấu trúc đề (${formatScore(totalScore)}) đang vượt quá thang điểm (${values.scale}). Vui lòng điều chỉnh lại điểm hoặc số câu hỏi.`,
+        );
+        return;
+      }
+
       setSaving(true);
 
       const payload = {
@@ -190,7 +267,14 @@ export default function CauHinhMonHocModal({
         onOk={handleOk}
         onCancel={handleCancel}
         confirmLoading={saving}
-        width={900}
+        width={840}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 260px)',
+            overflowY: 'auto',
+            paddingRight: 4,
+          },
+        }}
         footer={
           <Space>
             <Button
@@ -212,355 +296,174 @@ export default function CauHinhMonHocModal({
       >
         <Spin spinning={loading}>
           <Form form={form} layout='vertical'>
-            <div className='mt-4'>
-              <div className='mb-6'>
-                <h3 className='text-lg font-semibold text-gray-800 mb-4'>
+            <div>
+              <section className='mb-4'>
+                <h3 className='text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide'>
                   Thông tin môn học
                 </h3>
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-gray-600 text-sm font-medium mb-1.5'>
+                <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+                  <div className='col-span-4'>
+                    <label className='block text-gray-600 text-sm font-medium mb-1'>
                       Tên môn học
                     </label>
-                    <div className='h-10 px-3 py-2 bg-gray-100 border border-gray-300 rounded-md flex items-center text-gray-700'>
+                    <div className='h-9 px-3 bg-gray-100 border border-gray-300 rounded-md flex items-center text-gray-700 text-sm'>
                       {record?.name || 'Chưa có tên môn học'}
                     </div>
                   </div>
-                  <Form.Item
+                  <NumberField
                     name='time'
-                    label={
-                      <span className='text-gray-600 text-sm font-medium'>
-                        Thời gian thi (phút)
-                      </span>
-                    }
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Vui lòng nhập thời gian thi',
-                      },
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder='Nhập'
-                      className='w-full h-10'
-                      min={1}
-                    />
-                  </Form.Item>
-                  <Form.Item
+                    label='Thời gian thi (phút)'
+                    required
+                    requiredMessage='Vui lòng nhập thời gian thi'
+                  />
+                  <NumberField
                     name='number_to_create'
-                    label={
-                      <span className='text-gray-600 text-sm font-medium'>
-                        Số lượng đề
-                      </span>
-                    }
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập số lượng đề' },
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder='Nhập'
-                      className='w-full h-10'
-                      min={1}
-                    />
-                  </Form.Item>
-                  <Form.Item
+                    label='Số lượng đề'
+                    required
+                    requiredMessage='Vui lòng nhập số lượng đề'
+                  />
+                  <NumberField
                     name='questions_number'
-                    label={
-                      <span className='text-gray-600 text-sm font-medium'>
-                        Số câu hỏi
-                      </span>
-                    }
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập số câu hỏi' },
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder='Nhập'
-                      className='w-full h-10'
-                      min={1}
-                    />
-                  </Form.Item>
-                  <Form.Item
+                    label='Số câu hỏi'
+                    required
+                    requiredMessage='Vui lòng nhập số câu hỏi'
+                  />
+                  <NumberField
                     name='scale'
-                    label={
-                      <span className='text-gray-600 text-sm font-medium'>
-                        Thang điểm
-                      </span>
-                    }
-                    className='col-span-2'
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập thang điểm' },
-                    ]}
-                  >
-                    <InputNumber
-                      placeholder='Nhập'
-                      className='w-full h-10'
-                      min={1}
-                    />
-                  </Form.Item>
+                    label='Thang điểm'
+                    required
+                    requiredMessage='Vui lòng nhập thang điểm'
+                  />
                 </div>
-              </div>
+              </section>
 
-              <Divider />
+              <Divider className='!my-3' />
 
-              <div>
-                <h3 className='text-lg font-semibold text-gray-800 mb-4'>
-                  Cấu trúc môn học và cách tính điểm{' '}
-                  <span className='text-red-500'>*</span>
-                </h3>
+              <section>
+                <div className='flex items-center justify-between mb-3'>
+                  <h3 className='text-sm font-semibold text-gray-800 uppercase tracking-wide'>
+                    Cấu trúc môn học và cách tính điểm{' '}
+                    <span className='text-red-500'>*</span>
+                  </h3>
+                  <span
+                    className={`text-xs font-semibold px-2 py-1 rounded-full border ${
+                      isOverScale
+                        ? 'bg-red-50 text-red-600 border-red-200'
+                        : 'bg-gray-50 text-gray-600 border-gray-200'
+                    }`}
+                  >
+                    Tổng điểm tối đa: {formatScore(maxTotalScore)}
+                    {scaleValue != null ? ` / ${scaleValue}` : ''}
+                  </span>
+                </div>
+                {isOverScale && (
+                  <p className='text-red-500 text-xs mb-3'>
+                    Tổng điểm tối đa đang vượt quá thang điểm. Vui lòng điều
+                    chỉnh lại điểm hoặc số câu hỏi trước khi lưu.
+                  </p>
+                )}
 
-                <div className='space-y-6'>
-                  <div className='border border-gray-200 rounded-lg p-4'>
-                    <h4 className='font-semibold text-gray-700 mb-3'>Phần I</h4>
-                    <div className='grid grid-cols-2 gap-4'>
-                      <Form.Item
-                        name='type_id_p1'
-                        label={
-                          <span className='text-gray-600 text-sm font-medium'>
-                            Loại câu hỏi
-                          </span>
-                        }
-                      >
-                        <Select
-                          placeholder='Chọn loại câu hỏi'
-                          className='w-full h-10'
+                <div className='space-y-3'>
+                  <div className='border border-gray-200 rounded-lg p-3'>
+                    <h4 className='font-semibold text-gray-700 mb-3 text-sm'>
+                      Phần I
+                    </h4>
+                    <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+                      <div className='col-span-2'>
+                        <TypeSelectField
+                          name='type_id_p1'
+                          label='Loại câu hỏi'
                           options={typeOptions}
-                          allowClear
                         />
-                      </Form.Item>
-                      <div className='grid grid-cols-2 gap-2'>
-                        <Form.Item
-                          name='p1_from'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Từ câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
-                        <Form.Item
-                          name='p1_to'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Đến câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
+                      </div>
+                      <NumberField name='p1_from' label='Từ câu' />
+                      <NumberField name='p1_to' label='Đến câu' />
+                      <div className='col-span-2'>
+                        <NumberField
+                          name='points_for_a_correct_answers_p1'
+                          label='Điểm của mỗi câu trả lời đúng'
+                          min={0}
+                          step={0.25}
+                        />
                       </div>
                     </div>
-                    <Form.Item
-                      name='points_for_a_correct_answers_p1'
-                      label={
-                        <span className='text-gray-600 text-sm font-medium'>
-                          Điểm của mỗi câu trả lời đúng
-                        </span>
-                      }
-                    >
-                      <InputNumber
-                        placeholder='Nhập'
-                        className='w-32 h-10'
-                        min={0}
-                        step={0.25}
-                      />
-                    </Form.Item>
                   </div>
 
-                  <div className='border border-gray-200 rounded-lg p-4'>
-                    <h4 className='font-semibold text-gray-700 mb-3'>
+                  <div className='border border-gray-200 rounded-lg p-3'>
+                    <h4 className='font-semibold text-gray-700 mb-3 text-sm'>
                       Phần II
                     </h4>
-                    <div className='grid grid-cols-2 gap-4'>
-                      <Form.Item
-                        name='type_id_p2'
-                        label={
-                          <span className='text-gray-600 text-sm font-medium'>
-                            Loại câu hỏi
-                          </span>
-                        }
-                      >
-                        <Select
-                          placeholder='Chọn loại câu hỏi'
-                          className='w-full h-10'
+                    <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+                      <div className='col-span-2'>
+                        <TypeSelectField
+                          name='type_id_p2'
+                          label='Loại câu hỏi'
                           options={typeOptions}
-                          allowClear
                         />
-                      </Form.Item>
-                      <div className='grid grid-cols-2 gap-2'>
-                        <Form.Item
-                          name='p2_from'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Từ câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
-                        <Form.Item
-                          name='p2_to'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Đến câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
                       </div>
+                      <NumberField name='p2_from' label='Từ câu' />
+                      <NumberField name='p2_to' label='Đến câu' />
                     </div>
 
-                    <div className='mt-4 space-y-3'>
-                      <Form.Item
-                        name='points_for_1_correct_idea'
-                        label={
-                          <span className='text-gray-700 text-sm'>
-                            Lựa chọn 01 ý trả lời đúng trong 01 câu được
-                          </span>
-                        }
-                      >
-                        <InputNumber
-                          placeholder='Nhập'
-                          className='w-24 h-10'
+                    <div className='mt-3 pt-3 border-t border-gray-100'>
+                      <p className='text-gray-500 text-xs font-medium mb-2'>
+                        Điểm theo số ý trả lời đúng trong 01 câu
+                      </p>
+                      <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+                        <NumberField
+                          name='points_for_1_correct_idea'
+                          label='01 ý đúng'
                           min={0}
                           step={0.25}
                         />
-                      </Form.Item>
-                      <Form.Item
-                        name='points_for_2_correct_idea'
-                        label={
-                          <span className='text-gray-700 text-sm'>
-                            Lựa chọn 02 ý trả lời đúng trong 01 câu được
-                          </span>
-                        }
-                      >
-                        <InputNumber
-                          placeholder='Nhập'
-                          className='w-24 h-10'
+                        <NumberField
+                          name='points_for_2_correct_idea'
+                          label='02 ý đúng'
                           min={0}
                           step={0.25}
                         />
-                      </Form.Item>
-                      <Form.Item
-                        name='points_for_3_correct_idea'
-                        label={
-                          <span className='text-gray-700 text-sm'>
-                            Lựa chọn 03 ý trả lời đúng trong 01 câu được
-                          </span>
-                        }
-                      >
-                        <InputNumber
-                          placeholder='Nhập'
-                          className='w-24 h-10'
+                        <NumberField
+                          name='points_for_3_correct_idea'
+                          label='03 ý đúng'
                           min={0}
                           step={0.25}
                         />
-                      </Form.Item>
-                      <Form.Item
-                        name='points_for_4_correct_idea'
-                        label={
-                          <span className='text-gray-700 text-sm'>
-                            Lựa chọn 04 ý trả lời đúng trong 01 câu được
-                          </span>
-                        }
-                      >
-                        <InputNumber
-                          placeholder='Nhập'
-                          className='w-24 h-10'
+                        <NumberField
+                          name='points_for_4_correct_idea'
+                          label='04 ý đúng'
                           min={0}
                           step={0.25}
                         />
-                      </Form.Item>
+                      </div>
                     </div>
                   </div>
 
-                  <div className='border border-gray-200 rounded-lg p-4'>
-                    <h4 className='font-semibold text-gray-700 mb-3'>
+                  <div className='border border-gray-200 rounded-lg p-3'>
+                    <h4 className='font-semibold text-gray-700 mb-3 text-sm'>
                       Phần III
                     </h4>
-                    <div className='grid grid-cols-2 gap-4'>
-                      <Form.Item
-                        name='type_id_p3'
-                        label={
-                          <span className='text-gray-600 text-sm font-medium'>
-                            Loại câu hỏi
-                          </span>
-                        }
-                      >
-                        <Select
-                          placeholder='Chọn loại câu hỏi'
-                          className='w-full h-10'
+                    <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
+                      <div className='col-span-2'>
+                        <TypeSelectField
+                          name='type_id_p3'
+                          label='Loại câu hỏi'
                           options={typeOptions}
-                          allowClear
                         />
-                      </Form.Item>
-                      <div className='grid grid-cols-2 gap-2'>
-                        <Form.Item
-                          name='p3_from'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Từ câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
-                        <Form.Item
-                          name='p3_to'
-                          label={
-                            <span className='text-gray-600 text-sm font-medium'>
-                              Đến câu
-                            </span>
-                          }
-                        >
-                          <InputNumber
-                            placeholder='Nhập'
-                            className='w-full h-10'
-                            min={1}
-                          />
-                        </Form.Item>
+                      </div>
+                      <NumberField name='p3_from' label='Từ câu' />
+                      <NumberField name='p3_to' label='Đến câu' />
+                      <div className='col-span-2'>
+                        <NumberField
+                          name='points_for_a_correct_answers_p3'
+                          label='Điểm của mỗi câu trả lời đúng'
+                          min={0}
+                          step={0.25}
+                        />
                       </div>
                     </div>
-                    <Form.Item
-                      name='points_for_a_correct_answers_p3'
-                      label={
-                        <span className='text-gray-600 text-sm font-medium'>
-                          Điểm của mỗi câu trả lời đúng
-                        </span>
-                      }
-                    >
-                      <InputNumber
-                        placeholder='Nhập'
-                        className='w-32 h-10'
-                        min={0}
-                        step={0.25}
-                      />
-                    </Form.Item>
                   </div>
                 </div>
-              </div>
+              </section>
             </div>
           </Form>
         </Spin>
@@ -635,4 +538,35 @@ function toNumber(value: unknown): number | undefined {
   }
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function countQuestions(from?: number, to?: number): number {
+  if (from == null || to == null || to < from) {
+    return 0;
+  }
+  return to - from + 1;
+}
+
+function computeMaxTotalScore(values: SubjectConfigFormValues): number {
+  const p1Max =
+    countQuestions(values.p1_from, values.p1_to) *
+    (values.points_for_a_correct_answers_p1 ?? 0);
+
+  const p2PerQuestionMax = Math.max(
+    values.points_for_1_correct_idea ?? 0,
+    values.points_for_2_correct_idea ?? 0,
+    values.points_for_3_correct_idea ?? 0,
+    values.points_for_4_correct_idea ?? 0,
+  );
+  const p2Max = countQuestions(values.p2_from, values.p2_to) * p2PerQuestionMax;
+
+  const p3Max =
+    countQuestions(values.p3_from, values.p3_to) *
+    (values.points_for_a_correct_answers_p3 ?? 0);
+
+  return Math.round((p1Max + p2Max + p3Max) * 100) / 100;
+}
+
+function formatScore(value: number): string {
+  return Number(value.toFixed(2)).toString();
 }
