@@ -504,6 +504,46 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error checking/adding matrix_id column: {e}")
 
+    # Migration: restructure subject_configs scoring columns to be per-part.
+    # Previously the 4 "correct idea" columns were shared/implicitly tied to Phần II
+    # only, and there was no "per-answer" column for Phần II. Each part can now
+    # independently use per-answer or per-idea scoring depending on whether its
+    # selected question type is 'DS' (Đúng/Sai), so every part needs both column sets.
+    try:
+        async with engine.begin() as conn:
+            rename_map = {
+                "points_for_1_correct_idea": "points_for_1_correct_idea_p2",
+                "points_for_2_correct_idea": "points_for_2_correct_idea_p2",
+                "points_for_3_correct_idea": "points_for_3_correct_idea_p2",
+                "points_for_4_correct_idea": "points_for_4_correct_idea_p2",
+            }
+            for old_name, new_name in rename_map.items():
+                old_check = await conn.execute(text(f"SHOW COLUMNS FROM subject_configs LIKE '{old_name}'"))
+                new_check = await conn.execute(text(f"SHOW COLUMNS FROM subject_configs LIKE '{new_name}'"))
+                if old_check.fetchone() and not new_check.fetchone():
+                    await conn.execute(text(
+                        f"ALTER TABLE subject_configs RENAME COLUMN {old_name} TO {new_name};"
+                    ))
+                    print(f"[Exam Service] ✅ Renamed '{old_name}' to '{new_name}' in subject_configs table.")
+
+            new_columns = [
+                "points_for_a_correct_answers_p2",
+                "points_for_1_correct_idea_p1", "points_for_2_correct_idea_p1",
+                "points_for_3_correct_idea_p1", "points_for_4_correct_idea_p1",
+                "points_for_1_correct_idea_p3", "points_for_2_correct_idea_p3",
+                "points_for_3_correct_idea_p3", "points_for_4_correct_idea_p3",
+            ]
+            for column_name in new_columns:
+                column_check = await conn.execute(text(f"SHOW COLUMNS FROM subject_configs LIKE '{column_name}'"))
+                if not column_check.fetchone():
+                    await conn.execute(text(
+                        f"ALTER TABLE subject_configs ADD COLUMN {column_name} DECIMAL(65,30) NULL;"
+                    ))
+                    print(f"[Exam Service] ✅ Added '{column_name}' column to subject_configs table.")
+            print("[Exam Service] ✅ subject_configs per-part scoring columns are up to date.")
+    except Exception as e:
+        print(f"[Exam Service] Error migrating subject_configs scoring columns: {e}")
+
     # DEBUG: Describe columns of questions and exams tables
     try:
         async with engine.begin() as conn:

@@ -4,9 +4,6 @@ export const getBreadcrumbTitle = (activeMenuKey: string) => {
     case 'quan-ly-ma-tran-de': return 'Xây dựng đề thi/ Quản lý ma trận đề';
     case 'quan-ly-de-thi-goi-de': return 'Xây dựng đề thi / Quản lý đề thi';
     case 'quan-ly-goi-de': return 'Xây dựng đề thi / Quản lý gói đề';
-    case 'quan-ly-ky-thi': return 'Tổ chức thi / Quản lý kỳ thi';
-    case 'quan-ly-thi-sinh': return 'Tổ chức thi / Quản lý thí sinh';
-    case 'quan-ly-de-thi': return 'Tổ chức thi / Quản lý đề thi';
     case 'quan-ly-ket-qua-thi': return 'Tổ chức thi / Quản lý kết quả thi';
     case 'ngan-hang-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Ngân hàng câu hỏi';
     case 'chu-de-cau-hoi': return 'Quản lý ngân hàng câu hỏi / Chủ đề câu hỏi';

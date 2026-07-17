@@ -13,6 +13,7 @@ import {
   DatePicker,
   Popconfirm,
   Pagination,
+  Tabs,
 } from 'antd';
 import {
   DeleteOutlined,
@@ -24,12 +25,15 @@ import {
   UpOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
 import { Question } from '../../../types';
 import { subjectCategoryApi, examPeriodApi, bankQuestionApi, type SubjectCategoryAPI, type ExamPeriodAPI } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import ExamContentDisplay from '../quan-ly-de-thi/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
 
@@ -64,6 +68,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [viewQuestionsByExamId, setViewQuestionsByExamId] = useState<Record<string, Question[]>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -136,11 +142,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         return <Tag color="warning" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Chờ thẩm định</Tag>;
       case '3':
       case 'approved':
-      case 'active':
         return <Tag color="success" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đã thẩm định</Tag>;
+      case 'active':
+        return <Tag color="processing" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đang phát</Tag>;
+      case 'inactive':
+        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Ngừng phát</Tag>;
       case '4':
       case 'rejected':
-      case 'inactive':
         return <Tag color="error" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Từ chối</Tag>;
       default:
         return <Tag className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">{status}</Tag>;
@@ -190,6 +198,40 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }
     } catch {
       message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+    }
+  };
+
+  const handlePublishPackage = async (pkg: any) => {
+    try {
+      const res = await fetch(`/api/exams/packages/${pkg.id}/publish`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success(json.message || `Đã phát thi gói đề "${pkg.name}".`);
+        fetchData();
+      } else {
+        message.error(json.detail || json.error || 'Lỗi khi phát thi gói đề.');
+      }
+    } catch {
+      message.error('Lỗi kết nối khi phát thi gói đề.');
+    }
+  };
+
+  const handleUnpublishPackage = async (pkg: any) => {
+    try {
+      const res = await fetch(`/api/exams/packages/${pkg.id}/unpublish`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (json.success) {
+        message.success(json.message || `Đã tắt phát thi gói đề "${pkg.name}".`);
+        fetchData();
+      } else {
+        message.error(json.detail || json.error || 'Lỗi khi tắt phát thi gói đề.');
+      }
+    } catch {
+      message.error('Lỗi kết nối khi tắt phát thi gói đề.');
     }
   };
 
@@ -275,6 +317,47 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
     }
   };
 
+  // Xem chi tiết gói đề — tải nội dung câu hỏi thật của TỪNG đề trong gói (đề gốc + các đề hoán
+  // vị), UI dạng Tabs giống hệt "Sinh đề hoán vị" (ModalSinhDeHoanVi.tsx): mỗi tab 1 đề, render
+  // qua ExamContentDisplay. examIds[0] luôn là đề gốc — đúng theo cách ModalSinhDeHoanVi.tsx lưu
+  // package (`examIds: [exam.id, ...newExamIds]`), các phần tử còn lại là đề hoán vị.
+  const handleOpenView = async (pkg: any) => {
+    setViewPkg(pkg);
+    setIsViewOpen(true);
+    setViewLoading(true);
+    try {
+      const res = await bankQuestionApi.list();
+      const allQuestions = res.data || [];
+      const map: Record<string, Question[]> = {};
+      (pkg.examIds || []).forEach((examId: string) => {
+        map[examId] = allQuestions
+          .filter(q => q.examId === examId)
+          .map((q): Question => ({
+            id: q.id, code: q.code, text: q.text, type: q.type, level: q.level, status: q.status,
+            subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
+            subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
+            statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
+          }));
+      });
+      setViewQuestionsByExamId(map);
+    } catch {
+      message.error('Không tải được nội dung các đề trong gói.');
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const handleCloseView = () => {
+    setIsViewOpen(false);
+    setViewPkg(null);
+    setViewQuestionsByExamId({});
+  };
+
+  const handleDownloadSingleExam = async (exam: any, qs: Question[]) => {
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
+    triggerBlobDownload(blob, exam.code, 'docx');
+  };
+
   const handleExportExcel = () => {
     message.loading({ content: 'Đang kết xuất danh sách báo cáo Excel...', key: 'excel' });
     setTimeout(() => {
@@ -289,8 +372,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         <button
           onClick={() => { setActiveTab('list'); setSelectedPkgIds([]); }}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
         >
           Gói đề
@@ -298,8 +381,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         <button
           onClick={() => { setActiveTab('review'); setSelectedPkgIds([]); }}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
             }`}
         >
           Thẩm định/phản biện gói đề
@@ -331,7 +414,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                   allowClear
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Đợt thi</label>
                 <Select
                   value={pkgPeriodId}
@@ -339,7 +422,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                   className="w-full text-xs"
                   options={[{ value: 'all', label: 'Tất cả' }, ...examPeriods.map(p => ({ value: p.id, label: p.name }))]}
                 />
-              </div>
+              </div> */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
                 <Select
@@ -503,9 +586,31 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               </Popconfirm>
                             </>
                           )}
+                          {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && (
+                            <Popconfirm
+                              title={`Phát thi gói đề "${row.name}"?`}
+                              okText="Phát thi" cancelText="Hủy"
+                              onConfirm={() => handlePublishPackage(row)}
+                            >
+                              <Tooltip title="Cho thi">
+                                <Button size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                              </Tooltip>
+                            </Popconfirm>
+                          )}
+                          {row.status === 'active' && activeTab === 'list' && (
+                            <Popconfirm
+                              title={`Tắt phát thi gói đề "${row.name}"?`}
+                              okText="Tắt phát" cancelText="Hủy"
+                              onConfirm={() => handleUnpublishPackage(row)}
+                            >
+                              <Tooltip title="Tắt phát thi">
+                                <Button size="small" type="text" icon={<PauseCircleOutlined className="text-orange-500" />} className="cursor-pointer" />
+                              </Tooltip>
+                            </Popconfirm>
+                          )}
                           <Tooltip title="Xem chi tiết gói đề">
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => { setViewPkg(row); setIsViewOpen(true); }} className="cursor-pointer" />
+                              onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
                           <Tooltip title="Tải gói đề thi">
                             <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
@@ -546,7 +651,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         )}
       </div>
 
-      {/* Modal: Xem chi tiết gói đề */}
+      {/* Modal: Xem chi tiết gói đề — đề gốc + các đề hoán vị, UI dạng Tabs giống Sinh đề hoán vị */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -555,37 +660,53 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           </div>
         }
         open={isViewOpen}
-        onCancel={() => { setIsViewOpen(false); setViewPkg(null); }}
+        onCancel={handleCloseView}
         footer={[
-          <Button key="close" onClick={() => { setIsViewOpen(false); setViewPkg(null); }} className="rounded font-semibold text-xs">Đóng</Button>,
+          <Button key="close" onClick={handleCloseView} className="rounded font-semibold text-xs">Đóng</Button>,
         ]}
         centered
-        width={640}
+        width={900}
       >
         {viewPkg && (
-          <div className="text-xs space-y-3">
-            <div className="font-semibold text-slate-800">{viewPkg.name}</div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className="text-left py-2 px-2 text-slate-600 font-bold">Mã đề</th>
-                  <th className="text-left py-2 px-2 text-slate-600 font-bold">Tên đề</th>
-                  <th className="text-center py-2 px-2 text-slate-600 font-bold">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(viewPkg.examIds || []).map((id: string) => {
-                  const exam = examsById.get(id);
-                  return (
-                    <tr key={id} className="border-b border-slate-100">
-                      <td className="py-2 px-2 font-mono">{exam?.code || id}</td>
-                      <td className="py-2 px-2">{exam?.name || '—'}</td>
-                      <td className="py-2 px-2 text-center">{exam ? getStatusTag(exam.status) : '—'}</td>
-                    </tr>
-                  );
+          <div className="pt-1 text-xs">
+            <div className="text-slate-500 mb-3">Gói đề: <strong>{viewPkg.name}</strong> ({viewPkg.code})</div>
+            {viewLoading ? (
+              <div className="py-16 text-center"><Spin /></div>
+            ) : (viewPkg.examIds || []).length === 0 ? (
+              <Empty description="Gói đề này chưa có đề thi nào." className="py-12" />
+            ) : (
+              <Tabs
+                size="small"
+                items={(viewPkg.examIds || []).map((examId: string, idx: number) => {
+                  const exam = examsById.get(examId);
+                  const qs = viewQuestionsByExamId[examId] || [];
+                  const label = idx === 0
+                    ? `Đề gốc${exam ? ` (${exam.code})` : ''}`
+                    : `Đề hoán vị ${idx}${exam ? ` (${exam.code})` : ''}`;
+                  return {
+                    key: examId,
+                    label,
+                    children: (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-[11px] text-slate-500">
+                            {exam ? <>Trạng thái: {getStatusTag(exam.status)}</> : 'Không tìm thấy dữ liệu đề này.'}
+                          </div>
+                          {exam && (
+                            <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadSingleExam(exam, qs)} disabled={qs.length === 0} className="rounded text-xs">
+                              Tải xuống
+                            </Button>
+                          )}
+                        </div>
+                        <div className="border border-slate-200 rounded p-2">
+                          <ExamContentDisplay questions={qs} allowEdit={false} />
+                        </div>
+                      </div>
+                    ),
+                  };
                 })}
-              </tbody>
-            </table>
+              />
+            )}
           </div>
         )}
       </Modal>

@@ -14,7 +14,8 @@ import {
   Col,
   Tooltip,
   Typography,
-  message
+  App,
+  Tabs
 } from 'antd';
 import {
   QuestionCircleOutlined,
@@ -24,7 +25,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { quanLyThiAdminApi, ExamSessionAPI } from '../../services/quanLyThiApi';
+import { quanLyThiAdminApi } from '../../services/quanLyThiApi';
 import { subjectCategoryApi } from '../../services/danhMucApi';
 
 const { Title, Text } = Typography;
@@ -32,7 +33,6 @@ const { Title, Text } = Typography;
 interface Candidate {
   id: string;
   stt: number;
-  dotThi: string;
   fullName: string;
   gender: string;
   dob: string;
@@ -41,7 +41,6 @@ interface Candidate {
   subject2: string;
   subject3: string;
   cccd: string;
-  diemThi: string;
   note: string;
   registeredSubjects?: string[];
 }
@@ -70,6 +69,7 @@ const generateSBD = (fullName: string, dobStr: string) => {
 };
 
 export default function QuanLyThiSinh() {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
@@ -78,14 +78,32 @@ export default function QuanLyThiSinh() {
   const [candidateToDelete, setCandidateToDelete] = useState<Candidate | null>(null);
 
   const [data, setData] = useState<Candidate[]>([]);
-  const [sessions, setSessions] = useState<ExamSessionAPI[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<{ label: string, value: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
 
+  const [candidateHistory, setCandidateHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchHistory = async (candidateId: string) => {
+    setLoadingHistory(true);
+    try {
+      const res = await quanLyThiAdminApi.getCandidateHistory(candidateId);
+      if (res && res.history) {
+        setCandidateHistory(res.history);
+      } else {
+        setCandidateHistory([]);
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Lỗi lấy lịch sử thi");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   // Search filter states
   const [searchText, setSearchText] = useState('');
-  const [searchSession, setSearchSession] = useState('all');
 
   const filteredData = useMemo(() => {
     return data.filter(c => {
@@ -96,15 +114,11 @@ export default function QuanLyThiSinh() {
         c.sbd.toLowerCase().includes(kwText) ||
         c.cccd.toLowerCase().includes(kwText);
 
-      // Filter by session (kỳ thi)
-      const sessionMatch = searchSession === 'all' || c.dotThi === searchSession;
-
-      return textMatch && sessionMatch;
+      return textMatch;
     });
-  }, [data, searchText, searchSession]);
+  }, [data, searchText]);
 
   React.useEffect(() => {
-    fetchSessions();
     fetchCandidates();
     fetchSubjects();
   }, []);
@@ -120,26 +134,19 @@ export default function QuanLyThiSinh() {
     }
   };
 
-  const fetchSessions = async () => {
-    try {
-      const data = await quanLyThiAdminApi.listSessions();
-      setSessions(data);
-    } catch (err: any) {
-      message.error(err.message || 'Lỗi tải danh sách kỳ thi');
-    }
-  };
+
 
   const fetchCandidates = async () => {
     setLoading(true);
     try {
-      const candidatesData = await quanLyThiAdminApi.getAllCandidates();
+      const candidatesData: any = await quanLyThiAdminApi.getAllCandidates();
+      const candidatesList = candidatesData.data || candidatesData;
 
-      const formatted = candidatesData.map((c: any, index: number) => {
-        const subjects = c.registered_subjects ? c.registered_subjects.split(',') : [];
+      const formatted = (Array.isArray(candidatesList) ? candidatesList : []).map((c: any, index: number) => {
+        const subjects = c.subjects || [];
         return {
           id: c.id,
           stt: index + 1,
-          dotThi: c.session_id, // We'll map this to session name below
           fullName: c.full_name,
           gender: c.gender || '',
           dob: c.dob || '',
@@ -148,7 +155,6 @@ export default function QuanLyThiSinh() {
           subject2: subjects[1] || '',
           subject3: subjects[2] || '',
           cccd: c.cccd || '',
-          diemThi: c.diem_thi || '',
           note: c.note || '',
           registeredSubjects: subjects
         };
@@ -177,6 +183,7 @@ export default function QuanLyThiSinh() {
             dob: record.dob ? dayjs(record.dob, 'DD/MM/YYYY') : undefined
           };
           form.setFieldsValue(formData);
+          fetchHistory(record.id);
           setIsModalVisible(true);
         }}>{text}</a>
       )
@@ -186,14 +193,11 @@ export default function QuanLyThiSinh() {
     { title: 'SBD', dataIndex: 'sbd', key: 'sbd', width: 100 },
     { title: 'CCCD', dataIndex: 'cccd', key: 'cccd', width: 100 },
     {
-      title: 'Kỳ thi',
-      dataIndex: 'dotThi',
-      key: 'dotThi',
-      render: (val: string) => sessions.find(s => s.id === val)?.name || val
+      title: 'Môn thi',
+      dataIndex: 'registeredSubjects',
+      key: 'registeredSubjects',
+      render: (subjects: string[]) => subjects && subjects.length > 0 ? subjects.join(', ') : <span className="text-gray-400 italic">Chưa đăng ký</span>
     },
-    // { title: 'Môn thi 1', dataIndex: 'subject1', key: 'subject1' },
-    // { title: 'Môn thi 2', dataIndex: 'subject2', key: 'subject2' },
-    // { title: 'Môn thi 3', dataIndex: 'subject3', key: 'subject3' },
     {
       title: 'Thao tác',
       key: 'action',
@@ -257,29 +261,25 @@ export default function QuanLyThiSinh() {
           username: calculatedSBD,
           full_name: values.fullName,
           password: dobStr ? dobStr.replace(/\//g, '') : '123456', // Mật khẩu là ngày sinh (VD: 30092003)
-          status: 'not_started',
           cccd: values.cccd,
           gender: values.gender,
           dob: dobStr,
-          diem_thi: values.diemThi,
           note: values.note,
-          registered_subjects: values.registeredSubjects ? values.registeredSubjects.join(',') : ''
+          subjects: values.registeredSubjects || []
         }];
-        await quanLyThiAdminApi.addCandidates(values.dotThi, payload);
+        await quanLyThiAdminApi.addCandidates(payload);
         message.success('Thêm mới thí sinh thành công!');
       } else if (modalMode === 'edit' && editingCandidate) {
         const calculatedSBD = values.sbd || generateSBD(values.fullName, dobStr) || editingCandidate.sbd;
         const payload = {
-          session_id: values.dotThi,
           full_name: values.fullName,
           username: calculatedSBD,
           password: dobStr ? dobStr.replace(/\//g, '') : undefined, // Cập nhật lại mật khẩu nếu ngày sinh thay đổi
           cccd: values.cccd,
           gender: values.gender,
           dob: dobStr,
-          diem_thi: values.diemThi,
           note: values.note,
-          registered_subjects: values.registeredSubjects ? values.registeredSubjects.join(',') : ''
+          subjects: values.registeredSubjects || []
         };
         await quanLyThiAdminApi.updateCandidate(editingCandidate.id, payload);
         message.success('Cập nhật thí sinh thành công!');
@@ -332,20 +332,6 @@ export default function QuanLyThiSinh() {
               allowClear
             />
           </Col>
-          <Col span={8}>
-            <div className="mb-1 text-slate-600">Kỳ thi</div>
-            <Select
-              className="w-full"
-              placeholder="Tất cả"
-              value={searchSession}
-              onChange={setSearchSession}
-            >
-              <Select.Option value="all">Tất cả</Select.Option>
-              {sessions.map(s => (
-                <Select.Option key={s.id} value={s.id}>{s.name}</Select.Option>
-              ))}
-            </Select>
-          </Col>
           <Col span={24} className="text-center mt-6">
             <Space>
               <Button type="primary" className="bg-[#1d4ed8] px-8 rounded-lg shadow-sm font-medium hover:bg-blue-700">
@@ -355,7 +341,6 @@ export default function QuanLyThiSinh() {
                 className="px-6 rounded-lg font-medium"
                 onClick={() => {
                   setSearchText('');
-                  setSearchSession('all');
                 }}
               >
                 Đặt lại
@@ -365,7 +350,7 @@ export default function QuanLyThiSinh() {
         </Row>
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+      <Card variant="borderless" style={{ borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
           <Space>
             <Button type="primary" style={{ backgroundColor: '#1d39c4' }} onClick={handleAdd}>
@@ -405,25 +390,54 @@ export default function QuanLyThiSinh() {
         ]}
       >
         {modalMode === 'view' && editingCandidate ? (
-          <div className="py-4 space-y-4">
-            <Row gutter={[24, 16]}>
-              <Col span={12}><Text type="secondary">Họ và tên</Text><div className="font-medium mt-1">{editingCandidate.fullName}</div></Col>
-              <Col span={12}><Text type="secondary">Số CCCD</Text><div className="font-medium mt-1">{editingCandidate.cccd}</div></Col>
-              <Col span={12}><Text type="secondary">Giới tính</Text><div className="font-medium mt-1">{editingCandidate.gender}</div></Col>
-              <Col span={12}><Text type="secondary">Ngày sinh</Text><div className="font-medium mt-1">{editingCandidate.dob}</div></Col>
-              <Col span={24}><Text type="secondary">Kỳ thi</Text><div className="font-medium mt-1">{sessions.find(s => s.id === editingCandidate.dotThi)?.name || editingCandidate.dotThi}</div></Col>
-              <Col span={12}><Text type="secondary">SBD</Text><div className="font-medium mt-1">{editingCandidate.sbd}</div></Col>
-              <Col span={24}><Text type="secondary">Ghi chú</Text><div className="font-medium mt-1">{editingCandidate.note}</div></Col>
-              <Col span={24}>
-                <Text type="secondary" className="mb-2 block">Môn đăng ký</Text>
-                <div className="font-medium mt-1">
-                  {editingCandidate.registeredSubjects
-                    ? editingCandidate.registeredSubjects.join(', ')
-                    : [editingCandidate.subject1, editingCandidate.subject2, editingCandidate.subject3].filter(Boolean).join(', ')}
-                </div>
-              </Col>
-            </Row>
-          </div>
+          <Tabs defaultActiveKey="1">
+            <Tabs.TabPane tab="Thông tin cá nhân" key="1">
+              <div className="py-4 space-y-4">
+                <Row gutter={[24, 16]}>
+                  <Col span={12}><Text type="secondary">Họ và tên</Text><div className="font-medium mt-1">{editingCandidate.fullName}</div></Col>
+                  <Col span={12}><Text type="secondary">Số CCCD</Text><div className="font-medium mt-1">{editingCandidate.cccd}</div></Col>
+                  <Col span={12}><Text type="secondary">Giới tính</Text><div className="font-medium mt-1">{editingCandidate.gender}</div></Col>
+                  <Col span={12}><Text type="secondary">Ngày sinh</Text><div className="font-medium mt-1">{editingCandidate.dob}</div></Col>
+                  {/* <Col span={24}><Text type="secondary">Kỳ thi</Text><div className="font-medium mt-1">{sessions.find(s => s.id === editingCandidate.dotThi)?.name || editingCandidate.dotThi}</div></Col> */}
+                  <Col span={12}><Text type="secondary">SBD</Text><div className="font-medium mt-1">{editingCandidate.sbd}</div></Col>
+                  <Col span={24}><Text type="secondary">Ghi chú</Text><div className="font-medium mt-1">{editingCandidate.note}</div></Col>
+                  <Col span={24}>
+                    <Text type="secondary" className="mb-2 block">Môn đăng ký</Text>
+                    <div className="font-medium mt-1">
+                      {editingCandidate.registeredSubjects
+                        ? editingCandidate.registeredSubjects.join(', ')
+                        : [editingCandidate.subject1, editingCandidate.subject2, editingCandidate.subject3].filter(Boolean).join(', ')}
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="Lịch sử thi" key="2">
+              <Table
+                dataSource={candidateHistory}
+                loading={loadingHistory}
+                rowKey="id"
+                pagination={false}
+                columns={[
+                  { title: 'Tên môn', dataIndex: 'subject', key: 'subject' },
+                  { title: 'Tên Gói đề', dataIndex: 'package_name', key: 'package_name' },
+                  { title: 'Mã đề', dataIndex: 'exam_code', key: 'exam_code' },
+                  {
+                    title: 'Thời gian nộp',
+                    dataIndex: 'submitted_at',
+                    key: 'submitted_at',
+                    render: (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm') : ''
+                  },
+                  {
+                    title: 'Điểm số',
+                    dataIndex: 'score',
+                    key: 'score',
+                    render: (val) => val !== null ? <span className="font-semibold text-green-600">{val}</span> : '-'
+                  },
+                ]}
+              />
+            </Tabs.TabPane>
+          </Tabs>
         ) : (
           <Form
             form={form}
@@ -462,15 +476,7 @@ export default function QuanLyThiSinh() {
                   <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="dd/mm/yyyy" />
                 </Form.Item>
               </Col>
-              <Col span={24}>
-                <Form.Item label="Kỳ thi" name="dotThi" rules={[{ required: true, message: 'Vui lòng chọn kỳ thi' }]}>
-                  <Select placeholder="Chọn kỳ thi">
-                    {sessions.map(s => (
-                      <Select.Option key={s.id} value={s.id}>{s.name}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
+
               <Col span={12}>
                 <Form.Item label="SBD" name="sbd">
                   <Input placeholder="Nhập SBD" disabled className="bg-slate-100" />
@@ -482,7 +488,6 @@ export default function QuanLyThiSinh() {
                 </Form.Item>
               </Col>
             </Row>
-            {/* 
             <Col span={24}>
               <Form.Item
                 label={<span className="font-semibold text-slate-800">Môn đăng ký *</span>}
@@ -498,7 +503,7 @@ export default function QuanLyThiSinh() {
                   options={subjectOptions}
                 />
               </Form.Item>
-            </Col> */}
+            </Col>
           </Form>
         )}
       </Modal>

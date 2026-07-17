@@ -35,6 +35,7 @@ import {
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/danhMucApi';
 
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
@@ -175,7 +176,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       email: user.email,
       role: user.role,
       status: user.status,
-      position: (user as any).position
+      position: (user as any).position,
+      phoneNumber: (user as any).phoneNumber,
+      gender: (user as any).gender,
+      subjects: (user as any).subjects,
+      dateOfBirth: (user as any).dateOfBirth ? dayjs((user as any).dateOfBirth) : undefined
     });
     // Optional: Load user's selected groups/subjects if available in SystemUser
     setSelectedGroups((user as any).groups || []);
@@ -800,6 +805,10 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               <Form.Item
                 name="phoneNumber"
                 label={<span className="text-sm text-slate-500 font-medium">Số điện thoại</span>}
+                rules={[
+                  { max: 12, message: 'Số điện thoại không được vượt quá 12 ký tự!' },
+                  { pattern: /^[0-9+]*$/, message: 'Số điện thoại chỉ được chứa chữ số và dấu cộng!' }
+                ]}
               >
                 <Input placeholder="Nhập" className="rounded py-1.5" />
               </Form.Item>
@@ -866,13 +875,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 Thêm nhóm người dùng
               </Button>
             </div>
-
-            <Input
-              prefix={<SearchOutlined className="text-slate-400" />}
-              placeholder="Tìm kiếm theo mã nhóm, tên nhóm"
-              className="rounded py-1.5 mb-4"
-            />
-
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <table className="w-full text-sm text-slate-700 table-auto">
                 <thead>

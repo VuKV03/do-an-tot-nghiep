@@ -18,6 +18,25 @@ export default defineConfig(() => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
+        // QuanLyThi Service — admin & portal routes
+        '/api/exam/admin': {
+          target: 'http://localhost:8005',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/exam/portal': {
+          target: 'http://localhost:8005',
+          changeOrigin: true,
+          secure: false,
+        },
+        // Exam Service — packages & exams routes (rewrite /api/exam/packages → /packages)
+        '/api/exam/packages': {
+          target: 'http://localhost:8001',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path: string) => path.replace(/^\/api\/exam\/packages/, '/packages'),
+        },
+        // Fallback: everything else via Gateway
         '/api': {
           target: 'http://localhost:8000',
           changeOrigin: true,

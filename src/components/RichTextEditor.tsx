@@ -39,6 +39,27 @@ const FONT_SIZE_OPTIONS = [
   { label: 'Rất lớn', value: '7' },
 ];
 
+const TABLE_CELL_STYLE = 'border:1px solid #cbd5e1;padding:6px 8px;min-width:48px;';
+const TABLE_PICKER_MAX_ROWS = 8;
+const TABLE_PICKER_MAX_COLS = 10;
+
+/** Sinh HTML cho một bảng rows×cols, mỗi ô có viền + đệm sẵn giống bảng trong Word */
+function buildTableHtml(rows: number, cols: number): string {
+  const row = `<tr>${Array.from({ length: cols }, () => `<td style="${TABLE_CELL_STYLE}"><br></td>`).join('')}</tr>`;
+  const body = Array.from({ length: rows }, () => row).join('');
+  return `<table style="border-collapse:collapse;margin:8px 0;">${body}</table><p><br></p>`;
+}
+
+/** Ký tự đặc biệt / toán học thường dùng khi soạn câu hỏi thi — chèn dạng text thuần, hiển thị bình thường ở mọi nơi */
+const SPECIAL_CHAR_GROUPS: { label: string; chars: string[] }[] = [
+  { label: 'Toán học', chars: ['±', '×', '÷', '≠', '≈', '≡', '≤', '≥', '∞', '√', '∛', '∑', '∏', '∫', '∂', '∇', '°', '′', '″', '‰', '%'] },
+  { label: 'Số mũ / phân số', chars: ['²', '³', 'ⁿ', '½', '⅓', '⅔', '¼', '¾', '⅕', '⅛'] },
+  { label: 'Chữ Hy Lạp', chars: ['α', 'β', 'γ', 'δ', 'ε', 'θ', 'λ', 'μ', 'π', 'ρ', 'σ', 'φ', 'ω', 'Δ', 'Σ', 'Φ', 'Ω', 'Π'] },
+  { label: 'Tập hợp / logic', chars: ['∈', '∉', '⊂', '⊆', '⊄', '∪', '∩', '∅', '∀', '∃', '¬', '∧', '∨', '⇒', '⇔'] },
+  { label: 'Mũi tên', chars: ['→', '←', '↔', '↑', '↓', '⇌'] },
+  { label: 'Khác', chars: ['•', '§', '¶', '©', '®', '™', '…', '–', '—', '№'] },
+];
+
 /** Tách các <img> ra khỏi HTML thành danh sách "đính kèm" riêng, phần còn lại là nội dung text thuần túy */
 function splitHtmlIntoAttachmentsAndText(html: string): { attachments: Attachment[]; textHtml: string } {
   if (!html || !isLikelyHtml(html)) return { attachments: [], textHtml: html || '' };
@@ -62,6 +83,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   const isFocusedRef = useRef(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [hoverCell, setHoverCell] = useState({ rows: 0, cols: 0 });
+  const [isInTable, setIsInTable] = useState(false);
+  const [showSymbolPicker, setShowSymbolPicker] = useState(false);
 
   // Đồng bộ giá trị từ ngoài vào (vd: reset form, tải dữ liệu để sửa) — tách ảnh đính kèm ra khỏi
   // phần text, chỉ khi editor không đang được focus để tránh nhảy con trỏ giữa lúc gõ.
@@ -99,9 +124,135 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     emitChange(next);
   };
 
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = '';
+  /** Tìm ô <td>/<th> đang chứa con trỏ/selection hiện tại, nếu có */
+  const getCellAtSelection = (): HTMLTableCellElement | null => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editorRef.current) return null;
+    const range = sel.getRangeAt(0);
+    let node: Node | null = range.startContainer;
+
+    // Click vào ô trống (chỉ có <br>, chưa gõ gì) đôi khi khiến trình duyệt xác định selection
+    // rơi vào <table>/<tbody>/<tr> thay vì đúng <td> bên trong — suy ra ô cụ thể theo offset.
+    if (node instanceof HTMLElement && ['TABLE', 'TBODY', 'THEAD', 'TR'].includes(node.tagName)) {
+      const child = node.childNodes[range.startOffset] || node.childNodes[range.startOffset - 1] || node.childNodes[0];
+      if (child) node = child;
+    }
+
+    while (node && node !== editorRef.current) {
+      if (node instanceof HTMLElement && (node.tagName === 'TD' || node.tagName === 'TH')) {
+        return node as HTMLTableCellElement;
+      }
+      if (node instanceof HTMLElement && node.tagName === 'TR') {
+        return (node as HTMLTableRowElement).cells[0] || null;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  };
+
+  const updateTableContext = () => setIsInTable(!!getCellAtSelection());
+
+  const insertTable = (rows: number, cols: number) => {
+    focusEditor();
+    document.execCommand('insertHTML', false, buildTableHtml(rows, cols));
+    emitChange();
+    setShowTablePicker(false);
+    setHoverCell({ rows: 0, cols: 0 });
+    setIsInTable(false);
+  };
+
+  const withActiveCell = (mutate: (cell: HTMLTableCellElement) => void) => {
+    const cell = getCellAtSelection();
+    if (!cell) return;
+    mutate(cell);
+    emitChange();
+    updateTableContext();
+  };
+
+  const insertTableRow = (position: 'above' | 'below') => withActiveCell((cell) => {
+    const row = cell.parentElement as HTMLTableRowElement;
+    const newRow = row.cloneNode(true) as HTMLTableRowElement;
+    Array.from(newRow.cells).forEach((c) => { c.innerHTML = '<br>'; });
+    if (position === 'above') row.parentElement!.insertBefore(newRow, row);
+    else row.parentElement!.insertBefore(newRow, row.nextSibling);
+  });
+
+  const insertTableColumn = (position: 'left' | 'right') => withActiveCell((cell) => {
+    const table = cell.closest('table');
+    if (!table) return;
+    const cellIndex = cell.cellIndex;
+    Array.from(table.rows).forEach((r) => {
+      const refCell = r.cells[cellIndex];
+      if (!refCell) return;
+      const newCell = refCell.cloneNode(false) as HTMLTableCellElement;
+      newCell.innerHTML = '<br>';
+      if (position === 'left') r.insertBefore(newCell, refCell);
+      else r.insertBefore(newCell, refCell.nextSibling);
+    });
+  });
+
+  const deleteTableRow = () => withActiveCell((cell) => {
+    const table = cell.closest('table');
+    const row = cell.parentElement as HTMLTableRowElement;
+    if (!table) return;
+    if (table.rows.length <= 1) { table.remove(); return; }
+    row.remove();
+  });
+
+  const deleteTableColumn = () => withActiveCell((cell) => {
+    const table = cell.closest('table');
+    if (!table) return;
+    const cellIndex = cell.cellIndex;
+    if (table.rows[0].cells.length <= 1) { table.remove(); return; }
+    Array.from(table.rows).forEach((r) => { r.cells[cellIndex]?.remove(); });
+  });
+
+  const deleteTableAtCursor = () => withActiveCell((cell) => {
+    cell.closest('table')?.remove();
+  });
+
+  /** Tab để nhảy sang ô kế tiếp/trước, ở ô cuối cùng thì tự thêm dòng mới — giống Word */
+  const handleTableTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab') return;
+    const cell = getCellAtSelection();
+    if (!cell) return;
+    e.preventDefault();
+    const row = cell.parentElement as HTMLTableRowElement;
+    const cellIndex = cell.cellIndex;
+    let targetCell: HTMLTableCellElement | null = null;
+
+    if (!e.shiftKey) {
+      targetCell = row.cells[cellIndex + 1] || null;
+      if (!targetCell) {
+        const nextRow = row.nextElementSibling as HTMLTableRowElement | null;
+        if (nextRow) {
+          targetCell = nextRow.cells[0] || null;
+        } else {
+          insertTableRow('below');
+          const newRow = row.nextElementSibling as HTMLTableRowElement | null;
+          targetCell = newRow ? newRow.cells[0] : null;
+        }
+      }
+    } else {
+      targetCell = row.cells[cellIndex - 1] || null;
+      if (!targetCell) {
+        const prevRow = row.previousElementSibling as HTMLTableRowElement | null;
+        if (prevRow) targetCell = prevRow.cells[prevRow.cells.length - 1] || null;
+      }
+    }
+
+    if (targetCell) {
+      const range = document.createRange();
+      range.selectNodeContents(targetCell);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      updateTableContext();
+    }
+  };
+
+  const addImageFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     const invalid = files.find((f) => !f.type.startsWith('image/'));
@@ -135,17 +286,30 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     }
   };
 
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    await addImageFiles(files);
+  };
+
   const handleInsertLink = () => {
     const url = window.prompt('Nhập đường dẫn (URL):', 'https://');
     if (!url) return;
     exec('createLink', url);
   };
 
+  /** Chèn ký tự đặc biệt/toán học dạng text thuần tại vị trí con trỏ — không đóng popup để chèn liên tiếp nhiều ký tự */
+  const insertSymbol = (char: string) => {
+    focusEditor();
+    document.execCommand('insertText', false, char);
+    emitChange();
+  };
+
   const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors';
 
   return (
-    <div className={`border border-slate-300 rounded-lg overflow-hidden ${className || ''}`}>
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50">
+    <div className={`border border-slate-300 rounded-lg ${className || ''}`}>
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50 rounded-t-lg">
         <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<h1>')}>H1</button>
         <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<h2>')}>H2</button>
         <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<p>')}>Normal</button>
@@ -190,10 +354,110 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         >
           {isProcessingImage ? '⏳' : '🖼'}
         </button>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelected} />
+        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileSelected} />
+        <span className="w-px h-4 bg-slate-300 mx-1" />
+        <div className="relative">
+          <button
+            type="button"
+            className={btnClass}
+            style={{ cursor: 'pointer' }}
+            title="Chèn bảng"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowTablePicker((v) => !v)}
+          >
+            ▦
+          </button>
+          {showTablePicker && (
+            <div
+              className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div
+                className="grid gap-0.5"
+                style={{ gridTemplateColumns: `repeat(${TABLE_PICKER_MAX_COLS}, 16px)` }}
+              >
+                {Array.from({ length: TABLE_PICKER_MAX_ROWS * TABLE_PICKER_MAX_COLS }).map((_, idx) => {
+                  const r = Math.floor(idx / TABLE_PICKER_MAX_COLS) + 1;
+                  const c = (idx % TABLE_PICKER_MAX_COLS) + 1;
+                  const active = r <= hoverCell.rows && c <= hoverCell.cols;
+                  return (
+                    <div
+                      key={idx}
+                      onMouseEnter={() => setHoverCell({ rows: r, cols: c })}
+                      onClick={() => insertTable(r, c)}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        border: '1px solid #cbd5e1',
+                        background: active ? '#3b82f6' : '#f8fafc',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="text-[11px] text-slate-500 text-center mt-1 font-medium">
+                {hoverCell.rows > 0 ? `${hoverCell.rows} × ${hoverCell.cols}` : 'Chọn số dòng × cột'}
+              </div>
+            </div>
+          )}
+        </div>
+        <span className="w-px h-4 bg-slate-300 mx-1" />
+        <div className="relative">
+          <button
+            type="button"
+            className={btnClass}
+            style={{ cursor: 'pointer' }}
+            title="Chèn ký tự đặc biệt / toán học"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowSymbolPicker((v) => !v)}
+          >
+            Ω
+          </button>
+          {showSymbolPicker && (
+            <div
+              className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 w-72 max-h-72 overflow-y-auto"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {SPECIAL_CHAR_GROUPS.map((group) => (
+                <div key={group.label} className="mb-2 last:mb-0">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{group.label}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {group.chars.map((char) => (
+                      <button
+                        key={char}
+                        type="button"
+                        onClick={() => insertSymbol(char)}
+                        className="w-7 h-7 flex items-center justify-center text-[15px] rounded border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 text-slate-700"
+                        style={{ cursor: 'pointer' }}
+                        title={char}
+                      >
+                        {char}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <span className="w-px h-4 bg-slate-300 mx-1" />
         <button type="button" className={btnClass} style={{ cursor: 'pointer' }} title="Xoá định dạng" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('removeFormat')}>Tx</button>
       </div>
+
+      {isInTable && (
+        <div className="flex flex-wrap items-center gap-1 px-2 py-1 border-b border-slate-200 bg-indigo-50">
+          <span className="text-[11px] font-bold text-indigo-700 mr-1">Bảng:</span>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableRow('above')}>+ Dòng trên</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableRow('below')}>+ Dòng dưới</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableColumn('left')}>+ Cột trái</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableColumn('right')}>+ Cột phải</button>
+          <span className="w-px h-4 bg-indigo-200 mx-1" />
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableRow}>− Dòng</button>
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableColumn}>− Cột</button>
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableAtCursor}>Xoá bảng</button>
+        </div>
+      )}
 
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 px-2 pt-2.5 pb-1.5 border-b border-slate-200 bg-white">
@@ -226,14 +490,28 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         contentEditable
         suppressContentEditableWarning
         data-placeholder={placeholder}
-        className="rich-text-editable px-3 py-2 text-[15px] outline-none"
+        className="rich-text-editable px-3 py-2 text-[15px] outline-none rounded-b-lg"
         style={{ minHeight }}
-        onFocus={() => { isFocusedRef.current = true; }}
+        onFocus={() => { isFocusedRef.current = true; updateTableContext(); }}
         onBlur={() => { isFocusedRef.current = false; emitChange(); }}
         onInput={() => emitChange()}
+        onMouseUp={updateTableContext}
+        onKeyUp={updateTableContext}
+        onKeyDown={handleTableTabKey}
         onPaste={(e) => {
-          // Dán dạng text thuần để tránh mang theo style lạ/script từ nguồn ngoài
           e.preventDefault();
+          // Nếu clipboard có ảnh (chụp màn hình, copy ảnh từ nơi khác...) thì đưa vào dải đính
+          // kèm giống nút "Chèn ảnh"; phần text luôn dán dạng thuần để tránh mang theo style lạ.
+          const imageFiles = Array.from(e.clipboardData.items)
+            .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+            .map((item) => item.getAsFile())
+            .filter((file): file is File => !!file);
+
+          if (imageFiles.length > 0) {
+            void addImageFiles(imageFiles);
+            return;
+          }
+
           const text = e.clipboardData.getData('text/plain');
           document.execCommand('insertText', false, text);
           emitChange();

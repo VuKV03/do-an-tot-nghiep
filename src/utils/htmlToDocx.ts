@@ -3,7 +3,7 @@
  * Paragraph[] của thư viện `docx`, giữ lại định dạng đậm/nghiêng/gạch chân/gạch ngang, cỡ chữ,
  * màu chữ, font chữ và ảnh chèn trực tiếp (base64) khi xuất file Word.
  */
-import { Paragraph, TextRun, ImageRun, HeadingLevel, type ParagraphChild } from 'docx';
+import { Paragraph, TextRun, ImageRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, type ParagraphChild } from 'docx';
 import { isLikelyHtml, sanitizeHtml } from './htmlContent';
 
 interface RunStyle {
@@ -136,11 +136,38 @@ function blockHeading(tagName: string): (typeof HeadingLevel)[keyof typeof Headi
   return undefined;
 }
 
+const TABLE_BORDER = { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' };
+
+/** Chuyển <table> soạn từ RichTextEditor (chèn qua công cụ "Chèn bảng") thành docx Table thật, giữ định dạng chữ trong từng ô */
+function buildDocxTable(tableEl: HTMLTableElement): Table {
+  const rows = Array.from(tableEl.rows).map((row) => {
+    const cells = Array.from(row.cells).map((cell) => {
+      const runs = collectRuns(cell, {});
+      return new TableCell({
+        children: [new Paragraph({ children: runs.length ? runs : [new TextRun({ text: '' })] })],
+      });
+    });
+    return new TableRow({ children: cells });
+  });
+  return new Table({
+    rows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: TABLE_BORDER,
+      bottom: TABLE_BORDER,
+      left: TABLE_BORDER,
+      right: TABLE_BORDER,
+      insideHorizontal: TABLE_BORDER,
+      insideVertical: TABLE_BORDER,
+    },
+  });
+}
+
 /**
  * Chuyển một đoạn nội dung câu hỏi (HTML hoặc text thuần) thành danh sách Paragraph để chèn vào docx.
  * `leadingRun` (ví dụ "Câu 1: " in đậm) sẽ được ghép vào đầu paragraph đầu tiên nếu có.
  */
-export function htmlToDocxParagraphs(content: string | undefined, leadingRun?: TextRun): Paragraph[] {
+export function htmlToDocxParagraphs(content: string | undefined, leadingRun?: TextRun): (Paragraph | Table)[] {
   const value = content || '';
 
   if (!isLikelyHtml(value)) {
@@ -151,7 +178,7 @@ export function htmlToDocxParagraphs(content: string | undefined, leadingRun?: T
   const clean = sanitizeHtml(value);
   const doc = new DOMParser().parseFromString(clean, 'text/html');
 
-  const paragraphs: Paragraph[] = [];
+  const blocks: (Paragraph | Table)[] = [];
   let bufferRuns: ParagraphChild[] = [];
   let leadingUsed = false;
 
@@ -163,19 +190,27 @@ export function htmlToDocxParagraphs(content: string | undefined, leadingRun?: T
 
   const flushBuffer = () => {
     if (bufferRuns.length === 0) return;
-    paragraphs.push(new Paragraph({ children: takeLeading(bufferRuns) }));
+    blocks.push(new Paragraph({ children: takeLeading(bufferRuns) }));
     bufferRuns = [];
   };
 
   // Đi qua TOÀN BỘ node con theo đúng thứ tự (không chỉ các thẻ block) — vì ảnh đính kèm được
   // đặt trần ở đầu nội dung (không bọc trong <div>/<p>), nếu chỉ lọc theo block sẽ bị bỏ sót.
   doc.body.childNodes.forEach((node) => {
-    const isBlockElement = node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.includes((node as Element).tagName);
-    if (isBlockElement) {
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      bufferRuns.push(...collectRunsForNode(node, {}));
+      return;
+    }
+    const el = node as Element;
+    if (el.tagName === 'TABLE') {
       flushBuffer();
-      const el = node as Element;
+      blocks.push(buildDocxTable(el as HTMLTableElement));
+      return;
+    }
+    if (BLOCK_TAGS.includes(el.tagName)) {
+      flushBuffer();
       const runs = collectRuns(el, {});
-      paragraphs.push(new Paragraph({
+      blocks.push(new Paragraph({
         heading: blockHeading(el.tagName),
         children: takeLeading(runs.length ? runs : [new TextRun({ text: '' })]),
       }));
@@ -185,8 +220,8 @@ export function htmlToDocxParagraphs(content: string | undefined, leadingRun?: T
   });
   flushBuffer();
 
-  if (paragraphs.length === 0) {
+  if (blocks.length === 0) {
     return [new Paragraph({ children: leadingRun ? [leadingRun] : [] })];
   }
-  return paragraphs;
+  return blocks;
 }

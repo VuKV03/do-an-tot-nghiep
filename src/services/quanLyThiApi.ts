@@ -68,8 +68,8 @@ export const quanLyThiAdminApi = {
       body: JSON.stringify({ status }),
     }),
     
-  addCandidates: (sessionId: string, candidates: any[]) =>
-    apiFetch<ExamCandidateAPI[]>(`/api/exam/admin/sessions/${sessionId}/candidates`, {
+  addCandidates: (candidates: any[]) =>
+    apiFetch<ExamCandidateAPI[]>(`/api/exam/admin/candidates`, {
       method: 'POST',
       body: JSON.stringify(candidates),
     }),
@@ -93,4 +93,7 @@ export const quanLyThiAdminApi = {
     
   getResults: (sessionId: string) =>
     apiFetch<any[]>(`/api/exam/admin/sessions/${sessionId}/results`),
+    
+  getCandidateHistory: (candidateId: string) =>
+    apiFetch<any>(`/api/exam/admin/candidates/${candidateId}/history`),
 };

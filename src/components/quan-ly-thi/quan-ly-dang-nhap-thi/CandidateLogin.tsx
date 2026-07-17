@@ -79,7 +79,7 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
 
           {errorMsg && (
             <Alert
-              message={errorMsg}
+              title={errorMsg}
               type="error"
               showIcon
               closable
@@ -102,6 +102,7 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
               <Input
                 prefix={<UserOutlined className="text-slate-400" />}
                 placeholder="Số báo danh (VD: NVC30092003)"
+                autoComplete="username"
                 className="h-12 bg-slate-50 border-slate-200 text-slate-800 rounded-xl hover:border-blue-400 focus:border-blue-500 text-sm"
               />
             </Form.Item>
@@ -113,6 +114,7 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
               <Input.Password
                 prefix={<LockOutlined className="text-slate-400" />}
                 placeholder="Ngày sinh (VD: 30092003)"
+                autoComplete="current-password"
                 className="h-12 bg-slate-50 border-slate-200 text-slate-800 rounded-xl hover:border-blue-400 focus:border-blue-500 text-sm"
               />
             </Form.Item>

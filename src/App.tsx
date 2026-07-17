@@ -21,13 +21,12 @@ import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
 import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
-import QuanLyThi from './components/quan-ly-thi/QuanLyKyThi';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
 import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
-import QuanLyDeThi from './components/quan-ly-thi/QuanLyDeThi';
 import Login from './components/dang-nhap-dang-ky/Login';
 import ExamPortal from './components/quan-ly-thi/quan-ly-dang-nhap-thi/ExamPortal';
 import CandidateLogin from './components/quan-ly-thi/quan-ly-dang-nhap-thi/CandidateLogin';
+import CandidateDashboard from './components/quan-ly-thi/quan-ly-dang-nhap-thi/CandidateDashboard';
 import ProfileModal from './components/dang-nhap-dang-ky/ProfileModal';
 import PasswordModal from './components/dang-nhap-dang-ky/PasswordModal';
 import { checkUserPermission } from './utils/permissionUtils';
@@ -39,45 +38,77 @@ import AppHeader from './components/layout/AppHeader';
 const { Header, Sider, Content } = Layout;
 
 export default function App() {
+  const isPortalPort = window.location.port === '5174';
+
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenuKey, setActiveMenuKey] = useState<string>(() => {
     const hash = window.location.hash.replace('#', '');
+    if (isPortalPort) return hash || 'dang-nhap-thi';
+    if (hash === 'login-admin') return 'dashboard';
     return hash || 'dashboard';
   });
 
-  const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
-
-  useEffect(() => {
+  const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
     const cachedUser = localStorage.getItem('user_info');
     const token = localStorage.getItem('auth_token');
     if (cachedUser && token) {
       try {
-        setCurrentUser(JSON.parse(cachedUser));
+        return JSON.parse(cachedUser);
       } catch (e) {
         localStorage.removeItem('user_info');
         localStorage.removeItem('auth_token');
+        return null;
       }
     }
-  }, []);
+    return null;
+  });
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
 
-  // Sync state to URL hash
+  // ── Set document title based on port ──
   useEffect(() => {
-    if (activeMenuKey) {
-      window.location.hash = activeMenuKey;
+    if (isPortalPort) {
+      document.title = 'CỔNG THI TRỰC TUYẾN';
     }
-  }, [activeMenuKey]);
+  }, [isPortalPort]);
 
-  // Listen to hash changes (e.g. user clicks back/forward browser buttons)
+  // Sync state to URL hash (admin portal only)
   useEffect(() => {
+    if (isPortalPort) return; // Portal uses its own hash routing
+    
+    if (!currentUser) {
+      if (window.location.hash !== '#login-admin') {
+        window.location.hash = 'login-admin';
+      }
+    } else {
+      if (window.location.hash === '#login-admin' || !window.location.hash) {
+        window.location.hash = activeMenuKey || 'dashboard';
+      } else if (activeMenuKey && window.location.hash !== `#${activeMenuKey}`) {
+        window.location.hash = activeMenuKey;
+      }
+    }
+  }, [activeMenuKey, isPortalPort, currentUser]);
+
+  // Listen to hash changes — admin portal only
+  useEffect(() => {
+    if (isPortalPort) return;
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && hash !== activeMenuKey) {
-        setActiveMenuKey(hash);
+      
+      if (!currentUser) {
+        if (hash !== 'login-admin') {
+          window.location.hash = 'login-admin';
+        }
+      } else {
+        if (hash === 'login-admin') {
+          window.location.hash = activeMenuKey || 'dashboard';
+        } else if (hash && hash !== activeMenuKey) {
+          setActiveMenuKey(hash);
+        }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeMenuKey]);
+  }, [activeMenuKey, isPortalPort, currentUser]);
 
   const {
     questions,
@@ -149,7 +180,9 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser && menuItems.length > 0) {
-      if (activeMenuKey !== 'dashboard' && !hasPermission(activeMenuKey)) {
+      if (activeMenuKey === 'no-access') {
+        setActiveMenuKey('dashboard');
+      } else if (activeMenuKey !== 'dashboard' && !hasPermission(activeMenuKey)) {
         const findFirstLeaf = (items: any[]): string | null => {
           for (const item of items) {
             if (item.children) {
@@ -254,10 +287,7 @@ export default function App() {
         return (
           <PackageManagementModule initialTab={targetSubTab as 'list' | 'review'} />
         );
-      case 'quan-ly-ky-thi':
-        return <QuanLyThi />;
-      case 'quan-ly-de-thi':
-        return <QuanLyDeThi />;
+
       case 'quan-ly-thi-sinh':
         return <QuanLyThiSinh />;
       case 'quan-ly-ket-qua-thi':
@@ -312,20 +342,74 @@ export default function App() {
     }
   };
 
-  const isPortalPort = window.location.port === '5174';
+  // ── Portal hash routing (port 5174) ──
+  // Sync portal state → URL hash
+  useEffect(() => {
+    if (!isPortalPort) return;
+    if (!currentUser) {
+      window.location.hash = 'dang-nhap-thi';
+    } else if (currentUser.role === 'candidate' && !activeSubject) {
+      window.location.hash = 'chon-mon-thi';
+    } else if (currentUser.role === 'candidate' && activeSubject) {
+      // thong-tin-thi-sinh is the "waiting" screen, lam-bai-thi is set by ExamPortal internally
+      const currentHash = window.location.hash.replace('#', '');
+      if (currentHash !== 'lam-bai-thi') {
+        window.location.hash = 'thong-tin-thi-sinh';
+      }
+    }
+  }, [isPortalPort, currentUser, activeSubject]);
+
+  // Handle browser back/forward for portal
+  useEffect(() => {
+    if (!isPortalPort) return;
+    const handlePortalHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'dang-nhap-thi') {
+        localStorage.removeItem('user_info');
+        localStorage.removeItem('auth_token');
+        setCurrentUser(null);
+        setActiveSubject(null);
+      } else if (hash === 'chon-mon-thi') {
+        setActiveSubject(null);
+      }
+    };
+    window.addEventListener('hashchange', handlePortalHash);
+    return () => window.removeEventListener('hashchange', handlePortalHash);
+  }, [isPortalPort]);
 
   if (isPortalPort) {
     if (!currentUser) {
       return <CandidateLogin onLoginSuccess={setCurrentUser} />;
     }
     if (currentUser.role === 'candidate') {
+      if (!activeSubject) {
+        return (
+          <CandidateDashboard 
+            currentUser={currentUser} 
+            onLogout={() => {
+              localStorage.removeItem('user_info');
+              localStorage.removeItem('auth_token');
+              setCurrentUser(null);
+              setActiveSubject(null);
+              window.location.hash = 'dang-nhap-thi';
+            }} 
+            onStartExam={(subject) => {
+              setActiveSubject(subject);
+              window.location.hash = 'thong-tin-thi-sinh';
+            }} 
+          />
+        );
+      }
       return (
         <ExamPortal
           currentUser={currentUser}
+          subject={activeSubject}
           onLogout={() => {
-            localStorage.removeItem('user_info');
-            localStorage.removeItem('auth_token');
-            setCurrentUser(null);
+            setActiveSubject(null);
+            window.location.hash = 'chon-mon-thi';
+          }}
+          onExamStart={() => {
+            window.location.hash = 'lam-bai-thi';
           }}
         />
       );
@@ -338,6 +422,7 @@ export default function App() {
           localStorage.removeItem('user_info');
           localStorage.removeItem('auth_token');
           setCurrentUser(null);
+          window.location.hash = 'dang-nhap-thi';
         }}>Đăng xuất</Button>
       </div>
     );

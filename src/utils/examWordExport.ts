@@ -4,7 +4,7 @@
  * chuẩn nên có thể cảnh báo/lỗi trên Word Online, LibreOffice, Google Docs...).
  * Dùng chung cho ExamManagementModule.tsx và ModalSinhDeHoanVi.tsx để không lặp lại logic build.
  */
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+import { Document, HeadingLevel, Packer, Paragraph, Table, TextRun } from 'docx';
 import type { Question } from '../types';
 import { htmlToDocxParagraphs } from './htmlToDocx';
 
@@ -13,7 +13,7 @@ function formatAnswer(correctAnswer: string | string[] | undefined): string {
 }
 
 export function buildExamDocxDocument(title: string, subject: string, grade: string, questions: Question[]): Document {
-  const children: Paragraph[] = [
+  const children: (Paragraph | Table)[] = [
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: title, bold: true })],
