@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { message, Image } from 'antd';
+import 'katex/dist/katex.min.css';
 import { isLikelyHtml, sanitizeHtml } from '../utils/htmlContent';
 import { compressImageFile } from '../utils/imageCompress';
+import {
+  buildFormulaHtml,
+  findFormulaElement,
+  getFormulaLatex,
+  renderLatexToHtml,
+  FORMULA_TEMPLATES,
+} from '../utils/mathFormula';
 
 /** Kích thước thumbnail hiển thị trong dải ảnh đính kèm — ảnh gốc đầy đủ độ phân giải chỉ hiện khi bấm zoom */
 const ATTACHMENT_THUMB_SIZE = 64;
@@ -87,6 +95,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   const [hoverCell, setHoverCell] = useState({ rows: 0, cols: 0 });
   const [isInTable, setIsInTable] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
+  const [showFormulaPicker, setShowFormulaPicker] = useState(false);
+  const [formulaLatex, setFormulaLatex] = useState('');
+  const editingFormulaElRef = useRef<HTMLElement | null>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
 
   // Đồng bộ giá trị từ ngoài vào (vd: reset form, tải dữ liệu để sửa) — tách ảnh đính kèm ra khỏi
   // phần text, chỉ khi editor không đang được focus để tránh nhảy con trỏ giữa lúc gõ.
@@ -305,6 +317,69 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     emitChange();
   };
 
+  /** Ghi nhớ vị trí con trỏ trong editor trước khi mở popup công thức (bấm vào ô nhập LaTeX làm mất focus editor) */
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedSelectionRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const range = savedSelectionRef.current;
+    if (!range) return;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  };
+
+  const openFormulaPickerForNew = () => {
+    saveSelection();
+    editingFormulaElRef.current = null;
+    setFormulaLatex('');
+    setShowFormulaPicker(true);
+  };
+
+  const openFormulaPickerForEdit = (el: HTMLElement) => {
+    editingFormulaElRef.current = el;
+    setFormulaLatex(getFormulaLatex(el));
+    setShowFormulaPicker(true);
+  };
+
+  const closeFormulaPicker = () => {
+    setShowFormulaPicker(false);
+    setFormulaLatex('');
+    editingFormulaElRef.current = null;
+  };
+
+  /** Click vào 1 công thức đã chèn (khối contenteditable=false) để mở lại và chỉnh sửa */
+  const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const formulaEl = findFormulaElement(e.target as Node);
+    if (formulaEl) openFormulaPickerForEdit(formulaEl);
+  };
+
+  const confirmFormula = () => {
+    const latex = formulaLatex.trim();
+    if (!latex) {
+      closeFormulaPicker();
+      return;
+    }
+
+    const editingEl = editingFormulaElRef.current;
+    if (editingEl) {
+      editingEl.setAttribute('data-latex', encodeURIComponent(latex));
+      editingEl.innerHTML = renderLatexToHtml(latex);
+    } else {
+      focusEditor();
+      restoreSelection();
+      document.execCommand('insertHTML', false, `${buildFormulaHtml(latex)}&nbsp;`);
+    }
+    emitChange();
+    closeFormulaPicker();
+  };
+
+  const formulaPreviewHtml = formulaLatex.trim() ? renderLatexToHtml(formulaLatex) : '';
+
   const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors';
 
   return (
@@ -408,6 +483,77 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
             type="button"
             className={btnClass}
             style={{ cursor: 'pointer' }}
+            title="Chèn công thức LaTeX (ký hiệu toán học không có sẵn)"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={openFormulaPickerForNew}
+          >
+            𝑓(x)
+          </button>
+          {showFormulaPicker && (
+            <div
+              className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-[360px]"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
+                {editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
+              </div>
+              <textarea
+                autoFocus
+                rows={3}
+                className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-[13px] font-mono outline-none focus:border-blue-500"
+                placeholder="Ví dụ: \frac{a}{b} + \sqrt{x}"
+                value={formulaLatex}
+                onChange={(e) => setFormulaLatex(e.target.value)}
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {FORMULA_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    className="px-1.5 py-0.5 text-[11px] rounded border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300"
+                    style={{ cursor: 'pointer' }}
+                    title={tpl.latex}
+                    onClick={() => setFormulaLatex((prev) => (prev ? `${prev} ${tpl.latex}` : tpl.latex))}
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 border border-slate-200 rounded-md px-2 py-2 min-h-[42px] bg-slate-50 flex items-center overflow-x-auto">
+                {formulaPreviewHtml ? (
+                  <span dangerouslySetInnerHTML={{ __html: formulaPreviewHtml }} />
+                ) : (
+                  <span className="text-[12px] text-slate-400">Xem trước công thức tại đây</span>
+                )}
+              </div>
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1 text-[12px] rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  style={{ cursor: 'pointer' }}
+                  onClick={closeFormulaPicker}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1 text-[12px] rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ cursor: 'pointer' }}
+                  disabled={!formulaLatex.trim()}
+                  onClick={confirmFormula}
+                >
+                  {editingFormulaElRef.current ? 'Cập nhật' : 'Chèn'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <span className="w-px h-4 bg-slate-300 mx-1" />
+        <div className="relative">
+          <button
+            type="button"
+            className={btnClass}
+            style={{ cursor: 'pointer' }}
             title="Chèn ký tự đặc biệt / toán học"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowSymbolPicker((v) => !v)}
@@ -498,6 +644,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         onMouseUp={updateTableContext}
         onKeyUp={updateTableContext}
         onKeyDown={handleTableTabKey}
+        onClick={handleEditorClick}
         onPaste={(e) => {
           e.preventDefault();
           // Nếu clipboard có ảnh (chụp màn hình, copy ảnh từ nơi khác...) thì đưa vào dải đính
@@ -521,6 +668,15 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         .rich-text-editable:empty:before {
           content: attr(data-placeholder);
           color: #94a3b8;
+        }
+        .rich-text-editable .qh-formula {
+          cursor: pointer;
+          border-radius: 4px;
+          padding: 0 2px;
+        }
+        .rich-text-editable .qh-formula:hover {
+          background: #eff6ff;
+          outline: 1px dashed #93c5fd;
         }
       `}</style>
     </div>
