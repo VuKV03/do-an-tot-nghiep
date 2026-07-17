@@ -20,8 +20,10 @@ git checkout develop
 
 git pull origin develop
 
-git merge vukv
+git merge chien
 
 git push origin develop
+
+git checkout chien
 
  

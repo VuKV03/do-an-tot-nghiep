@@ -15,6 +15,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail ?? 'Lỗi không xác định từ server.');
   }
+  if (res.status === 204) {
+    return undefined as any;
+  }
   return res.json();
 }
 
@@ -96,4 +99,9 @@ export const quanLyThiAdminApi = {
     
   getCandidateHistory: (candidateId: string) =>
     apiFetch<any>(`/api/exam/admin/candidates/${candidateId}/history`),
+
+  resetCandidateExamResult: (candidateId: string, subject: string) =>
+    apiFetch<void>(`/api/exam/admin/candidates/${candidateId}/results/${encodeURIComponent(subject)}`, {
+      method: 'DELETE',
+    }),
 };

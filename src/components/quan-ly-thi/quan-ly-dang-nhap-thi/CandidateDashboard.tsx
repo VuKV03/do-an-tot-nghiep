@@ -98,7 +98,7 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-8 flex flex-col gap-8">
         <div>
-          <Title level={2} className="text-slate-800 m-0">Kỳ thi trực tuyến</Title>
+          <Title level={2} className="text-slate-800 m-0">KỲ THI TRỰC TUYẾN</Title>
           <Text className="text-slate-500">Danh sách các bài thi dành cho bạn</Text>
         </div>
 
@@ -114,7 +114,7 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
               <Card
                 key={idx}
                 className="rounded-2xl shadow-sm hover:shadow-md transition-shadow border-slate-100 overflow-hidden"
-                bodyStyle={{ padding: 0 }}
+                styles={{ body: { padding: 0 } }}
               >
                 <div className={`h-2 ${sub.status === 'submitted' ? 'bg-green-500' : sub.status === 'in_progress' ? 'bg-orange-500' : 'bg-blue-600'}`}></div>
                 <div className="p-6">
@@ -127,17 +127,17 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                     {sub.status === 'available' && <Badge status="processing" text="Sẵn sàng" className="font-medium text-xs bg-blue-50 px-2 py-1 rounded-full text-blue-700" />}
                   </div>
                   <Title level={4} className="text-slate-800 m-0 mb-1">{sub.subject}</Title>
-                  <Text className="text-slate-500 block mb-6 text-sm">Bài thi đánh giá năng lực</Text>
-                  
+                  <Text className="text-slate-500 block mb-6 text-sm">THỜI GIAN LÀM BÀI:</Text>
+
                   {sub.status === 'submitted' ? (
                     <Button block disabled icon={<CheckCircleOutlined />} className="h-10 font-medium rounded-lg">
                       Đã hoàn thành
                     </Button>
                   ) : (
-                    <Button 
-                      type="primary" 
-                      block 
-                      icon={<PlayCircleOutlined />} 
+                    <Button
+                      type="primary"
+                      block
+                      icon={<PlayCircleOutlined />}
                       className={`h-10 font-bold rounded-lg shadow-md hover:shadow-lg transition-all ${sub.status === 'in_progress' ? 'bg-orange-500 hover:bg-orange-400' : 'bg-blue-600 hover:bg-blue-500'}`}
                       loading={startingSubject === sub.subject}
                       onClick={() => handleStart(sub.subject)}

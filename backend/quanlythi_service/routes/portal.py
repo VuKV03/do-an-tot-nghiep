@@ -36,6 +36,8 @@ async def login_candidate(credentials: schemas.LoginRequest, db: AsyncSession = 
             "id": candidate.id,
             "username": candidate.username,
             "fullName": candidate.full_name,
+            "dob": candidate.dob,
+            "gender": candidate.gender,
             "registered_subjects": [s.subject_name for s in candidate.subjects] if candidate.subjects else []
         }
     }
@@ -162,8 +164,11 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
 @router.get("/me/exam-info")
 async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
     """Lấy thông tin bài thi hiện tại và chi tiết đề thi theo môn."""
+    # pyrefly: ignore [missing-import]
+    from sqlalchemy.orm import joinedload
     res_result = await db.execute(
         select(models.ExamResult)
+        .options(joinedload(models.ExamResult.candidate))
         .where(models.ExamResult.candidate_id == candidate_id, models.ExamResult.subject == subject)
         .order_by(models.ExamResult.started_at.desc())
     )
@@ -222,6 +227,13 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
             "id": exam_result.id,
             "started_at": exam_result.started_at,
             "answers_json": exam_result.answers_json
+        },
+        "candidate_info": {
+            "id": exam_result.candidate.id,
+            "username": exam_result.candidate.username,
+            "fullName": exam_result.candidate.full_name,
+            "dob": exam_result.candidate.dob,
+            "gender": exam_result.candidate.gender,
         }
     }
 

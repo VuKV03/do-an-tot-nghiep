@@ -108,6 +108,8 @@ export interface SystemUser {
   email: string;        // Địa chỉ email
   role: 'admin' | 'teacher' | 'reviewer' | 'candidate'; // Vai trò chính của người dùng
   status: 'active' | 'inactive'; // Trạng thái tài khoản
+  dob?: string;         // Ngày sinh
+  gender?: string;      // Giới tính
   groups?: UserGroup[]; // Danh sách các nhóm mà người dùng tham gia
 }
 

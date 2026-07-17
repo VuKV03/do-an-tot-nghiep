@@ -135,6 +135,24 @@ async def delete_exam_candidate(candidate_id: str, db: AsyncSession = Depends(ge
     await db.commit()
     return None
 
+@router.delete("/candidates/{candidate_id}/results/{subject}", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_candidate_exam_result(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
+    """Reset (xóa) kết quả thi của thí sinh cho một môn học cụ thể."""
+    result = await db.execute(
+        select(models.ExamResult)
+        .where(models.ExamResult.candidate_id == candidate_id)
+        .where(models.ExamResult.subject == subject)
+    )
+    exam_results = result.scalars().all()
+    if not exam_results:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kết quả thi cho môn học này")
+    
+    for r in exam_results:
+        await db.delete(r)
+        
+    await db.commit()
+    return None
+
 
 # ═══════════════════ History ═══════════════════
 
@@ -174,7 +192,7 @@ async def get_candidate_history(candidate_id: str, db: AsyncSession = Depends(ge
             ex_res = await db.execute(select(Exam).where(Exam.id == r.exam_id))
             ex = ex_res.scalar_one_or_none()
             if ex:
-                exam_code = ex.code
+                exam_code = ex.code if ex.code else ex.name
 
         history_items.append(
             schemas.CandidateHistoryItem(
@@ -215,6 +233,14 @@ async def get_results_by_package(package_id: str, db: AsyncSession = Depends(get
     )
     results = result.unique().scalars().all()
     
+    from backend.exam_service.models import Exam
+    exam_ids = list(set([r.exam_id for r in results if r.exam_id]))
+    exam_code_map = {}
+    if exam_ids:
+        ex_res = await db.execute(select(Exam).where(Exam.id.in_(exam_ids)))
+        exams = ex_res.scalars().all()
+        exam_code_map = {ex.id: ex.code if ex.code else ex.name for ex in exams}
+
     response = []
     for r in results:
         response.append({
@@ -223,6 +249,7 @@ async def get_results_by_package(package_id: str, db: AsyncSession = Depends(get
             "full_name": r.candidate.full_name if r.candidate else "N/A",
             "sbd": r.candidate.username if r.candidate else "N/A",
             "exam_id": r.exam_id,
+            "exam_code": exam_code_map.get(r.exam_id, "N/A") if r.exam_id else "N/A",
             "status": "Đã nộp" if r.submitted_at else "Đang làm",
             "score": r.score,
             "started_at": r.started_at,
