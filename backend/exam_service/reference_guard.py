@@ -79,18 +79,44 @@ async def assert_subject_deletable(db: AsyncSession, subject: SubjectCategory) -
     _raise_if_in_use("môn học", subject.name, reasons)
 
 
-async def assert_topic_deletable(db: AsyncSession, topic: Topic) -> None:
+async def get_topic_subtree_ids(db: AsyncSession, root_id: str) -> list[str]:
+    """Trả về id của topic gốc cùng toàn bộ chủ đề con cháu (BFS theo parent_id)."""
+    ids = [root_id]
+    frontier = [root_id]
+    while frontier:
+        result = await db.execute(select(Topic.id).where(Topic.parent_id.in_(frontier)))
+        children = list(result.scalars().all())
+        if not children:
+            break
+        ids.extend(children)
+        frontier = children
+    return ids
+
+
+async def assert_topic_deletable(db: AsyncSession, topic: Topic) -> list[str]:
+    """Kiểm tra có thể xóa chủ đề hay không.
+
+    Chủ đề con (chưa có dữ liệu câu hỏi/ma trận) không còn là lý do chặn xóa —
+    chúng sẽ được xóa theo (cascade) cùng chủ đề cha. Chỉ chặn nếu bản thân
+    chủ đề hoặc bất kỳ chủ đề con nào trong cây đang có câu hỏi/ma trận tham chiếu.
+    Trả về danh sách id của toàn bộ cây con (gồm cả topic gốc) để route xóa cascade.
+    """
+    subtree_ids = await get_topic_subtree_ids(db, topic.id)
+
     reasons: list[str] = []
-    n = await _count(db, Question.topic_id, topic.id)
+    result = await db.execute(select(func.count()).where(Question.topic_id.in_(subtree_ids)))
+    n = result.scalar() or 0
     if n:
         reasons.append(f"{n} câu hỏi")
-    n = await _count(db, Topic.parent_id, topic.id)
-    if n:
-        reasons.append(f"{n} chủ đề con")
-    n = await _matrix_ref_count(db, topic.id)
-    if n:
-        reasons.append(f"{n} ma trận đề")
+
+    matrix_n = 0
+    for tid in subtree_ids:
+        matrix_n += await _matrix_ref_count(db, tid)
+    if matrix_n:
+        reasons.append(f"{matrix_n} ma trận đề")
+
     _raise_if_in_use("chủ đề", topic.name, reasons)
+    return subtree_ids
 
 
 async def assert_cognitive_level_deletable(db: AsyncSession, level: CognitiveLevel) -> None:

@@ -185,14 +185,23 @@ async def update_topic(
 
 @router.delete("/{item_id}")
 async def delete_topic(item_id: str, db: AsyncSession = Depends(get_db)):
-    """Xóa chủ đề."""
+    """Xóa chủ đề. Nếu chủ đề con chưa có dữ liệu câu hỏi/ma trận thì bị xóa cascade theo."""
     result = await db.execute(select(Topic).where(Topic.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
-    await assert_topic_deletable(db, obj)
+    subtree_ids = await assert_topic_deletable(db, obj)
     name = obj.name
-    await db.delete(obj)
+
+    # Xóa từ lá lên gốc để tránh phụ thuộc thứ tự (parent_id không có FK nên không bắt buộc,
+    # nhưng đảo ngược thứ tự BFS đảm bảo con luôn bị xóa trước cha).
+    result = await db.execute(select(Topic).where(Topic.id.in_(subtree_ids)))
+    topics_to_delete = {t.id: t for t in result.scalars().all()}
+    for tid in reversed(subtree_ids):
+        t = topics_to_delete.get(tid)
+        if t is not None:
+            await db.delete(t)
+
     await db.commit()
     return {"success": True, "message": f'Đã xóa chủ đề "{name}".'}
 

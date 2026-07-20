@@ -8,6 +8,7 @@ export interface DeleteChuDeModalProps {
   itemName?: string;
   isMultiple?: boolean;
   multipleCount?: number;
+  hasSubTopics?: boolean;
 }
 
 export default function DeleteChuDeModal({
@@ -17,6 +18,7 @@ export default function DeleteChuDeModal({
   itemName,
   isMultiple,
   multipleCount,
+  hasSubTopics,
 }: DeleteChuDeModalProps) {
   return (
     <ConfigProvider
@@ -51,6 +53,11 @@ export default function DeleteChuDeModal({
             <span>
               Bạn có chắc chắn muốn xóa bản ghi có tên “{itemName}”?
             </span>
+          )}
+          {hasSubTopics && (
+            <div className="mt-3 text-[14px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              Chủ đề {isMultiple ? 'này' : `“${itemName}”`} đang có tiểu mục bên trong. Xóa sẽ đồng thời xóa toàn bộ tiểu mục con chưa có dữ liệu câu hỏi.
+            </div>
           )}
         </div>
 

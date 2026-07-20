@@ -678,10 +678,30 @@ export default function ChuDeCauHoi() {
           itemName={selectedRecord?.Ten}
           isMultiple={isMultipleAction}
           multipleCount={selectedRowKeys.length}
+          hasSubTopics={
+            isMultipleAction
+              ? selectedRowKeys.some(key => rawData.some(item => item.parent_id === key))
+              : !!selectedRecord && rawData.some(item => item.parent_id === selectedRecord.Id)
+          }
           onConfirm={async () => {
             try {
               if (isMultipleAction) {
-                for (const key of selectedRowKeys) {
+                // Chỉ xóa các chủ đề "gốc" trong tập đã chọn — nếu cả cha lẫn con cùng
+                // được chọn, xóa cha đã cascade xóa con ở backend, gọi lại delete cho
+                // con sẽ 404 "Không tìm thấy chủ đề" một cách thừa thãi.
+                const selectedSet = new Set(selectedRowKeys.map(k => k.toString()));
+                const parentMap = new Map(rawData.map((item: any) => [item.id, item.parent_id]));
+                const isDescendantOfAnotherSelected = (id: string): boolean => {
+                  let current = parentMap.get(id);
+                  while (current) {
+                    if (selectedSet.has(current)) return true;
+                    current = parentMap.get(current);
+                  }
+                  return false;
+                };
+                const rootKeys = selectedRowKeys.filter(key => !isDescendantOfAnotherSelected(key.toString()));
+
+                for (const key of rootKeys) {
                   await topicsApi.delete(key.toString());
                 }
                 message.success('Đã xóa các chủ đề được chọn!');
