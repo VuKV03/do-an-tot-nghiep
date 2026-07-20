@@ -16,7 +16,7 @@ interface ThamDinhType {
   MonHoc: string;
   KhoiLop: string;
   NgayTao: string;
-  TrangThai: 'approved' | 'rejected' | 'pending';
+  TrangThai: 'draft' | 'approved' | 'rejected' | 'pending';
   NguoiTao?: string;
   NguoiDuyetCuoi?: string;
   NgayDuyetCuoi?: string;
@@ -258,7 +258,7 @@ export default function ThamDinhChuDeMain() {
       MonHoc: item.subject_name || '',
       KhoiLop: item.grade_name || '',
       NgayTao: item.created_at,
-      TrangThai: item.status === 2 ? 'approved' : item.status === 3 ? 'rejected' : 'pending',
+      TrangThai: item.status === 2 ? 'approved' : item.status === 3 ? 'rejected' : item.status === 1 ? 'pending' : 'draft',
       NguoiTao: item.created_by || 'user1',
       NguoiDuyetCuoi: item.approved_by || 'Chưa có thông tin',
       NgayDuyetCuoi: item.approved_at ? new Date(item.approved_at).toLocaleDateString('vi-VN') : 'Chưa có thông tin',
@@ -267,6 +267,11 @@ export default function ThamDinhChuDeMain() {
     }));
 
     const filteredFlat = mapped.filter((item) => {
+      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Tạo mới) không thuộc phạm vi
+      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Tạo mới" và
+      // không được hiển thị/gộp vào đây.
+      if (item.TrangThai === 'draft') return false;
+
       const kwText = searchText.trim().toLowerCase();
       const matchText = !kwText ||
         item.Ten.toLowerCase().includes(kwText) ||
