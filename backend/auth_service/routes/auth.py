@@ -99,7 +99,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     user = User(
         id=f"u-{int(time.time() * 1000)}",
         username=body.username.lower().strip(),
-        email=body.email,
+        email=body.email if body.email else None,
         fullName=body.fullName,
         password_hash=pwd_context.hash(body.password),
         role=body.role or "teacher",
@@ -188,7 +188,7 @@ async def update_user(user_id: str, body: UpdateRequest, db: AsyncSession = Depe
     if body.fullName is not None:
         user.fullName = body.fullName
     if body.email is not None:
-        user.email = body.email
+        user.email = body.email if body.email else None
     if body.role is not None:
         user.role = body.role
     if body.position is not None:

@@ -71,7 +71,7 @@ export default function AddUserToGroupModal({
       <div className="mt-4">
         <Input
           prefix={<SearchOutlined className="text-slate-400" />}
-          placeholder="Tìm kiếm theo tài khoản, họ và tên, đơn vị"
+          placeholder="Tìm kiếm theo tài khoản, họ và tên, chức vụ"
           className="rounded py-1.5 mb-4"
           value={searchUserAdd}
           onChange={(e) => setSearchUserAdd(e.target.value)}
@@ -123,10 +123,10 @@ export default function AddUserToGroupModal({
                 key: 'fullName',
               },
               {
-                title: 'Đơn vị',
-                dataIndex: 'department',
-                key: 'department',
-                render: () => 'Đơn vị mẫu',
+                title: 'Chức vụ',
+                dataIndex: 'position',
+                key: 'position',
+                render: (text) => text || 'Cán bộ',
               },
               {
                 title: 'Trạng thái',

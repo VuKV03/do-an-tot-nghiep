@@ -105,7 +105,7 @@ export default function AddEditGroupModal({
 
           <Input
             prefix={<SearchOutlined className="text-slate-400" />}
-            placeholder="Tìm kiếm theo tài khoản, họ và tên, đơn vị"
+            placeholder="Tìm kiếm theo tài khoản, họ và tên, chức vụ"
             className="rounded py-1.5 mb-4"
           />
 
@@ -141,10 +141,10 @@ export default function AddEditGroupModal({
                   key: 'fullName',
                 },
                 {
-                  title: 'Đơn vị',
-                  dataIndex: 'department',
-                  key: 'department',
-                  render: () => 'Đơn vị mẫu',
+                  title: 'Chức vụ',
+                  dataIndex: 'position',
+                  key: 'position',
+                  render: (text) => text || 'Cán bộ',
                 },
                 {
                   title: '',
