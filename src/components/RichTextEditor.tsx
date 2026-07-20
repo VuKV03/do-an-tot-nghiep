@@ -501,10 +501,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
             𝑓(x)
           </button>
           {showFormulaPicker && (
-            <div
-              className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-[360px]"
-              onMouseDown={(e) => e.preventDefault()}
-            >
+            <div className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-[360px]">
               <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
                 {editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
               </div>
