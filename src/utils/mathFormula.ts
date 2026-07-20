@@ -3,16 +3,18 @@ import katex from 'katex';
 /** Class đánh dấu 1 công thức LaTeX đã chèn vào nội dung câu hỏi (RichTextEditor) */
 export const FORMULA_CLASS = 'qh-formula';
 
-/** Render LaTeX → HTML (KaTeX). Không throw khi cú pháp sai — hiện lỗi dạng chữ đỏ thay vì crash cả ô soạn thảo. */
+/** Render LaTeX → HTML (KaTeX). Không throw khi cú pháp sai — hiện nguyên văn thay vì crash cả ô
+ * soạn thảo. Màu chữ dùng "inherit" (không tô đỏ mặc định của KaTeX) để khớp màu chữ xung quanh —
+ * giữ nguyên trải nghiệm soạn thảo bình thường thay vì gây chú ý như một cảnh báo lỗi. */
 export function renderLatexToHtml(latex: string): string {
   try {
     return katex.renderToString(latex, {
       throwOnError: false,
       output: 'html',
-      errorColor: '#dc2626',
+      errorColor: 'inherit',
     });
   } catch {
-    return `<span style="color:#dc2626">${escapeHtml(latex)}</span>`;
+    return `<span>${escapeHtml(latex)}</span>`;
   }
 }
 
@@ -95,12 +97,12 @@ export function restoreFormulas(sanitizedHtml: string, store: Map<string, string
 }
 
 /** Nhận diện công thức LaTeX có dấu phân cách rõ ràng trong văn bản dán vào (copy từ ChatGPT, tài
- * liệu LaTeX, web...): `$$...$$`, `\[...\]` (khối), `\(...\)` (nội dòng), hoặc cả 1 môi trường
- * `\begin{...}...\end{...}` (ma trận, hệ phương trình...) dù không có dấu $ bao ngoài.
- * Cố ý KHÔNG nhận `$...$` đơn — dễ nhận nhầm với giá tiền kiểu "$5, $10" (đề bài toán tài chính)
- * thành công thức, gây lỗi ngoài ý muốn. */
+ * liệu LaTeX, web...): `$$...$$` (khối), `\[...\]` (khối), `\(...\)` (nội dòng), `$...$` (nội dòng),
+ * hoặc cả 1 môi trường `\begin{...}...\end{...}` (ma trận, hệ phương trình...) dù không có dấu $ bao
+ * ngoài. `$$...$$` được thử trước `$...$` trong danh sách để 1 khối `$$...$$` không bị tách nhầm
+ * thành 2 công thức rỗng ở từng cặp `$$`. */
 const DELIMITED_FORMULA_PATTERN =
-  /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\5\})/g;
+  /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\5\})|\$([^$\n]+?)\$/g;
 
 /** Dấu thanh tiếng Việt — 1 dòng văn bản tiếng Việt bình thường hầu như luôn chứa ít nhất 1 ký tự
  * này; mã LaTeX gốc thì gần như không bao giờ có, dùng để tránh nhận nhầm câu văn thành công thức. */
@@ -143,7 +145,7 @@ export function buildPastedHtml(text: string): { html: string; hasFormula: boole
     if (match.index > lastIndex) {
       html += processPlainSegment(text.slice(lastIndex, match.index));
     }
-    const latex = (match[1] ?? match[2] ?? match[3] ?? match[4] ?? '').trim();
+    const latex = (match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[6] ?? '').trim();
     if (latex) {
       html += buildFormulaHtml(latex);
     }

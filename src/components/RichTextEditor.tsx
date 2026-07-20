@@ -4,7 +4,6 @@ import 'katex/dist/katex.min.css';
 import { isLikelyHtml, sanitizeHtml } from '../utils/htmlContent';
 import { compressImageFile } from '../utils/imageCompress';
 import {
-  buildFormulaHtml,
   buildPastedHtml,
   findFormulaElement,
   getFormulaLatex,
@@ -90,6 +89,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
+  /** Bỏ qua 1 lần emitChange() ở onBlur kế tiếp — dùng khi việc "rời focus" là do tự mở popup nội bộ
+   * (vd: ô nhập công thức LaTeX autoFocus) chứ không phải người dùng thật sự rời khỏi trường, tránh
+   * validate "required" chớp đỏ oan uổng lúc ô soạn thảo đang trống. */
+  const suppressNextBlurEmitRef = useRef(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showTablePicker, setShowTablePicker] = useState(false);
@@ -336,12 +339,14 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
   const openFormulaPickerForNew = () => {
     saveSelection();
+    suppressNextBlurEmitRef.current = true;
     editingFormulaElRef.current = null;
     setFormulaLatex('');
     setShowFormulaPicker(true);
   };
 
   const openFormulaPickerForEdit = (el: HTMLElement) => {
+    suppressNextBlurEmitRef.current = true;
     editingFormulaElRef.current = el;
     setFormulaLatex(getFormulaLatex(el));
     setShowFormulaPicker(true);
@@ -366,14 +371,19 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
       return;
     }
 
+    // Dùng chung logic tách công thức với luồng dán (paste): nếu người dùng gõ/dán nguyên cả câu
+    // lẫn công thức (vd: "Đặt $Q(x)=P(x)-a.$ Suy ra") thay vì chỉ riêng mã LaTeX, tự tách đúng phần
+    // nào là chữ thường, phần nào là công thức — thay vì nhồi cả câu vào làm 1 công thức rồi lỗi.
+    const { html } = buildPastedHtml(latex);
+
     const editingEl = editingFormulaElRef.current;
     if (editingEl) {
-      editingEl.setAttribute('data-latex', encodeURIComponent(latex));
-      editingEl.innerHTML = renderLatexToHtml(latex);
+      editingEl.insertAdjacentHTML('beforebegin', html);
+      editingEl.remove();
     } else {
       focusEditor();
       restoreSelection();
-      document.execCommand('insertHTML', false, `${buildFormulaHtml(latex)}&nbsp;`);
+      document.execCommand('insertHTML', false, `${html}&nbsp;`);
     }
     emitChange();
     closeFormulaPicker();
@@ -640,7 +650,14 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         className="rich-text-editable px-3 py-2 text-[15px] outline-none rounded-b-lg"
         style={{ minHeight }}
         onFocus={() => { isFocusedRef.current = true; updateTableContext(); }}
-        onBlur={() => { isFocusedRef.current = false; emitChange(); }}
+        onBlur={() => {
+          isFocusedRef.current = false;
+          if (suppressNextBlurEmitRef.current) {
+            suppressNextBlurEmitRef.current = false;
+            return;
+          }
+          emitChange();
+        }}
         onInput={() => emitChange()}
         onMouseUp={updateTableContext}
         onKeyUp={updateTableContext}
