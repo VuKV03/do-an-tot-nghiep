@@ -504,8 +504,8 @@ export default function CreateQuestionModal({
       forceRender
       onCancel={handleClose}
       footer={null}
-      width='96vw'
-      style={{ maxWidth: 1600, top: 15 }}
+      width='98vw'
+      style={{ maxWidth: 1400, top: 24 }}
       centered={false}
       styles={{ body: { padding: 0 } }}
     >
@@ -521,8 +521,7 @@ export default function CreateQuestionModal({
       <div
         className='flex'
         style={{
-          minHeight: 'calc(100vh - 150px)',
-          maxHeight: 'calc(100vh - 150px)',
+          maxHeight: 'calc(100vh - 220px)',
         }}
       >
         {/* LEFT SIDEBAR - Cố định bên trái */}
