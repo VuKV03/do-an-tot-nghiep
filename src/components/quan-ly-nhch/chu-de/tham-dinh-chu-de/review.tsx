@@ -1,24 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Button, Select } from 'antd';
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  Strikethrough, 
-  Quote, 
-  List, 
-  ListOrdered, 
-  Outdent, 
-  Indent, 
-  Link2, 
-  Image as ImageIcon, 
-  Video, 
-  Heading1, 
-  Heading2, 
-  Sigma, 
-  Grid3X3, 
-  Type
-} from 'lucide-react';
+import { Modal, Button } from 'antd';
 
 interface ReviewModalProps {
   open: boolean;
@@ -42,11 +23,6 @@ interface ReviewModalProps {
 
 export default function ReviewModal({ open, onClose, record, onApprove, onReject }: ReviewModalProps) {
   const [comment, setComment] = useState('');
-  const [activeStyles, setActiveStyles] = useState<{ [key: string]: boolean }>({});
-
-  const toggleStyle = (style: string) => {
-    setActiveStyles(prev => ({ ...prev, [style]: !prev[style] }));
-  };
 
   const handleApprove = () => {
     if (onApprove) {
@@ -130,198 +106,12 @@ export default function ReviewModal({ open, onClose, record, onApprove, onReject
             Nhận xét
           </h3>
 
-          {/* Custom Rich Text Editor Workspace */}
           <div className="border border-gray-300 rounded-md overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all">
-            {/* Rich Text Toolbar */}
-            <div className="flex flex-wrap items-center gap-1 p-2 bg-gray-50 border-b border-gray-300 text-gray-600 select-none">
-              {/* Heading Group */}
-              <button 
-                type="button"
-                onClick={() => toggleStyle('h1')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['h1'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="Tiêu đề 1"
-              >
-                <Heading1 size={16} />
-              </button>
-              <button 
-                type="button"
-                onClick={() => toggleStyle('h2')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['h2'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="Tiêu đề 2"
-              >
-                <Heading2 size={16} />
-              </button>
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Font Family Selector */}
-              <Select
-                defaultValue="sans-serif"
-                size="small"
-                variant="borderless"
-                className="w-28 text-sm"
-                options={[
-                  { value: 'sans-serif', label: 'Chữ không chân (Sans Serif)' },
-                  { value: 'serif', label: 'Chữ có chân (Serif)' },
-                  { value: 'monospace', label: 'Chữ đơn cách (Monospace)' },
-                ]}
-              />
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Font Size Selector */}
-              <Select
-                defaultValue="normal"
-                size="small"
-                variant="borderless"
-                className="w-24 text-sm"
-                options={[
-                  { value: 'small', label: 'Nhỏ' },
-                  { value: 'normal', label: 'Thường' },
-                  { value: 'large', label: 'Lớn' },
-                  { value: 'huge', label: 'Rất lớn' },
-                ]}
-              />
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Text Styles Group */}
-              <button 
-                type="button"
-                onClick={() => toggleStyle('bold')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center font-bold ${activeStyles['bold'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="In đậm"
-              >
-                <Bold size={15} />
-              </button>
-              <button 
-                type="button"
-                onClick={() => toggleStyle('italic')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['italic'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="In nghiêng"
-              >
-                <Italic size={15} />
-              </button>
-              <button 
-                type="button"
-                onClick={() => toggleStyle('underline')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['underline'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="Gạch chân"
-              >
-                <Underline size={15} />
-              </button>
-              <button 
-                type="button"
-                onClick={() => toggleStyle('strike')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['strike'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="Gạch ngang"
-              >
-                <Strikethrough size={15} />
-              </button>
-              <button 
-                type="button"
-                onClick={() => toggleStyle('quote')}
-                className={`p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center ${activeStyles['quote'] ? 'bg-gray-200 text-blue-600' : ''}`}
-                title="Trích dẫn"
-              >
-                <Quote size={15} />
-              </button>
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Lists Group */}
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Danh sách số"
-              >
-                <ListOrdered size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Danh sách ký hiệu"
-              >
-                <List size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Giảm thụt lề"
-              >
-                <Outdent size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Tăng thụt lề"
-              >
-                <Indent size={15} />
-              </button>
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Inserts Group */}
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Chèn liên kết"
-              >
-                <Link2 size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Chèn ảnh"
-              >
-                <ImageIcon size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Chèn video"
-              >
-                <Video size={15} />
-              </button>
- 
-              <div className="w-px h-5 bg-gray-300 mx-1" />
- 
-              {/* Format Paint, Sigma, Table */}
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Sao chép định dạng"
-              >
-                <Type size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Chèn công thức toán học (Sigma)"
-              >
-                <Sigma size={15} />
-              </button>
-              <button 
-                type="button"
-                className="p-1.5 rounded hover:bg-gray-200 transition-colors flex items-center justify-center"
-                title="Chèn bảng"
-              >
-                <Grid3X3 size={15} />
-              </button>
-            </div>
-
-            {/* Editable Text Area */}
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Nhập"
               className="w-full min-h-[160px] p-4 text-gray-800 border-none outline-none focus:ring-0 resize-y text-sm leading-relaxed font-sans"
-              style={{
-                fontFamily: activeStyles['monospace'] ? 'monospace' : activeStyles['serif'] ? 'serif' : 'sans-serif',
-                fontWeight: activeStyles['bold'] ? 'bold' : 'normal',
-                fontStyle: activeStyles['italic'] ? 'italic' : 'normal',
-                textDecoration: `${activeStyles['underline'] ? 'underline' : ''} ${activeStyles['strike'] ? 'line-through' : ''}`.trim() || 'none',
-              }}
             />
           </div>
         </div>
