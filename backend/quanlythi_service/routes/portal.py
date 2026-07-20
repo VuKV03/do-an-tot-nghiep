@@ -79,20 +79,54 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
         .where(models.ExamResult.candidate_id == candidate_id)
     )
     all_results = res_result.scalars().all()
-    submitted_subjects = set(r.subject for r in all_results if r.submitted_at is not None)
-    in_progress_subjects = set(r.subject for r in all_results if r.submitted_at is None)
+    submitted_subjects = {r.subject: r for r in all_results if r.submitted_at is not None}
+    in_progress_subjects = {r.subject: r for r in all_results if r.submitted_at is None}
     
     available_subjects = []
     for p in active_packages:
         status = "available"
+        score = None
+        started_at = None
+        duration = None
+        
+        # Try to get the default duration from package's first exam
+        if p.examIds:
+            try:
+                exam_ids = json.loads(p.examIds)
+                if exam_ids:
+                    first_exam_id = exam_ids[0]
+                    exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == first_exam_id))
+                    first_exam = exam_res.scalar_one_or_none()
+                    if first_exam:
+                        duration = first_exam.duration
+            except Exception:
+                pass
+        
         if p.subject in submitted_subjects:
             status = "submitted"
+            score = submitted_subjects[p.subject].score
         elif p.subject in in_progress_subjects:
-            status = "in_progress"
+            res = in_progress_subjects[p.subject]
+            if res.started_at:
+                status = "in_progress"
+            else:
+                status = "available"
+            # Ensure proper ISO string format with Z to denote UTC, since datetime.utcnow() was used
+            started_at = res.started_at.isoformat() + "Z" if res.started_at else None
+            
+            # Need to get exam duration specifically if different
+            if res.exam_id:
+                exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == res.exam_id))
+                exam = exam_res.scalar_one_or_none()
+                if exam:
+                    duration = exam.duration
             
         available_subjects.append({
             "subject": p.subject,
-            "status": status
+            "status": status,
+            "score": score,
+            "started_at": started_at,
+            "duration": duration
         })
         
     return {"available_subjects": available_subjects}
@@ -146,8 +180,8 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
         candidate_id=candidate_id,
         package_id=package.id,
         exam_id=chosen_exam_id,
-        subject=subject,
-        started_at=datetime.utcnow()
+        subject=subject
+        # started_at will be set when candidate clicks "Bắt đầu làm bài"
     )
     db.add(new_result)
     
@@ -159,6 +193,25 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
         "message": "Đã tạo phiên thi thành công",
         "exam_id": chosen_exam_id,
         "result_id": new_result.id
+    }
+
+@router.post("/me/confirm-start")
+async def confirm_start(result_id: str, db: AsyncSession = Depends(get_db)):
+    """Xác nhận bắt đầu làm bài để tính giờ thi."""
+    result = await db.execute(select(models.ExamResult).where(models.ExamResult.id == result_id))
+    exam_result = result.scalar_one_or_none()
+    
+    if not exam_result:
+        raise HTTPException(status_code=404, detail="Exam result not found")
+        
+    if not exam_result.started_at:
+        exam_result.started_at = datetime.utcnow()
+        await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Exam officially started", 
+        "started_at": exam_result.started_at.isoformat() + "Z"
     }
 
 @router.get("/me/exam-info")
@@ -225,7 +278,7 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
         "questions": questions_list,
         "result_info": {
             "id": exam_result.id,
-            "started_at": exam_result.started_at,
+            "started_at": exam_result.started_at.isoformat() + "Z" if exam_result.started_at else None,
             "answers_json": exam_result.answers_json
         },
         "candidate_info": {
@@ -267,22 +320,125 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     total_questions = 0
     
     if exam_result.exam_id:
-        q_result = await db.execute(select(exam_models.Question).where(exam_models.Question.exam_id == exam_result.exam_id))
-        questions = q_result.scalars().all()
-        total_questions = len(questions)
+        # Find subject config
+        subject_cat_result = await db.execute(
+            select(exam_models.SubjectCategory).where(exam_models.SubjectCategory.code == exam_result.subject)
+        )
+        subject_cat = subject_cat_result.scalar_one_or_none()
+        
+        config = None
+        if subject_cat:
+            config_result = await db.execute(
+                select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id)
+            )
+            config = config_result.scalar_one_or_none()
+            
+        q_result = await db.execute(
+            select(exam_models.Question, exam_models.QuestionType)
+            .outerjoin(exam_models.QuestionType, exam_models.Question.type_id == exam_models.QuestionType.id)
+            .where(exam_models.Question.exam_id == exam_result.exam_id)
+        )
+        questions_rows = q_result.all()
+        total_questions = len(questions_rows)
         
         try:
             answers_dict = json.loads(payload.answers_json)
         except Exception:
             answers_dict = {}
             
-        for q in questions:
+        total_score = 0.0
+        
+        import re
+        def parse_ds(ans_str):
+            parts = str(ans_str).split(",")
+            res = {}
+            for p in parts:
+                p = p.strip()
+                m = re.match(r'^(\d+)\.\s*(đúng|sai)$', p, re.IGNORECASE)
+                if m:
+                    res[m.group(1)] = m.group(2).lower()
+            return res
+
+        for row in questions_rows:
+            q = row.Question
+            q_type = row.QuestionType
+            
             user_ans = answers_dict.get(str(q.id))
-            if user_ans and q.correct_answer:
+            if not user_ans or not q.correct_answer:
+                continue
+                
+            part = None
+            if config:
+                if q.type_id == config.type_id_p1:
+                    part = "p1"
+                elif q.type_id == config.type_id_p2:
+                    part = "p2"
+                elif q.type_id == config.type_id_p3:
+                    part = "p3"
+            
+            type_code = q_type.code.upper() if q_type and q_type.code else ""
+            is_ds = type_code in ["DS", "TRUE_FALSE"]
+            is_short_answer = type_code in ["TLN", "SHORT_ANSWER"] or (q_type and "ngắn" in q_type.name.lower())
+            
+            if is_ds:
+                user_ds = parse_ds(user_ans)
+                correct_ds = parse_ds(q.correct_answer)
+                
+                match_count = 0
+                for k, v in correct_ds.items():
+                    if user_ds.get(k) == v:
+                        match_count += 1
+                        
+                if match_count > 0:
+                    total_correct += 1 
+                    
+                points = 0.0
+                if config:
+                    pts = [0, 0, 0, 0, 0]
+                    if part == "p1":
+                        pts = [0, config.points_for_1_correct_idea_p1, config.points_for_2_correct_idea_p1, config.points_for_3_correct_idea_p1, config.points_for_4_correct_idea_p1]
+                    elif part == "p2":
+                        pts = [0, config.points_for_1_correct_idea_p2, config.points_for_2_correct_idea_p2, config.points_for_3_correct_idea_p2, config.points_for_4_correct_idea_p2]
+                    elif part == "p3":
+                        pts = [0, config.points_for_1_correct_idea_p3, config.points_for_2_correct_idea_p3, config.points_for_3_correct_idea_p3, config.points_for_4_correct_idea_p3]
+                        
+                    if match_count < len(pts):
+                        val = pts[match_count]
+                        points = float(val) if val is not None else 0.0
+                    else:
+                        val = pts[-1]
+                        points = float(val) if val is not None else 0.0
+                else:
+                    points = match_count * 0.25 
+                
+                total_score += points
+                
+            elif is_short_answer:
+                u_ans = str(user_ans).strip().lower()
+                c_ans = str(q.correct_answer).strip().lower()
+                if u_ans == c_ans:
+                    total_correct += 1
+                    if config:
+                        if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
+                        elif part == "p2": total_score += float(config.points_for_a_correct_answers_p2 or 0)
+                        elif part == "p3": total_score += float(config.points_for_a_correct_answers_p3 or 0)
+                    else:
+                        total_score += 1.0 
+            else:
                 if str(user_ans).strip().lower() == str(q.correct_answer).strip().lower():
                     total_correct += 1
-                
-    exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+                    if config:
+                        if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
+                        elif part == "p2": total_score += float(config.points_for_a_correct_answers_p2 or 0)
+                        elif part == "p3": total_score += float(config.points_for_a_correct_answers_p3 or 0)
+                    else:
+                        total_score += 1.0 
+
+        if config:
+            exam_result.score = round(total_score, 2)
+        else:
+            exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+            
     exam_result.total_correct = total_correct
     exam_result.total_questions = total_questions
     
