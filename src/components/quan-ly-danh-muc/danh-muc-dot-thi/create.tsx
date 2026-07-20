@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Form, Input, Switch, Button, ConfigProvider, DatePicker } from 'antd';
 
 const { TextArea } = Input;
@@ -12,6 +12,7 @@ export interface CreateDotThiModalProps {
 
 export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotThiModalProps) {
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   // Watch isActive value to update the label dynamically
   const isActive = Form.useWatch('isActive', form);
@@ -26,14 +27,19 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
     }
 
     if (onSave) {
-      const success = await onSave({
-        ...rest,
-        NgayBatDau,
-        NgayKetThuc,
-      });
-      if (success) {
-        form.resetFields();
-        onClose();
+      setSubmitting(true);
+      try {
+        const success = await onSave({
+          ...rest,
+          NgayBatDau,
+          NgayKetThuc,
+        });
+        if (success) {
+          form.resetFields();
+          onClose();
+        }
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -139,6 +145,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
           <div className="flex justify-center gap-4 mt-10 pt-5 border-t border-gray-200">
             <Button
               onClick={handleCancel}
+              disabled={submitting}
               className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]"
             >
               Đóng
@@ -146,6 +153,7 @@ export default function CreateDotThiModal({ open, onClose, onSave }: CreateDotTh
             <Button
               type="primary"
               htmlType="submit"
+              loading={submitting}
               className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]"
             >
               Lưu

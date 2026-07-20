@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Button } from 'antd';
 
 export interface DeleteConfirmModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   recordCode?: string; // e.g. "Amy..."
   selectedCount?: number; // e.g. 3
 }
@@ -16,7 +16,17 @@ export default function DeleteConfirmModal({
   recordCode,
   selectedCount,
 }: DeleteConfirmModalProps) {
+  const [submitting, setSubmitting] = useState(false);
   const isMultiple = selectedCount && selectedCount > 1;
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal
@@ -48,6 +58,7 @@ export default function DeleteConfirmModal({
         <div className="flex justify-center gap-3">
           <Button
             onClick={onClose}
+            disabled={submitting}
             className="rounded border border-blue-600 text-blue-600 font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-blue-50 transition-colors"
             style={{ cursor: 'pointer' }}
           >
@@ -56,7 +67,8 @@ export default function DeleteConfirmModal({
           <Button
             type="primary"
             danger
-            onClick={onConfirm}
+            loading={submitting}
+            onClick={handleConfirm}
             className="rounded bg-[#d90429] border-transparent text-white font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-red-700 transition-colors"
             style={{ cursor: 'pointer' }}
           >

@@ -118,6 +118,7 @@ export default function AIGenerateQuestionModal({
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
 
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [aiSuggestedQuestion, setAiSuggestedQuestion] = useState<Question | null>(null);
   const [isEditingPreview, setIsEditingPreview] = useState(false);
   const [correctOptionIndex, setCorrectOptionIndex] = useState(0);
@@ -379,6 +380,7 @@ export default function AIGenerateQuestionModal({
 
   const acceptAISuggestedQuestion = async () => {
     if (!aiSuggestedQuestion) return;
+    setAccepting(true);
     try {
       const { id: _localId, ...payload } = aiSuggestedQuestion;
       const apiPayload = { ...payload, competencyComponentId: aiSuggestedQuestion.nangLucId };
@@ -389,6 +391,8 @@ export default function AIGenerateQuestionModal({
       handleClose();
     } catch (err: any) {
       message.error(err?.message || 'Lỗi khi lưu câu hỏi sinh bởi AI!');
+    } finally {
+      setAccepting(false);
     }
   };
 
@@ -520,6 +524,7 @@ export default function AIGenerateQuestionModal({
           icon={<ThunderboltOutlined />}
           onClick={triggerAIQuestionGeneration}
           disabled={aiGenerating}
+          loading={aiGenerating}
         >
           {aiGenerating ? 'AI Đang phân tích và xử lý...' : 'Bắt đầu sinh câu hỏi tự động'}
         </Button>
@@ -645,6 +650,7 @@ export default function AIGenerateQuestionModal({
             <div className="flex items-center justify-end gap-2 pt-2 border-t mt-4 border-slate-100">
               <Button
                 className="rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border-slate-200"
+                disabled={accepting}
                 onClick={() => {
                   setAiSuggestedQuestion(null);
                   setIsEditingPreview(false);
@@ -655,6 +661,7 @@ export default function AIGenerateQuestionModal({
               {isEditingPreview ? (
                 <Button
                   className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
+                  disabled={accepting}
                   onClick={() => setIsEditingPreview(false)}
                 >
                   Xong, xem lại
@@ -663,6 +670,7 @@ export default function AIGenerateQuestionModal({
                 <Button
                   className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
                   icon={<EditOutlined />}
+                  disabled={accepting}
                   onClick={startEditingPreview}
                 >
                   Chỉnh sửa
@@ -672,6 +680,7 @@ export default function AIGenerateQuestionModal({
                 type="primary"
                 className="rounded-lg text-xs font-extrabold bg-[#002147] border-transparent text-white hover:bg-slate-900"
                 icon={<CheckCircleOutlined />}
+                loading={accepting}
                 onClick={acceptAISuggestedQuestion}
               >
                 Duyệt và Thêm vào NHCH

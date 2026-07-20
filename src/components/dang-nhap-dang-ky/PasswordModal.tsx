@@ -11,6 +11,7 @@ interface PasswordModalProps {
 
 const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentUser }) => {
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [saving, setSaving] = useState(false);
 
   const handleChangePassword = async () => {
     if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
@@ -22,6 +23,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
       return;
     }
 
+    setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
@@ -46,6 +48,8 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
       }
     } catch (error) {
       message.error('Không thể kết nối đến máy chủ');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -60,10 +64,10 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
       open={isOpen}
       onCancel={onClose}
       footer={[
-        <Button key="cancel" onClick={onClose} className="rounded-xl font-bold text-xs">
+        <Button key="cancel" onClick={onClose} disabled={saving} className="rounded-xl font-bold text-xs">
           Hủy bỏ
         </Button>,
-        <Button key="save" type="primary" onClick={handleChangePassword} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
+        <Button key="save" type="primary" onClick={handleChangePassword} loading={saving} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
           Cập nhật mật khẩu
         </Button>
       ]}

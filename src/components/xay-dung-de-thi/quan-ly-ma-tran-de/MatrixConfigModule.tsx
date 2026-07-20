@@ -121,6 +121,9 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  // Đang xóa 1 ma trận cụ thể (per-row) — tránh 1 boolean chung khiến spinner hiện sai hàng
+  // khi nhiều dòng bị xóa liên tiếp.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Fetch data from API
   const fetchMatrixList = async (page = currentPage, size = pageSize) => {
@@ -226,6 +229,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
   // Handle single row delete
   const handleDeleteRow = async (id: string) => {
+    setDeletingId(id);
     try {
       const res = await fetch(`/api/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
@@ -237,6 +241,8 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       }
     } catch {
       message.error('Lỗi kết nối API khi xóa.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -686,7 +692,11 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                               cancelText="Hủy"
                             >
                               <Tooltip title="Xóa">
-                                <Button size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer" />
+                                <Button
+                                  size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                  loading={deletingId === row.id}
+                                  disabled={deletingId !== null && deletingId !== row.id}
+                                />
                               </Tooltip>
                             </Popconfirm>
                           </Space>

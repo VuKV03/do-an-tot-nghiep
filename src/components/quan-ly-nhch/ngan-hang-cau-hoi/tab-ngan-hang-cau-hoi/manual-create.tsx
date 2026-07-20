@@ -184,6 +184,9 @@ export default function CreateQuestionModal({
   /** Key của chủ đề đang được chọn trong form (để lọc tiểu mục) */
   const [formTopicKey, setFormTopicKey] = useState<string | null>(null);
 
+  // State theo dõi nút submit đang xử lý (Lưu / Gửi thẩm định) để hiện loading và khoá nút còn lại
+  const [submitting, setSubmitting] = useState<'draft' | 'pending' | null>(null);
+
   // Phẳng hóa danh sách chủ đề / tiểu mục cho dropdown trong bảng Đúng/Sai
   const flattenedTopics = useMemo(() => {
     const list: { value: string; label: string }[] = [];
@@ -453,6 +456,7 @@ export default function CreateQuestionModal({
   };
 
   const persistQuestion = async (status: 'draft' | 'pending') => {
+    setSubmitting(status);
     try {
       const values = await form.validateFields();
       if (questionType === 'true_false' && !validateStatements()) {
@@ -479,6 +483,8 @@ export default function CreateQuestionModal({
     } catch (error: any) {
       if (error?.errorFields) return;
       message.error(error?.message || 'Lỗi khi lưu câu hỏi!');
+    } finally {
+      setSubmitting(null);
     }
   };
 
@@ -1060,6 +1066,7 @@ export default function CreateQuestionModal({
       <div className='flex items-center justify-center gap-3 px-6 py-3 border-t border-slate-200 bg-white'>
         <Button
           onClick={handleClose}
+          disabled={submitting !== null}
           className='rounded-lg text-base font-bold px-6 h-9'
         >
           Đóng
@@ -1067,6 +1074,8 @@ export default function CreateQuestionModal({
         <Button
           type='primary'
           className='rounded-lg text-base font-bold px-6 bg-blue-600 border-blue-600 h-9'
+          loading={submitting === 'draft'}
+          disabled={submitting !== null && submitting !== 'draft'}
           onClick={handleSave}
         >
           Lưu
@@ -1074,6 +1083,8 @@ export default function CreateQuestionModal({
         <Button
           type='primary'
           className='rounded-lg text-base font-bold px-6 bg-[#002147] border-[#002147] hover:bg-slate-800 h-9'
+          loading={submitting === 'pending'}
+          disabled={submitting !== null && submitting !== 'pending'}
           onClick={handleSendReview}
         >
           Gửi thẩm định

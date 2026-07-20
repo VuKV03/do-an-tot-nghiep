@@ -17,6 +17,7 @@ export interface CreateChuDeModalProps {
 
 export default function CreateChuDeModal({ open, onClose, onSave, allData, monHocs = [], khoiLops = [], onDuplicateCode }: CreateChuDeModalProps) {
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
   const cap = Form.useWatch('Cap', form);
   const monHocId = Form.useWatch('IdMonHoc', form);
   const khoiLopId = Form.useWatch('IdKhoiLop', form);
@@ -48,17 +49,22 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monHo
 
   const handleFinish = async (values: any) => {
     if (onSave) {
-      const result = await onSave(values);
-      if (result === true) {
-        form.resetFields();
-        onClose();
-      } else if (result === 'duplicate_code') {
-        // Highlight lỗi trực tiếp trên field Mã
-        form.setFields([{
-          name: 'Ma',
-          errors: ['Mã chủ đề này đã tồn tại, vui lòng nhập mã khác!'],
-        }]);
-        onDuplicateCode?.();
+      setSubmitting(true);
+      try {
+        const result = await onSave(values);
+        if (result === true) {
+          form.resetFields();
+          onClose();
+        } else if (result === 'duplicate_code') {
+          // Highlight lỗi trực tiếp trên field Mã
+          form.setFields([{
+            name: 'Ma',
+            errors: ['Mã chủ đề này đã tồn tại, vui lòng nhập mã khác!'],
+          }]);
+          onDuplicateCode?.();
+        }
+      } finally {
+        setSubmitting(false);
       }
     } else {
       form.resetFields();
@@ -212,6 +218,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monHo
           <div className="flex justify-center gap-4 mt-6 pt-5 border-t border-gray-200">
             <Button
               onClick={handleCancel}
+              disabled={submitting}
               className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]"
             >
               Đóng
@@ -219,6 +226,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monHo
             <Button
               type="primary"
               htmlType="submit"
+              loading={submitting}
               className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]"
             >
               Lưu

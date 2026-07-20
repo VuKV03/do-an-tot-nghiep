@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Button, ConfigProvider } from 'antd';
 
 export interface GuiThamDinhChuDeModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   itemName?: string;
   isMultiple?: boolean;
   multipleCount?: number;
@@ -18,6 +18,17 @@ export default function GuiThamDinhChuDeModal({
   isMultiple,
   multipleCount,
 }: GuiThamDinhChuDeModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ConfigProvider
       theme={{
@@ -65,13 +76,15 @@ export default function GuiThamDinhChuDeModal({
         <div className="flex justify-center gap-4 border-t border-gray-200 pt-5">
           <Button
             onClick={onClose}
+            disabled={submitting}
             className="border-[#1d4ed8] text-[#1d4ed8] px-8 h-10 font-medium hover:bg-blue-50 text-[15px]"
           >
             Đóng
           </Button>
           <Button
             type="primary"
-            onClick={onConfirm}
+            onClick={handleConfirm}
+            loading={submitting}
             className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-8 h-10 font-medium text-[15px]"
           >
             {isMultiple ? 'Gửi' : 'Gửi'}

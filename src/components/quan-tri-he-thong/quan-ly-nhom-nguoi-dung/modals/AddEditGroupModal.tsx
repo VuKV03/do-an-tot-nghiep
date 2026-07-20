@@ -7,6 +7,7 @@ interface AddEditGroupModalProps {
   open: boolean;
   onCancel: () => void;
   onSave: () => void;
+  saving?: boolean;
   editingGroup: UserGroup | null;
   form: any;
   groupMembers: any[];
@@ -18,6 +19,7 @@ export default function AddEditGroupModal({
   open,
   onCancel,
   onSave,
+  saving,
   editingGroup,
   form,
   groupMembers,
@@ -38,6 +40,7 @@ export default function AddEditGroupModal({
           <Button
             key="back"
             onClick={onCancel}
+            disabled={saving}
             className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
           >
             Đóng
@@ -46,6 +49,7 @@ export default function AddEditGroupModal({
             key="submit"
             type="primary"
             onClick={onSave}
+            loading={saving}
             className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
           >
             Lưu

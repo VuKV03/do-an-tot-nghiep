@@ -22,6 +22,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ fullName: '', email: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && currentUser) {
@@ -39,6 +40,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       return;
     }
 
+    setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
@@ -64,6 +66,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       }
     } catch (error) {
       message.error('Không thể kết nối đến máy chủ');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -79,10 +83,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       onCancel={onClose}
       footer={
         isEditingProfile ? [
-          <Button key="cancel" onClick={() => setIsEditingProfile(false)} className="rounded-xl font-bold text-xs">
+          <Button key="cancel" onClick={() => setIsEditingProfile(false)} disabled={saving} className="rounded-xl font-bold text-xs">
             Hủy bỏ
           </Button>,
-          <Button key="save" type="primary" onClick={handleUpdateProfile} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
+          <Button key="save" type="primary" onClick={handleUpdateProfile} loading={saving} className="rounded-xl font-bold text-xs bg-[#0f172a] border-transparent text-white">
             Lưu thay đổi
           </Button>
         ] : [

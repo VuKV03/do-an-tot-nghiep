@@ -86,6 +86,9 @@ export default function QuanLyThiSinh() {
   const [subjectOptions, setSubjectOptions] = useState<{ label: string, value: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const [candidateHistory, setCandidateHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -268,6 +271,7 @@ export default function QuanLyThiSinh() {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      setSaving(true);
 
       const dobStr = values.dob ? values.dob.format('DD/MM/YYYY') : '';
 
@@ -305,10 +309,13 @@ export default function QuanLyThiSinh() {
     } catch (err: any) {
       if (err.errorFields) return;
       message.error(err.message || 'Lỗi lưu thông tin thí sinh');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async () => {
+    setDeleting(true);
     try {
       if (candidateToDelete) {
         await quanLyThiAdminApi.deleteCandidate(candidateToDelete.id);
@@ -325,11 +332,14 @@ export default function QuanLyThiSinh() {
       fetchCandidates();
     } catch (err: any) {
       message.error(err.message || 'Lỗi khi xóa thí sinh');
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleReset = async () => {
     if (!candidateToReset || !selectedSubjectToReset) return;
+    setResetting(true);
     try {
       await quanLyThiAdminApi.resetCandidateExamResult(candidateToReset.id, selectedSubjectToReset);
       message.success(`Đã đặt lại kết quả môn ${selectedSubjectToReset} cho thí sinh ${candidateToReset.fullName}!`);
@@ -339,6 +349,8 @@ export default function QuanLyThiSinh() {
       fetchCandidates();
     } catch (err: any) {
       message.error(err.message || 'Lỗi khi đặt lại kết quả thi');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -415,8 +427,8 @@ export default function QuanLyThiSinh() {
         footer={modalMode === 'view' ? [
           <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" onClick={() => setIsModalVisible(false)}>Đóng</Button>
         ] : [
-          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" onClick={() => setIsModalVisible(false)}>Đóng</Button>,
-          <Button key="save" type="primary" className="bg-[#1d4ed8] rounded-lg font-medium px-8" onClick={handleSave}>Lưu</Button>
+          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" disabled={saving} onClick={() => setIsModalVisible(false)}>Đóng</Button>,
+          <Button key="save" type="primary" className="bg-[#1d4ed8] rounded-lg font-medium px-8" loading={saving} onClick={handleSave}>Lưu</Button>
         ]}
       >
         {modalMode === 'view' && editingCandidate ? (
@@ -561,11 +573,11 @@ export default function QuanLyThiSinh() {
           setCandidateToDelete(null);
         }}
         footer={[
-          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" onClick={() => {
+          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" disabled={deleting} onClick={() => {
             setDeleteModalVisible(false);
             setCandidateToDelete(null);
           }}>Đóng</Button>,
-          <Button key="delete" danger type="primary" className="bg-[#e11d48] rounded-lg font-medium px-8 hover:bg-rose-700" onClick={handleDelete}>Xóa</Button>
+          <Button key="delete" danger type="primary" className="bg-[#e11d48] rounded-lg font-medium px-8 hover:bg-rose-700" loading={deleting} onClick={handleDelete}>Xóa</Button>
         ]}
       >
         <p className="py-4 text-slate-700 text-base">
@@ -585,12 +597,12 @@ export default function QuanLyThiSinh() {
           setSelectedSubjectToReset('');
         }}
         footer={[
-          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" onClick={() => {
+          <Button key="close" className="border-blue-500 text-blue-600 rounded-lg font-medium px-8" disabled={resetting} onClick={() => {
             setResetModalVisible(false);
             setCandidateToReset(null);
             setSelectedSubjectToReset('');
           }}>Đóng</Button>,
-          <Button key="reset" type="primary" className="bg-green-600 rounded-lg font-medium px-8 hover:bg-green-700" onClick={handleReset} disabled={!selectedSubjectToReset}>Khôi phục</Button>
+          <Button key="reset" type="primary" className="bg-green-600 rounded-lg font-medium px-8 hover:bg-green-700" onClick={handleReset} loading={resetting} disabled={!selectedSubjectToReset}>Khôi phục</Button>
         ]}
       >
         <p className="py-4 text-slate-700 text-base">

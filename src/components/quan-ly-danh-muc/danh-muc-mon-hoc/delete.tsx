@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, Modal } from 'antd';
 import { HelpCircle } from 'lucide-react';
 
 export interface DeleteSubjectCategoryModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   itemName?: string;
   isMultiple?: boolean;
   multipleCount?: number;
@@ -14,6 +14,18 @@ export interface DeleteSubjectCategoryModalProps {
 export default function DeleteSubjectCategoryModal({
   open, onClose, onConfirm, itemName, isMultiple, multipleCount,
 }: DeleteSubjectCategoryModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Modal
       title={<div className="text-[20px] font-semibold text-slate-800 pb-3 border-b border-gray-200">Xác nhận xóa</div>}
@@ -34,8 +46,8 @@ export default function DeleteSubjectCategoryModal({
         </div>
       </div>
       <div className="flex justify-center gap-4 border-t border-gray-200 pt-5">
-        <Button onClick={onClose} className="border-gray-400 text-gray-600 px-10 h-10 font-semibold text-[15px] hover:border-gray-500 hover:text-gray-700">Hủy</Button>
-        <Button danger type="primary" onClick={() => { onConfirm(); onClose(); }} className="bg-[#da251d] hover:bg-[#b91e17] border-none px-10 h-10 font-semibold text-[15px]">Xóa</Button>
+        <Button onClick={onClose} disabled={submitting} className="border-gray-400 text-gray-600 px-10 h-10 font-semibold text-[15px] hover:border-gray-500 hover:text-gray-700">Hủy</Button>
+        <Button danger type="primary" onClick={handleConfirm} loading={submitting} className="bg-[#da251d] hover:bg-[#b91e17] border-none px-10 h-10 font-semibold text-[15px]">Xóa</Button>
       </div>
     </Modal>
   );

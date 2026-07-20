@@ -8,31 +8,46 @@ interface ReviewModalProps {
   visible: boolean;
   onClose: () => void;
   question: Question | null;
-  onApprove: (id: string, feedback: string) => void;
-  onReject: (id: string, feedback: string) => void;
+  onApprove: (id: string, feedback: string) => void | Promise<void>;
+  onReject: (id: string, feedback: string) => void | Promise<void>;
 }
 
 export default function ReviewModal({ visible, onClose, question, onApprove, onReject }: ReviewModalProps) {
   const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null);
 
   if (!question) return null;
 
-  const handleApproveAction = () => {
-    onApprove(question.id, feedback);
-    message.success('Đã duyệt câu hỏi thành công!');
-    setFeedback('');
-    onClose();
+  const handleApproveAction = async () => {
+    setSubmitting('approve');
+    try {
+      await onApprove(question.id, feedback);
+      message.success('Đã duyệt câu hỏi thành công!');
+      setFeedback('');
+      onClose();
+    } catch (e: any) {
+      message.error(e?.message || 'Không thể duyệt câu hỏi!');
+    } finally {
+      setSubmitting(null);
+    }
   };
 
-  const handleRejectAction = () => {
+  const handleRejectAction = async () => {
     if (!feedback.trim()) {
       message.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
       return;
     }
-    onReject(question.id, feedback);
-    message.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
-    setFeedback('');
-    onClose();
+    setSubmitting('reject');
+    try {
+      await onReject(question.id, feedback);
+      message.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
+      setFeedback('');
+      onClose();
+    } catch (e: any) {
+      message.error(e?.message || 'Không thể từ chối câu hỏi!');
+    } finally {
+      setSubmitting(null);
+    }
   };
 
   const getStatusTag = (status: string) => {
@@ -169,24 +184,29 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
 
         {/* Modal Footer Controls */}
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-5 mt-6" id="modal-footer-container">
-          <Button 
+          <Button
             className="rounded-lg text-xs font-extrabold bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 cursor-pointer"
             onClick={onClose}
+            disabled={submitting !== null}
           >
             Đóng
           </Button>
-          <Button 
-            danger 
+          <Button
+            danger
             className="rounded-lg text-xs font-extrabold flex items-center gap-1 cursor-pointer"
             icon={<CloseCircleOutlined />}
             onClick={handleRejectAction}
+            loading={submitting === 'reject'}
+            disabled={submitting === 'approve'}
           >
             Chưa đạt yêu cầu / Từ chối
           </Button>
-          <Button 
+          <Button
             className="rounded-lg text-xs font-extrabold bg-emerald-700 text-white border-transparent hover:bg-emerald-800 flex items-center gap-1 cursor-pointer"
             icon={<CheckCircleOutlined />}
             onClick={handleApproveAction}
+            loading={submitting === 'approve'}
+            disabled={submitting === 'reject'}
           >
             Đạt yêu cầu / Phê duyệt
           </Button>

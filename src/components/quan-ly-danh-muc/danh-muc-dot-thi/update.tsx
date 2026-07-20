@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Switch, Button, ConfigProvider, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 
@@ -14,6 +14,7 @@ export interface UpdateDotThiModalProps {
 
 export default function UpdateDotThiModal({ open, onClose, onSave, record }: UpdateDotThiModalProps) {
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   // Watch isActive value to update the label dynamically
   const isActive = Form.useWatch('isActive', form);
@@ -57,14 +58,19 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
     }
 
     if (onSave) {
-      const success = await onSave({
-        ...record,
-        ...rest,
-        NgayBatDau,
-        NgayKetThuc,
-      });
-      if (success) {
-        onClose();
+      setSubmitting(true);
+      try {
+        const success = await onSave({
+          ...record,
+          ...rest,
+          NgayBatDau,
+          NgayKetThuc,
+        });
+        if (success) {
+          onClose();
+        }
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -169,6 +175,7 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
           <div className="flex justify-center gap-4 mt-10 pt-5 border-t border-gray-200">
             <Button
               onClick={handleCancel}
+              disabled={submitting}
               className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]"
             >
               Đóng
@@ -176,6 +183,7 @@ export default function UpdateDotThiModal({ open, onClose, onSave, record }: Upd
             <Button
               type="primary"
               htmlType="submit"
+              loading={submitting}
               className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]"
             >
               Lưu

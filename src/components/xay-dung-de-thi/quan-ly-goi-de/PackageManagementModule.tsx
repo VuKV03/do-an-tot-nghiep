@@ -66,6 +66,10 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Trạng thái đang thao tác 1 gói đề cụ thể (per-row) — tránh 1 boolean chung khiến spinner
+  // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (duyệt/từ chối/phát thi/tắt phát/xóa).
+  const [actioning, setActioning] = useState<{ id: string; kind: 'approve' | 'reject' | 'publish' | 'unpublish' | 'delete' } | null>(null);
+
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
@@ -183,6 +187,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
   }, [currentRows, currentPage, pageSize]);
 
   const handleReviewDecision = async (pkg: any, status: 'approved' | 'rejected') => {
+    setActioning({ id: pkg.id, kind: status === 'approved' ? 'approve' : 'reject' });
     try {
       const res = await fetch(`/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
@@ -198,10 +203,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }
     } catch {
       message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+    } finally {
+      setActioning(null);
     }
   };
 
   const handlePublishPackage = async (pkg: any) => {
+    setActioning({ id: pkg.id, kind: 'publish' });
     try {
       const res = await fetch(`/api/exams/packages/${pkg.id}/publish`, {
         method: 'POST',
@@ -215,10 +223,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }
     } catch {
       message.error('Lỗi kết nối khi phát thi gói đề.');
+    } finally {
+      setActioning(null);
     }
   };
 
   const handleUnpublishPackage = async (pkg: any) => {
+    setActioning({ id: pkg.id, kind: 'unpublish' });
     try {
       const res = await fetch(`/api/exams/packages/${pkg.id}/unpublish`, {
         method: 'POST',
@@ -232,6 +243,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }
     } catch {
       message.error('Lỗi kết nối khi tắt phát thi gói đề.');
+    } finally {
+      setActioning(null);
     }
   };
 
@@ -243,6 +256,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       okButtonProps: { danger: true },
       centered: true,
       onOk: async () => {
+        setActioning({ id, kind: 'delete' });
         try {
           const res = await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
           const json = await res.json();
@@ -253,6 +267,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           }
         } catch {
           message.error('Không thể xóa gói đề.');
+        } finally {
+          setActioning(null);
         }
       },
     });
@@ -572,7 +588,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                                 onConfirm={() => handleReviewDecision(row, 'approved')}
                               >
                                 <Tooltip title="Duyệt (Đã thẩm định)">
-                                  <Button size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                                  <Button
+                                    size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer"
+                                    loading={actioning?.id === row.id && actioning.kind === 'approve'}
+                                    disabled={actioning !== null && actioning.id !== row.id}
+                                  />
                                 </Tooltip>
                               </Popconfirm>
                               <Popconfirm
@@ -581,7 +601,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                                 onConfirm={() => handleReviewDecision(row, 'rejected')}
                               >
                                 <Tooltip title="Từ chối">
-                                  <Button size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer" />
+                                  <Button
+                                    size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer"
+                                    loading={actioning?.id === row.id && actioning.kind === 'reject'}
+                                    disabled={actioning !== null && actioning.id !== row.id}
+                                  />
                                 </Tooltip>
                               </Popconfirm>
                             </>
@@ -593,7 +617,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               onConfirm={() => handlePublishPackage(row)}
                             >
                               <Tooltip title="Cho thi">
-                                <Button size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                                <Button
+                                  size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer"
+                                  loading={actioning?.id === row.id && actioning.kind === 'publish'}
+                                  disabled={actioning !== null && actioning.id !== row.id}
+                                />
                               </Tooltip>
                             </Popconfirm>
                           )}
@@ -604,7 +632,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               onConfirm={() => handleUnpublishPackage(row)}
                             >
                               <Tooltip title="Tắt phát thi">
-                                <Button size="small" type="text" icon={<PauseCircleOutlined className="text-orange-500" />} className="cursor-pointer" />
+                                <Button
+                                  size="small" type="text" icon={<PauseCircleOutlined className="text-orange-500" />} className="cursor-pointer"
+                                  loading={actioning?.id === row.id && actioning.kind === 'unpublish'}
+                                  disabled={actioning !== null && actioning.id !== row.id}
+                                />
                               </Tooltip>
                             </Popconfirm>
                           )}
@@ -622,7 +654,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                             onConfirm={() => handleDeletePackage(row.id, row.name)}
                           >
                             <Tooltip title="Xóa">
-                              <Button size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer" />
+                              <Button
+                                size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                loading={actioning?.id === row.id && actioning.kind === 'delete'}
+                                disabled={actioning !== null && actioning.id !== row.id}
+                              />
                             </Tooltip>
                           </Popconfirm>
                         </Space>

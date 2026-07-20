@@ -11,6 +11,7 @@ interface PermissionsModalProps {
   systemScopes: { category: string, items: { key: string, label: string }[] }[];
   accessibleMenus: any[];
   onSave: () => void;
+  saving?: boolean;
 }
 // interface định nghĩa các props cần thiết cho component PermissionsModal
 export default function PermissionsModal({
@@ -21,7 +22,8 @@ export default function PermissionsModal({
   setSelectedPermissions,
   systemScopes,
   accessibleMenus,
-  onSave
+  onSave,
+  saving
 }: PermissionsModalProps) {
   return (
     <Modal
@@ -37,6 +39,7 @@ export default function PermissionsModal({
           <Button
             key="back"
             onClick={onCancel}
+            disabled={saving}
             className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-40"
           >
             Hủy
@@ -45,6 +48,7 @@ export default function PermissionsModal({
             key="submit"
             type="primary"
             onClick={onSave}
+            loading={saving}
             className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-40"
           >
             Lưu thay đổi

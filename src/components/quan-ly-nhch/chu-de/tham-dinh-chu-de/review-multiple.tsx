@@ -5,27 +5,36 @@ interface ReviewMultipleModalProps {
   open: boolean;
   onClose: () => void;
   count: number;
-  onApprove?: (comment: string) => void;
-  onReject?: (comment: string) => void;
+  onApprove?: (comment: string) => void | Promise<void>;
+  onReject?: (comment: string) => void | Promise<void>;
 }
 
 export default function ReviewMultipleModal({ open, onClose, count, onApprove, onReject }: ReviewMultipleModalProps) {
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null);
 
-  const handleApprove = () => {
-    if (onApprove) {
-      onApprove(comment);
+  const handleApprove = async () => {
+    if (!onApprove) return;
+    setSubmitting('approve');
+    try {
+      await onApprove(comment);
+      setComment('');
+      onClose();
+    } finally {
+      setSubmitting(null);
     }
-    setComment('');
-    onClose();
   };
 
-  const handleReject = () => {
-    if (onReject) {
-      onReject(comment);
+  const handleReject = async () => {
+    if (!onReject) return;
+    setSubmitting('reject');
+    try {
+      await onReject(comment);
+      setComment('');
+      onClose();
+    } finally {
+      setSubmitting(null);
     }
-    setComment('');
-    onClose();
   };
 
   return (
@@ -65,6 +74,7 @@ export default function ReviewMultipleModal({ open, onClose, count, onApprove, o
           <Button
             className="border-blue-700 text-blue-700 hover:bg-blue-50 px-6 h-10 font-semibold"
             onClick={onClose}
+            disabled={submitting !== null}
           >
             Đóng
           </Button>
@@ -72,6 +82,8 @@ export default function ReviewMultipleModal({ open, onClose, count, onApprove, o
             danger
             className="bg-[#d91b29] hover:bg-[#b01420] border-none text-white px-4 h-10 font-semibold"
             onClick={handleReject}
+            loading={submitting === 'reject'}
+            disabled={submitting === 'approve'}
           >
             Chưa đạt yêu cầu
           </Button>
@@ -79,6 +91,8 @@ export default function ReviewMultipleModal({ open, onClose, count, onApprove, o
             type="primary"
             className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-6 h-10 font-semibold"
             onClick={handleApprove}
+            loading={submitting === 'approve'}
+            disabled={submitting === 'reject'}
           >
             Đạt yêu cầu
           </Button>

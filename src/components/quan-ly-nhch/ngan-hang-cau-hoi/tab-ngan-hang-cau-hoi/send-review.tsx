@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Button } from 'antd';
 
 export interface SendReviewConfirmModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   recordName?: string; // e.g. "Amy..."
   selectedCount?: number; // e.g. 3
 }
@@ -16,7 +16,17 @@ export default function SendReviewConfirmModal({
   recordName,
   selectedCount,
 }: SendReviewConfirmModalProps) {
+  const [submitting, setSubmitting] = useState(false);
   const isBulkAction = !recordName && selectedCount !== undefined && selectedCount > 0;
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Modal
@@ -48,6 +58,7 @@ export default function SendReviewConfirmModal({
         <div className="flex justify-center gap-3">
           <Button
             onClick={onClose}
+            disabled={submitting}
             className="rounded border border-blue-600 text-blue-600 font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-blue-50 transition-colors"
             style={{ cursor: 'pointer' }}
           >
@@ -55,7 +66,8 @@ export default function SendReviewConfirmModal({
           </Button>
           <Button
             type="primary"
-            onClick={onConfirm}
+            loading={submitting}
+            onClick={handleConfirm}
             className="rounded bg-[#1d4ed8] border-transparent text-white font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-blue-800 transition-colors"
             style={{ cursor: 'pointer' }}
           >

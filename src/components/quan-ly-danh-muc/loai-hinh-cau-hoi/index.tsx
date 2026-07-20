@@ -30,16 +30,22 @@ function validateCodeName(form: { code?: string; name?: string }, entityLabel: s
 function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (v: Partial<QuestionTypeType>) => Promise<boolean> }) {
   const [form, setForm] = React.useState<Partial<QuestionTypeType>>({});
   const [errors, setErrors] = React.useState<FieldErrors>({});
+  const [saving, setSaving] = React.useState(false);
   useEffect(() => { if (open) { setForm({}); setErrors({}); } }, [open]);
   const handleSave = async () => {
     const nextErrors = validateCodeName(form, 'loại hình câu hỏi');
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const success = await onSave(form);
-    if (success) {
-      setForm({});
-      onClose();
+    setSaving(true);
+    try {
+      const success = await onSave(form);
+      if (success) {
+        setForm({});
+        onClose();
+      }
+    } finally {
+      setSaving(false);
     }
   };
   return open ? (
@@ -60,8 +66,8 @@ function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => 
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
         </div>
         <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
-          <Button onClick={() => { setForm({}); setErrors({}); onClose(); }} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
-          <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
+          <Button onClick={() => { setForm({}); setErrors({}); onClose(); }} disabled={saving} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+          <Button type="primary" loading={saving} className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
         </div>
       </div>
     </div>
@@ -71,15 +77,21 @@ function CreateModal({ open, onClose, onSave }: { open: boolean; onClose: () => 
 function UpdateModal({ open, onClose, record, onSave }: { open: boolean; onClose: () => void; record: QuestionTypeType | null; onSave: (v: Partial<QuestionTypeType>) => Promise<boolean> }) {
   const [form, setForm] = React.useState<Partial<QuestionTypeType>>({});
   const [errors, setErrors] = React.useState<FieldErrors>({});
+  const [saving, setSaving] = React.useState(false);
   useEffect(() => { if (open && record) { setForm({ code: record.code, name: record.name, note: record.note || '' }); setErrors({}); } }, [open, record]);
   const handleSave = async () => {
     const nextErrors = validateCodeName(form, 'loại hình câu hỏi');
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const success = await onSave(form);
-    if (success) {
-      onClose();
+    setSaving(true);
+    try {
+      const success = await onSave(form);
+      if (success) {
+        onClose();
+      }
+    } finally {
+      setSaving(false);
     }
   };
   return open ? (
@@ -100,8 +112,8 @@ function UpdateModal({ open, onClose, record, onSave }: { open: boolean; onClose
           <div><label className="text-gray-700 font-medium text-[15px] block mb-1">Ghi chú</label><Input.TextArea rows={3} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
         </div>
         <div className="flex justify-center gap-4 mt-6 pt-4 border-t border-gray-200">
-          <Button onClick={onClose} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
-          <Button type="primary" className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
+          <Button onClick={onClose} disabled={saving} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold">Đóng</Button>
+          <Button type="primary" loading={saving} className="bg-[#1d4ed8] px-10 h-10 font-semibold" onClick={handleSave}>Lưu</Button>
         </div>
       </div>
     </div>
@@ -131,14 +143,24 @@ function DetailModal({ open, onClose, record }: { open: boolean; onClose: () => 
 }
 
 function DeleteModal({ open, onClose, onConfirm, itemName, isMultiple, multipleCount }: { open: boolean; onClose: () => void; onConfirm: () => void; itemName?: string; isMultiple?: boolean; multipleCount?: number }) {
+  const [deleting, setDeleting] = React.useState(false);
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setDeleting(false);
+      onClose();
+    }
+  };
   return open ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-xl w-[460px] p-6">
         <div className="text-xl font-semibold text-slate-800 pb-3 border-b border-gray-200 mb-6">Xác nhận xóa</div>
         <p className="text-[17px] text-slate-700 mb-8">{isMultiple ? `Xóa ${multipleCount || 0} bản ghi đã chọn?` : `Xóa loại hình câu hỏi "${itemName || ''}"?`}</p>
         <div className="flex justify-center gap-4 pt-4 border-t border-gray-200">
-          <Button onClick={onClose} className="border-gray-400 text-gray-600 px-10 h-10 font-semibold">Hủy</Button>
-          <Button danger type="primary" onClick={() => { onConfirm(); onClose(); }} className="px-10 h-10 font-semibold">Xóa</Button>
+          <Button onClick={onClose} disabled={deleting} className="border-gray-400 text-gray-600 px-10 h-10 font-semibold">Hủy</Button>
+          <Button danger type="primary" loading={deleting} onClick={handleConfirm} className="px-10 h-10 font-semibold">Xóa</Button>
         </div>
       </div>
     </div>

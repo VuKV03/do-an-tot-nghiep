@@ -98,6 +98,8 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
   const [form] = Form.useForm();
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   // Hàm lưu trữ nhật ký bảo mật (Security Log) khi có các thao tác thay đổi quyền, thêm/sửa/xóa nhóm
   const logSecurityAction = async (action: string, level: string, details: string) => {
@@ -267,6 +269,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const handleSaveGroup = async () => {
     try {
       const values = await form.validateFields();
+      setSavingGroup(true);
       const payload = {
         ...values,
         member_ids: groupMembers.map(m => m.id)
@@ -305,6 +308,8 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       } else {
         // form validation failed
       }
+    } finally {
+      setSavingGroup(false);
     }
   };
 
@@ -313,6 +318,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
     if (!activeGroupForPermissions) return;
 
     try {
+      setSavingPermissions(true);
       const res = await axios.put(`${API_URL}/auth/groups/${activeGroupForPermissions.id}`, {
         permissions: selectedPermissions
       });
@@ -344,6 +350,8 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       }
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Lỗi khi cập nhật quyền hạn.');
+    } finally {
+      setSavingPermissions(false);
     }
   };
 
@@ -383,6 +391,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         systemScopes={SYSTEM_PERMISSION_SCOPES}
         accessibleMenus={accessibleMenus}
         onSave={handleSaveGroupPermissions}
+        saving={savingPermissions}
       />
 
       {/* Edit Group Modal */}
@@ -390,6 +399,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         open={isEditGroupModalOpen}
         onCancel={() => setIsEditGroupModalOpen(false)}
         onSave={handleSaveGroup}
+        saving={savingGroup}
         editingGroup={editingGroup}
         form={form}
         groupMembers={groupMembers}

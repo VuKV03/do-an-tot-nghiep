@@ -1,17 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Button } from 'antd';
 import { HelpCircle } from 'lucide-react';
 
 export interface DeleteDotThiModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   itemName?: string;
   isMultiple?: boolean;
   multipleCount?: number;
 }
 
 export default function DeleteDotThiModal({ open, onClose, onConfirm, itemName, isMultiple, multipleCount }: DeleteDotThiModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Modal
       title={
@@ -43,6 +55,7 @@ export default function DeleteDotThiModal({ open, onClose, onConfirm, itemName, 
       <div className="flex justify-center gap-4 border-t border-gray-200 pt-5">
         <Button
           onClick={onClose}
+          disabled={submitting}
           className="border-gray-400 text-gray-600 px-10 h-10 font-semibold text-[15px] hover:border-gray-500 hover:text-gray-700"
         >
           Hủy
@@ -50,10 +63,8 @@ export default function DeleteDotThiModal({ open, onClose, onConfirm, itemName, 
         <Button
           danger
           type="primary"
-          onClick={() => {
-            onConfirm();
-            onClose();
-          }}
+          onClick={handleConfirm}
+          loading={submitting}
           className="bg-[#da251d] hover:bg-[#b91e17] border-none px-10 h-10 font-semibold text-[15px]"
         >
           Xóa

@@ -81,6 +81,10 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const [selectedExamIds, setSelectedExamIds] = useState<string[]>([]);
   const [selectedPkgIds, setSelectedPkgIds] = useState<string[]>([]);
 
+  // Trạng thái đang duyệt/từ chối 1 đề thi cụ thể (per-row) — tránh 1 boolean chung khiến
+  // spinner hiện sai hàng khi nhiều dòng bị thao tác liên tiếp.
+  const [reviewActioning, setReviewActioning] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
+
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
   const [isTuDongMoiOpen, setIsTuDongMoiOpen] = useState(false);
@@ -312,6 +316,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   // Duyệt / Từ chối đề thi ở tab thẩm định
   const handleReviewDecision = async (exam: any, status: 'approved' | 'rejected') => {
+    setReviewActioning({ id: exam.id, action: status });
     try {
       const res = await fetch(`/api/exams/${exam.id}`, {
         method: 'PUT',
@@ -327,6 +332,8 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       }
     } catch {
       message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+    } finally {
+      setReviewActioning(null);
     }
   };
 
@@ -702,7 +709,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                                 onConfirm={() => handleReviewDecision(row, 'approved')}
                               >
                                 <Tooltip title="Duyệt (Đã thẩm định)">
-                                  <Button size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer" />
+                                  <Button
+                                    size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer"
+                                    loading={reviewActioning?.id === row.id && reviewActioning.action === 'approved'}
+                                    disabled={reviewActioning !== null && reviewActioning.id !== row.id}
+                                  />
                                 </Tooltip>
                               </Popconfirm>
                               <Popconfirm
@@ -711,7 +722,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                                 onConfirm={() => handleReviewDecision(row, 'rejected')}
                               >
                                 <Tooltip title="Từ chối">
-                                  <Button size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer" />
+                                  <Button
+                                    size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer"
+                                    loading={reviewActioning?.id === row.id && reviewActioning.action === 'rejected'}
+                                    disabled={reviewActioning !== null && reviewActioning.id !== row.id}
+                                  />
                                 </Tooltip>
                               </Popconfirm>
                             </>

@@ -79,6 +79,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingUser, setViewingUser] = useState<SystemUser | null>(null);
   const [userForm] = Form.useForm();
+  const [savingUser, setSavingUser] = useState(false);
 
   const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
   const [allGroups, setAllGroups] = useState<UserGroup[]>([]);
@@ -190,6 +191,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const handleSaveUserForm = () => {
     userForm.validateFields().then(async values => {
+      setSavingUser(true);
       try {
         if (userModalMode === 'create') {
           // Generate a temporary password for new users
@@ -308,6 +310,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       } catch (err: any) {
         console.error('Error saving user:', err);
         message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi lưu thông tin người dùng.');
+      } finally {
+        setSavingUser(false);
       }
     });
   };
@@ -759,6 +763,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             <Button
               key="back"
               onClick={() => setIsUserModalOpen(false)}
+              disabled={savingUser}
               className="border-[#1e40af] text-[#1e40af] font-semibold rounded px-8 w-32"
             >
               Đóng
@@ -767,6 +772,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               key="submit"
               type="primary"
               onClick={handleSaveUserForm}
+              loading={savingUser}
               className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
             >
               Lưu

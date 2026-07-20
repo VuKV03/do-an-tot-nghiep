@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, ConfigProvider, Form, Input, Modal, Switch } from 'antd';
 import type { SubjectCategoryType } from './index.tsx';
 
@@ -16,14 +16,20 @@ export default function CreateSubjectCategoryModal({
   onSave,
 }: CreateSubjectCategoryModalProps) {
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
   const isActive = Form.useWatch('is_active', form);
 
   const handleFinish = async (values: Partial<SubjectCategoryType>) => {
     if (onSave) {
-      const success = await onSave(values);
-      if (success) {
-        form.resetFields();
-        onClose();
+      setSubmitting(true);
+      try {
+        const success = await onSave(values);
+        if (success) {
+          form.resetFields();
+          onClose();
+        }
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -88,8 +94,8 @@ export default function CreateSubjectCategoryModal({
           </Form.Item>
 
           <div className="flex justify-center gap-4 mt-10 pt-5 border-t border-gray-200">
-            <Button onClick={handleCancel} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]">Đóng</Button>
-            <Button type="primary" htmlType="submit" className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]">Lưu</Button>
+            <Button onClick={handleCancel} disabled={submitting} className="border-[#1d4ed8] text-[#1d4ed8] px-10 h-10 font-semibold hover:bg-blue-50 text-[15px]">Đóng</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-10 h-10 font-semibold text-[15px]">Lưu</Button>
           </div>
         </Form>
       </Modal>
