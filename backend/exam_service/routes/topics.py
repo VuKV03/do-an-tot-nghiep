@@ -208,16 +208,22 @@ async def delete_topic(item_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{item_id}/submit")
 async def submit_topic(item_id: str, db: AsyncSession = Depends(get_db)):
-    """Gửi thẩm định chủ đề (chuyển trạng thái sang 1 - Chờ thẩm định)."""
+    """Gửi thẩm định chủ đề (chuyển trạng thái sang 1 - Chờ thẩm định).
+
+    Chủ đề đã thẩm định (status 2) giữ nguyên trạng thái, không gửi lại.
+    """
     result = await db.execute(select(Topic).where(Topic.id == item_id))
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
-    
+
+    if obj.status == 2:
+        return {"success": True, "message": "Chủ đề đã thẩm định, giữ nguyên trạng thái.", "data": _to_response(obj)}
+
     obj.status = 1  # 1: Chờ thẩm định
     obj.submitted_by = "user1"
     obj.submitted_at = _now()
-    
+
     # Log history
     history_obj = TopicHistory(
         id=str(uuid.uuid4()),

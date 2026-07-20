@@ -726,20 +726,35 @@ export default function ChuDeCauHoi() {
           multipleCount={selectedRowKeys.length}
           onConfirm={async () => {
             try {
+              // Chủ đề/tiểu mục đã thẩm định (status 2) giữ nguyên trạng thái, không gửi lại.
+              const isApproved = (id: string) => rawData.find(item => item.id === id)?.status === 2;
+
               if (isMultipleAction) {
-                const allIdsToSubmit = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
-                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
-                message.success('Đã gửi thẩm định các chủ đề được chọn!');
+                const allIdsToSubmit = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()))
+                  .filter(id => !isApproved(id));
+                if (allIdsToSubmit.length > 0) {
+                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                }
+                message.success(
+                  allIdsToSubmit.length > 0
+                    ? 'Đã gửi thẩm định các chủ đề được chọn!'
+                    : 'Các chủ đề được chọn đều đã thẩm định, không cần gửi lại.'
+                );
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
-                const allIdsToSubmit = getSubTopicIdsRecursive([selectedRecord.Id]);
-                await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
-                const hasChildren = allIdsToSubmit.length > 1;
-                message.success(
-                  hasChildren
-                    ? `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
-                    : `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`
-                );
+                const allIdsToSubmit = getSubTopicIdsRecursive([selectedRecord.Id])
+                  .filter(id => !isApproved(id));
+                if (allIdsToSubmit.length > 0) {
+                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                  const hasChildren = allIdsToSubmit.length > 1;
+                  message.success(
+                    hasChildren
+                      ? `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                      : `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`
+                  );
+                } else {
+                  message.success(`Chủ đề "${selectedRecord.Ten}" đã thẩm định, giữ nguyên trạng thái.`);
+                }
               }
               setIsGuiThamDinhModalOpen(false);
               fetchTopics();

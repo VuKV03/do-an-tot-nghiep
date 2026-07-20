@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, HelpCircle, FileText } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import ChuDeCauHoi from '../chu-de-cau-hoi';
 import ReviewModal from './review';
+import ReviewMultipleModal from './review-multiple';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 
 const { RangePicker } = DatePicker;
@@ -133,19 +134,6 @@ export default function ThamDinhChuDeMain() {
       message.warning('Vui lòng chọn ít nhất một chủ đề để thẩm định');
       return;
     }
-    const firstKey = selectedRowKeys[0];
-    const findRecord = (data: ThamDinhType[]): ThamDinhType | null => {
-      for (const item of data) {
-        if (item.Key === firstKey) return item;
-        if (item.children) {
-          const child = findRecord(item.children);
-          if (child) return child;
-        }
-      }
-      return null;
-    };
-    const recordToReview = findRecord(filteredTree);
-    setSelectedRecord(recordToReview || filteredTree[0]);
     setIsMultipleAction(true);
     setIsReviewOpen(true);
   };
@@ -555,32 +543,55 @@ export default function ThamDinhChuDeMain() {
               </Spin>
             </div>
 
-            {/* Review Dialog */}
+            {/* Review Dialogs */}
             <ReviewModal
-              open={isReviewOpen}
+              open={isReviewOpen && !isMultipleAction}
               onClose={() => setIsReviewOpen(false)}
               record={selectedRecord}
               onApprove={async (comment) => {
+                if (!selectedRecord) return;
                 try {
-                  let ids: string[] = [];
-                  if (isMultipleAction) {
-                    ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
-                  } else if (selectedRecord) {
-                    ids = getSubTopicIdsRecursive([selectedRecord.Id]);
-                  }
+                  const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
                   await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
-                  
-                  if (isMultipleAction) {
-                    message.success('Đã phê duyệt các chủ đề được chọn!');
-                    setSelectedRowKeys([]);
-                  } else if (selectedRecord) {
-                    const hasChildren = ids.length > 1;
-                    message.success(
-                      hasChildren
-                        ? `Đã phê duyệt chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
-                        : `Đã phê duyệt chủ đề "${selectedRecord.Ten}"!`
-                    );
-                  }
+                  const hasChildren = ids.length > 1;
+                  message.success(
+                    hasChildren
+                      ? `Đã phê duyệt chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                      : `Đã phê duyệt chủ đề "${selectedRecord.Ten}"!`
+                  );
+                  fetchData();
+                } catch (e: any) {
+                  message.error(e.message || 'Không thể phê duyệt chủ đề!');
+                }
+              }}
+              onReject={async (comment) => {
+                if (!selectedRecord) return;
+                try {
+                  const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
+                  await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
+                  const hasChildren = ids.length > 1;
+                  message.warning(
+                    hasChildren
+                      ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
+                      : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
+                  );
+                  fetchData();
+                } catch (e: any) {
+                  message.error(e.message || 'Không thể từ chối chủ đề!');
+                }
+              }}
+            />
+
+            <ReviewMultipleModal
+              open={isReviewOpen && isMultipleAction}
+              onClose={() => setIsReviewOpen(false)}
+              count={selectedRowKeys.length}
+              onApprove={async (comment) => {
+                try {
+                  const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
+                  await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
+                  message.success('Đã phê duyệt các chủ đề được chọn!');
+                  setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể phê duyệt chủ đề!');
@@ -588,25 +599,10 @@ export default function ThamDinhChuDeMain() {
               }}
               onReject={async (comment) => {
                 try {
-                  let ids: string[] = [];
-                  if (isMultipleAction) {
-                    ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
-                  } else if (selectedRecord) {
-                    ids = getSubTopicIdsRecursive([selectedRecord.Id]);
-                  }
+                  const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
-                  
-                  if (isMultipleAction) {
-                    message.warning('Từ chối các chủ đề được chọn!');
-                    setSelectedRowKeys([]);
-                  } else if (selectedRecord) {
-                    const hasChildren = ids.length > 1;
-                    message.warning(
-                      hasChildren
-                        ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
-                        : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
-                    );
-                  }
+                  message.warning('Từ chối các chủ đề được chọn!');
+                  setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {
                   message.error(e.message || 'Không thể từ chối chủ đề!');
