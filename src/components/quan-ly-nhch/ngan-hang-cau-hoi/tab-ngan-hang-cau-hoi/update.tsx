@@ -10,6 +10,7 @@ import {
 } from '../../../../types';
 import { questionApi, bankQuestionApi, subjectCategoryApi, gradeLevelApi, competencyComponentApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
 import RichTextEditor from '../../../RichTextEditor';
+import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -797,65 +798,59 @@ export default function UpdateQuestionModal({
                   Thông tin câu trả lời
                 </div>
 
-                <table className='w-full border-collapse text-base'>
-                  <thead>
-                    <tr className='border-b border-slate-200 bg-slate-50/50'>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]'>
-                        STT
-                      </th>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold text-[15px]'>
-                        Nội dung trả lời <span className='text-red-500'>*</span>
-                      </th>
-                      <th className='text-center py-2 px-3 text-slate-600 font-bold w-28 text-[15px]'>
-                        Đáp án đúng
-                      </th>
-                      <th className='w-10' />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {answers.map((ans, idx) => (
-                      <tr
-                        key={ans.id}
-                        className='border-b border-slate-100 hover:bg-slate-50 group'
-                      >
-                        <td className='py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]'>
-                          {idx + 1}
-                        </td>
-                        <td className='py-2.5 px-3 align-middle'>
-                          <Input
-                            size='large'
-                            value={ans.content}
-                            onChange={(e) =>
-                              updateContent(ans.id, e.target.value)
-                            }
-                            placeholder={`Lựa chọn trả lời ${idx + 1}`}
-                            className='text-base rounded-lg font-medium'
-                          />
-                        </td>
-                        <td className='py-2.5 px-3 text-center align-middle'>
-                          <Checkbox
-                            checked={ans.isCorrect}
-                            onChange={() => toggleCorrect(ans.id)}
-                            style={{ transform: 'scale(1.1)' }}
-                          />
-                        </td>
-                        <td className='py-2.5 px-3 align-middle'>
-                          {answers.length > 2 && (
+                <RichTextGroupProvider>
+                  <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
+                    <RichTextGroupToolbar />
+                    <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
+                      <span>
+                        Nội dung trả lời{' '}
+                        <span className='text-red-500 normal-case'>*</span>
+                      </span>
+                      <span className='pr-8'>Đáp án đúng</span>
+                    </div>
+                    <div className='divide-y divide-slate-100'>
+                      {answers.map((ans, idx) => (
+                        <div
+                          key={ans.id}
+                          className='flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50/70 transition-colors group'
+                        >
+                          <div className='w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-[13px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+                            {String.fromCharCode(65 + idx)}
+                          </div>
+                          <div className='flex-1 min-w-0'>
+                            <RichTextGroupCell
+                              value={ans.content}
+                              onChange={(html) => updateContent(ans.id, html)}
+                              placeholder={`Lựa chọn trả lời ${idx + 1}`}
+                              minHeight={36}
+                            />
+                          </div>
+                          <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
+                            <Checkbox
+                              checked={ans.isCorrect}
+                              onChange={() => toggleCorrect(ans.id)}
+                              style={{ transform: 'scale(1.15)' }}
+                            />
                             <button
                               type='button'
                               onClick={() => removeRow(ans.id)}
-                              className='opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all text-xl leading-none'
-                              style={{ cursor: 'pointer' }}
+                              disabled={answers.length <= 2}
+                              className={`text-xl leading-none w-5 flex-shrink-0 transition-all ${
+                                answers.length > 2
+                                  ? 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600'
+                                  : 'opacity-0 pointer-events-none'
+                              }`}
+                              style={{ cursor: answers.length > 2 ? 'pointer' : 'default' }}
                               title='Xóa dòng'
                             >
                               ×
                             </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </RichTextGroupProvider>
 
                 <div className='mt-2'>
                   <button

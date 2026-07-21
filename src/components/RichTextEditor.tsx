@@ -23,7 +23,7 @@ export interface RichTextEditorProps {
   className?: string;
 }
 
-interface Attachment {
+export interface Attachment {
   id: string;
   src: string;
   width: number;
@@ -85,7 +85,13 @@ function splitHtmlIntoAttachmentsAndText(html: string): { attachments: Attachmen
 
 const buildImgTag = (a: Attachment) => `<img src="${a.src}" width="${a.width}" height="${a.height}" />`;
 
-export default function RichTextEditor({ value, onChange, placeholder, minHeight = 100, className }: RichTextEditorProps) {
+/**
+ * Toàn bộ state + logic của 1 ô soạn thảo rich-text (không kèm JSX) — tách thành hook riêng để
+ * dùng chung được giữa `RichTextEditor` (1 ô = 1 thanh công cụ riêng, dùng cho "Nội dung câu hỏi")
+ * và `RichTextEditorGroup` (nhiều ô dùng chung 1 thanh công cụ, dùng cho bảng đáp án trắc nghiệm —
+ * xem RichTextEditorGroup.tsx).
+ */
+export function useRichTextCore({ value, onChange }: { value?: string; onChange?: (html: string) => void }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
@@ -391,20 +397,96 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
   const formulaPreviewHtml = formulaLatex.trim() ? renderLatexToHtml(formulaLatex) : '';
 
-  const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors';
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    // Nếu clipboard có ảnh (chụp màn hình, copy ảnh từ nơi khác...) thì đưa vào dải đính
+    // kèm giống nút "Chèn ảnh"; phần text luôn dán dạng thuần để tránh mang theo style lạ.
+    const imageFiles = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => !!file);
 
+    if (imageFiles.length > 0) {
+      void addImageFiles(imageFiles);
+      return;
+    }
+
+    const text = e.clipboardData.getData('text/plain');
+    // Văn bản dán vào có thể chứa công thức LaTeX (copy từ ChatGPT, tài liệu LaTeX...) — nhận
+    // diện $$...$$ / \[...\] / \(...\) và tự động chuyển thành công thức hiển thị luôn.
+    const { html, hasFormula } = buildPastedHtml(text);
+    if (hasFormula) {
+      document.execCommand('insertHTML', false, html);
+    } else {
+      document.execCommand('insertText', false, text);
+    }
+    emitChange();
+  };
+
+  return {
+    editorRef,
+    fileInputRef,
+    isFocusedRef,
+    suppressNextBlurEmitRef,
+    isProcessingImage,
+    attachments,
+    setAttachments,
+    showTablePicker,
+    setShowTablePicker,
+    hoverCell,
+    setHoverCell,
+    isInTable,
+    setIsInTable,
+    showSymbolPicker,
+    setShowSymbolPicker,
+    showFormulaPicker,
+    formulaLatex,
+    setFormulaLatex,
+    editingFormulaElRef,
+    formulaPreviewHtml,
+    emitChange,
+    focusEditor,
+    exec,
+    handleInsertImageClick,
+    removeAttachment,
+    updateTableContext,
+    insertTable,
+    insertTableRow,
+    insertTableColumn,
+    deleteTableRow,
+    deleteTableColumn,
+    deleteTableAtCursor,
+    handleTableTabKey,
+    handleFileSelected,
+    handleInsertLink,
+    insertSymbol,
+    openFormulaPickerForNew,
+    closeFormulaPicker,
+    handleEditorClick,
+    confirmFormula,
+    handlePaste,
+  };
+}
+
+export type RichTextCore = ReturnType<typeof useRichTextCore>;
+
+const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors';
+
+/** Thanh công cụ định dạng — dùng cho cả `RichTextEditor` (1 ô riêng) và `RichTextEditorGroup`
+ * (nhiều ô dùng chung 1 thanh, thao tác lên ô đang được focus — xem RichTextEditorGroup.tsx). */
+export function RichTextToolbarUI({ core }: { core: RichTextCore }) {
   return (
-    <div className={`border border-slate-300 rounded-lg ${className || ''}`}>
+    <>
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50 rounded-t-lg">
-        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<h1>')}>H1</button>
-        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<h2>')}>H2</button>
-        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('formatBlock', '<p>')}>Normal</button>
+        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('formatBlock', '<h1>')}>H1</button>
+        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('formatBlock', '<h2>')}>H2</button>
+        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('formatBlock', '<p>')}>Normal</button>
         <span className="w-px h-4 bg-slate-300 mx-1" />
         <select
           className="text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium"
           defaultValue=""
           onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => { if (e.target.value) exec('fontName', e.target.value); e.target.value = ''; }}
+          onChange={(e) => { if (e.target.value) core.exec('fontName', e.target.value); e.target.value = ''; }}
         >
           <option value="" disabled>Font chữ</option>
           {FONT_FAMILY_OPTIONS.filter((f) => f.value).map((f) => (
@@ -415,7 +497,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           className="text-[12px] text-slate-600 border-0 bg-transparent outline-none cursor-pointer font-medium"
           defaultValue=""
           onMouseDown={(e) => e.stopPropagation()}
-          onChange={(e) => { if (e.target.value) exec('fontSize', e.target.value); e.target.value = ''; }}
+          onChange={(e) => { if (e.target.value) core.exec('fontSize', e.target.value); e.target.value = ''; }}
         >
           <option value="" disabled>Cỡ chữ</option>
           {FONT_SIZE_OPTIONS.map((f) => (
@@ -423,24 +505,24 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           ))}
         </select>
         <span className="w-px h-4 bg-slate-300 mx-1" />
-        <button type="button" className={`${btnClass} font-black`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')}>B</button>
-        <button type="button" className={`${btnClass} italic`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')}>I</button>
-        <button type="button" className={`${btnClass} underline`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')}>U</button>
-        <button type="button" className={`${btnClass} line-through`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('strikeThrough')}>S</button>
+        <button type="button" className={`${btnClass} font-black`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('bold')}>B</button>
+        <button type="button" className={`${btnClass} italic`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('italic')}>I</button>
+        <button type="button" className={`${btnClass} underline`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('underline')}>U</button>
+        <button type="button" className={`${btnClass} line-through`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('strikeThrough')}>S</button>
         <span className="w-px h-4 bg-slate-300 mx-1" />
-        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} title="Chèn liên kết" onMouseDown={(e) => e.preventDefault()} onClick={handleInsertLink}>🔗</button>
+        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} title="Chèn liên kết" onMouseDown={(e) => e.preventDefault()} onClick={core.handleInsertLink}>🔗</button>
         <button
           type="button"
           className={btnClass}
-          style={{ cursor: isProcessingImage ? 'wait' : 'pointer' }}
+          style={{ cursor: core.isProcessingImage ? 'wait' : 'pointer' }}
           title="Chèn ảnh (tự động thu nhỏ, không cần chỉnh sửa trước)"
-          disabled={isProcessingImage}
+          disabled={core.isProcessingImage}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={handleInsertImageClick}
+          onClick={core.handleInsertImageClick}
         >
-          {isProcessingImage ? '⏳' : '🖼'}
+          {core.isProcessingImage ? '⏳' : '🖼'}
         </button>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileSelected} />
+        <input ref={core.fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={core.handleFileSelected} />
         <span className="w-px h-4 bg-slate-300 mx-1" />
         <div className="relative">
           <button
@@ -449,11 +531,11 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
             style={{ cursor: 'pointer' }}
             title="Chèn bảng"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setShowTablePicker((v) => !v)}
+            onClick={() => core.setShowTablePicker((v) => !v)}
           >
             ▦
           </button>
-          {showTablePicker && (
+          {core.showTablePicker && (
             <div
               className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2"
               onMouseDown={(e) => e.preventDefault()}
@@ -465,12 +547,12 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                 {Array.from({ length: TABLE_PICKER_MAX_ROWS * TABLE_PICKER_MAX_COLS }).map((_, idx) => {
                   const r = Math.floor(idx / TABLE_PICKER_MAX_COLS) + 1;
                   const c = (idx % TABLE_PICKER_MAX_COLS) + 1;
-                  const active = r <= hoverCell.rows && c <= hoverCell.cols;
+                  const active = r <= core.hoverCell.rows && c <= core.hoverCell.cols;
                   return (
                     <div
                       key={idx}
-                      onMouseEnter={() => setHoverCell({ rows: r, cols: c })}
-                      onClick={() => insertTable(r, c)}
+                      onMouseEnter={() => core.setHoverCell({ rows: r, cols: c })}
+                      onClick={() => core.insertTable(r, c)}
                       style={{
                         width: 16,
                         height: 16,
@@ -483,7 +565,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                 })}
               </div>
               <div className="text-[11px] text-slate-500 text-center mt-1 font-medium">
-                {hoverCell.rows > 0 ? `${hoverCell.rows} × ${hoverCell.cols}` : 'Chọn số dòng × cột'}
+                {core.hoverCell.rows > 0 ? `${core.hoverCell.rows} × ${core.hoverCell.cols}` : 'Chọn số dòng × cột'}
               </div>
             </div>
           )}
@@ -496,22 +578,22 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
             style={{ cursor: 'pointer' }}
             title="Chèn công thức LaTeX (ký hiệu toán học không có sẵn)"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={openFormulaPickerForNew}
+            onClick={core.openFormulaPickerForNew}
           >
             𝑓(x)
           </button>
-          {showFormulaPicker && (
+          {core.showFormulaPicker && (
             <div className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-[360px]">
               <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
-                {editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
+                {core.editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
               </div>
               <textarea
                 autoFocus
                 rows={3}
                 className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-[13px] font-mono outline-none focus:border-blue-500"
                 placeholder="Ví dụ: \frac{a}{b} + \sqrt{x}"
-                value={formulaLatex}
-                onChange={(e) => setFormulaLatex(e.target.value)}
+                value={core.formulaLatex}
+                onChange={(e) => core.setFormulaLatex(e.target.value)}
               />
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {FORMULA_TEMPLATES.map((tpl) => (
@@ -521,15 +603,15 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                     className="px-1.5 py-0.5 text-[11px] rounded border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300"
                     style={{ cursor: 'pointer' }}
                     title={tpl.latex}
-                    onClick={() => setFormulaLatex((prev) => (prev ? `${prev} ${tpl.latex}` : tpl.latex))}
+                    onClick={() => core.setFormulaLatex((prev) => (prev ? `${prev} ${tpl.latex}` : tpl.latex))}
                   >
                     {tpl.label}
                   </button>
                 ))}
               </div>
               <div className="mt-2 border border-slate-200 rounded-md px-2 py-2 min-h-[42px] bg-slate-50 flex items-center overflow-x-auto">
-                {formulaPreviewHtml ? (
-                  <span dangerouslySetInnerHTML={{ __html: formulaPreviewHtml }} />
+                {core.formulaPreviewHtml ? (
+                  <span dangerouslySetInnerHTML={{ __html: core.formulaPreviewHtml }} />
                 ) : (
                   <span className="text-[12px] text-slate-400">Xem trước công thức tại đây</span>
                 )}
@@ -539,7 +621,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                   type="button"
                   className="px-3 py-1 text-[12px] rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
                   style={{ cursor: 'pointer' }}
-                  onClick={closeFormulaPicker}
+                  onClick={core.closeFormulaPicker}
                 >
                   Hủy
                 </button>
@@ -547,10 +629,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                   type="button"
                   className="px-3 py-1 text-[12px] rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ cursor: 'pointer' }}
-                  disabled={!formulaLatex.trim()}
-                  onClick={confirmFormula}
+                  disabled={!core.formulaLatex.trim()}
+                  onClick={core.confirmFormula}
                 >
-                  {editingFormulaElRef.current ? 'Cập nhật' : 'Chèn'}
+                  {core.editingFormulaElRef.current ? 'Cập nhật' : 'Chèn'}
                 </button>
               </div>
             </div>
@@ -564,11 +646,11 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
             style={{ cursor: 'pointer' }}
             title="Chèn ký tự đặc biệt / toán học"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setShowSymbolPicker((v) => !v)}
+            onClick={() => core.setShowSymbolPicker((v) => !v)}
           >
             Ω
           </button>
-          {showSymbolPicker && (
+          {core.showSymbolPicker && (
             <div
               className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 w-72 max-h-72 overflow-y-auto"
               onMouseDown={(e) => e.preventDefault()}
@@ -581,7 +663,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                       <button
                         key={char}
                         type="button"
-                        onClick={() => insertSymbol(char)}
+                        onClick={() => core.insertSymbol(char)}
                         className="w-7 h-7 flex items-center justify-center text-[15px] rounded border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 text-slate-700"
                         style={{ cursor: 'pointer' }}
                         title={char}
@@ -596,95 +678,99 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           )}
         </div>
         <span className="w-px h-4 bg-slate-300 mx-1" />
-        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} title="Xoá định dạng" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('removeFormat')}>Tx</button>
+        <button type="button" className={btnClass} style={{ cursor: 'pointer' }} title="Xoá định dạng" onMouseDown={(e) => e.preventDefault()} onClick={() => core.exec('removeFormat')}>Tx</button>
       </div>
 
-      {isInTable && (
+      {core.isInTable && (
         <div className="flex flex-wrap items-center gap-1 px-2 py-1 border-b border-slate-200 bg-indigo-50">
           <span className="text-[11px] font-bold text-indigo-700 mr-1">Bảng:</span>
-          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableRow('above')}>+ Dòng trên</button>
-          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableRow('below')}>+ Dòng dưới</button>
-          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableColumn('left')}>+ Cột trái</button>
-          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => insertTableColumn('right')}>+ Cột phải</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.insertTableRow('above')}>+ Dòng trên</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.insertTableRow('below')}>+ Dòng dưới</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.insertTableColumn('left')}>+ Cột trái</button>
+          <button type="button" className={btnClass} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={() => core.insertTableColumn('right')}>+ Cột phải</button>
           <span className="w-px h-4 bg-indigo-200 mx-1" />
-          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableRow}>− Dòng</button>
-          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableColumn}>− Cột</button>
-          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={deleteTableAtCursor}>Xoá bảng</button>
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={core.deleteTableRow}>− Dòng</button>
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={core.deleteTableColumn}>− Cột</button>
+          <button type="button" className={`${btnClass} text-rose-600`} style={{ cursor: 'pointer' }} onMouseDown={(e) => e.preventDefault()} onClick={core.deleteTableAtCursor}>Xoá bảng</button>
         </div>
       )}
+    </>
+  );
+}
 
-      {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-2 pt-2.5 pb-1.5 border-b border-slate-200 bg-white">
-          <Image.PreviewGroup>
-            {attachments.map((a) => (
-              <div key={a.id} className="relative" style={{ width: ATTACHMENT_THUMB_SIZE, height: ATTACHMENT_THUMB_SIZE }}>
-                <Image
-                  src={a.src}
-                  width={ATTACHMENT_THUMB_SIZE}
-                  height={ATTACHMENT_THUMB_SIZE}
-                  style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
-                />
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); removeAttachment(a.id); }}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 text-white text-[12px] leading-none flex items-center justify-center hover:bg-red-600 shadow"
-                  style={{ cursor: 'pointer', zIndex: 2 }}
-                  title="Xoá ảnh này"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </Image.PreviewGroup>
-        </div>
-      )}
+/** Dải ảnh đính kèm phía trên ô soạn thảo — tách riêng để dùng chung được với chế độ nhiều ô/1 thanh công cụ. */
+export function RichTextAttachmentsStrip({ core }: { core: RichTextCore }) {
+  if (core.attachments.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2 px-2 pt-2.5 pb-1.5 border-b border-slate-200 bg-white">
+      <Image.PreviewGroup>
+        {core.attachments.map((a) => (
+          <div key={a.id} className="relative" style={{ width: ATTACHMENT_THUMB_SIZE, height: ATTACHMENT_THUMB_SIZE }}>
+            <Image
+              src={a.src}
+              width={ATTACHMENT_THUMB_SIZE}
+              height={ATTACHMENT_THUMB_SIZE}
+              style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); core.removeAttachment(a.id); }}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 text-white text-[12px] leading-none flex items-center justify-center hover:bg-red-600 shadow"
+              style={{ cursor: 'pointer', zIndex: 2 }}
+              title="Xoá ảnh này"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </Image.PreviewGroup>
+    </div>
+  );
+}
 
+/** Vùng contentEditable thật — tách riêng để dùng chung được, `onFocusExtra` cho phép chế độ nhiều
+ * ô/1 thanh công cụ (RichTextEditorGroup) biết ô nào vừa được focus để "trỏ" thanh công cụ vào đó. */
+export function RichTextEditableArea({
+  core,
+  placeholder,
+  minHeight = 100,
+  roundedTop = false,
+  onFocusExtra,
+}: {
+  core: RichTextCore;
+  placeholder?: string;
+  minHeight?: number;
+  roundedTop?: boolean;
+  onFocusExtra?: () => void;
+}) {
+  return (
+    <>
       <div
-        ref={editorRef}
+        ref={core.editorRef}
         contentEditable
         suppressContentEditableWarning
         data-placeholder={placeholder}
-        className="rich-text-editable px-3 py-2 text-[15px] outline-none rounded-b-lg"
+        className={`rich-text-editable px-3 py-2 text-[15px] outline-none rounded-b-lg ${roundedTop ? 'rounded-t-lg' : ''}`}
         style={{ minHeight }}
-        onFocus={() => { isFocusedRef.current = true; updateTableContext(); }}
+        onFocus={() => {
+          core.isFocusedRef.current = true;
+          core.updateTableContext();
+          onFocusExtra?.();
+        }}
         onBlur={() => {
-          isFocusedRef.current = false;
-          if (suppressNextBlurEmitRef.current) {
-            suppressNextBlurEmitRef.current = false;
+          core.isFocusedRef.current = false;
+          if (core.suppressNextBlurEmitRef.current) {
+            core.suppressNextBlurEmitRef.current = false;
             return;
           }
-          emitChange();
+          core.emitChange();
         }}
-        onInput={() => emitChange()}
-        onMouseUp={updateTableContext}
-        onKeyUp={updateTableContext}
-        onKeyDown={handleTableTabKey}
-        onClick={handleEditorClick}
-        onPaste={(e) => {
-          e.preventDefault();
-          // Nếu clipboard có ảnh (chụp màn hình, copy ảnh từ nơi khác...) thì đưa vào dải đính
-          // kèm giống nút "Chèn ảnh"; phần text luôn dán dạng thuần để tránh mang theo style lạ.
-          const imageFiles = Array.from(e.clipboardData.items)
-            .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
-            .map((item) => item.getAsFile())
-            .filter((file): file is File => !!file);
-
-          if (imageFiles.length > 0) {
-            void addImageFiles(imageFiles);
-            return;
-          }
-
-          const text = e.clipboardData.getData('text/plain');
-          // Văn bản dán vào có thể chứa công thức LaTeX (copy từ ChatGPT, tài liệu LaTeX...) — nhận
-          // diện $$...$$ / \[...\] / \(...\) và tự động chuyển thành công thức hiển thị luôn.
-          const { html, hasFormula } = buildPastedHtml(text);
-          if (hasFormula) {
-            document.execCommand('insertHTML', false, html);
-          } else {
-            document.execCommand('insertText', false, text);
-          }
-          emitChange();
-        }}
+        onInput={() => core.emitChange()}
+        onMouseUp={core.updateTableContext}
+        onKeyUp={core.updateTableContext}
+        onKeyDown={core.handleTableTabKey}
+        onClick={core.handleEditorClick}
+        onPaste={core.handlePaste}
       />
       <style>{`
         .rich-text-editable:empty:before {
@@ -701,6 +787,18 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           outline: 1px dashed #93c5fd;
         }
       `}</style>
+    </>
+  );
+}
+
+export default function RichTextEditor({ value, onChange, placeholder, minHeight = 100, className }: RichTextEditorProps) {
+  const core = useRichTextCore({ value, onChange });
+
+  return (
+    <div className={`border border-slate-300 rounded-lg ${className || ''}`}>
+      <RichTextToolbarUI core={core} />
+      <RichTextAttachmentsStrip core={core} />
+      <RichTextEditableArea core={core} placeholder={placeholder} minHeight={minHeight} />
     </div>
   );
 }

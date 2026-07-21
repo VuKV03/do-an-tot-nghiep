@@ -190,7 +190,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
                     : 'bg-white border-slate-200 text-slate-700'
                 }`}
               >
-                {opt}
+                <RichTextView html={opt} />
               </div>
             ))}
           </div>

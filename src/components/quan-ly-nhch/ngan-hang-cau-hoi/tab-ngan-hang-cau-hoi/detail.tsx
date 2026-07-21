@@ -120,7 +120,7 @@ export default function QuestionDetailModal({
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50/50'
                 }`}
               >
-                {opt}
+                <RichTextView html={opt} />
               </div>
             );
           })}
