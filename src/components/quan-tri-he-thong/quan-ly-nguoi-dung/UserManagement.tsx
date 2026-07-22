@@ -232,7 +232,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           const finalUsername = generatedUsername || `user_${Date.now()}`;
           const res = await axios.post(`${API_URL}/auth/register`, {
             username: finalUsername,
-            email: values.email,
+            email: values.email?.trim() || null,
             fullName: values.fullName,
             password: tempPass,
             role: values.role || 'user',
@@ -280,7 +280,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           // Edit existing user
           const res = await axios.put(`${API_URL}/auth/users/${editingUserId}`, {
             fullName: values.fullName,
-            email: values.email,
+            email: values.email?.trim() || null,
             role: values.role || 'user',
             status: values.status,
             dateOfBirth: values.dateOfBirth,
@@ -843,9 +843,19 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
             <Form.Item
               name="email"
-              label={<span className="text-sm text-slate-500 font-medium">Email</span>}
+              label={<span className="text-sm text-slate-500 font-medium">Email <span className="text-red-500">*</span></span>}
               rules={[
-                { type: 'email', message: 'Email không hợp lệ!' }
+                { required: true, message: 'Vui lòng nhập email!' },
+                {
+                  validator: async (_, value) => {
+                    if (!value || value.trim() === '') return Promise.resolve();
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(value)) {
+                      return Promise.reject(new Error('Email không hợp lệ!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
               className="mt-2"
             >

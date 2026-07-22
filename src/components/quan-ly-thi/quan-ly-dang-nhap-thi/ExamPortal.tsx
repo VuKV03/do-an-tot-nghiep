@@ -55,9 +55,80 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
         const payload = data.data || data;
         setSessionInfo(payload);
         const duration = payload.exam?.duration || 45;
-        setTimeLeft(duration * 60);
+
+        if (payload.result_info?.started_at) {
+          const startedAt = new Date(payload.result_info.started_at).getTime();
+          const durationMs = duration * 60 * 1000;
+          const endAt = startedAt + durationMs;
+          const now = new Date().getTime();
+          setTimeLeft(Math.max(0, Math.floor((endAt - now) / 1000)));
+          if (mode !== 'preview') {
+            setViewMode('taking');
+          }
+        } else {
+          setTimeLeft(duration * 60);
+        }
+
+        if (payload.result_info?.answers_json) {
+          try {
+            const savedAnswers = JSON.parse(payload.result_info.answers_json);
+            if (savedAnswers && typeof savedAnswers === 'object') {
+              setAnswers(savedAnswers);
+            }
+          } catch (e) {
+            console.error("Lỗi khi tải câu trả lời đã lưu:", e);
+          }
+        }
       } else {
         message.error(data.detail || 'Không thể tải thông tin kỳ thi.');
+      }
+    } catch (err) {
+      console.error(err);
+      message.error('Lỗi kết nối đến máy chủ.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmStart = async () => {
+    if (mode === 'preview') {
+      setViewMode('taking');
+      onExamStart?.();
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/exam/portal/me/confirm-start?result_id=${sessionInfo?.result_info?.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Update sessionInfo with started_at
+        if (data.started_at) {
+          const startedAt = new Date(data.started_at).getTime();
+          const duration = sessionInfo.exam?.duration || 45;
+          const durationMs = duration * 60 * 1000;
+          const endAt = startedAt + durationMs;
+          const now = new Date().getTime();
+          setTimeLeft(Math.max(0, Math.floor((endAt - now) / 1000)));
+
+          setSessionInfo((prev: any) => ({
+            ...prev,
+            result_info: {
+              ...prev.result_info,
+              started_at: data.started_at
+            }
+          }));
+        }
+        setViewMode('taking');
+        onExamStart?.();
+      } else {
+        message.error(data.detail || 'Không thể bắt đầu làm bài.');
       }
     } catch (err) {
       console.error(err);
@@ -77,10 +148,18 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   useEffect(() => {
     if (viewMode !== 'waiting' && timeLeft > 0 && mode !== 'preview') {
       const timer = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
+        if (sessionInfo?.result_info?.started_at) {
+          const startedAt = new Date(sessionInfo.result_info.started_at).getTime();
+          const duration = sessionInfo.exam?.duration || 45;
+          const endAt = startedAt + duration * 60 * 1000;
+          const now = new Date().getTime();
+          setTimeLeft(Math.max(0, Math.floor((endAt - now) / 1000)));
+        } else {
+          setTimeLeft(prev => prev - 1);
+        }
       }, 1000);
       return () => clearInterval(timer);
-    } else if (viewMode !== 'waiting' && timeLeft === 0 && sessionInfo && !submitting && !resultModalVisible && mode !== 'preview') {
+    } else if (viewMode !== 'waiting' && timeLeft <= 0 && sessionInfo && !submitting && !resultModalVisible && mode !== 'preview') {
       doSubmit(true);
     }
   }, [timeLeft, sessionInfo, viewMode, submitting, resultModalVisible, mode]);
@@ -244,18 +323,17 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
 
   // Helper: get display name for type_code
   const getTypeDisplayName = (typeCode: string) => {
-    const tc = (typeCode || '').toLowerCase();
-    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'Đúng sai';
-    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'Trả lời ngắn';
-    return 'Trắc nghiệm';
+    if (typeCode === 'p2') return '2: Chọn Đúng Sai';
+    if (typeCode === 'p3') return '3: Trả lời ngắn';
+    return '1: Trắc nghiệm';
   };
 
   // Normalize type_code to a group key
   const getTypeGroupKey = (typeCode: string) => {
     const tc = (typeCode || '').toLowerCase();
-    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'true_false';
-    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'short';
-    return 'single';
+    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'p2';
+    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'p3';
+    return 'p1';
   };
 
   // Group questions by type_code for bottom nav (like student interface)
@@ -307,7 +385,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
 
         <div className="flex justify-center gap-4 w-full">
           <Button size="large" className="px-8 h-11 text-slate-600 font-medium border-slate-300 rounded hover:text-slate-800 hover:border-slate-400" onClick={onLogout}>Thoát</Button>
-          <Button type="primary" size="large" className="px-8 h-11 font-medium bg-[#1677ff] rounded shadow-sm hover:bg-blue-600" onClick={() => { setViewMode('taking'); onExamStart?.(); }}>
+          <Button type="primary" size="large" className="px-8 h-11 font-medium bg-[#1677ff] rounded shadow-sm hover:bg-blue-600" onClick={handleConfirmStart} loading={loading}>
             Bắt đầu làm bài
           </Button>
         </div>
@@ -333,7 +411,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
-              {Object.keys(parts).map((partKey) => (
+              {['p1', 'p2', 'p3'].filter(k => parts[k]).map((partKey) => (
                 <div key={partKey} className="space-y-6">
                   <div className="font-bold text-blue-900 uppercase">PHẦN {getTypeDisplayName(partKey).toUpperCase()}:</div>
 
@@ -445,7 +523,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               </div>
 
               <div className="space-y-6">
-                {Object.keys(parts).map((partKey) => (
+                {['p1', 'p2', 'p3'].filter(k => parts[k]).map((partKey) => (
                   <div key={partKey}>
                     <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => getQuestionGlobalIndex(q.id) + 1).join(', ')}</div>
                     <div className="flex flex-wrap gap-2">
@@ -579,9 +657,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
 
               let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
-              if (currentTypeKey === 'true_false') {
+              if (currentTypeKey === 'p2') {
                 partDesc = "Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.";
-              } else if (currentTypeKey === 'short') {
+              } else if (currentTypeKey === 'p3') {
                 partDesc = "Thí sinh trả lời bằng cách nhập đáp án vào ô trống.";
               }
 
@@ -714,7 +792,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
       <Footer className="bg-white border-t border-slate-300 p-0 z-40 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
         <div className="w-full max-w-[1200px] mx-auto px-6 py-4 flex flex-col items-center">
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mb-4 w-full">
-            {Object.keys(parts).map((partKey, pIdx) => (
+            {Object.keys(parts).sort().map((partKey, pIdx) => (
               <div key={partKey} className="flex items-center gap-3">
                 <div className="font-bold text-[#1a365d] text-[15px]">Phần {getTypeDisplayName(partKey)}:</div>
                 <div className="flex flex-wrap gap-2">
