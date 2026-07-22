@@ -608,7 +608,7 @@ export default function QuestionBankModule({
           default:
             return (
               <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
-                Tạo mới
+                Lưu nháp
               </span>
             );
         }
@@ -710,11 +710,10 @@ export default function QuestionBankModule({
       <div className="flex gap-1 border-b border-gray-300 relative mb-2">
         <button
           onClick={() => setActiveTab('bank')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${
-            activeTab === 'bank'
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'bank'
               ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-          }`}
+            }`}
           style={{
             borderBottomColor: activeTab === 'bank' ? '#eff6ff' : undefined,
             cursor: 'pointer'
@@ -724,11 +723,10 @@ export default function QuestionBankModule({
         </button>
         <button
           onClick={() => setActiveTab('review')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${
-            activeTab === 'review'
+          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
               ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-          }`}
+            }`}
           style={{
             borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined,
             cursor: 'pointer'
@@ -741,438 +739,437 @@ export default function QuestionBankModule({
       {activeTab === 'bank' ? (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch lg:max-h-[calc(100vh-170px)] animate-in fade-in duration-300" id="question-bank-container">
 
-      {/* 20% Left Column Sidebar Filters Card — vị trí cố định, không di chuyển theo scroll */}
-      <div
-        id="question-bank-left-sidebar"
-        className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
-      >
-        <div className="space-y-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wide">
-            <FilterOutlined className="text-blue-900" />
-            <span>Phân loại kiểm tra</span>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Môn học</label>
-            <Select
-              id="select-subject-filter"
-              value={selectedSubject}
-              onChange={(val) => {
-                setSelectedSubject(val);
-                setSelectedTopicKey(null); // reset topic key
-              }}
-              options={subjectDropdownOptions}
-              className="w-full text-xs font-bold"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Khối lớp học</label>
-            <Select
-              id="select-grade-filter"
-              value={selectedGrade}
-              onChange={setSelectedGrade}
-              options={gradeDropdownOptions}
-              className="w-full text-xs font-bold"
-            />
-          </div>
-        </div>
-
-        {/* Tree Menu Subjects/Topics */}
-        <div className="flex-1 mt-4 overflow-y-auto pr-1">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cây chủ đề môn học</label>
-          <Spin spinning={topicsLoading} size="small">
-            {topicTreeData.length > 0 ? (
-              <Tree
-                showLine={{ showLeafIcon: false }}
-                blockNode
-                defaultExpandAll
-                onSelect={handleSelectTopicNode}
-                treeData={topicTreeData}
-                selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
-                className="text-xs font-medium text-slate-700 bg-transparent"
-              />
-            ) : (
-              <div className="text-center py-8 text-slate-400 text-xs font-medium">
-                {topicsLoading ? 'Đang tải chủ đề...' : 'Chưa có chủ đề đã thẩm định cho môn học này'}
+          {/* 20% Left Column Sidebar Filters Card — vị trí cố định, không di chuyển theo scroll */}
+          <div
+            id="question-bank-left-sidebar"
+            className="lg:col-span-1 rounded-2xl border border-slate-200 bg-white shadow-xs p-4 lg:max-h-[calc(100vh-170px)] overflow-y-auto flex flex-col"
+          >
+            <div className="space-y-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wide">
+                <FilterOutlined className="text-blue-900" />
+                <span>Phân loại kiểm tra</span>
               </div>
-            )}
-          </Spin>
-        </div>
 
-        <div className="pt-3 border-t border-slate-100 flex gap-2">
-          <Button
-            className="w-full text-[11px] font-extrabold bg-slate-50 border-slate-200 text-slate-600 rounded-lg py-1 hover:bg-slate-100 cursor-pointer"
-            onClick={handleResetFilters}
-          >
-            Làm sạch bộ lọc
-          </Button>
-        </div>
-      </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Môn học</label>
+                <Select
+                  id="select-subject-filter"
+                  value={selectedSubject}
+                  onChange={(val) => {
+                    setSelectedSubject(val);
+                    setSelectedTopicKey(null); // reset topic key
+                  }}
+                  options={subjectDropdownOptions}
+                  className="w-full text-xs font-bold"
+                />
+              </div>
 
-      {/* 80% Right Column Content Area */}
-      <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="question-bank-right-content">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Khối lớp học</label>
+                <Select
+                  id="select-grade-filter"
+                  value={selectedGrade}
+                  onChange={setSelectedGrade}
+                  options={gradeDropdownOptions}
+                  className="w-full text-xs font-bold"
+                />
+              </div>
+            </div>
 
-        {/* Tìm kiếm thông tin Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
-          <div 
-            onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-            className={`flex items-center justify-between text-slate-800 font-extrabold text-xs uppercase tracking-wide cursor-pointer hover:text-blue-600 transition-colors select-none ${
-              isFilterExpanded ? 'pb-3 mb-4 border-b border-slate-100' : 'pb-0 mb-0'
-            }`}
-          >
-            <div className="flex items-center gap-1">
-              <span>Tìm kiếm thông tin</span>
-              <span className="text-[12px] font-bold text-slate-500 ml-1">
-                {isFilterExpanded ? '^' : 'v'}
-              </span>
+            {/* Tree Menu Subjects/Topics */}
+            <div className="flex-1 mt-4 overflow-y-auto pr-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cây chủ đề môn học</label>
+              <Spin spinning={topicsLoading} size="small">
+                {topicTreeData.length > 0 ? (
+                  <Tree
+                    showLine={{ showLeafIcon: false }}
+                    blockNode
+                    defaultExpandAll
+                    onSelect={handleSelectTopicNode}
+                    treeData={topicTreeData}
+                    selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
+                    className="text-xs font-medium text-slate-700 bg-transparent"
+                  />
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-xs font-medium">
+                    {topicsLoading ? 'Đang tải chủ đề...' : 'Chưa có chủ đề đã thẩm định cho môn học này'}
+                  </div>
+                )}
+              </Spin>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex gap-2">
+              <Button
+                className="w-full text-[11px] font-extrabold bg-slate-50 border-slate-200 text-slate-600 rounded-lg py-1 hover:bg-slate-100 cursor-pointer"
+                onClick={handleResetFilters}
+              >
+                Làm sạch bộ lọc
+              </Button>
             </div>
           </div>
 
-          {isFilterExpanded && (
-            <div className="animate-in fade-in duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">ID, Nội dung câu hỏi</label>
-                  <Input
-                    placeholder="Nhập"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    className="rounded border-slate-350 text-xs"
-                    onPressEnter={handleSearchAction}
-                  />
-                </div>
+          {/* 80% Right Column Content Area */}
+          <div className="lg:col-span-4 flex flex-col space-y-4 lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1" id="question-bank-right-content">
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Khối lớp</label>
-                  <Select
-                    mode="multiple"
-                    maxTagCount="responsive"
-                    value={selectedGrade ? [selectedGrade] : []}
-                    onChange={(val) => setSelectedGrade(val[val.length - 1] || '')}
-                    className="w-full text-xs font-medium"
-                    options={gradeDropdownOptions}
-                    placeholder="Tất cả"
-                    style={{ borderRadius: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Loại câu hỏi</label>
-                  <Select
-                    value={filterType}
-                    onChange={setFilterType}
-                    className="w-full text-xs font-medium"
-                    options={[
-                      { value: 'all', label: 'Tất cả' },
-                      { value: 'single', label: 'Trắc nghiệm đơn' },
-                      { value: 'multiple', label: 'Trắc nghiệm nhiều lựa chọn' },
-                      { value: 'true_false', label: 'Trắc nghiệm Đúng / Sai' },
-                      { value: 'short', label: 'Tự luận viết ngắn' }
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Cấp độ tư duy</label>
-                  <Select
-                    value={filterLevel}
-                    onChange={setFilterLevel}
-                    className="w-full text-xs font-medium"
-                    options={[
-                      { value: 'all', label: 'Tất cả' },
-                      { value: 'nhan_biet', label: 'Nhận biết' },
-                      { value: 'thong_hieu', label: 'Thông hiểu' },
-                      { value: 'van_dung', label: 'Vận dụng' },
-                      { value: 'van_dung_cao', label: 'Vận dụng cao' }
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Trạng thái</label>
-                  <Select
-                    value={filterStatus}
-                    onChange={setFilterStatus}
-                    className="w-full text-xs font-medium"
-                    options={[
-                      { value: 'all', label: 'Tất cả' },
-                      { value: 'approved', label: 'Đã thẩm định' },
-                      { value: 'pending', label: 'Chờ thẩm định' },
-                      { value: 'draft', label: 'Lưu nháp' }
-                    ]}
-                  />
-                </div>
-
-                <div className="hidden md:block"></div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Người tạo</label>
-                  <Select
-                    value={filterCreator}
-                    onChange={setFilterCreator}
-                    className="w-full text-xs font-medium"
-                    options={[
-                      { value: 'all', label: 'Tất cả' },
-                      { value: 'Hội đồng Chuyên môn (Tự tạo)', label: 'Hội đồng Chuyên môn' },
-                      { value: 'SmartTest AI Generator', label: 'SmartTest AI' },
-                      { value: 'Nhập tệp Word/Excel', label: 'Nhập tệp Word/Excel' }
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Ngày tạo:</label>
-                  <DatePicker.RangePicker
-                    placeholder={['Bắt đầu', 'Kết thúc']}
-                    value={filterDateRange}
-                    onChange={(dates) => setFilterDateRange(dates)}
-                    className="w-full rounded border-slate-350 text-xs"
-                  />
+            {/* Tìm kiếm thông tin Card */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
+              <div
+                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                className={`flex items-center justify-between text-slate-800 font-extrabold text-xs uppercase tracking-wide cursor-pointer hover:text-blue-600 transition-colors select-none ${isFilterExpanded ? 'pb-3 mb-4 border-b border-slate-100' : 'pb-0 mb-0'
+                  }`}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Tìm kiếm thông tin</span>
+                  <span className="text-[12px] font-bold text-slate-500 ml-1">
+                    {isFilterExpanded ? '^' : 'v'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex justify-center mt-5">
-                <Button
-                  type="primary"
-                  onClick={handleSearchAction}
-                  className="bg-[#1a4f9c] border-transparent text-white font-extrabold text-xs px-8 py-1.5 h-9 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-center"
-                  style={{ cursor: 'pointer' }}
-                >
-                  Tìm kiếm
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+              {isFilterExpanded && (
+                <div className="animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">ID, Nội dung câu hỏi</label>
+                      <Input
+                        placeholder="Nhập"
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="rounded border-slate-350 text-xs"
+                        onPressEnter={handleSearchAction}
+                      />
+                    </div>
 
-        {/* Kết quả tìm kiếm Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-[#002147] font-black text-sm uppercase tracking-tight">
-                Kết quả tìm kiếm
-              </h2>
-              {selectedRowKeys.length > 0 && (
-                <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
-                  Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> câu hỏi
-                </span>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Khối lớp</label>
+                      <Select
+                        mode="multiple"
+                        maxTagCount="responsive"
+                        value={selectedGrade ? [selectedGrade] : []}
+                        onChange={(val) => setSelectedGrade(val[val.length - 1] || '')}
+                        className="w-full text-xs font-medium"
+                        options={gradeDropdownOptions}
+                        placeholder="Tất cả"
+                        style={{ borderRadius: '4px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Loại câu hỏi</label>
+                      <Select
+                        value={filterType}
+                        onChange={setFilterType}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: 'all', label: 'Tất cả' },
+                          { value: 'single', label: 'Trắc nghiệm đơn' },
+                          { value: 'multiple', label: 'Trắc nghiệm nhiều lựa chọn' },
+                          { value: 'true_false', label: 'Trắc nghiệm Đúng / Sai' },
+                          { value: 'short', label: 'Tự luận viết ngắn' }
+                        ]}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Cấp độ tư duy</label>
+                      <Select
+                        value={filterLevel}
+                        onChange={setFilterLevel}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: 'all', label: 'Tất cả' },
+                          { value: 'nhan_biet', label: 'Nhận biết' },
+                          { value: 'thong_hieu', label: 'Thông hiểu' },
+                          { value: 'van_dung', label: 'Vận dụng' },
+                          { value: 'van_dung_cao', label: 'Vận dụng cao' }
+                        ]}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Trạng thái</label>
+                      <Select
+                        value={filterStatus}
+                        onChange={setFilterStatus}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: 'all', label: 'Tất cả' },
+                          { value: 'approved', label: 'Đã thẩm định' },
+                          { value: 'pending', label: 'Chờ thẩm định' },
+                          { value: 'draft', label: 'Lưu nháp' }
+                        ]}
+                      />
+                    </div>
+
+                    <div className="hidden md:block"></div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Người tạo</label>
+                      <Select
+                        value={filterCreator}
+                        onChange={setFilterCreator}
+                        className="w-full text-xs font-medium"
+                        options={[
+                          { value: 'all', label: 'Tất cả' },
+                          { value: 'Hội đồng Chuyên môn (Tự tạo)', label: 'Hội đồng Chuyên môn' },
+                          { value: 'SmartTest AI Generator', label: 'SmartTest AI' },
+                          { value: 'Nhập tệp Word/Excel', label: 'Nhập tệp Word/Excel' }
+                        ]}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Ngày tạo:</label>
+                      <DatePicker.RangePicker
+                        placeholder={['Bắt đầu', 'Kết thúc']}
+                        value={filterDateRange}
+                        onChange={(dates) => setFilterDateRange(dates)}
+                        className="w-full rounded border-slate-350 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center mt-5">
+                    <Button
+                      type="primary"
+                      onClick={handleSearchAction}
+                      className="bg-[#1a4f9c] border-transparent text-white font-extrabold text-xs px-8 py-1.5 h-9 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-center"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      Tìm kiếm
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Action button group */}
-            <div className="flex flex-wrap items-center gap-2 md:justify-end">
-              <Button
-                type="default"
-                icon={<PlusOutlined />}
-                className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
-                onClick={() => {
-                  if (!selectedTopicKey) {
-                    notification.warning({
-                      message: 'Thông báo',
-                      description: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
-                      placement: 'topRight'
-                    });
-                    return;
-                  }
-                  setActiveModalType('single');
+            {/* Kết quả tìm kiếm Card */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-[#002147] font-black text-sm uppercase tracking-tight">
+                    Kết quả tìm kiếm
+                  </h2>
+                  {selectedRowKeys.length > 0 && (
+                    <span className="px-2.5 py-0.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700">
+                      Đã chọn <span className="font-bold">{selectedRowKeys.length}</span> câu hỏi
+                    </span>
+                  )}
+                </div>
+
+                {/* Action button group */}
+                <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                  <Button
+                    type="default"
+                    icon={<PlusOutlined />}
+                    className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
+                    onClick={() => {
+                      if (!selectedTopicKey) {
+                        notification.warning({
+                          message: 'Thông báo',
+                          description: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
+                          placement: 'topRight'
+                        });
+                        return;
+                      }
+                      setActiveModalType('single');
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    Thêm mới
+                  </Button>
+                  <Button
+                    type="default"
+                    icon={<ThunderboltOutlined />}
+                    className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
+                    onClick={() => setIsAIOpen(true)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    Thêm bằng AI
+                  </Button>
+                  <Button
+                    type="default"
+                    icon={<SendOutlined />}
+                    className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
+                    onClick={() => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
+                        return;
+                      }
+                      setPendingSendReviewQuestion(null);
+                      setIsSendReviewOpen(true);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    Gửi thẩm định
+                  </Button>
+                  <Button
+                    type="default"
+                    danger
+                    icon={<DeleteOutlined />}
+                    className="border border-red-600 text-red-650 bg-white rounded hover:border-red-700 hover:text-red-700 hover:bg-red-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
+                    onClick={() => {
+                      if (selectedRowKeys.length === 0) {
+                        message.warning('Vui lòng chọn các câu hỏi cần xóa!');
+                        return;
+                      }
+                      setPendingDeleteQuestion(null);
+                      setIsDeleteOpen(true);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    Xóa
+                  </Button>
+                </div>
+              </div>
+
+
+
+              <Table
+                id="question-bank-main-table"
+                dataSource={filteredQuestions}
+                columns={tableColumns}
+                rowKey="id"
+                loading={questionsLoading}
+                rowSelection={{
+                  selectedRowKeys,
+                  onChange: (keys) => setSelectedRowKeys(keys),
                 }}
-                style={{ cursor: 'pointer' }}
-              >
-                Thêm mới
-              </Button>
-              <Button
-                type="default"
-                icon={<ThunderboltOutlined />}
-                className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
-                onClick={() => setIsAIOpen(true)}
-                style={{ cursor: 'pointer' }}
-              >
-                Thêm bằng AI
-              </Button>
-              <Button
-                type="default"
-                icon={<SendOutlined />}
-                className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
-                onClick={() => {
-                  if (selectedRowKeys.length === 0) {
-                    message.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
-                    return;
-                  }
-                  setPendingSendReviewQuestion(null);
-                  setIsSendReviewOpen(true);
+                pagination={{
+                  total: filteredQuestions.length,
+                  showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
+                  showSizeChanger: true,
+                  defaultPageSize: 10,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  locale: { items_per_page: '/ trang' },
+                  className: 'mt-6',
                 }}
-                style={{ cursor: 'pointer' }}
-              >
-                Gửi thẩm định
-              </Button>
-              <Button
-                type="default"
-                danger
-                icon={<DeleteOutlined />}
-                className="border border-red-600 text-red-650 bg-white rounded hover:border-red-700 hover:text-red-700 hover:bg-red-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
-                onClick={() => {
-                  if (selectedRowKeys.length === 0) {
-                    message.warning('Vui lòng chọn các câu hỏi cần xóa!');
-                    return;
-                  }
-                  setPendingDeleteQuestion(null);
-                  setIsDeleteOpen(true);
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                Xóa
-              </Button>
+                scroll={{ x: 'max-content' }}
+                className="border-none text-xs rounded-2xl"
+              />
             </div>
           </div>
 
-
-
-          <Table
-            id="question-bank-main-table"
-            dataSource={filteredQuestions}
-            columns={tableColumns}
-            rowKey="id"
-            loading={questionsLoading}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys) => setSelectedRowKeys(keys),
+          {/* MODAL: ADD NEW QUESTION - ALL TYPES */}
+          <CreateQuestionModal
+            open={activeModalType !== null}
+            initialType={activeModalType || 'single'}
+            onClose={() => setActiveModalType(null)}
+            onSave={(q: Question) => {
+              onAddQuestion?.(q);
+              fetchQuestions(); // refresh from API
+              setActiveModalType(null);
             }}
-            pagination={{
-              total: filteredQuestions.length,
-              showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-              showSizeChanger: true,
-              defaultPageSize: 10,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              locale: { items_per_page: '/ trang' },
-              className: 'mt-6',
+            onSendReview={(q: Question) => {
+              onAddQuestion?.(q);
+              fetchQuestions(); // refresh from API
+              setActiveModalType(null);
             }}
-            scroll={{ x: 'max-content' }}
-            className="border-none text-xs rounded-2xl"
+            subject={actualSubject}
+            grade={actualGrade}
+            selectedTopicKey={selectedTopicKey}
+            topicTreeData={topicTreeData}
           />
-        </div>
-      </div>
 
-      {/* MODAL: ADD NEW QUESTION - ALL TYPES */}
-      <CreateQuestionModal
-        open={activeModalType !== null}
-        initialType={activeModalType || 'single'}
-        onClose={() => setActiveModalType(null)}
-        onSave={(q: Question) => {
-          onAddQuestion?.(q);
-          fetchQuestions(); // refresh from API
-          setActiveModalType(null);
-        }}
-        onSendReview={(q: Question) => {
-          onAddQuestion?.(q);
-          fetchQuestions(); // refresh from API
-          setActiveModalType(null);
-        }}
-        subject={actualSubject}
-        grade={actualGrade}
-        selectedTopicKey={selectedTopicKey}
-        topicTreeData={topicTreeData}
-      />
+          {/* MODAL 2: INTERACTIVE AI SMART GENERATOR */}
+          <AIGenerateQuestionModal
+            open={isAIOpen}
+            onClose={() => setIsAIOpen(false)}
+            onSave={(q) => {
+              onAddQuestion?.(q);
+              fetchQuestions();
+              setIsAIOpen(false);
+            }}
+            defaultSubject={actualSubject}
+            defaultGrade={actualGrade}
+            subjectOptions={apiSubjects}
+            gradeOptions={apiGrades}
+            allTopicsRaw={allTopicsRaw}
+          />
 
-      {/* MODAL 2: INTERACTIVE AI SMART GENERATOR */}
-      <AIGenerateQuestionModal
-        open={isAIOpen}
-        onClose={() => setIsAIOpen(false)}
-        onSave={(q) => {
-          onAddQuestion?.(q);
-          fetchQuestions();
-          setIsAIOpen(false);
-        }}
-        defaultSubject={actualSubject}
-        defaultGrade={actualGrade}
-        subjectOptions={apiSubjects}
-        gradeOptions={apiGrades}
-        allTopicsRaw={allTopicsRaw}
-      />
-
-      {/* MODAL 3: IMPORT DATA FROM FILE */}
-      <Modal
-        title={
-          <div className="flex items-center gap-1.5 pb-2 border-b border-emerald-100">
-            <UploadOutlined className="text-emerald-700" />
-            <span className="font-extrabold uppercase text-slate-800 text-[14px]">Import câu hỏi từ File bên ngoài</span>
-          </div>
-        }
-        open={isImportOpen}
-        onCancel={() => setIsImportOpen(false)}
-        footer={null}
-        width={500}
-        centered
-      >
-        <div className="space-y-4 pt-3">
-          <div className="bg-emerald-50/50 border border-emerald-250 p-4 rounded-xl text-xs text-emerald-950 font-medium leading-relaxed">
-            💡 Tải xuống <strong>file mẫu excel</strong> hoặc <strong>word</strong> để định dạng đúng quy chuẩn phân loại của hệ thống trước khi tải lên.
-            <div className="mt-2 text-[11px] text-blue-900 underline font-bold cursor-pointer hover:text-slate-900">
-              ⬇️ Tải file mẫu word (.docx) cấu trúc câu hỏi (.zip)
-            </div>
-          </div>
-
-          <div
-            className="border-2 border-dashed border-slate-300 rounded-2xl py-10 px-5 text-center bg-slate-50 hover:bg-white hover:border-emerald-600 transition-all cursor-pointer flex flex-col items-center justify-center space-y-2"
-            onClick={handleImportMockFiles}
+          {/* MODAL 3: IMPORT DATA FROM FILE */}
+          <Modal
+            title={
+              <div className="flex items-center gap-1.5 pb-2 border-b border-emerald-100">
+                <UploadOutlined className="text-emerald-700" />
+                <span className="font-extrabold uppercase text-slate-800 text-[14px]">Import câu hỏi từ File bên ngoài</span>
+              </div>
+            }
+            open={isImportOpen}
+            onCancel={() => setIsImportOpen(false)}
+            footer={null}
+            width={500}
+            centered
           >
-            <UploadOutlined className="text-4xl text-slate-400" />
-            <strong className="text-xs text-slate-800 block">Kích vào đây để tải file tài liệu chứa câu hỏi (.docx, .xlsx)</strong>
-            <span className="text-[10px] text-slate-400 max-w-sm block">Hệ thống tự nhận biệt câu hỏi qua các từ khóa: Câu 1, Câu 2, A., B., C., D. và dấu sao chỉ đáp án đúng.</span>
-          </div>
-        </div>
-      </Modal>
+            <div className="space-y-4 pt-3">
+              <div className="bg-emerald-50/50 border border-emerald-250 p-4 rounded-xl text-xs text-emerald-950 font-medium leading-relaxed">
+                💡 Tải xuống <strong>file mẫu excel</strong> hoặc <strong>word</strong> để định dạng đúng quy chuẩn phân loại của hệ thống trước khi tải lên.
+                <div className="mt-2 text-[11px] text-blue-900 underline font-bold cursor-pointer hover:text-slate-900">
+                  ⬇️ Tải file mẫu word (.docx) cấu trúc câu hỏi (.zip)
+                </div>
+              </div>
 
-      {/* History Modal */}
-      <QuestionHistoryModal
-        question={historyQuestion}
-        mode="ngan-hang"
-        onClose={() => setHistoryQuestion(null)}
-      />
+              <div
+                className="border-2 border-dashed border-slate-300 rounded-2xl py-10 px-5 text-center bg-slate-50 hover:bg-white hover:border-emerald-600 transition-all cursor-pointer flex flex-col items-center justify-center space-y-2"
+                onClick={handleImportMockFiles}
+              >
+                <UploadOutlined className="text-4xl text-slate-400" />
+                <strong className="text-xs text-slate-800 block">Kích vào đây để tải file tài liệu chứa câu hỏi (.docx, .xlsx)</strong>
+                <span className="text-[10px] text-slate-400 max-w-sm block">Hệ thống tự nhận biệt câu hỏi qua các từ khóa: Câu 1, Câu 2, A., B., C., D. và dấu sao chỉ đáp án đúng.</span>
+              </div>
+            </div>
+          </Modal>
 
-      {/* Detail Modal */}
-      <QuestionDetailModal
-        open={isDetailOpen}
-        question={detailQuestion}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setDetailQuestion(null);
-        }}
-      />
+          {/* History Modal */}
+          <QuestionHistoryModal
+            question={historyQuestion}
+            mode="ngan-hang"
+            onClose={() => setHistoryQuestion(null)}
+          />
 
-      {/* CUSTOM CONFIRMATION POPUPS */}
-      <DeleteConfirmModal
-        open={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setPendingDeleteQuestion(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        recordCode={pendingDeleteQuestion?.code}
-        selectedCount={selectedRowKeys.length}
-      />
+          {/* Detail Modal */}
+          <QuestionDetailModal
+            open={isDetailOpen}
+            question={detailQuestion}
+            onClose={() => {
+              setIsDetailOpen(false);
+              setDetailQuestion(null);
+            }}
+          />
 
-      <SendReviewConfirmModal
-        open={isSendReviewOpen}
-        onClose={() => {
-          setIsSendReviewOpen(false);
-          setPendingSendReviewQuestion(null);
-        }}
-        onConfirm={handleSendReviewConfirm}
-        recordName={pendingSendReviewQuestion?.code}
-        selectedCount={selectedRowKeys.length}
-      />
+          {/* CUSTOM CONFIRMATION POPUPS */}
+          <DeleteConfirmModal
+            open={isDeleteOpen}
+            onClose={() => {
+              setIsDeleteOpen(false);
+              setPendingDeleteQuestion(null);
+            }}
+            onConfirm={handleDeleteConfirm}
+            recordCode={pendingDeleteQuestion?.code}
+            selectedCount={selectedRowKeys.length}
+          />
 
-      <ReviewModal
-        visible={isReviewOpen}
-        onClose={() => {
-          setIsReviewOpen(false);
-          setSelectedReviewQuestion(null);
-        }}
-        question={selectedReviewQuestion}
-        onApprove={handleApproveQuestion}
-        onReject={handleRejectQuestion}
-      />
+          <SendReviewConfirmModal
+            open={isSendReviewOpen}
+            onClose={() => {
+              setIsSendReviewOpen(false);
+              setPendingSendReviewQuestion(null);
+            }}
+            onConfirm={handleSendReviewConfirm}
+            recordName={pendingSendReviewQuestion?.code}
+            selectedCount={selectedRowKeys.length}
+          />
+
+          <ReviewModal
+            visible={isReviewOpen}
+            onClose={() => {
+              setIsReviewOpen(false);
+              setSelectedReviewQuestion(null);
+            }}
+            question={selectedReviewQuestion}
+            onApprove={handleApproveQuestion}
+            onReject={handleRejectQuestion}
+          />
 
         </div>
       ) : (
