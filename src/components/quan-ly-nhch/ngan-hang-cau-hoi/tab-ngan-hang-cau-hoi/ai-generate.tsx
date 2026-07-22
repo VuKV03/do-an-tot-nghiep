@@ -656,7 +656,7 @@ export default function AIGenerateQuestionModal({
                   setIsEditingPreview(false);
                 }}
               >
-                Bỏ đi, sinh đề khác
+                Bỏ đi, sinh câu khác
               </Button>
               {isEditingPreview ? (
                 <Button

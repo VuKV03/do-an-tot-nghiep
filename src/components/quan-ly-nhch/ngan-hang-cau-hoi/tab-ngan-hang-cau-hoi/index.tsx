@@ -950,6 +950,7 @@ export default function QuestionBankModule({
                         placeholder={['Bắt đầu', 'Kết thúc']}
                         value={filterDateRange}
                         onChange={(dates) => setFilterDateRange(dates)}
+                        format="DD-MM-YYYY"
                         className="w-full rounded border-slate-350 text-xs"
                       />
                     </div>
