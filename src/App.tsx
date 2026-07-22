@@ -259,6 +259,7 @@ export default function App() {
             onDeleteQuestion={handleDeleteQuestion}
             onOpenReview={handleOpenReview}
             initialTab={targetSubTab as 'bank' | 'review'}
+            currentUser={currentUser}
           />
         );
       case 'quan-ly-ma-tran-de':

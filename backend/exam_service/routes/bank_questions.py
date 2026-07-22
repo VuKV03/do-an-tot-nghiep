@@ -102,6 +102,7 @@ class BankQuestionCreate(BaseModel):
     status: Optional[str] = "draft"
     competencyComponentId: Optional[str] = None
     statements: Optional[list] = None
+    creator: Optional[str] = None
 
 
 class BankQuestionUpdate(BaseModel):
@@ -191,7 +192,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "nangLuc": comp_name or "",
             "options": opts,
             "correctAnswer": correct_ans,
-            "creator": "Hội đồng Chuyên môn",
+            "creator": q.created_by or "Hội đồng Chuyên môn",
             "createdAt": _now(),
             "examId": q.exam_id,
             "feedback": q.approved_note or "",
@@ -348,11 +349,20 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
 
     q_id = f"q-nhch-{int(time.time() * 1000)}"
     status_int = {"approved": 2, "pending": 1, "draft": 0}.get(body.status or "draft", 0)
-    
+
     # Options and Correct Answer conversion
     options_str = json.dumps(body.options or [], ensure_ascii=False)
     correct_ans_str = json.dumps(body.correctAnswer, ensure_ascii=False) if isinstance(body.correctAnswer, list) else (body.correctAnswer or "")
     statements_str = json.dumps(body.statements, ensure_ascii=False) if body.statements else None
+
+    # Kiểm tra thành phần năng lực tồn tại trước khi gán FK — tránh crash 500 do vi phạm khóa ngoại
+    # nếu id gửi lên không hợp lệ/đã bị xóa (field tùy chọn nên bỏ qua thay vì chặn tạo câu hỏi).
+    competency_component_id = None
+    if body.competencyComponentId:
+        comp_stmt = select(CompetencyComponent).where(CompetencyComponent.id == body.competencyComponentId)
+        comp_res = await db.execute(comp_stmt)
+        if comp_res.scalar_one_or_none():
+            competency_component_id = body.competencyComponentId
 
     question = Question(
         id=q_id,
@@ -364,11 +374,12 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         grade_id=grade.id if grade else None,
         level_id=level.id if level else None,
         type_id=qtype.id if qtype else None,
-        competency_component_id=body.competencyComponentId,
+        competency_component_id=competency_component_id,
         exam_id=exam_id,
         status=status_int,
         line_number=1,
         statements=statements_str,
+        created_by=body.creator,
     )
     
     db.add(question)
@@ -391,7 +402,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
             "topicName": "",
             "options": body.options or [],
             "correctAnswer": body.correctAnswer or "",
-            "creator": "Hội đồng Chuyên môn",
+            "creator": body.creator or "Hội đồng Chuyên môn",
             "createdAt": _now(),
             "statements": body.statements or [],
         }
@@ -430,7 +441,10 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
     if body.status is not None:
         question.status = {"approved": 2, "pending": 1, "draft": 0}.get(body.status, 0)
     if body.competencyComponentId is not None:
-        question.competency_component_id = body.competencyComponentId
+        # Kiểm tra tồn tại trước khi gán FK — tránh crash 500 nếu id không hợp lệ/đã bị xóa.
+        comp_stmt = select(CompetencyComponent).where(CompetencyComponent.id == body.competencyComponentId)
+        comp_res = await db.execute(comp_stmt)
+        question.competency_component_id = body.competencyComponentId if comp_res.scalar_one_or_none() else None
     if body.statements is not None:
         question.statements = json.dumps(body.statements, ensure_ascii=False)
 

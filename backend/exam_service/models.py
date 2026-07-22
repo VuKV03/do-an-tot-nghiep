@@ -62,6 +62,7 @@ class Question(Base):
     status_ai = Column(Integer, default=0)
     approved_note = Column(Text, default="")
     statements = Column(Text, nullable=True)
+    created_by = Column(String(255), nullable=True)  # Tên người soạn/tạo câu hỏi
 
     # Relationship
     exam = relationship("Exam", back_populates="questions")

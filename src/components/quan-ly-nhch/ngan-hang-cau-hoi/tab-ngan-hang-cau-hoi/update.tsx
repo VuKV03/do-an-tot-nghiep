@@ -43,6 +43,8 @@ export interface UpdateQuestionModalProps {
   /** Toàn bộ cây chủ đề của môn học */
   topicTreeData: TopicNode[];
   initialQuestion?: Question;
+  /** Tên người dùng thật đang đăng nhập — chỉ dùng để lấp vào creator khi câu hỏi chưa có người soạn thật */
+  creatorName?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -109,7 +111,17 @@ export default function UpdateQuestionModal({
   selectedTopicKey,
   topicTreeData,
   initialQuestion,
+  creatorName,
 }: UpdateQuestionModalProps) {
+  // Giữ nguyên người soạn thật đã lưu (nếu có) — chỉ thay bằng tên người đang sửa khi câu hỏi
+  // còn mang tên giả cũ (dữ liệu tạo trước khi hệ thống lưu người soạn thật).
+  const resolvedCreator =
+    initialQuestion?.creator &&
+    initialQuestion.creator !== 'Hội đồng Chuyên môn (Tự tạo)' &&
+    initialQuestion.creator !== 'Hội đồng Chuyên môn'
+      ? initialQuestion.creator
+      : creatorName || 'Hội đồng Chuyên môn';
+
   const [form] = Form.useForm();
   const [subQuestionForm] = Form.useForm();
 
@@ -457,7 +469,7 @@ export default function UpdateQuestionModal({
         options: optionsList,
         correctAnswer: correctAnswerStr,
         statements: formattedStatements,
-        creator: 'Hội đồng Chuyên môn (Tự tạo)',
+        creator: resolvedCreator,
         createdAt: new Date().toISOString(),
       };
     } else {
@@ -479,7 +491,7 @@ export default function UpdateQuestionModal({
         topicId: values.tieuMuc || values.chuDe || '',
         topicName: (parentNode?.title as string) || '',
         subTopicName: (subNode?.title as string) || '',
-        creator: 'Hội đồng Chuyên môn (Tự tạo)',
+        creator: resolvedCreator,
         createdAt: new Date().toISOString(),
       };
 

@@ -42,6 +42,8 @@ export interface CreateQuestionModalProps {
   selectedTopicKey: string | null;
   /** Toàn bộ cây chủ đề của môn học */
   topicTreeData: TopicNode[];
+  /** Tên người dùng thật đang đăng nhập, dùng làm "Người soạn" */
+  creatorName?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -107,6 +109,7 @@ export default function CreateQuestionModal({
   grade,
   selectedTopicKey,
   topicTreeData,
+  creatorName,
 }: CreateQuestionModalProps) {
   const [form] = Form.useForm();
   const [subQuestionForm] = Form.useForm();
@@ -404,7 +407,7 @@ export default function CreateQuestionModal({
         options: optionsList,
         correctAnswer: correctAnswerStr,
         statements: formattedStatements,
-        creator: 'Hội đồng Chuyên môn (Tự tạo)',
+        creator: creatorName || 'Hội đồng Chuyên môn',
         createdAt: new Date().toISOString(),
       };
     } else {
@@ -426,7 +429,7 @@ export default function CreateQuestionModal({
         topicId: values.tieuMuc || values.chuDe || '',
         topicName: (parentNode?.title as string) || '',
         subTopicName: (subNode?.title as string) || '',
-        creator: 'Hội đồng Chuyên môn (Tự tạo)',
+        creator: creatorName || 'Hội đồng Chuyên môn',
         createdAt: new Date().toISOString(),
       };
 

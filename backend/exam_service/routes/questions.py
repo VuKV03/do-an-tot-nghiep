@@ -13,7 +13,7 @@ from sqlalchemy import select
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic
+from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent
 from backend.exam_service.schemas import QuestionManualCreate, QuestionResponse
 from backend.shared.database import get_db
 
@@ -123,6 +123,16 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
             topic_id = topic.id
             parent_id = topic.parent_id
 
+    # Kiểm tra thành phần năng lực tồn tại trước khi gán FK — tránh crash 500 do vi phạm khóa ngoại
+    # nếu id gửi lên không hợp lệ/đã bị xóa (đây là field tùy chọn nên bỏ qua thay vì chặn tạo câu hỏi).
+    competency_component_id = None
+    if body.competencyComponentId:
+        comp_result = await db.execute(
+            select(CompetencyComponent).where(CompetencyComponent.id == body.competencyComponentId)
+        )
+        if comp_result.scalar_one_or_none():
+            competency_component_id = body.competencyComponentId
+
     question_id = f"q-{int(time.time() * 1000)}"
     question = Question(
         id=question_id,
@@ -136,13 +146,14 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         grade_id=grade.id,
         level_id=level.id,
         type_id=question_type.id,
-        competency_component_id=body.competencyComponentId,
+        competency_component_id=competency_component_id,
         exam_id=body.examId,
         line_number=body.lineNumber or 1,
         status=_status_to_int(body.status),
         status_ai=0,
         approved_note="",
         statements=_as_json(body.statements),
+        created_by=body.creator,
     )
 
     db.add(question)

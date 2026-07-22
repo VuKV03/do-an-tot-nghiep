@@ -26,7 +26,7 @@ import {
   HistoryOutlined,
   EyeOutlined
 } from '@ant-design/icons';
-import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
+import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode, SystemUser } from '../../../../types';
 import { stripHtmlToText } from '../../../../utils/htmlContent';
 import { SUBJECTS, GRADES } from '../../../../data';
 import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi } from '../../../../services/danhMucApi.ts';
@@ -37,6 +37,7 @@ interface QuestionBankModuleProps {
   onDeleteQuestion?: (id: string) => void;
   onOpenReview?: (q: Question) => void;
   initialTab?: 'bank' | 'review';
+  currentUser?: SystemUser | null;
 }
 
 export default function QuestionBankModule({
@@ -44,8 +45,10 @@ export default function QuestionBankModule({
   onUpdateQuestion,
   onDeleteQuestion,
   onOpenReview,
-  initialTab
+  initialTab,
+  currentUser
 }: QuestionBankModuleProps) {
+  const creatorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
   // Tabs State
   const [activeTab, setActiveTab] = useState<'bank' | 'review'>(initialTab || 'bank');
 
@@ -1069,6 +1072,7 @@ export default function QuestionBankModule({
             grade={actualGrade}
             selectedTopicKey={selectedTopicKey}
             topicTreeData={topicTreeData}
+            creatorName={creatorName}
           />
 
           {/* MODAL 2: INTERACTIVE AI SMART GENERATOR */}
@@ -1213,6 +1217,7 @@ export default function QuestionBankModule({
         selectedTopicKey={selectedTopicKey}
         topicTreeData={topicTreeData}
         initialQuestion={updateQuestion || undefined}
+        creatorName={creatorName}
       />
     </div>
   );
