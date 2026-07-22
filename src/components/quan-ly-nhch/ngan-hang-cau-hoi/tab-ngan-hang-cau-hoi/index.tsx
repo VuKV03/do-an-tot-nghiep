@@ -29,7 +29,7 @@ import {
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode, SystemUser } from '../../../../types';
 import { stripHtmlToText } from '../../../../utils/htmlContent';
 import { SUBJECTS, GRADES } from '../../../../data';
-import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
@@ -68,6 +68,32 @@ export default function QuestionBankModule({
   const [apiGrades, setApiGrades] = useState<{ value: string; label: string }[]>([]);
   const [allTopicsRaw, setAllTopicsRaw] = useState<any[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
+
+  // Cấp độ tư duy — lấy đúng danh mục thật từ API, không hard-code để tránh lệch với danh mục quản trị
+  const [cognitiveLevelFilterOptions, setCognitiveLevelFilterOptions] = useState<{ value: CognitiveLevel; label: string }[]>([]);
+
+  useEffect(() => {
+    const mapLevelCode = (code: string): CognitiveLevel => {
+      const c = code.toLowerCase();
+      if (['vv', 'l1', 'nhan_biet'].includes(c)) return 'nhan_biet';
+      if (['zz', 'l2', 'thong_hieu'].includes(c)) return 'thong_hieu';
+      if (['xx', 'l3', 'van_dung'].includes(c)) return 'van_dung';
+      if (['vdc', 'l4', 'van_dung_cao'].includes(c)) return 'van_dung_cao';
+      return 'nhan_biet';
+    };
+    cognitiveLevelApi.list().then((res) => {
+      const seen = new Set<string>();
+      const options: { value: CognitiveLevel; label: string }[] = [];
+      res.data.forEach((c) => {
+        const value = mapLevelCode(c.code);
+        if (!seen.has(value)) {
+          seen.add(value);
+          options.push({ value, label: c.name });
+        }
+      });
+      setCognitiveLevelFilterOptions(options);
+    }).catch((err) => console.error('Failed to load cognitive levels', err));
+  }, []);
 
   // Questions from API
   const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
@@ -881,10 +907,7 @@ export default function QuestionBankModule({
                         className="w-full text-xs font-medium"
                         options={[
                           { value: 'all', label: 'Tất cả' },
-                          { value: 'nhan_biet', label: 'Nhận biết' },
-                          { value: 'thong_hieu', label: 'Thông hiểu' },
-                          { value: 'van_dung', label: 'Vận dụng' },
-                          { value: 'van_dung_cao', label: 'Vận dụng cao' }
+                          ...cognitiveLevelFilterOptions
                         ]}
                       />
                     </div>
@@ -1183,6 +1206,7 @@ export default function QuestionBankModule({
           onOpenReview={handleOpenReviewInternal}
           apiSubjects={apiSubjects}
           apiGrades={apiGrades}
+          cognitiveLevelOptions={cognitiveLevelFilterOptions}
           allTopicsRaw={allTopicsRaw}
           topicsLoading={topicsLoading}
           onApproveQuestion={handleApproveQuestion}

@@ -36,6 +36,7 @@ interface ThamDinhCauHoiProps {
   onOpenReview: (q: Question) => void;
   apiSubjects?: { value: string; label: string }[];
   apiGrades?: { value: string; label: string }[];
+  cognitiveLevelOptions?: { value: CognitiveLevel; label: string }[];
   allTopicsRaw?: any[];
   topicsLoading?: boolean;
   onApproveQuestion?: (id: string, comment: string) => void;
@@ -343,6 +344,7 @@ export default function ThamDinhCauHoiTab({
   onOpenReview,
   apiSubjects = [],
   apiGrades = [],
+  cognitiveLevelOptions = [],
   allTopicsRaw = [],
   topicsLoading = false,
   onApproveQuestion,
@@ -826,11 +828,8 @@ export default function ThamDinhCauHoiTab({
                       onChange={setFilterLevel}
                       className="w-full text-xs"
                       options={[
-                        { value: 'all',          label: 'Tất cả' },
-                        { value: 'nhan_biet',    label: 'Nhận biết' },
-                        { value: 'thong_hieu',   label: 'Thông hiểu' },
-                        { value: 'van_dung',     label: 'Vận dụng' },
-                        { value: 'van_dung_cao', label: 'Vận dụng cao' }
+                        { value: 'all', label: 'Tất cả' },
+                        ...cognitiveLevelOptions
                       ]}
                     />
                   </div>
