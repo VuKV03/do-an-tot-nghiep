@@ -109,6 +109,7 @@ class BankQuestionUpdate(BaseModel):
     text: Optional[str] = None
     type: Optional[str] = None
     level: Optional[str] = None
+    topicId: Optional[str] = None
     options: Optional[List[str]] = None
     correctAnswer: Optional[str | List[str]] = None
     status: Optional[str] = None
@@ -437,6 +438,17 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
         level = level_res.scalar_one_or_none()
         if level:
             question.level_id = level.id
+    if body.topicId is not None:
+        # FE gửi topicId = key tiểu mục (nếu chọn) hoặc key chủ đề cha (nếu không có tiểu mục) —
+        # bảng topics tự tham chiếu parent_id nên tra đúng bản ghi đó là đủ, không cần phân biệt
+        # chủ đề/tiểu mục ở đây. Trước đây field này không tồn tại trong BankQuestionUpdate nên
+        # bị Pydantic âm thầm bỏ qua — sửa chủ đề/tiểu mục báo thành công nhưng không đổi gì.
+        topic_stmt = select(Topic).where(Topic.id == body.topicId)
+        topic_res = await db.execute(topic_stmt)
+        topic = topic_res.scalar_one_or_none()
+        if topic:
+            question.topic_id = topic.id
+            question.parent_id = topic.parent_id
     if body.options is not None:
         question.options = json.dumps(body.options, ensure_ascii=False)
     if body.correctAnswer is not None:
