@@ -41,7 +41,7 @@ export default function ReviewMultipleModal({ open, onClose, count, onApprove, o
     <Modal
       title={
         <div className="text-gray-800 text-base font-bold pb-2 border-b border-gray-100">
-          Thẩm định nhiều chủ đề
+          Thẩm định nhiều chủ đề/ tiểu mục
         </div>
       }
       open={open}
@@ -52,7 +52,7 @@ export default function ReviewMultipleModal({ open, onClose, count, onApprove, o
     >
       <div className="flex flex-col gap-4 py-2">
         <div className="text-blue-700 font-semibold text-sm">
-          Thẩm định nhanh {count} chủ đề
+          Thẩm định nhanh {count} chủ đề/ tiểu mục
         </div>
 
         <div>
