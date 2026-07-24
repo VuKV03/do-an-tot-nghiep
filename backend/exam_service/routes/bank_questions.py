@@ -476,6 +476,18 @@ async def delete_bank_question(question_id: str, db: AsyncSession = Depends(get_
     if not question:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
 
+    # questions.exam_id chỉ được gán khi câu hỏi đã thực sự nằm trong 1 đề thi đã lưu (xem
+    # exams.py::create_exam/update_exam) — không cho xóa để tránh phá vỡ đề thi đang tham chiếu
+    # câu hỏi này. Người dùng phải gỡ câu hỏi khỏi đề (hoặc xóa đề) trước.
+    if question.exam_id:
+        exam_stmt = select(Exam).where(Exam.id == question.exam_id)
+        exam = (await db.execute(exam_stmt)).scalar_one_or_none()
+        if exam:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Không thể xóa câu hỏi vì đang được sử dụng trong đề thi \"{exam.name}\". Vui lòng gỡ câu hỏi khỏi đề thi trước khi xóa.",
+            )
+
     await db.delete(question)
     await db.commit()
     return {"success": True, "message": "Đã xóa câu hỏi thành công!"}
