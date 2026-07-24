@@ -451,21 +451,32 @@ export default function QuestionBankModule({
     }, 1500);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (pendingDeleteQuestion) {
-      onDeleteQuestion?.(pendingDeleteQuestion.id);
-      fetchQuestions(); // refresh from API
-      message.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
-      setPendingDeleteQuestion(null);
+      try {
+        await bankQuestionApi.delete(pendingDeleteQuestion.id);
+        onDeleteQuestion?.(pendingDeleteQuestion.id);
+        message.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
+        fetchQuestions(); // refresh from API
+        setPendingDeleteQuestion(null);
+        setIsDeleteOpen(false);
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi xóa câu hỏi');
+      }
     } else if (selectedRowKeys.length > 0) {
-      selectedRowKeys.forEach((key) => {
-        onDeleteQuestion?.(key as string);
-      });
-      fetchQuestions(); // refresh from API
-      message.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
-      setSelectedRowKeys([]);
+      try {
+        await Promise.all(selectedRowKeys.map((key) => bankQuestionApi.delete(key as string)));
+        selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
+        message.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
+        fetchQuestions(); // refresh from API
+        setSelectedRowKeys([]);
+        setIsDeleteOpen(false);
+      } catch (err: any) {
+        message.error(err.message || 'Lỗi khi xóa câu hỏi');
+      }
+    } else {
+      setIsDeleteOpen(false);
     }
-    setIsDeleteOpen(false);
   };
 
   const handleSendReviewConfirm = async () => {

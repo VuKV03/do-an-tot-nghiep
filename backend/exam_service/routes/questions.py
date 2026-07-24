@@ -54,22 +54,27 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
     type_key = (body.type or '').strip().lower()
     print(f"Body received: {body}")
     print(f"Creating question with subject: {subject_key}, grade: {grade_key}, level: {level_key}, type: {type_key}")
+    # Dùng .scalars().first() thay vì .scalar_one_or_none() cho MỌI query ILIKE
+    # bên dưới — pattern "%...%" (hoặc rỗng "%%") có thể khớp NHIỀU dòng cùng lúc,
+    # và .scalar_one_or_none() raise MultipleResultsFound khi đó (uncaught → 500
+    # "Multiple rows were found..." không rõ nghĩa với người dùng). Lấy dòng khớp
+    # đầu tiên là đủ vì đây vốn đã là fuzzy-match "best effort", không phải tra khóa chính.
     subject_result = await db.execute(select(SubjectCategory).where(SubjectCategory.name.ilike(f"%{body.subject}%") | SubjectCategory.code.ilike(f"%{body.subject}%")))
     print(f"Subject query result: {subject_result}")
-    subject = subject_result.scalar_one_or_none()
+    subject = subject_result.scalars().first()
     print(f"Subject found: {subject}")
     if not subject and subject_key:
         subject_result = await db.execute(select(SubjectCategory).where(SubjectCategory.name.ilike(f"%{subject_key}%")))
-        subject = subject_result.scalar_one_or_none()
+        subject = subject_result.scalars().first()
 
     grade_result = await db.execute(select(GradeLevel).where(GradeLevel.name.ilike(f"%{body.grade}%") | GradeLevel.code.ilike(f"%{body.grade}%")))
-    grade = grade_result.scalar_one_or_none()
+    grade = grade_result.scalars().first()
     if not grade and grade_key:
         grade_result = await db.execute(select(GradeLevel).where(GradeLevel.name.ilike(f"%{grade_key}%")))
-        grade = grade_result.scalar_one_or_none()
+        grade = grade_result.scalars().first()
 
     level_result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code.ilike(level_key) | CognitiveLevel.name.ilike(level_key)))
-    level = level_result.scalar_one_or_none()
+    level = level_result.scalars().first()
 
     type_lookup = {
         'single': ['single', 'tn', 'trắc nghiệm', 'trắc nghiệm một đáp án', 'trắc nghiệm một lựa chọn'],
@@ -79,11 +84,11 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
     }
     matched_aliases = type_lookup.get(type_key, [type_key])
     type_result = await db.execute(select(QuestionType).where(QuestionType.code.ilike(type_key) | QuestionType.name.ilike(type_key)))
-    question_type = type_result.scalar_one_or_none()
+    question_type = type_result.scalars().first()
     if not question_type:
         for alias in matched_aliases:
             type_result = await db.execute(select(QuestionType).where(QuestionType.code.ilike(alias) | QuestionType.name.ilike(alias)))
-            question_type = type_result.scalar_one_or_none()
+            question_type = type_result.scalars().first()
             if question_type:
                 break
 
@@ -102,22 +107,24 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         topic = topic_result.scalar_one_or_none()
 
         if not topic:
+            # Topic.code không có ràng buộc UNIQUE (nhiều chủ đề khác môn có thể trùng mã) —
+            # dùng .first() thay vì .scalar_one_or_none() để tránh crash 500 khi trùng mã.
             topic_result = await db.execute(
                 select(Topic).where(Topic.code == body.topicId)
             )
-            topic = topic_result.scalar_one_or_none()
+            topic = topic_result.scalars().first()
 
         if not topic and body.subTopicName:
             topic_result = await db.execute(
                 select(Topic).where(Topic.name.ilike(f"%{body.subTopicName}%"))
             )
-            topic = topic_result.scalar_one_or_none()
+            topic = topic_result.scalars().first()
 
         if not topic and body.topicName:
             topic_result = await db.execute(
                 select(Topic).where(Topic.name.ilike(f"%{body.topicName}%"))
             )
-            topic = topic_result.scalar_one_or_none()
+            topic = topic_result.scalars().first()
 
         if topic:
             topic_id = topic.id

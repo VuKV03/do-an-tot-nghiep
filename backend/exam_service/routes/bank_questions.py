@@ -302,27 +302,30 @@ async def random_select_questions(body: RandomSelectRequest, db: AsyncSession = 
 async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depends(get_db)):
     """Tạo câu hỏi mới vào ngân hàng câu hỏi."""
     # Find SubjectCategory
+    # Dùng .scalars().first() thay vì .scalar_one_or_none() cho mọi lookup ILIKE "%...%"
+    # bên dưới — pattern này có thể khớp nhiều dòng cùng lúc (kể cả "%%" khi rỗng), và
+    # .scalar_one_or_none() sẽ raise MultipleResultsFound (uncaught → 500 không rõ nghĩa).
     subj_stmt = select(SubjectCategory).where(SubjectCategory.name.ilike(f"%{body.subject}%"))
     subj_res = await db.execute(subj_stmt)
-    subject = subj_res.scalar_one_or_none()
+    subject = subj_res.scalars().first()
     if not subject:
          # Fallback search by code
          subj_stmt = select(SubjectCategory).where(SubjectCategory.code.ilike(f"%{body.subject}%"))
          subj_res = await db.execute(subj_stmt)
-         subject = subj_res.scalar_one_or_none()
+         subject = subj_res.scalars().first()
          if not subject:
              raise HTTPException(status_code=400, detail=f"Không tìm thấy môn học '{body.subject}'")
 
     # Find GradeLevel
     gr_stmt = select(GradeLevel).where(GradeLevel.name.ilike(f"%{body.grade}%"))
     gr_res = await db.execute(gr_stmt)
-    grade = gr_res.scalar_one_or_none()
+    grade = gr_res.scalars().first()
     if not grade:
          # Fallback search by code or clean value
          grade_clean = body.grade.lower().replace("khối", "").replace("lớp", "").strip()
          gr_stmt = select(GradeLevel).where(GradeLevel.name.ilike(f"%{grade_clean}%") | GradeLevel.code.ilike(f"%{grade_clean}%"))
          gr_res = await db.execute(gr_stmt)
-         grade = gr_res.scalar_one_or_none()
+         grade = gr_res.scalars().first()
          if not grade:
              raise HTTPException(status_code=400, detail=f"Không tìm thấy khối lớp '{body.grade}'")
 

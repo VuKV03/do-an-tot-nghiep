@@ -4,13 +4,16 @@ Handles CRUD operations for Exams, Questions, and Packages.
 """
 import json
 import time
+import traceback
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
+from fastapi.responses import JSONResponse
 
 from backend.shared.database import ensure_database_exists, init_tables, async_session, engine
 # pyrefly: ignore [missing-import]
@@ -504,6 +507,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error checking/adding matrix_id column: {e}")
 
+    # Migration: add 'created_by' column to questions table if not exists — the
+    # Question model gained this field (mục "thêm người soạn câu hỏi") but create_all
+    # doesn't alter already-existing tables, so without this the physical table was
+    # missing the column and every POST /questions/ or POST /bank-questions/ insert
+    # failed with "Unknown column 'created_by'" (surfaced to the client as a bare 500).
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM questions LIKE 'created_by'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE questions ADD COLUMN created_by VARCHAR(255) NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'created_by' column to questions table.")
+            else:
+                print("[Exam Service] ✅ 'created_by' column already exists in questions table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding created_by column: {e}")
+
     # Migration: restructure subject_configs scoring columns to be per-part.
     # Previously the 4 "correct idea" columns were shared/implicitly tied to Phần II
     # only, and there was no "per-answer" column for Phần II. Each part can now
@@ -580,6 +601,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all for uncaught exceptions (DB errors, bugs, etc.) so the client
+    always gets a JSON body with the real reason instead of a bare 500 with no
+    detail — HTTPException raised explicitly by routes still uses FastAPI's own
+    handler and is unaffected by this."""
+    print(f"[Exam Service] Unhandled error on {request.method} {request.url.path}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": str(exc) or exc.__class__.__name__})
 
 # Register routes
 app.include_router(exams_router)
