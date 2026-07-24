@@ -31,7 +31,7 @@
 | `DB_HOST`               | `localhost`             | Máy chủ MySQL                    |
 | `DB_PORT`               | `3306`                  | Cổng dịch vụ MySQL              |
 | `DB_NAME`               | `quan_ly_sinh_de_ai_v2` | Tên cơ sở dữ liệu             |
-| `GEMINI_API_KEY`        | *(Trống)*              | API Key truy cập Google Gemini AI |
+| `GEMINI_API_KEY_1`, `_2`, ... | *(Trống)*         | Các API Key Google Gemini, xoay vòng theo khung giờ trong ngày (chia đều 24h cho số key). Dùng `GEMINI_API_KEY` (không đánh số) nếu chỉ có 1 key. |
 | `EXAM_SERVICE_URL`      | `http://localhost:8001` | URL của Exam Service              |
 | `AI_SERVICE_URL`        | `http://localhost:8002` | URL của AI Service                |
 | `ANALYTICS_SERVICE_URL` | `http://localhost:8003` | URL của Analytics Service         |

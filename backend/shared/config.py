@@ -42,7 +42,48 @@ class DatabaseConfig:
 
 
 class GeminiConfig:
-    API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    """
+    Quản lý nhiều GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... và xoay vòng theo
+    khung giờ trong ngày (chia đều 24h cho số lượng key đang cấu hình) để
+    tránh dồn hết lượt gọi/token vào một key duy nhất.
+    Nếu không cấu hình key đánh số nào, dùng lại GEMINI_API_KEY cũ (tương thích ngược).
+    """
+
+    def __init__(self) -> None:
+        self._keys: list[str] = self._load_keys()
+
+    @staticmethod
+    def _load_keys() -> list[str]:
+        keys = []
+        i = 1
+        while True:
+            key = os.getenv(f"GEMINI_API_KEY_{i}")
+            if not key:
+                break
+            keys.append(key)
+            i += 1
+        if not keys:
+            legacy = os.getenv("GEMINI_API_KEY", "")
+            if legacy:
+                keys.append(legacy)
+        return keys
+
+    @property
+    def ALL_KEYS(self) -> list[str]:
+        return list(self._keys)
+
+    @property
+    def API_KEY(self) -> str:
+        """Key hiện hành theo khung giờ trong ngày."""
+        if not self._keys:
+            return ""
+        if len(self._keys) == 1:
+            return self._keys[0]
+        import datetime
+        hour = datetime.datetime.now().hour
+        shift_len = 24 / len(self._keys)
+        idx = min(int(hour // shift_len), len(self._keys) - 1)
+        return self._keys[idx]
 
 
 class JWTConfig:
