@@ -1117,7 +1117,6 @@ export default function QuestionBankModule({
             onSave={(q) => {
               onAddQuestion?.(q);
               fetchQuestions();
-              setIsAIOpen(false);
             }}
             defaultSubject={actualSubject}
             defaultGrade={actualGrade}
