@@ -243,6 +243,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   const [searchValue, setSearchValue] = useState('');
   const [obj, setObj] = useState<MaTranData[]>([]);
   const [subjectConfig, setSubjectConfig] = useState<SubjectConfigAPI | null>(null);
+  const [touchedCells, setTouchedCells] = useState<Set<string>>(new Set());
   const checkRequestSeqRef = React.useRef(0);
 
   // --- Step 1: Chọn Môn ---
@@ -506,6 +507,16 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     return obj.filter(r => r.noi_dung_id === obj[idx].noi_dung_id).length;
   };
 
+  // --- Tổng số câu đã nhập theo từng Phần (loai_cau_hoi_id), so với so_luong_cau tối đa (Cấu hình môn học) ---
+  const soCauByLoaiCauHoi = useMemo(() => {
+    const map: Record<string, number> = {};
+    obj.forEach(row => row.ds_loai_cau_hoi.forEach(c => {
+      if (!c.loai_cau_hoi_id) return;
+      map[c.loai_cau_hoi_id] = (map[c.loai_cau_hoi_id] || 0) + (c.so_cau || 0);
+    }));
+    return map;
+  }, [obj]);
+
   // --- Summary ---
   const summaryByCellIdx = useMemo(() => {
     if (!obj.length || !caiDat) return [];
@@ -732,12 +743,32 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
                                   const ci = getCellIndex(lch.loai_cau_hoi_id, nl.id, md.id);
                                   const cell = ci >= 0 ? row.ds_loai_cau_hoi[ci] : null;
                                   const isOver = cell && (cell.so_cau || 0) > (cell.tong_so_cau || 0);
+                                  const cellKey = `${ri}-${ci}`;
+                                  const soCauPhanDaNhap = soCauByLoaiCauHoi[lch.loai_cau_hoi_id] || 0;
+                                  const isOverPhan = touchedCells.has(cellKey) && soCauPhanDaNhap > lch.so_luong_cau;
+                                  const inputEl = (
+                                    <InputNumber size="small" min={0} precision={0} value={cell?.so_cau || null} placeholder="0"
+                                      status={isOverPhan ? 'error' : undefined}
+                                      onChange={v => {
+                                        if (ci < 0) return;
+                                        handleInputChange(ri, ci, v);
+                                        setTouchedCells(prev => {
+                                          const next = new Set(prev);
+                                          next.add(cellKey);
+                                          return next;
+                                        });
+                                      }}
+                                      onKeyDown={e => { if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault(); }}
+                                      className="text-[10px]" style={{ width: 36 }} controls={false} />
+                                  );
                                   return (
                                     <td key={`${nl.id}-${md.id}-${lch.loai_cau_hoi_id}`} className="border border-slate-200 px-0.5 py-0.5 text-center">
                                       <div className="flex items-center justify-center gap-0.5">
-                                        <InputNumber size="small" min={0} value={cell?.so_cau ?? 0}
-                                          onChange={v => ci >= 0 && handleInputChange(ri, ci, v)}
-                                          className="text-[10px]" style={{ width: 36 }} controls={false} />
+                                        {isOverPhan ? (
+                                          <Tooltip title={`Vượt quá số câu tối đa của ${lch.noi_dung_phan} (${soCauPhanDaNhap}/${lch.so_luong_cau} câu)`} color="red">
+                                            {inputEl}
+                                          </Tooltip>
+                                        ) : inputEl}
                                         {cell && cell.tong_so_cau > 0 && (
                                           <Tooltip title={`Ngân hàng: ${cell.tong_so_cau} câu`}>
                                             <span className={`text-[9px] ${isOver ? 'text-red-500 font-bold' : 'text-slate-400'}`}>

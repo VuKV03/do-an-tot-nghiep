@@ -229,28 +229,28 @@ function PartScoringFields({
             name={ideaFieldNames[0]}
             label='01 ý đúng'
             min={0}
-            step={0.25}
+            step={0.05}
             integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[1]}
             label='02 ý đúng'
             min={0}
-            step={0.25}
+            step={0.05}
             integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[2]}
             label='03 ý đúng'
             min={0}
-            step={0.25}
+            step={0.05}
             integerOnly={false}
           />
           <NumberField
             name={ideaFieldNames[3]}
             label='04 ý đúng'
             min={0}
-            step={0.25}
+            step={0.05}
             integerOnly={false}
           />
         </div>
@@ -266,7 +266,8 @@ function PartScoringFields({
             name={answerFieldName}
             label='Điểm của mỗi câu trả lời đúng'
             min={0}
-            step={1}
+            step={0.05}
+            integerOnly={false}
           />
         </div>
       </div>
@@ -557,21 +558,19 @@ export default function CauHinhMonHocModal({
                   </h3>
                   <div className='flex items-center gap-2'>
                     <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${
-                        isQuestionCountMismatch
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${isQuestionCountMismatch
                           ? 'bg-red-50 text-red-600 border-red-200'
                           : 'bg-gray-50 text-gray-600 border-gray-200'
-                      }`}
+                        }`}
                     >
                       Tổng số câu: {totalQuestionCount}
                       {questionsNumberValue != null ? ` / ${questionsNumberValue}` : ''}
                     </span>
                     <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${
-                        isOverScale
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border ${isOverScale
                           ? 'bg-red-50 text-red-600 border-red-200'
                           : 'bg-gray-50 text-gray-600 border-gray-200'
-                      }`}
+                        }`}
                     >
                       Tổng điểm tối đa: {formatScore(maxTotalScore)}
                       {scaleValue != null ? ` / ${scaleValue}` : ''}
