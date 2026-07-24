@@ -416,6 +416,9 @@ class TopicUpdate(BaseModel):
     approved_by: Optional[str] = None
     approval_note: Optional[str] = None
     note: Optional[str] = None
+    # Người thực hiện thao tác sửa này — chỉ dùng để ghi log lịch sử (TopicHistory.actor),
+    # KHÔNG phải cột trên bảng topics nên phải loại trừ khỏi vòng lặp setattr generic ở route.
+    actor: Optional[str] = None
 
 class TopicResponse(BaseModel):
     id: str

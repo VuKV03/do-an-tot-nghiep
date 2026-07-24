@@ -9,6 +9,7 @@ import DetailChuDeModal from './detail';
 import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
+import { SystemUser } from '../../../../types';
 
 const { RangePicker } = DatePicker;
 
@@ -78,7 +79,12 @@ function buildTopicTree(flatList: ChuDeType[]): ChuDeType[] {
   return roots;
 }
 
-export default function ChuDeCauHoi() {
+interface ChuDeCauHoiProps {
+  currentUser?: SystemUser | null;
+}
+
+export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
+  const actorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -617,6 +623,7 @@ export default function ChuDeCauHoi() {
                 grade_id: values.IdKhoiLop,
                 status: 0,
                 note: values.GhiChu || '',
+                created_by: actorName,
               });
               message.success('Tạo chủ đề/tiểu mục thành công!');
               fetchTopics();
@@ -652,6 +659,7 @@ export default function ChuDeCauHoi() {
                 subject_id: values.IdMonHoc,
                 grade_id: values.IdKhoiLop,
                 note: values.GhiChu || '',
+                actor: actorName,
               });
               message.success('Cập nhật chủ đề/tiểu mục thành công!');
               fetchTopics();
@@ -733,7 +741,7 @@ export default function ChuDeCauHoi() {
                 const allIdsToSubmit = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()))
                   .filter(id => !isApproved(id));
                 if (allIdsToSubmit.length > 0) {
-                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id, actorName)));
                 }
                 message.success(
                   allIdsToSubmit.length > 0
@@ -745,7 +753,7 @@ export default function ChuDeCauHoi() {
                 const allIdsToSubmit = getSubTopicIdsRecursive([selectedRecord.Id])
                   .filter(id => !isApproved(id));
                 if (allIdsToSubmit.length > 0) {
-                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id)));
+                  await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id, actorName)));
                   const hasChildren = allIdsToSubmit.length > 1;
                   message.success(
                     hasChildren

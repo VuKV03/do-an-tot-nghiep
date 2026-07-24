@@ -390,7 +390,7 @@ export const topicsApi = {
         TopicAPI,
         'id' | 'created_at' | 'submitted_at' | 'approved_at' | 'approval_note'
       >
-    >,
+    > & { actor?: string },
   ) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}`,
@@ -400,20 +400,20 @@ export const topicsApi = {
     apiFetch<{ success: boolean; message: string }>(`/topics/${id}`, {
       method: 'DELETE',
     }),
-  submit: (id: string) =>
+  submit: (id: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}/submit`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify({ actor }) },
     ),
-  approve: (id: string, comment: string) =>
+  approve: (id: string, comment: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}/approve`,
-      { method: 'POST', body: JSON.stringify({ comment }) },
+      { method: 'POST', body: JSON.stringify({ comment, actor }) },
     ),
-  reject: (id: string, comment: string) =>
+  reject: (id: string, comment: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}/reject`,
-      { method: 'POST', body: JSON.stringify({ comment }) },
+      { method: 'POST', body: JSON.stringify({ comment, actor }) },
     ),
   getHistory: (id: string) =>
     apiFetch<{ success: boolean; count: number; data: any[] }>(

@@ -270,6 +270,7 @@ export default function App() {
         return (
           <QuestionTopicsModule
             questions={questions}
+            currentUser={currentUser}
           />
         );
       case 'thong-ke-nhch':

@@ -31,6 +31,17 @@ router = APIRouter(prefix="/topics", tags=["Topics"])
 
 class TopicReviewRequest(BaseModel):
     comment: Optional[str] = ""
+    # Người thực hiện thẩm định — trước đây route này không nhận actor nên luôn ghi cứng "admin"
+    # bất kể ai bấm duyệt/từ chối thật.
+    actor: Optional[str] = None
+
+
+class TopicSubmitRequest(BaseModel):
+    # Người gửi thẩm định — trước đây endpoint submit không nhận body nào nên luôn ghi cứng "user1".
+    actor: Optional[str] = None
+
+
+_DEFAULT_ACTOR = "Hội đồng Chuyên môn"
 
 
 def _now() -> str:
@@ -95,7 +106,7 @@ async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
         subject_id=body.subject_id,
         grade_id=body.grade_id,
         status=0,  # 0: Tạo mới
-        created_by=body.created_by or "user1",
+        created_by=body.created_by or _DEFAULT_ACTOR,
         created_at=_now(),
         submitted_by=None,
         submitted_at=None,
@@ -149,7 +160,9 @@ async def update_topic(
         if dup.scalars().first():
             raise HTTPException(status_code=400, detail="Mã chủ đề đã tồn tại!")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+    actor = update_data.pop("actor", None) or _DEFAULT_ACTOR
+    for field, value in update_data.items():
         setattr(obj, field, value)
 
     # Log history
@@ -157,7 +170,7 @@ async def update_topic(
         id=str(uuid.uuid4()),
         topic_id=obj.id,
         action="Sửa",
-        actor="user1",  # Placeholder for current user
+        actor=actor,
         timestamp=_now(),
         note=f"Sửa thông tin chủ đề '{obj.name}'"
     )
@@ -207,7 +220,7 @@ async def delete_topic(item_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{item_id}/submit")
-async def submit_topic(item_id: str, db: AsyncSession = Depends(get_db)):
+async def submit_topic(item_id: str, body: TopicSubmitRequest = TopicSubmitRequest(), db: AsyncSession = Depends(get_db)):
     """Gửi thẩm định chủ đề (chuyển trạng thái sang 1 - Chờ thẩm định).
 
     Chủ đề đã thẩm định (status 2) giữ nguyên trạng thái, không gửi lại.
@@ -220,8 +233,9 @@ async def submit_topic(item_id: str, db: AsyncSession = Depends(get_db)):
     if obj.status == 2:
         return {"success": True, "message": "Chủ đề đã thẩm định, giữ nguyên trạng thái.", "data": _to_response(obj)}
 
+    actor = body.actor or _DEFAULT_ACTOR
     obj.status = 1  # 1: Chờ thẩm định
-    obj.submitted_by = "user1"
+    obj.submitted_by = actor
     obj.submitted_at = _now()
 
     # Log history
@@ -229,7 +243,7 @@ async def submit_topic(item_id: str, db: AsyncSession = Depends(get_db)):
         id=str(uuid.uuid4()),
         topic_id=obj.id,
         action="Gửi thẩm định",
-        actor="user1",
+        actor=actor,
         timestamp=_now(),
         note=f"Gửi thẩm định chủ đề '{obj.name}'"
     )
@@ -248,17 +262,18 @@ async def approve_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
     
+    actor = body.actor or _DEFAULT_ACTOR
     obj.status = 2  # 2: Đã thẩm định
-    obj.approved_by = "admin"
+    obj.approved_by = actor
     obj.approved_at = _now()
     obj.approval_note = body.comment or "Đạt"
-    
+
     # Log history
     history_obj = TopicHistory(
         id=str(uuid.uuid4()),
         topic_id=obj.id,
         action="Đồng ý",
-        actor="admin",
+        actor=actor,
         timestamp=_now(),
         note=f"Đồng ý thẩm định chủ đề '{obj.name}'"
     )
@@ -277,17 +292,18 @@ async def reject_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession 
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
     
+    actor = body.actor or _DEFAULT_ACTOR
     obj.status = 3  # 3: Từ chối
-    obj.approved_by = "admin"
+    obj.approved_by = actor
     obj.approved_at = _now()
     obj.approval_note = body.comment or "Cần chỉnh sửa lại"
-    
+
     # Log history
     history_obj = TopicHistory(
         id=str(uuid.uuid4()),
         topic_id=obj.id,
         action="Từ chối",
-        actor="admin",
+        actor=actor,
         timestamp=_now(),
         note=f"Từ chối thẩm định chủ đề '{obj.name}'"
     )

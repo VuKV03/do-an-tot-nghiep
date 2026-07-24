@@ -6,6 +6,7 @@ import ChuDeCauHoi from '../chu-de-cau-hoi';
 import ReviewModal from './review';
 import ReviewMultipleModal from './review-multiple';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
+import { SystemUser } from '../../../../types';
 
 const { RangePicker } = DatePicker;
 
@@ -60,7 +61,12 @@ function buildTree(flatList: ThamDinhType[]): ThamDinhType[] {
   return roots;
 }
 
-export default function ThamDinhChuDeMain() {
+interface ThamDinhChuDeMainProps {
+  currentUser?: SystemUser | null;
+}
+
+export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProps) {
+  const actorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [monHocs, setMonHocs] = useState<{ id: string; name: string }[]>([]);
@@ -393,7 +399,7 @@ export default function ThamDinhChuDeMain() {
         {/* Render Tab Contents */}
         {activeTab === 'topic' ? (
           <div className="animate-in fade-in duration-300">
-            <ChuDeCauHoi />
+            <ChuDeCauHoi currentUser={currentUser} />
           </div>
         ) : (
           <div className="flex flex-col gap-6 animate-in fade-in duration-300">
@@ -552,7 +558,7 @@ export default function ThamDinhChuDeMain() {
                 if (!selectedRecord) return;
                 try {
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
-                  await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
+                  await Promise.all(ids.map(id => topicsApi.approve(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
                   message.success(
                     hasChildren
@@ -568,7 +574,7 @@ export default function ThamDinhChuDeMain() {
                 if (!selectedRecord) return;
                 try {
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
-                  await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
+                  await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
                   message.warning(
                     hasChildren
@@ -589,7 +595,7 @@ export default function ThamDinhChuDeMain() {
               onApprove={async (comment) => {
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
-                  await Promise.all(ids.map(id => topicsApi.approve(id, comment)));
+                  await Promise.all(ids.map(id => topicsApi.approve(id, comment, actorName)));
                   message.success('Đã phê duyệt các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
@@ -600,7 +606,7 @@ export default function ThamDinhChuDeMain() {
               onReject={async (comment) => {
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
-                  await Promise.all(ids.map(id => topicsApi.reject(id, comment)));
+                  await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
                   message.warning('Từ chối các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
