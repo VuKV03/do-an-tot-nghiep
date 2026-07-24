@@ -9,7 +9,7 @@ import {
   questionTypeApi,
   type QuestionTypeAPI,
 } from '../../../../services/danhMucApi.ts';
-import RichTextEditor from '../../../RichTextEditor';
+import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { RichTextView } from '../../../../utils/htmlContent';
 
 export interface AIGenerateQuestionModalProps {
@@ -537,156 +537,171 @@ export default function AIGenerateQuestionModal({
         )}
 
         {aiSuggestedQuestion && (
-          <div className="border border-slate-200 bg-white rounded-2xl p-4 shadow-sm space-y-4 animate-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-between border-b border-dashed pb-2">
-              <Tag color="purple" className="font-extrabold uppercase font-mono text-[10px]">{aiSuggestedQuestion.code}</Tag>
-              <span className="text-[11px] bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded font-bold text-indigo-700">Được sinh bởi AI</span>
-            </div>
+          <RichTextGroupProvider>
+            <div className="border border-slate-200 bg-white rounded-2xl p-4 shadow-sm space-y-4 animate-in zoom-in-95 duration-300">
+              <div className="flex items-center justify-between border-b border-dashed pb-2">
+                <Tag color="purple" className="font-extrabold uppercase font-mono text-[10px]">{aiSuggestedQuestion.code}</Tag>
+                <span className="text-[11px] bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded font-bold text-indigo-700">Được sinh bởi AI</span>
+              </div>
 
-            {isEditingPreview ? (
-              <RichTextEditor
-                value={aiSuggestedQuestion.text}
-                onChange={updateSuggestedText}
-                minHeight={70}
-                className="text-[13px]"
-              />
-            ) : (
-              <RichTextView html={aiSuggestedQuestion.text} className="text-[13px] text-slate-800 font-bold leading-relaxed" />
-            )}
-
-            {aiSuggestedQuestion.type === 'single' && aiSuggestedQuestion.options && (
-              isEditingPreview ? (
-                <Radio.Group
-                  className="w-full space-y-2 flex flex-col"
-                  value={correctOptionIndex}
-                  onChange={(e) => setSuggestedCorrectOption(e.target.value)}
-                >
-                  {aiSuggestedQuestion.options.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Radio value={idx} />
-                      <Input
-                        size="small"
-                        value={opt}
-                        onChange={(e) => updateSuggestedOption(idx, e.target.value)}
-                        className="flex-1 text-xs"
-                      />
-                    </div>
-                  ))}
-                </Radio.Group>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {aiSuggestedQuestion.options.map((opt, id) => (
-                    <div
-                      key={id}
-                      className={`p-2 rounded-lg border font-medium ${opt === aiSuggestedQuestion.correctAnswer
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                        : 'bg-slate-50 border-slate-200'
-                        }`}
-                    >
-                      {opt}
-                    </div>
-                  ))}
+              {isEditingPreview && (
+                <div className="rounded-lg overflow-hidden border border-slate-200">
+                  <RichTextGroupToolbar />
+                  <div className="px-2 py-1 text-[10px] text-slate-400 font-medium bg-white border-t border-slate-100">
+                    Đặt trỏ chuột/bôi đen vào câu hỏi hoặc đáp án cần định dạng, rồi dùng thanh công cụ trên.
+                  </div>
                 </div>
-              )
-            )}
+              )}
 
-            {aiSuggestedQuestion.type === 'true_false' && aiSuggestedQuestion.statements && (
-              isEditingPreview ? (
-                <div className="space-y-1.5 text-xs">
-                  {aiSuggestedQuestion.statements.map((st, idx) => (
-                    <div key={st.id} className="flex items-center gap-2">
-                      <span className="font-bold w-5">{String.fromCharCode(97 + idx)})</span>
-                      <Input
-                        size="small"
-                        value={st.content}
-                        onChange={(e) => updateSuggestedStatementContent(idx, e.target.value)}
-                        className="flex-1 text-xs"
-                      />
-                      <Checkbox
-                        checked={st.isCorrect}
-                        onChange={(e) => toggleSuggestedStatementCorrect(idx, e.target.checked)}
-                      >
-                        Đúng
-                      </Checkbox>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-1.5 text-xs">
-                  {aiSuggestedQuestion.statements.map((st, idx) => (
-                    <div
-                      key={st.id}
-                      className={`flex items-start gap-2 p-2 rounded-lg border font-medium ${st.isCorrect
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                        : 'bg-rose-50 border-rose-200 text-rose-900'
-                        }`}
-                    >
-                      <span className="font-bold">{String.fromCharCode(97 + idx)})</span>
-                      <span className="flex-1">{st.content}</span>
-                      <Tag color={st.isCorrect ? 'success' : 'error'} className="text-[10px] m-0">
-                        {st.isCorrect ? 'Đúng' : 'Sai'}
-                      </Tag>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-
-            {aiSuggestedQuestion.type === 'short' && (
-              isEditingPreview ? (
-                <Input.TextArea
-                  rows={2}
-                  value={String(aiSuggestedQuestion.correctAnswer || '')}
-                  onChange={(e) => updateSuggestedShortAnswer(e.target.value)}
-                  className="text-xs font-medium"
+              {isEditingPreview ? (
+                <RichTextGroupCell
+                  value={aiSuggestedQuestion.text}
+                  onChange={updateSuggestedText}
+                  placeholder="Nhập nội dung câu hỏi..."
+                  minHeight={70}
+                  className="text-[13px]"
                 />
               ) : (
-                <div className="p-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs font-bold">
-                  Đáp án: {aiSuggestedQuestion.correctAnswer}
-                </div>
-              )
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t mt-4 border-slate-100">
-              <Button
-                className="rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border-slate-200"
-                disabled={accepting}
-                onClick={() => {
-                  setAiSuggestedQuestion(null);
-                  setIsEditingPreview(false);
-                }}
-              >
-                Bỏ đi, sinh câu khác
-              </Button>
-              {isEditingPreview ? (
-                <Button
-                  className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
-                  disabled={accepting}
-                  onClick={() => setIsEditingPreview(false)}
-                >
-                  Xong, xem lại
-                </Button>
-              ) : (
-                <Button
-                  className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
-                  icon={<EditOutlined />}
-                  disabled={accepting}
-                  onClick={startEditingPreview}
-                >
-                  Chỉnh sửa
-                </Button>
+                <RichTextView html={aiSuggestedQuestion.text} className="text-[13px] text-slate-800 font-bold leading-relaxed" />
               )}
-              <Button
-                type="primary"
-                className="rounded-lg text-xs font-extrabold bg-[#002147] border-transparent text-white hover:bg-slate-900"
-                icon={<CheckCircleOutlined />}
-                loading={accepting}
-                onClick={acceptAISuggestedQuestion}
-              >
-                Duyệt và Thêm vào NHCH
-              </Button>
+
+              {aiSuggestedQuestion.type === 'single' && aiSuggestedQuestion.options && (
+                isEditingPreview ? (
+                  <Radio.Group
+                    className="w-full space-y-2 flex flex-col"
+                    value={correctOptionIndex}
+                    onChange={(e) => setSuggestedCorrectOption(e.target.value)}
+                  >
+                    {aiSuggestedQuestion.options.map((opt, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <Radio value={idx} className="mt-2.5" />
+                        <RichTextGroupCell
+                          value={opt}
+                          onChange={(html) => updateSuggestedOption(idx, html)}
+                          placeholder={`Phương án ${String.fromCharCode(65 + idx)}`}
+                          minHeight={36}
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    ))}
+                  </Radio.Group>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {aiSuggestedQuestion.options.map((opt, id) => (
+                      <div
+                        key={id}
+                        className={`p-2 rounded-lg border font-medium ${opt === aiSuggestedQuestion.correctAnswer
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
+                          : 'bg-slate-50 border-slate-200'
+                          }`}
+                      >
+                        <RichTextView html={opt} />
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {aiSuggestedQuestion.type === 'true_false' && aiSuggestedQuestion.statements && (
+                isEditingPreview ? (
+                  <div className="space-y-1.5 text-xs">
+                    {aiSuggestedQuestion.statements.map((st, idx) => (
+                      <div key={st.id} className="flex items-start gap-2">
+                        <span className="font-bold w-5 mt-2.5">{String.fromCharCode(97 + idx)})</span>
+                        <RichTextGroupCell
+                          value={st.content}
+                          onChange={(html) => updateSuggestedStatementContent(idx, html)}
+                          placeholder="Nội dung ý"
+                          minHeight={36}
+                          className="flex-1 text-xs"
+                        />
+                        <Checkbox
+                          checked={st.isCorrect}
+                          onChange={(e) => toggleSuggestedStatementCorrect(idx, e.target.checked)}
+                          className="mt-2.5"
+                        >
+                          Đúng
+                        </Checkbox>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 text-xs">
+                    {aiSuggestedQuestion.statements.map((st, idx) => (
+                      <div
+                        key={st.id}
+                        className={`flex items-start gap-2 p-2 rounded-lg border font-medium ${st.isCorrect
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                          : 'bg-rose-50 border-rose-200 text-rose-900'
+                          }`}
+                      >
+                        <span className="font-bold">{String.fromCharCode(97 + idx)})</span>
+                        <div className="flex-1"><RichTextView html={st.content} /></div>
+                        <Tag color={st.isCorrect ? 'success' : 'error'} className="text-[10px] m-0">
+                          {st.isCorrect ? 'Đúng' : 'Sai'}
+                        </Tag>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {aiSuggestedQuestion.type === 'short' && (
+                isEditingPreview ? (
+                  <Input.TextArea
+                    rows={2}
+                    value={String(aiSuggestedQuestion.correctAnswer || '')}
+                    onChange={(e) => updateSuggestedShortAnswer(e.target.value)}
+                    className="text-xs font-medium"
+                  />
+                ) : (
+                  <div className="p-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs font-bold">
+                    Đáp án: {aiSuggestedQuestion.correctAnswer}
+                  </div>
+                )
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t mt-4 border-slate-100">
+                <Button
+                  className="rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border-slate-200"
+                  disabled={accepting}
+                  onClick={() => {
+                    setAiSuggestedQuestion(null);
+                    setIsEditingPreview(false);
+                  }}
+                >
+                  Bỏ đi, sinh câu khác
+                </Button>
+                {isEditingPreview ? (
+                  <Button
+                    className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
+                    disabled={accepting}
+                    onClick={() => setIsEditingPreview(false)}
+                  >
+                    Xong, xem lại
+                  </Button>
+                ) : (
+                  <Button
+                    className="rounded-lg text-xs font-bold border-indigo-300 text-indigo-700"
+                    icon={<EditOutlined />}
+                    disabled={accepting}
+                    onClick={startEditingPreview}
+                  >
+                    Chỉnh sửa
+                  </Button>
+                )}
+                <Button
+                  type="primary"
+                  className="rounded-lg text-xs font-extrabold bg-[#002147] border-transparent text-white hover:bg-slate-900"
+                  icon={<CheckCircleOutlined />}
+                  loading={accepting}
+                  onClick={acceptAISuggestedQuestion}
+                >
+                  Duyệt và Thêm vào NHCH
+                </Button>
+              </div>
             </div>
-          </div>
+          </RichTextGroupProvider>
         )}
       </div>
     </Modal>
