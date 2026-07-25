@@ -7,6 +7,7 @@ import ReviewModal from './review';
 import ReviewMultipleModal from './review-multiple';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 import { SystemUser } from '../../../../types';
+import { hasActionPermission, hasAnyPermission } from '../../../../utils/permissionUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -72,7 +73,11 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [monHocs, setMonHocs] = useState<{ id: string; name: string }[]>([]);
   const [khoiLops, setKhoiLops] = useState<{ id: string; name: string }[]>([]);
 
-  const [activeTab, setActiveTab] = useState<'topic' | 'review'>('topic');
+  const canManageOrSubmit = hasAnyPermission(currentUser || null, ['topics.manage', 'topics.submit']);
+  const canApprove = hasActionPermission(currentUser || null, 'topics.approve');
+  const defaultTab = canManageOrSubmit ? 'topic' : (canApprove ? 'review' : 'topic');
+
+  const [activeTab, setActiveTab] = useState<'topic' | 'review'>(defaultTab);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isMultipleAction, setIsMultipleAction] = useState(false);
@@ -370,30 +375,34 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]">
         {/* Tab Headers */}
         <div className="flex gap-1 border-b border-gray-300 relative">
-          <button
-            onClick={() => setActiveTab('topic')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'topic'
+          {canManageOrSubmit && (
+            <button
+              onClick={() => setActiveTab('topic')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'topic'
                 ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-              }`}
-            style={{
-              borderBottomColor: activeTab === 'topic' ? '#eff6ff' : undefined
-            }}
-          >
-            Chủ đề câu hỏi
-          </button>
-          <button
-            onClick={() => { setActiveTab('review'); fetchData(); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
+                }`}
+              style={{
+                borderBottomColor: activeTab === 'topic' ? '#eff6ff' : undefined
+              }}
+            >
+              Chủ đề câu hỏi
+            </button>
+          )}
+          {canApprove && (
+            <button
+              onClick={() => { setActiveTab('review'); fetchData(); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
                 ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-              }`}
-            style={{
-              borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined
-            }}
-          >
-            Thẩm định chủ đề
-          </button>
+                }`}
+              style={{
+                borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined
+              }}
+            >
+              Thẩm định chủ đề
+            </button>
+          )}
         </div>
 
         {/* Render Tab Contents */}

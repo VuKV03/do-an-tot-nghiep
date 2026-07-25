@@ -193,6 +193,11 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     userForm.validateFields().then(async values => {
       setSavingUser(true);
       try {
+        const isSubjectRequired = selectedGroups.some(
+          g => g.code === 'GRP_TEACHER' || g.code === 'GRP_HEAD' || g.name?.includes('Giáo viên') || g.name?.includes('Tổ trưởng')
+        );
+        const finalSubjects = isSubjectRequired ? (values.subjects || []) : [];
+
         if (userModalMode === 'create') {
           // Generate a temporary password for new users
           const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
@@ -239,7 +244,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             dateOfBirth: values.dateOfBirth,
             phoneNumber: values.phoneNumber,
             gender: values.gender,
-            subjects: values.subjects,
+            subjects: finalSubjects,
             groups: selectedGroups.map(g => g.id),
             defaultGroup: defaultGroupId,
             position: values.position
@@ -286,7 +291,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             dateOfBirth: values.dateOfBirth,
             phoneNumber: values.phoneNumber,
             gender: values.gender,
-            subjects: values.subjects,
+            subjects: finalSubjects,
             groups: selectedGroups.map(g => g.id),
             defaultGroup: defaultGroupId,
             position: values.position
@@ -862,18 +867,21 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               <Input placeholder="abc@gmail.com" className="rounded py-1.5" />
             </Form.Item>
 
-            <Form.Item
-              name="subjects"
-              label={<span className="text-sm text-slate-500 font-medium">Môn học</span>}
-              className="mt-2"
-            >
-              <Select
-                mode="multiple"
-                placeholder="Chọn môn học"
-                options={subjects.map(s => ({ value: s.id, label: s.name }))}
-                className="rounded"
-              />
-            </Form.Item>
+            {selectedGroups.some(g => g.code === 'GRP_TEACHER' || g.code === 'GRP_HEAD' || g.name?.includes('Giáo viên') || g.name?.includes('Tổ trưởng')) && (
+              <Form.Item
+                name="subjects"
+                label={<span className="text-sm text-slate-500 font-medium">Môn học phụ trách <span className="text-red-500">*</span></span>}
+                rules={[{ required: true, message: 'Vui lòng chọn môn học phụ trách!' }]}
+                className="mt-2"
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="Chọn môn học phụ trách"
+                  options={subjects.map(s => ({ value: s.id, label: s.name }))}
+                  className="rounded"
+                />
+              </Form.Item>
+            )}
           </div>
 
           {/* Nhóm người dùng */}
@@ -1032,7 +1040,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 <p className="mb-2"><span className="text-slate-500 font-medium">Số điện thoại:</span> <span className="font-semibold text-slate-800">{(viewingUser as any).phoneNumber || 'Chưa cập nhật'}</span></p>
               </Col>
               <Col span={12}>
-                <p className="mb-2"><span className="text-slate-500 font-medium">Trạng thái:</span> 
+                <p className="mb-2"><span className="text-slate-500 font-medium">Trạng thái:</span>
                   {viewingUser.status === 'active' ? (
                     <span className="ml-2 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-xs font-semibold border border-emerald-200">Đang hoạt động</span>
                   ) : (

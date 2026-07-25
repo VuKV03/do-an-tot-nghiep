@@ -78,6 +78,9 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             "groups": user_groups,
             "dob": user.dateOfBirth,
             "gender": user.gender,
+            "position": user.position,
+            "phoneNumber": user.phoneNumber,
+            "subjects": json.loads(user.subjects) if user.subjects else [],
         },
     }
 

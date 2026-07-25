@@ -54,3 +54,39 @@ export const checkUserPermission = (currentUser: SystemUser | null, key: string)
 
   return false;
 };
+
+/**
+ * Kiếm tra xem user có một quyền hành động cụ thể không (ví dụ: 'questions.approve', 'matrices.manage')
+ */
+export const hasActionPermission = (currentUser: SystemUser | null, requiredPerm: string): boolean => {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  if (currentUser.groups?.some(g => g.code === 'GRP_ADMIN')) return true;
+  if (!currentUser.groups || currentUser.groups.length === 0) return false;
+
+  const userPerms = new Set<string>();
+  currentUser.groups.forEach(g => {
+    if (Array.isArray(g.permissions)) {
+      g.permissions.forEach(p => userPerms.add(p));
+    }
+  });
+
+  if (userPerms.has(requiredPerm)) return true;
+
+  return Array.from(userPerms).some(p => {
+    if (p === '*') return true;
+    if (p.endsWith('.*')) {
+      const prefix = p.replace('.*', '');
+      return requiredPerm.startsWith(prefix);
+    }
+    return false;
+  });
+};
+
+/**
+ * Kiểm tra xem user có BẤT KỲ quyền nào trong danh sách truyền vào không
+ */
+export const hasAnyPermission = (currentUser: SystemUser | null, requiredPerms: string[]): boolean => {
+  return requiredPerms.some(perm => hasActionPermission(currentUser, perm));
+};
+
