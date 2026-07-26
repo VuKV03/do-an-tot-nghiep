@@ -3,7 +3,6 @@ import {
   Input,
   Select,
   Button,
-  message,
   Modal,
   Spin,
   Tag,
@@ -44,6 +43,7 @@ import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { toast, ToastContainer } from '../../../utils/toast';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -124,7 +124,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
         setPackages(dataPkgs.data || []);
       }
     } catch {
-      message.error('Lỗi cổng kết nối khi tải danh sách.');
+      toast.error('Lỗi cổng kết nối khi tải danh sách.');
     } finally {
       setLoading(false);
     }
@@ -178,11 +178,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           for (const id of selectedExamIds) {
             await fetch(`/api/exams/${id}`, { method: 'DELETE' });
           }
-          message.success('Đã xóa thành công các đề thi được chọn.');
+          toast.success('Đã xóa thành công các đề thi được chọn.');
           setSelectedExamIds([]);
           fetchData();
         } catch {
-          message.error('Có lỗi xảy ra khi xóa hàng loạt.');
+          toast.error('Có lỗi xảy ra khi xóa hàng loạt.');
         }
       }
     });
@@ -200,11 +200,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
-            message.success(json.message);
+            toast.success(json.message);
             fetchData();
           }
         } catch {
-          message.error('Không thể xóa đề thi.');
+          toast.error('Không thể xóa đề thi.');
         }
       }
     });
@@ -220,11 +220,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       });
       const json = await res.json();
       if (json.success) {
-        message.info(`Đã chuyển đổi trạng thái gói đề sang: ${nextStatus === 'active' ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}`);
+        toast.info(`Đã chuyển đổi trạng thái gói đề sang: ${nextStatus === 'active' ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}`);
         fetchData();
       }
     } catch {
-      message.error('Không thể cập nhật trạng thái gói.');
+      toast.error('Không thể cập nhật trạng thái gói.');
     }
   };
 
@@ -240,11 +240,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           const res = await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
-            message.success(json.message);
+            toast.success(json.message);
             fetchData();
           }
         } catch {
-          message.error('Không thể xóa gói đề.');
+          toast.error('Không thể xóa gói đề.');
         }
       }
     });
@@ -294,11 +294,11 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   // như trước (mở được trên Word desktop nhờ tự nhận diện nội dung, nhưng không phải file Word
   // chuẩn nên có thể lỗi/cảnh báo trên Word Online, LibreOffice, Google Docs...).
   const handleExportWord = async (exam: any) => {
-    message.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
+    toast.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
     const questions = await fetchExamQuestions(exam.id);
     const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions);
     triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');
-    message.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
+    toast.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
 
   // Cột xuất Excel — khớp đúng các cột đang hiển thị ở bảng "Kết quả tìm kiếm".
@@ -319,12 +319,12 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const handleExportExcel = () => {
     const rows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
     if (rows.length === 0) {
-      message.warning('Không có dữ liệu để xuất Excel.');
+      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `DanhSachDeThi_${activeTab === 'exam_roots' ? 'DeGoc' : 'ThamDinh'}_${new Date().toISOString().slice(0, 10)}`;
     exportToExcel(rows, examExcelColumns, fileName, 'Đề thi');
-    message.success('Xuất báo cáo Excel thành công!');
+    toast.success('Xuất báo cáo Excel thành công!');
   };
 
   // Gửi thẩm định: đề thi đã ở trạng thái "Chờ thẩm định" ngay khi tạo, nên chỉ cần
@@ -345,13 +345,13 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       });
       const json = await res.json();
       if (json.success) {
-        message.success(status === 'approved' ? `Đã duyệt đề thi "${exam.name}".` : `Đã từ chối đề thi "${exam.name}".`);
+        toast.success(status === 'approved' ? `Đã duyệt đề thi "${exam.name}".` : `Đã từ chối đề thi "${exam.name}".`);
         fetchData();
       } else {
-        message.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
+        toast.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
       }
     } catch {
-      message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+      toast.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
     } finally {
       setReviewActioning(null);
     }
@@ -369,7 +369,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   };
 
   const handleSavePermissions = () => {
-    message.success('Cập nhật phân quyền truy cập đề thi thành công.');
+    toast.success('Cập nhật phân quyền truy cập đề thi thành công.');
     setIsPermissionOpen(false);
   };
 
@@ -395,7 +395,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
       setSyncProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
-          message.success(`Đồng bộ dữ liệu đề ${selectedExam.code} sang hệ thống thi trực tuyến thành công.`);
+          toast.success(`Đồng bộ dữ liệu đề ${selectedExam.code} sang hệ thống thi trực tuyến thành công.`);
           setTimeout(() => setIsSyncOpen(false), 500);
           return 100;
         }
@@ -496,6 +496,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="exam-management-layout-facade">
+      <ToastContainer />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
         <button
