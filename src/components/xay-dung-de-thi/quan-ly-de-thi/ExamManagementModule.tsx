@@ -43,6 +43,7 @@ import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -300,11 +301,30 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
     message.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
 
+  // Cột xuất Excel — khớp đúng các cột đang hiển thị ở bảng "Kết quả tìm kiếm".
+  const examExcelColumns: ExcelColumn<any>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã đề', accessor: row => row.code, width: 16 },
+    { header: 'Tên đề thi', accessor: row => row.name, width: 32 },
+    { header: 'Môn thi', accessor: row => row.subject, width: 14 },
+    { header: 'Ma trận đề', accessor: row => row.matrixName || 'Ma trận đề 01', width: 16 },
+    { header: 'Tổng điểm', accessor: row => row.totalScore || '10.00', width: 10, align: 'center' },
+    { header: 'Số câu hỏi', accessor: row => row.totalQuestions || 0, width: 10, align: 'center' },
+    { header: 'Thời gian làm bài (phút)', accessor: row => row.duration || 90, width: 14, align: 'center' },
+    { header: 'Ngày tạo', accessor: row => (row.createdAt ? row.createdAt.slice(0, 10) : ''), width: 12 },
+    { header: 'Trạng thái', accessor: row => getStatusLabel(row.status), width: 16 },
+  ];
+
+  // Xuất Excel đúng bảng "Kết quả tìm kiếm" đang hiển thị (đã áp dụng bộ lọc tìm kiếm).
   const handleExportExcel = () => {
-    message.loading({ content: 'Đang kết xuất danh sách báo cáo Excel...', key: 'excel' });
-    setTimeout(() => {
-      message.success({ content: 'Xuất báo cáo Excel thành công!', key: 'excel', duration: 3 });
-    }, 1000);
+    const rows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
+    if (rows.length === 0) {
+      message.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `DanhSachDeThi_${activeTab === 'exam_roots' ? 'DeGoc' : 'ThamDinh'}_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(rows, examExcelColumns, fileName, 'Đề thi');
+    message.success('Xuất báo cáo Excel thành công!');
   };
 
   // Gửi thẩm định: đề thi đã ở trạng thái "Chờ thẩm định" ngay khi tạo, nên chỉ cần
@@ -382,6 +402,28 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
         return prev + 25;
       });
     }, 400);
+  };
+
+  // Text label tương ứng getStatusTag — dùng cho xuất Excel (không thể ghi JSX vào ô Excel).
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case '1':
+      case 'draft':
+        return 'Lưu nháp';
+      case '2':
+      case 'pending':
+        return 'Chờ thẩm định';
+      case '3':
+      case 'approved':
+      case 'active':
+        return 'Đã thẩm định';
+      case '4':
+      case 'rejected':
+      case 'closed':
+        return 'Từ chối';
+      default:
+        return status;
+    }
   };
 
   // Status tag formatters
@@ -605,6 +647,14 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                   Thêm mới tự động
                 </Button>
                 <Button
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  onClick={handleExportExcel}
+                  className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
+                >
+                  Xuất Excel
+                </Button>
+                <Button
                   icon={<SafetyCertificateOutlined />}
                   disabled={selectedExamIds.length === 0}
                   onClick={handleSendReview}
@@ -624,9 +674,10 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
             )}
             {activeTab === 'exam_review' && (
               <Button
+                type="primary"
                 icon={<FileExcelOutlined />}
                 onClick={handleExportExcel}
-                className="border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold text-xs rounded cursor-pointer"
+                className="bg-green-600 border-transparent text-white font-semibold text-xs rounded hover:bg-green-700 cursor-pointer"
               >
                 Xuất Excel
               </Button>
