@@ -136,6 +136,12 @@ function processPlainSegment(segment: string): string {
  * giống mã nguồn LaTeX trần) được render thành công thức toán học ngay, phần còn lại giữ nguyên
  * dạng chữ (đã escape để không lọt HTML lạ, giữ xuống dòng bằng <br>). */
 export function buildPastedHtml(text: string): { html: string; hasFormula: boolean } {
+
+  const trimmedWhole = text.trim();
+  if (trimmedWhole && !/\$|\\\[|\\\(/.test(text) && looksLikeRawLatex(trimmedWhole)) {
+    return { html: buildFormulaHtml(trimmedWhole), hasFormula: true };
+  }
+
   DELIMITED_FORMULA_PATTERN.lastIndex = 0;
   let lastIndex = 0;
   let html = '';
