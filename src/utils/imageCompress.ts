@@ -71,5 +71,25 @@ export async function compressImageFile(file: File): Promise<CompressedImage> {
     result = drawToDataUrl(img, maxWidth, quality, keepPng);
   }
 
+  // PNG không có bước giảm chất lượng (chỉ giảm kích thước) — ảnh chụp/screenshot nhiều chi tiết
+  // dán dạng PNG vẫn có thể vượt ngưỡng dù đã co về MIN_WIDTH. Trường hợp đó, chấp nhận đánh đổi
+  // độ trong suốt để ép về JPEG (có giảm chất lượng), đảm bảo luôn nằm trong giới hạn lưu trữ.
+  if (keepPng && result.dataUrl.length > TARGET_MAX_BASE64_BYTES) {
+    let jpegQuality = 0.75;
+    result = drawToDataUrl(img, maxWidth, jpegQuality, false);
+    let jpegGuard = 0;
+    while (result.dataUrl.length > TARGET_MAX_BASE64_BYTES && jpegGuard < 10) {
+      jpegGuard += 1;
+      if (jpegQuality > 0.35) {
+        jpegQuality -= 0.12;
+      } else if (maxWidth > MIN_WIDTH) {
+        maxWidth = Math.max(MIN_WIDTH, Math.round(maxWidth * 0.75));
+      } else {
+        break;
+      }
+      result = drawToDataUrl(img, maxWidth, jpegQuality, false);
+    }
+  }
+
   return result;
 }

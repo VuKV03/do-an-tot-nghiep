@@ -41,9 +41,11 @@ class Question(Base):
 
     id = Column(String(36), primary_key=True)
     code = Column(String(100), nullable=True)
-    content = Column(Text, nullable=False)
-    options = Column(Text, nullable=True)
-    correct_answer = Column(Text, nullable=True)
+    # LONGTEXT (không phải TEXT — giới hạn 65,535 byte của MySQL TEXT) vì nội dung câu hỏi có thể
+    # nhúng ảnh base64 (RichTextEditor), dễ vượt ngưỡng đó và gây lỗi ghi DB (500) khi lưu.
+    content = Column(LONGTEXT, nullable=False)
+    options = Column(LONGTEXT, nullable=True)
+    correct_answer = Column(LONGTEXT, nullable=True)
     
     # Foreign keys
     topic_id = Column(String(36), ForeignKey("topics.id", ondelete="SET NULL"), nullable=True)
@@ -61,7 +63,7 @@ class Question(Base):
     status = Column(Integer, default=0)
     status_ai = Column(Integer, default=0)
     approved_note = Column(Text, default="")
-    statements = Column(Text, nullable=True)
+    statements = Column(LONGTEXT, nullable=True)  # câu hỏi Đúng/Sai — mỗi ý cũng có thể chứa ảnh base64
     created_by = Column(String(255), nullable=True)  # Tên người soạn/tạo câu hỏi
 
     # Relationship
