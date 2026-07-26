@@ -11,6 +11,7 @@ import {
 import { questionApi, bankQuestionApi, subjectCategoryApi, gradeLevelApi, competencyComponentApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
 import RichTextEditor from '../../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
+import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -145,15 +146,7 @@ export default function UpdateQuestionModal({
         );
 
         const cogRes = await cognitiveLevelApi.list({ subject_id: subjectId, grade_id: gradeId });
-        const mapLevelCode = (code: string) => {
-          const c = code.toLowerCase();
-          if (['vv', 'l1', 'nhan_biet'].includes(c)) return 'nhan_biet';
-          if (['zz', 'l2', 'thong_hieu'].includes(c)) return 'thong_hieu';
-          if (['xx', 'l3', 'van_dung'].includes(c)) return 'van_dung';
-          if (['vdc', 'l4', 'van_dung_cao'].includes(c)) return 'van_dung_cao';
-          return 'nhan_biet';
-        };
-        setCognitiveLevelOptions(cogRes.data.map((c) => ({ value: mapLevelCode(c.code), label: c.name })));
+        setCognitiveLevelOptions(buildCognitiveLevelOptions(cogRes.data));
       } catch (err) {
         console.error('Failed to load dynamic options', err);
       }

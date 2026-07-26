@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode, SystemUser } from '../../../../types';
 import { stripHtmlToText } from '../../../../utils/htmlContent';
+import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
 import { SUBJECTS, GRADES } from '../../../../data';
 import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
 
@@ -73,25 +74,8 @@ export default function QuestionBankModule({
   const [cognitiveLevelFilterOptions, setCognitiveLevelFilterOptions] = useState<{ value: CognitiveLevel; label: string }[]>([]);
 
   useEffect(() => {
-    const mapLevelCode = (code: string): CognitiveLevel => {
-      const c = code.toLowerCase();
-      if (['vv', 'l1', 'nhan_biet'].includes(c)) return 'nhan_biet';
-      if (['zz', 'l2', 'thong_hieu'].includes(c)) return 'thong_hieu';
-      if (['xx', 'l3', 'van_dung'].includes(c)) return 'van_dung';
-      if (['vdc', 'l4', 'van_dung_cao'].includes(c)) return 'van_dung_cao';
-      return 'nhan_biet';
-    };
     cognitiveLevelApi.list().then((res) => {
-      const seen = new Set<string>();
-      const options: { value: CognitiveLevel; label: string }[] = [];
-      res.data.forEach((c) => {
-        const value = mapLevelCode(c.code);
-        if (!seen.has(value)) {
-          seen.add(value);
-          options.push({ value, label: c.name });
-        }
-      });
-      setCognitiveLevelFilterOptions(options);
+      setCognitiveLevelFilterOptions(buildCognitiveLevelOptions(res.data));
     }).catch((err) => console.error('Failed to load cognitive levels', err));
   }, []);
 
