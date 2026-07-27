@@ -1028,7 +1028,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
 
             {editingDraft.type === 'short' && (
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
+                <label className="block font-medium text-slate-700 mb-1">Đáp án</label>
                 <Input.TextArea
                   rows={2}
                   value={editingDraft.correctAnswer as string}

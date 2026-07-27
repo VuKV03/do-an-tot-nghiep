@@ -635,7 +635,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             {editingOriginal.type === 'short' && (
               <div>
                 <div className="font-bold text-[#1a3c8b] mb-1.5">Đáp án tự luận</div>
-                <label className="block font-medium text-slate-700 mb-1">Đáp án / từ khóa chấm điểm</label>
+                <label className="block font-medium text-slate-700 mb-1">Đáp án</label>
                 <Input.TextArea
                   rows={3}
                   value={editingShortAnswer}

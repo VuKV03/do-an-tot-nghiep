@@ -124,7 +124,7 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
             "(Thông tư 22/2024): câu hỏi yêu cầu tính toán hoặc suy luận ra một đáp số/từ khóa ngắn gọn "
             "(không phải trắc nghiệm nhiều lựa chọn).\n\n"
             "Quy tắc:\n"
-            "- 'correctAnswer' là đáp số hoặc từ khóa chấm điểm chính xác, ngắn gọn.\n"
+            "- 'correctAnswer' là đáp số chính xác, ngắn gọn.\n"
             "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
             "- 'type': luôn là 'short'.\n"
             f"{_PLAIN_TEXT_RULES}"

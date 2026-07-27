@@ -810,7 +810,7 @@ export default function CreateQuestionModal({
                 <Form.Item
                   label={
                     <span className='text-[15px] font-bold text-slate-700'>
-                      Đáp án / từ khóa chấm điểm{' '}
+                      Đáp án{' '}
                       <span className='text-red-500'>*</span>
                     </span>
                   }
