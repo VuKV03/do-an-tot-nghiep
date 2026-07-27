@@ -5,6 +5,7 @@ import { isLikelyHtml, sanitizeHtml } from '../utils/htmlContent';
 import { compressImageFile } from '../utils/imageCompress';
 import {
   buildPastedHtml,
+  buildFormulaHtml,
   findFormulaElement,
   getFormulaLatex,
   renderLatexToHtml,
@@ -423,6 +424,54 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     emitChange();
   };
 
+  /** Gõ trực tiếp bàn phím, đóng dấu `$...$` quanh 1 đoạn — chuyển ngay thành công thức lúc vừa gõ
+   * dấu `$` đóng, không cần dán/mở popup công thức. Trước đây chỉ luồng dán (handlePaste) nhận diện
+   * được `$...$`; gõ tay hoàn toàn không có tác dụng gì (dấu `$` chỉ nằm lại như ký tự thường). */
+  const checkAutoConvertTypedFormula = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const container = range.startContainer;
+    const offset = range.startOffset;
+    if (container.nodeType !== Node.TEXT_NODE || !editorRef.current?.contains(container)) return;
+
+    const data = (container as Text).data;
+    // Chỉ xét khi ký tự vừa gõ (ngay trước con trỏ) là dấu $ đóng.
+    if (offset < 1 || data.charAt(offset - 1) !== '$') return;
+
+    const openIdx = data.lastIndexOf('$', offset - 2);
+    if (openIdx === -1) return; // Đây là dấu $ mở, chưa có gì để đóng — chờ dấu $ kế tiếp.
+
+    const latex = data.slice(openIdx + 1, offset - 1).trim();
+    if (!latex) return; // "$$" liền nhau (rỗng) — có thể là mở đầu khối $$...$$, không tự chuyển vội.
+
+    try {
+      const replaceRange = document.createRange();
+      replaceRange.setStart(container, openIdx);
+      replaceRange.setEnd(container, offset);
+      replaceRange.deleteContents();
+
+      const template = document.createElement('template');
+      template.innerHTML = buildFormulaHtml(latex);
+      const formulaNode = template.content.firstElementChild;
+      if (!formulaNode) return;
+      const spaceNode = document.createTextNode(' ');
+
+      const frag = document.createDocumentFragment();
+      frag.appendChild(formulaNode);
+      frag.appendChild(spaceNode);
+      replaceRange.insertNode(frag);
+
+      const caretRange = document.createRange();
+      caretRange.setStartAfter(spaceNode);
+      caretRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(caretRange);
+    } catch {
+      // Không để lỗi thao tác DOM làm gãy cả ô soạn thảo — bỏ qua, dấu $ vẫn còn nguyên dạng chữ thường.
+    }
+  };
+
   return {
     editorRef,
     fileInputRef,
@@ -465,6 +514,7 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     handleEditorClick,
     confirmFormula,
     handlePaste,
+    checkAutoConvertTypedFormula,
   };
 }
 
@@ -765,7 +815,7 @@ export function RichTextEditableArea({
           }
           core.emitChange();
         }}
-        onInput={() => core.emitChange()}
+        onInput={() => { core.checkAutoConvertTypedFormula(); core.emitChange(); }}
         onMouseUp={core.updateTableContext}
         onKeyUp={core.updateTableContext}
         onKeyDown={core.handleTableTabKey}
