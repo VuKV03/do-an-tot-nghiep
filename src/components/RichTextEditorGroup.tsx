@@ -89,8 +89,18 @@ export function RichTextGroupCell({
   // render (không chỉ lúc focus) — vì các nút trên thanh công cụ dùng chung (vd: mở bảng chọn số
   // dòng/cột, mở popup công thức) làm thay đổi state RIÊNG của ô này, khiến ô này re-render với
   // core mới, nhưng context vẫn giữ core "cũ" từ lần focus nếu không chủ động cập nhật lại.
+  //
+  // `|| core.showFormulaPicker` là bắt buộc, không phải tùy chọn: popup công thức có <textarea
+  // autoFocus> bên trong, nên vừa mở popup là nó CƯỚP focus khỏi ô contentEditable này ngay lập
+  // tức, khiến `isFocusedRef.current` rơi về false. Nếu chỉ xét theo focus, mọi thao tác sau đó
+  // trong popup (gõ, dán, xoá, bấm Hủy) đều cập nhật đúng state NỘI BỘ của ô này (setFormulaLatex/
+  // setShowFormulaPicker vẫn là setter thật, luôn hoạt động) nhưng `activeCore` ở context không
+  // còn được đẩy cập nhật nữa — nên thanh công cụ/popup (render theo `activeCore`) vẫn hiển thị
+  // đúng ảnh chụp CŨ từ trước lúc mất focus, khiến người dùng tưởng gõ/dán/xoá/Hủy "không có tác
+  // dụng gì" dù dữ liệu bên trong đã đổi đúng (chỉ lộ ra khi click lại vào ô, buộc focus lại và
+  // đẩy core mới nhất lên).
   useEffect(() => {
-    if (core.isFocusedRef.current) {
+    if (core.isFocusedRef.current || core.showFormulaPicker) {
       setActiveCore(core);
     }
   });

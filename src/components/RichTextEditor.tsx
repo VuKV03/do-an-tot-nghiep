@@ -363,6 +363,9 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     setShowFormulaPicker(false);
     setFormulaLatex('');
     editingFormulaElRef.current = null;
+    // Trả focus lại đúng ô soạn thảo vừa mở popup — cursor quay về đúng chỗ, và isFocusedRef tự
+    // phục hồi true qua onFocus (quan trọng ở RichTextEditorGroup: xem ghi chú isFocusedRef ở đó).
+    focusEditor();
   };
 
   /** Click vào 1 công thức đã chèn (khối contenteditable=false) để mở lại và chỉnh sửa */
