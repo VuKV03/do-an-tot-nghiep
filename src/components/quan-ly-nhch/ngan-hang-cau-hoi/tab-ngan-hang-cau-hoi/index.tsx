@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Tree, Select, Input, Button, Table, Space, message, Modal, Form, Spin, Divider, Tooltip, notification, DatePicker, Dropdown } from 'antd';
+import { Tree, Select, Input, Button, Space, Modal, Form, Spin, Empty, Pagination, Divider, Tooltip, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
+import { FileExcelOutlined } from '@ant-design/icons';
+import { toast, ToastContainer } from '../../../../utils/toast';
 import CreateQuestionModal from './manual-create';
 import AIGenerateQuestionModal from './ai-generate';
 import UpdateQuestionModal from './update';
@@ -29,8 +31,11 @@ import {
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode, SystemUser } from '../../../../types';
 import { stripHtmlToText } from '../../../../utils/htmlContent';
 import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
+import { buildQuestionTypeFilterOptions } from '../../../../utils/questionTypeCategory';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
 import { SUBJECTS, GRADES } from '../../../../data';
-import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi, questionTypeApi } from '../../../../services/danhMucApi.ts';
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
@@ -79,6 +84,16 @@ export default function QuestionBankModule({
     }).catch((err) => console.error('Failed to load cognitive levels', err));
   }, []);
 
+  // Loại câu hỏi — lấy đúng danh mục "Loại hình câu hỏi" thật từ API, không hard-code (trước đây
+  // fix cứng 4 lựa chọn nhưng danh mục thật chỉ có 3, thừa hẳn "Trắc nghiệm nhiều lựa chọn").
+  const [questionTypeFilterOptions, setQuestionTypeFilterOptions] = useState<{ value: QuestionType; label: string }[]>([]);
+
+  useEffect(() => {
+    questionTypeApi.list().then((res) => {
+      setQuestionTypeFilterOptions(buildQuestionTypeFilterOptions(res.data));
+    }).catch((err) => console.error('Failed to load question types', err));
+  }, []);
+
   // Questions from API
   const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -104,6 +119,19 @@ export default function QuestionBankModule({
 
   // Modal / Form state for Add New
   const [activeModalType, setActiveModalType] = useState<QuestionType | null>(null);
+
+  // Phân trang bảng "Kết quả tìm kiếm" — trước đây do antd Table tự quản lý nội bộ, giờ bảng dùng
+  // module resizableTable dùng chung (giống tab "Quản lý đề gốc") nên tự cầm state phân trang.
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState(10);
+
+  // Độ rộng từng cột bảng "Kết quả tìm kiếm" — co giãn được, viền dọc rõ ràng giữa các cột — dùng
+  // chung module resizableTable với tab "Quản lý đề gốc" (ExamManagementModule).
+  // Thứ tự: checkbox, STT, Mã câu hỏi, Nội dung câu hỏi, Loại câu hỏi, Cấp độ tư duy, Người tạo,
+  // Thành phần năng lực, Thuộc chủ đề, Ngày tạo, Trạng thái, Thao tác.
+  const { colGroup: qbColGroup, startResize: startQbColResize, totalWidth: qbTotalWidth } = useResizableColumns(
+    [40, 56, 110, 350, 100, 110, 120, 140, 130, 100, 130, 110]
+  );
 
   // Row selection & Bulk Action states
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -322,6 +350,17 @@ export default function QuestionBankModule({
     });
   }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData]);
 
+  // Kết quả lọc thay đổi (tìm kiếm mới, đổi bộ lọc...) — quay về trang 1 để tránh đứng ở 1 trang
+  // trống nếu tập kết quả mới ít hơn.
+  useEffect(() => {
+    setTablePage(1);
+  }, [filteredQuestions]);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (tablePage - 1) * tablePageSize;
+    return filteredQuestions.slice(start, start + tablePageSize);
+  }, [filteredQuestions, tablePage, tablePageSize]);
+
   const handleSearchAction = () => {
     setAppliedFilters({
       keyword: searchKeyword,
@@ -331,7 +370,7 @@ export default function QuestionBankModule({
       creator: filterCreator,
       dateRange: filterDateRange
     });
-    message.success('Đã áp dụng bộ lọc câu hỏi!');
+    toast.success('Đã áp dụng bộ lọc câu hỏi!');
   };
 
   const handleResetFilters = () => {
@@ -350,7 +389,7 @@ export default function QuestionBankModule({
       dateRange: null
     });
     setSelectedTopicKey(null);
-    message.info('Đã làm mới bộ lọc.');
+    toast.info('Đã làm mới bộ lọc.');
   };
 
   const getQuestionTypeLabelShort = (type: QuestionType) => {
@@ -390,7 +429,7 @@ export default function QuestionBankModule({
 
 
   const handleImportMockFiles = () => {
-    message.loading('Đang phân tích cấu trúc dữ liệu tệp tin nhập vào...');
+    toast.loading('Đang phân tích cấu trúc dữ liệu tệp tin nhập vào...');
     const targetSubject = actualSubject || 'Toán học';
     const targetGrade = actualGrade || 'Khối 12';
     setTimeout(() => {
@@ -431,7 +470,7 @@ export default function QuestionBankModule({
       onAddQuestion?.(importQ1);
       onAddQuestion?.(importQ2);
       setIsImportOpen(false);
-      message.success('Nhập tệp tin hoàn tất! Đã thêm thành công 02 câu hỏi mới vào ngân hàng.');
+      toast.success('Nhập tệp tin hoàn tất! Đã thêm thành công 02 câu hỏi mới vào ngân hàng.');
     }, 1500);
   };
 
@@ -440,23 +479,23 @@ export default function QuestionBankModule({
       try {
         await bankQuestionApi.delete(pendingDeleteQuestion.id);
         onDeleteQuestion?.(pendingDeleteQuestion.id);
-        message.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
+        toast.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
         fetchQuestions(); // refresh from API
         setPendingDeleteQuestion(null);
         setIsDeleteOpen(false);
       } catch (err: any) {
-        message.error(err.message || 'Lỗi khi xóa câu hỏi');
+        toast.error(err.message || 'Lỗi khi xóa câu hỏi');
       }
     } else if (selectedRowKeys.length > 0) {
       try {
         await Promise.all(selectedRowKeys.map((key) => bankQuestionApi.delete(key as string)));
         selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
-        message.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
+        toast.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
         fetchQuestions(); // refresh from API
         setSelectedRowKeys([]);
         setIsDeleteOpen(false);
       } catch (err: any) {
-        message.error(err.message || 'Lỗi khi xóa câu hỏi');
+        toast.error(err.message || 'Lỗi khi xóa câu hỏi');
       }
     } else {
       setIsDeleteOpen(false);
@@ -469,10 +508,10 @@ export default function QuestionBankModule({
         await bankQuestionApi.submit(pendingSendReviewQuestion.id);
         const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
         onUpdateQuestion?.(updated);
-        message.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
+        toast.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
         fetchQuestions();
       } catch (err: any) {
-        message.error(err.message || 'Lỗi khi gửi thẩm định');
+        toast.error(err.message || 'Lỗi khi gửi thẩm định');
       }
       setPendingSendReviewQuestion(null);
     } else if (selectedRowKeys.length > 0) {
@@ -484,10 +523,10 @@ export default function QuestionBankModule({
             onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
           }
         }
-        message.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
+        toast.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
         fetchQuestions();
       } catch (err: any) {
-        message.error(err.message || 'Lỗi khi gửi thẩm định');
+        toast.error(err.message || 'Lỗi khi gửi thẩm định');
       }
       setSelectedRowKeys([]);
     }
@@ -508,7 +547,7 @@ export default function QuestionBankModule({
       await bankQuestionApi.approve(id, feedback);
       fetchQuestions();
     } catch (e: any) {
-      message.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
+      toast.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
     }
   };
 
@@ -517,7 +556,7 @@ export default function QuestionBankModule({
       await bankQuestionApi.reject(id, feedback);
       fetchQuestions();
     } catch (e: any) {
-      message.error(e.message || 'Lỗi khi từ chối câu hỏi');
+      toast.error(e.message || 'Lỗi khi từ chối câu hỏi');
     }
   };
 
@@ -526,210 +565,162 @@ export default function QuestionBankModule({
       await bankQuestionApi.bulkReview(ids, verdict, comment);
       fetchQuestions();
     } catch (e: any) {
-      message.error(e.message || 'Lỗi khi thẩm định câu hỏi');
+      toast.error(e.message || 'Lỗi khi thẩm định câu hỏi');
     }
   };
 
-  const tableColumns = [
-    {
-      title: 'STT',
-      width: 50,
-      render: (text: any, record: any, index: number) => <span className="font-mono text-slate-500 text-xs">{index + 1}</span>
-    },
-    {
-      title: 'Mã câu hỏi',
-      dataIndex: 'code',
-      width: 100,
-      render: (code: string) => <span className="font-semibold text-slate-700 text-xs">{code}</span>
-    },
-    {
-      title: 'Nội dung câu hỏi',
-      dataIndex: 'text',
-      width: 350,
-      render: (text: string) => {
-        const plainText = stripHtmlToText(text);
-        return (
-          <Tooltip title={plainText}>
-            <div
-              className="text-slate-700 font-normal text-xs hover:text-[#002147] transition-all cursor-pointer"
-              style={{
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                maxWidth: '320px',
-              }}
-            >
-              {plainText}
-            </div>
-          </Tooltip>
-        );
-      }
-    },
-    {
-      title: 'Loại câu hỏi',
-      dataIndex: 'type',
-      width: 90,
-      render: (type: QuestionType) => <span className="text-xs text-slate-600 font-medium">{getQuestionTypeLabelShort(type)}</span>
-    },
-    {
-      title: 'Cấp độ tư duy',
-      dataIndex: 'level',
-      width: 90,
-      render: (level: CognitiveLevel) => <span className="text-xs text-slate-600 font-medium">{getCognitiveLevelLabelShort(level)}</span>
-    },
-    {
-      title: 'Người tạo',
-      dataIndex: 'creator',
-      width: 120,
-      ellipsis: true,
-      render: (creator: string) => <span className="text-slate-600 text-xs">{creator}</span>
-    },
-    {
-      title: 'Thành phần năng lực',
-      dataIndex: 'nangLuc',
-      width: 130,
-      ellipsis: true,
-      render: (nangLuc: string) => <span className="text-slate-600 text-xs">{nangLuc || '.........................'}</span>
-    },
-    {
-      title: 'Thuộc chủ đề',
-      dataIndex: 'topicName',
-      width: 120,
-      ellipsis: true,
-      render: (topicName: string) => <span className="text-slate-600 text-xs">{topicName || '.........................'}</span>
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      width: 100,
-      render: (createdAt: string) => <span className="text-slate-600 text-xs">{formatDateString(createdAt)}</span>
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      width: 120,
-      render: (status: QuestionStatus) => {
-        switch (status) {
-          case 'approved':
-            return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
-                Đã thẩm định
-              </span>
-            );
-          case 'pending':
-            return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-blue-350 bg-blue-50 text-blue-700 font-bold text-[10px]">
-                Chờ thẩm định
-              </span>
-            );
-          case 'rejected':
-            return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
-                Từ chối
-              </span>
-            );
-          case 'draft':
-          default:
-            return (
-              <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
-                Lưu nháp
-              </span>
-            );
-        }
-      }
-    },
-    {
-      title: 'Thao tác',
-      key: 'actions',
-      width: 100,
-      align: 'center' as const,
-      render: (_: any, record: Question) => {
-        const canSendReview = record.status === 'draft' || record.status === 'rejected';
-        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
-        const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
-
-        const menuItems: MenuProps['items'] = [];
-
-        if (canSendReview) {
-          menuItems.push({
-            key: 'send-review',
-            label: <span className="text-xs font-semibold text-slate-700">Gửi thẩm định/phản biện</span>,
-            icon: <SendOutlined className="text-slate-500 text-xs" style={{ transform: 'rotate(-45deg)' }} />,
-            onClick: () => {
-              setPendingSendReviewQuestion(record);
-              setIsSendReviewOpen(true);
-            }
-          });
-        }
-
-        menuItems.push({
-          key: 'history',
-          label: <span className="text-xs font-semibold text-slate-700">Lịch sử chỉnh sửa, thẩm định</span>,
-          icon: <HistoryOutlined className="text-slate-500 text-xs" />,
-          onClick: () => {
-            setHistoryQuestion(record);
-          }
-        });
-
-        menuItems.push({
-          key: 'delete',
-          label: <span className="text-xs font-semibold text-red-655">Xóa câu hỏi</span>,
-          icon: <DeleteOutlined className="text-red-500 text-xs" />,
-          danger: true,
-          onClick: () => {
-            setPendingDeleteQuestion(record);
-            setIsDeleteOpen(true);
-          }
-        });
-
-        return (
-          <div className="flex items-center justify-center gap-1.5">
-            {showEye && (
-              <Tooltip title="Xem chi tiết">
-                <Button
-                  type="text"
-                  icon={<EyeOutlined className="text-blue-600 text-xs" />}
-                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                  onClick={() => {
-                    setDetailQuestion(record);
-                    setIsDetailOpen(true);
-                  }}
-                  style={{ cursor: 'pointer' }}
-                />
-              </Tooltip>
-            )}
-            {canEditQuestion && (
-              <Tooltip title="Chỉnh sửa">
-                <Button
-                  type="text"
-                  icon={<EditOutlined className="text-blue-600 text-xs" />}
-                  className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                  onClick={() => {
-                    setUpdateQuestion(record);
-                    setIsUpdateOpen(true);
-                  }}
-                  style={{ cursor: 'pointer' }}
-                />
-              </Tooltip>
-            )}
-            <Tooltip title="Xem thêm">
-              <Dropdown menu={{ items: menuItems }} trigger={['hover']} placement="bottomRight">
-                <Button
-                  type="text"
-                  icon={<MoreOutlined className="text-slate-500 text-xs" />}
-                  className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded"
-                  style={{ cursor: 'pointer' }}
-                />
-              </Dropdown>
-            </Tooltip>
-          </div>
-        );
-      }
+  const getQuestionStatusLabel = (status: QuestionStatus): string => {
+    switch (status) {
+      case 'approved': return 'Đã thẩm định';
+      case 'pending': return 'Chờ thẩm định';
+      case 'rejected': return 'Từ chối';
+      case 'draft':
+      default: return 'Lưu nháp';
     }
+  };
+
+  const renderQuestionStatusBadge = (status: QuestionStatus) => {
+    switch (status) {
+      case 'approved':
+        return (
+          <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+            Đã thẩm định
+          </span>
+        );
+      case 'pending':
+        return (
+          <span className="inline-block px-2.5 py-0.5 rounded border border-blue-350 bg-blue-50 text-blue-700 font-bold text-[10px]">
+            Chờ thẩm định
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+            Từ chối
+          </span>
+        );
+      case 'draft':
+      default:
+        return (
+          <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
+            Lưu nháp
+          </span>
+        );
+    }
+  };
+
+  const renderQuestionActions = (record: Question) => {
+    const canSendReview = record.status === 'draft' || record.status === 'rejected';
+    const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+    const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
+
+    const menuItems: MenuProps['items'] = [];
+
+    if (canSendReview) {
+      menuItems.push({
+        key: 'send-review',
+        label: <span className="text-xs font-semibold text-slate-700">Gửi thẩm định/phản biện</span>,
+        icon: <SendOutlined className="text-slate-500 text-xs" style={{ transform: 'rotate(-45deg)' }} />,
+        onClick: () => {
+          setPendingSendReviewQuestion(record);
+          setIsSendReviewOpen(true);
+        }
+      });
+    }
+
+    menuItems.push({
+      key: 'history',
+      label: <span className="text-xs font-semibold text-slate-700">Lịch sử chỉnh sửa, thẩm định</span>,
+      icon: <HistoryOutlined className="text-slate-500 text-xs" />,
+      onClick: () => {
+        setHistoryQuestion(record);
+      }
+    });
+
+    menuItems.push({
+      key: 'delete',
+      label: <span className="text-xs font-semibold text-red-655">Xóa câu hỏi</span>,
+      icon: <DeleteOutlined className="text-red-500 text-xs" />,
+      danger: true,
+      onClick: () => {
+        setPendingDeleteQuestion(record);
+        setIsDeleteOpen(true);
+      }
+    });
+
+    return (
+      <div className="flex items-center justify-center gap-1.5">
+        {showEye && (
+          <Tooltip title="Xem chi tiết">
+            <Button
+              type="text"
+              icon={<EyeOutlined className="text-blue-600 text-xs" />}
+              className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+              onClick={() => {
+                setDetailQuestion(record);
+                setIsDetailOpen(true);
+              }}
+              style={{ cursor: 'pointer' }}
+            />
+          </Tooltip>
+        )}
+        {canEditQuestion && (
+          <Tooltip title="Chỉnh sửa">
+            <Button
+              type="text"
+              icon={<EditOutlined className="text-blue-600 text-xs" />}
+              className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+              onClick={() => {
+                setUpdateQuestion(record);
+                setIsUpdateOpen(true);
+              }}
+              style={{ cursor: 'pointer' }}
+            />
+          </Tooltip>
+        )}
+        <Tooltip title="Xem thêm">
+          <Dropdown menu={{ items: menuItems }} trigger={['hover']} placement="bottomRight">
+            <Button
+              type="text"
+              icon={<MoreOutlined className="text-slate-500 text-xs" />}
+              className="flex items-center justify-center w-7 h-7 hover:bg-slate-100 rounded"
+              style={{ cursor: 'pointer' }}
+            />
+          </Dropdown>
+        </Tooltip>
+      </div>
+    );
+  };
+
+  // Cột xuất Excel — khớp đúng các cột đang hiển thị ở bảng "Kết quả tìm kiếm", dùng chung module
+  // excelExport với tab "Quản lý đề gốc" (ExamManagementModule).
+  const questionExcelColumns: ExcelColumn<Question>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã câu hỏi', accessor: row => row.code, width: 16 },
+    { header: 'Nội dung câu hỏi', accessor: row => stripHtmlToText(row.text), width: 60 },
+    { header: 'Loại câu hỏi', accessor: row => getQuestionTypeLabelShort(row.type), width: 12, align: 'center' },
+    { header: 'Cấp độ tư duy', accessor: row => getCognitiveLevelLabelShort(row.level), width: 12, align: 'center' },
+    { header: 'Người tạo', accessor: row => row.creator || '', width: 20 },
+    { header: 'Thành phần năng lực', accessor: row => row.nangLuc || '', width: 20 },
+    { header: 'Thuộc chủ đề', accessor: row => row.topicName || '', width: 20 },
+    { header: 'Ngày tạo', accessor: row => formatDateString(row.createdAt), width: 12, align: 'center' },
+    { header: 'Trạng thái', accessor: row => getQuestionStatusLabel(row.status), width: 16 },
   ];
+
+  // Xuất Excel đúng bảng "Kết quả tìm kiếm" đang hiển thị (đã áp dụng bộ lọc tìm kiếm hiện tại).
+  const handleExportExcel = () => {
+    if (filteredQuestions.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `NganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredQuestions, questionExcelColumns, fileName, 'Câu hỏi');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full">
+      <ToastContainer />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative mb-2">
         <button
@@ -884,13 +875,7 @@ export default function QuestionBankModule({
                         value={filterType}
                         onChange={setFilterType}
                         className="w-full text-xs font-medium"
-                        options={[
-                          { value: 'all', label: 'Tất cả' },
-                          { value: 'single', label: 'Trắc nghiệm đơn' },
-                          { value: 'multiple', label: 'Trắc nghiệm nhiều lựa chọn' },
-                          { value: 'true_false', label: 'Trắc nghiệm Đúng / Sai' },
-                          { value: 'short', label: 'Tự luận viết ngắn' }
-                        ]}
+                        options={[{ value: 'all', label: 'Tất cả' }, ...questionTypeFilterOptions]}
                       />
                     </div>
 
@@ -987,10 +972,9 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (!selectedTopicKey) {
-                        notification.warning({
-                          message: 'Thông báo',
-                          description: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
-                          placement: 'topRight'
+                        toast.warning({
+                          title: 'Thông báo',
+                          content: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
                         });
                         return;
                       }
@@ -1015,7 +999,7 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        message.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
+                        toast.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
                         return;
                       }
                       setPendingSendReviewQuestion(null);
@@ -1032,7 +1016,7 @@ export default function QuestionBankModule({
                     className="border border-red-600 text-red-650 bg-white rounded hover:border-red-700 hover:text-red-700 hover:bg-red-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        message.warning('Vui lòng chọn các câu hỏi cần xóa!');
+                        toast.warning('Vui lòng chọn các câu hỏi cần xóa!');
                         return;
                       }
                       setPendingDeleteQuestion(null);
@@ -1042,33 +1026,113 @@ export default function QuestionBankModule({
                   >
                     Xóa
                   </Button>
+                  <Button
+                    type="primary"
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExportExcel}
+                    className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer h-8 flex items-center justify-center"
+                  >
+                    Xuất Excel
+                  </Button>
                 </div>
               </div>
 
 
 
-              <Table
-                id="question-bank-main-table"
-                dataSource={filteredQuestions}
-                columns={tableColumns}
-                rowKey="id"
-                loading={questionsLoading}
-                rowSelection={{
-                  selectedRowKeys,
-                  onChange: (keys) => setSelectedRowKeys(keys),
-                }}
-                pagination={{
-                  total: filteredQuestions.length,
-                  showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                  showSizeChanger: true,
-                  defaultPageSize: 10,
-                  pageSizeOptions: ['10', '20', '50', '100'],
-                  locale: { items_per_page: '/ trang' },
-                  className: 'mt-6',
-                }}
-                scroll={{ x: 'max-content' }}
-                className="border-none text-xs rounded-2xl"
-              />
+              <ResizableTableStyles />
+              <div className="overflow-x-auto">
+                {questionsLoading ? (
+                  <div className="py-20 text-center">
+                    <Spin size="large" />
+                    <p className="text-xs text-slate-400 font-bold mt-2">Đang tải câu hỏi...</p>
+                  </div>
+                ) : filteredQuestions.length === 0 ? (
+                  <Empty description="Không có câu hỏi nào." className="py-12" />
+                ) : (
+                  <table
+                    id="question-bank-main-table"
+                    style={{ minWidth: qbTotalWidth }}
+                    className={`w-full text-xs font-normal text-black border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}
+                  >
+                    {qbColGroup}
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-xs text-black font-bold">
+                        <th className="relative py-3 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            className="cursor-pointer accent-[#2c3e9e]"
+                            checked={paginatedQuestions.length > 0 && paginatedQuestions.every((q) => selectedRowKeys.includes(q.id))}
+                            onChange={() => {
+                              const pageIds = paginatedQuestions.map((q) => q.id);
+                              const allSelected = pageIds.every((id) => selectedRowKeys.includes(id));
+                              if (allSelected) setSelectedRowKeys((prev) => prev.filter((k) => !pageIds.includes(k as string)));
+                              else setSelectedRowKeys((prev) => Array.from(new Set([...prev, ...pageIds])));
+                            }}
+                          />
+                          <ColResizeHandle onMouseDown={startQbColResize(0)} />
+                        </th>
+                        <th className="relative py-3 px-3 text-center font-bold">STT<ColResizeHandle onMouseDown={startQbColResize(1)} /></th>
+                        <th className="relative py-3 px-3 text-left font-bold">Mã câu hỏi<ColResizeHandle onMouseDown={startQbColResize(2)} /></th>
+                        <th className="relative py-3 px-3 text-left font-bold">Nội dung câu hỏi<ColResizeHandle onMouseDown={startQbColResize(3)} /></th>
+                        <th className="relative py-3 px-3 text-center font-bold">Loại câu hỏi<ColResizeHandle onMouseDown={startQbColResize(4)} /></th>
+                        <th className="relative py-3 px-3 text-center font-bold">Cấp độ tư duy<ColResizeHandle onMouseDown={startQbColResize(5)} /></th>
+                        <th className="relative py-3 px-3 text-left font-bold">Người tạo<ColResizeHandle onMouseDown={startQbColResize(6)} /></th>
+                        <th className="relative py-3 px-3 text-left font-bold">Thành phần năng lực<ColResizeHandle onMouseDown={startQbColResize(7)} /></th>
+                        <th className="relative py-3 px-3 text-left font-bold">Thuộc chủ đề<ColResizeHandle onMouseDown={startQbColResize(8)} /></th>
+                        <th className="relative py-3 px-3 text-center font-bold">Ngày tạo<ColResizeHandle onMouseDown={startQbColResize(9)} /></th>
+                        <th className="relative py-3 px-3 text-center font-bold">Trạng thái<ColResizeHandle onMouseDown={startQbColResize(10)} /></th>
+                        <th className="relative py-3 px-3 text-center font-bold">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedQuestions.map((record, idx) => (
+                        <tr
+                          key={record.id}
+                          className={`hover:bg-slate-50/50 transition-colors ${selectedRowKeys.includes(record.id) ? 'bg-blue-50/30' : ''}`}
+                        >
+                          <td className="py-2.5 px-3 text-center">
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer accent-[#2c3e9e]"
+                              checked={selectedRowKeys.includes(record.id)}
+                              onChange={() => setSelectedRowKeys((prev) => prev.includes(record.id) ? prev.filter((k) => k !== record.id) : [...prev, record.id])}
+                            />
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-black text-[11px] font-mono">{idx + 1}</td>
+                          <td className="py-2.5 px-3"><TruncatedText text={record.code} className="text-black text-[11px] font-semibold" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={stripHtmlToText(record.text)} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3 text-center text-black text-[11px]">{getQuestionTypeLabelShort(record.type)}</td>
+                          <td className="py-2.5 px-3 text-center text-black text-[11px]">{getCognitiveLevelLabelShort(record.level)}</td>
+                          <td className="py-2.5 px-3"><TruncatedText text={record.creator || ''} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={record.nangLuc || '.........................'} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={record.topicName || '.........................'} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3 text-center text-black text-[11px]">{formatDateString(record.createdAt)}</td>
+                          <td className="py-2.5 px-3 text-center">{renderQuestionStatusBadge(record.status)}</td>
+                          <td className="py-2.5 px-3 text-center">{renderQuestionActions(record)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {filteredQuestions.length > 0 && (
+                <div className="flex justify-end mt-6">
+                  <Pagination
+                    current={tablePage}
+                    pageSize={tablePageSize}
+                    total={filteredQuestions.length}
+                    showTotal={(total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`}
+                    showSizeChanger
+                    pageSizeOptions={['10', '20', '50', '100']}
+                    locale={{ items_per_page: '/ trang' }}
+                    onChange={(page, pageSize) => {
+                      setTablePage(page);
+                      setTablePageSize(pageSize);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -1202,6 +1266,7 @@ export default function QuestionBankModule({
           apiSubjects={apiSubjects}
           apiGrades={apiGrades}
           cognitiveLevelOptions={cognitiveLevelFilterOptions}
+          questionTypeOptions={questionTypeFilterOptions}
           allTopicsRaw={allTopicsRaw}
           topicsLoading={topicsLoading}
           onApproveQuestion={handleApproveQuestion}

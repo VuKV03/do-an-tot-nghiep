@@ -17,7 +17,9 @@ export interface ExcelColumn<T> {
   align?: 'left' | 'center' | 'right';
 }
 
-const THIN_BORDER = { style: 'thin' as const, color: { rgb: 'D1D5DB' } };
+// Màu ARGB đủ 8 ký tự (FF + RRGGBB) — thiếu kênh alpha (chỉ 6 ký tự RRGGBB) khiến Excel coi màu
+// không hợp lệ và bỏ qua luôn viền, dù cấu trúc style object vẫn khai báo đúng.
+const THIN_BORDER = { style: 'thin' as const, color: { rgb: 'FF94A3B8' } };
 
 function cellStyle(align: 'left' | 'center' | 'right', bold: boolean): CellStyle {
   return {

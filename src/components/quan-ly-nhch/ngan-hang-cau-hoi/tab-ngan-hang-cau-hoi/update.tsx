@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Modal, Form, Select, Input, Button, Checkbox, message } from 'antd';
+import { Modal, Form, Select, Input, Button, Checkbox } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   Question,
@@ -386,11 +387,11 @@ export default function UpdateQuestionModal({
     for (let i = 0; i < statements.length; i++) {
       const st = statements[i];
       if (!st.content || !st.content.trim()) {
-        message.error(`Vui lòng nhập nội dung trả lời cho ý thứ ${i + 1}!`);
+        toast.error(`Vui lòng nhập nội dung trả lời cho ý thứ ${i + 1}!`);
         return false;
       }
       if (!st.topicId) {
-        message.error(`Vui lòng chọn chủ đề cho ý thứ ${i + 1}!`);
+        toast.error(`Vui lòng chọn chủ đề cho ý thứ ${i + 1}!`);
         return false;
       }
     }
@@ -541,15 +542,15 @@ export default function UpdateQuestionModal({
 
       if (status === 'draft') {
         onSave(savedQuestion);
-        message.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
+        toast.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
       } else {
         onSendReview(savedQuestion);
-        message.success('Đã gửi câu hỏi đi thẩm định!');
+        toast.success('Đã gửi câu hỏi đi thẩm định!');
       }
       handleClose();
     } catch (error: any) {
       if (error?.errorFields) return;
-      message.error(error?.message || 'Lỗi khi lưu câu hỏi!');
+      toast.error(error?.message || 'Lỗi khi lưu câu hỏi!');
     } finally {
       setSubmitting(null);
     }
@@ -1514,7 +1515,7 @@ export default function UpdateQuestionModal({
                         : item,
                     ),
                   );
-                  message.success('Cập nhật câu hỏi con thành công!');
+                  toast.success('Cập nhật câu hỏi con thành công!');
                 } else {
                   const newId =
                     subQuestions.length > 0
@@ -1529,7 +1530,7 @@ export default function UpdateQuestionModal({
                       link: values.link,
                     },
                   ]);
-                  message.success('Thêm câu hỏi con thành công!');
+                  toast.success('Thêm câu hỏi con thành công!');
                 }
                 setSubQuestionModalOpen(false);
                 setSubAnswers(DEFAULT_ANSWERS.map((a) => ({ ...a })));

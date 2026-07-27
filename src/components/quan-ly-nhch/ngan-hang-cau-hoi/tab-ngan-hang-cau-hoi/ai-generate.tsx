@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Form, Select, Button, Tag, Spin, message, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
+import { Modal, Form, Select, Button, Tag, Spin, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { ThunderboltOutlined, CheckCircleOutlined, LoadingOutlined, EditOutlined } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, TopicNode, TrueFalseStatement } from '../../../../types';
 import {
@@ -11,6 +12,7 @@ import {
 } from '../../../../services/danhMucApi.ts';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { RichTextView } from '../../../../utils/htmlContent';
+import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -33,26 +35,6 @@ const AI_SUPPORTED_TYPES: QuestionType[] = ['single', 'true_false', 'short'];
 
 /** Số lượng câu hỏi tối đa 1 lần sinh — khớp giới hạn clamp ở backend (routes/generate.py::generate_questions) */
 const MAX_GENERATE_COUNT = 15;
-
-/** Map một bản ghi thật trong danh mục "Loại hình câu hỏi" (question_types) về QuestionType nội bộ */
-function resolveInternalQuestionType(item: QuestionTypeAPI): QuestionType {
-  const code = (item.code || '').toUpperCase().trim();
-  const name = (item.name || '').toLowerCase();
-
-  if (['SINGLE', 'TN'].includes(code) || name.includes('một đáp án') || name.includes('mot dap an')) {
-    return 'single';
-  }
-  if (['MULTI', 'MULTIPLE', 'CHN'].includes(code) || name.includes('nhiều đáp án') || name.includes('nhom') || name.includes('nhóm')) {
-    return 'multiple';
-  }
-  if (['TRUEFALSE'].includes(code) || (name.includes('đúng') && name.includes('sai'))) {
-    return 'true_false';
-  }
-  if (['SHORT', 'ESSAY', 'TLN'].includes(code) || name.includes('ngắn') || name.includes('ngan') || name.includes('tự luận') || name.includes('tu luan')) {
-    return 'short';
-  }
-  return 'single';
-}
 
 const LEVEL_OPTIONS: { value: CognitiveLevel; label: string }[] = [
   { value: 'nhan_biet', label: 'Nhận biết' },
@@ -393,9 +375,9 @@ export default function AIGenerateQuestionModal({
       });
 
       setAiSuggestedQuestions(generatedList);
-      message.success(`AI hoàn tất đề xuất ${generatedList.length} câu hỏi chất lượng cao!`);
+      toast.success(`AI hoàn tất đề xuất ${generatedList.length} câu hỏi chất lượng cao!`);
     } catch (err: any) {
-      message.error(err?.message || 'Lỗi kết nối AI Gateway. Vui lòng kiểm tra dịch vụ AI đã khởi động.');
+      toast.error(err?.message || 'Lỗi kết nối AI Gateway. Vui lòng kiểm tra dịch vụ AI đã khởi động.');
     } finally {
       setAiGenerating(false);
     }
@@ -413,7 +395,7 @@ export default function AIGenerateQuestionModal({
       const response = await questionApi.create(apiPayload as any);
       const savedQuestion = { ...q, id: response.data.id || q.id };
       onSave(savedQuestion);
-      message.success(`Đã lưu câu hỏi ${q.code} vào hồ sơ chờ thẩm định.`);
+      toast.success(`Đã lưu câu hỏi ${q.code} vào hồ sơ chờ thẩm định.`);
       setAiSuggestedQuestions((prev) => prev.filter((item) => item.id !== id));
       setEditingIds((prev) => {
         if (!prev.has(id)) return prev;
@@ -423,7 +405,7 @@ export default function AIGenerateQuestionModal({
       });
       if (wasLastOne) handleClose();
     } catch (err: any) {
-      message.error(err?.message || `Lỗi khi lưu câu hỏi ${q.code}!`);
+      toast.error(err?.message || `Lỗi khi lưu câu hỏi ${q.code}!`);
     } finally {
       setAcceptingIds((prev) => {
         const next = new Set(prev);
@@ -462,10 +444,10 @@ export default function AIGenerateQuestionModal({
     }
     setAcceptingAll(false);
     if (failCount === 0) {
-      message.success(`Đã duyệt và lưu tất cả ${succeededIds.length} câu hỏi vào hồ sơ chờ thẩm định.`);
+      toast.success(`Đã duyệt và lưu tất cả ${succeededIds.length} câu hỏi vào hồ sơ chờ thẩm định.`);
       handleClose();
     } else {
-      message.warning(`Đã lưu ${succeededIds.length} câu hỏi, còn ${failCount} câu bị lỗi — vui lòng thử lại riêng câu đó.`);
+      toast.warning(`Đã lưu ${succeededIds.length} câu hỏi, còn ${failCount} câu bị lỗi — vui lòng thử lại riêng câu đó.`);
     }
   };
 
