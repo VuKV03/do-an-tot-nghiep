@@ -72,7 +72,7 @@ def _map_type(qtype: str | None) -> str:
         return "single"
     elif qtype_lower in ["multiple", "chn", "câu hỏi nhóm", "cau hoi nhom", "trắc nghiệm nhiều đáp án"]:
         return "multiple"
-    elif qtype_lower in ["true_false", "đs", "đúng sai", "dung sai", "đúng / sai"]:
+    elif qtype_lower in ["true_false", "ds", "đúng sai", "dung sai", "đúng / sai"]:
         return "true_false"
     elif qtype_lower in ["short", "tln", "trả lời ngắn", "tra loi ngan", "tự luận"]:
         return "short"

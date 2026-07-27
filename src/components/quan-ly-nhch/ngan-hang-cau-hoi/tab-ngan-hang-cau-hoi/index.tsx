@@ -205,6 +205,7 @@ export default function QuestionBankModule({
           creator: q.creator || '',
           createdAt: q.createdAt || new Date().toISOString(),
           feedback: q.feedback || '',
+          statements: q.statements || [],
         }));
         setDbQuestions(mapped);
       }
