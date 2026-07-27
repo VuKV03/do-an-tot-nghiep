@@ -13,7 +13,7 @@ export const rawMenuItems = [
     label: 'Xây dựng đề thi',
     children: [
       { key: 'quan-ly-ma-tran-de', label: 'Quản lý ma trận đề' },
-      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề thi' },
+      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề gốc' },
       { key: 'quan-ly-goi-de', label: 'Quản lý gói đề' }
     ]
   },
