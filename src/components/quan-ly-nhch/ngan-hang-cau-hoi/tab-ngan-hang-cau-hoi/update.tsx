@@ -196,20 +196,6 @@ export default function UpdateQuestionModal({
   // State theo dõi nút submit đang xử lý (Lưu / Gửi thẩm định) để hiện loading và khoá nút còn lại
   const [submitting, setSubmitting] = useState<'draft' | 'pending' | null>(null);
 
-  // Phẳng hóa danh sách chủ đề / tiểu mục cho dropdown trong bảng Đúng/Sai
-  const flattenedTopics = useMemo(() => {
-    const list: { value: string; label: string }[] = [];
-    topicTreeData.forEach((topic) => {
-      list.push({ value: topic.key, label: topic.title });
-      if (topic.children) {
-        topic.children.forEach((sub) => {
-          list.push({ value: sub.key, label: `  ${sub.title}` });
-        });
-      }
-    });
-    return list;
-  }, [topicTreeData]);
-
   // Sinh năng lực dropdown động theo môn học cho Đúng/Sai
   const nangLucOptions = useMemo(() => {
     const suffix = subject ? ` ${subject.toLowerCase()}` : '';
@@ -325,20 +311,16 @@ export default function UpdateQuestionModal({
         groupType: 'lien_ket',
       });
 
-    // Khởi tạo 4 dòng câu hỏi Đúng/Sai
-      const initialStatements = Array.from({ length: 4 }).map((_, i) => ({
+      // Khởi tạo 4 ý câu hỏi Đúng/Sai — topicId/level/nangLuc giờ lấy chung từ "Phần 1" (Thành
+      // phần năng lực/Cấp độ tư duy/Chủ đề/Tiểu mục) lúc lưu (buildQuestion), không còn khác nhau
+      // theo ý.
+      const initialStatements = Array.from({ length: 4 }).map(() => ({
         topicId: defaultTopicKey || '',
         topicName: '',
-        level: (i === 0
-          ? 'nhan_biet'
-          : i === 1
-            ? 'thong_hieu'
-            : i === 2
-              ? 'van_dung'
-              : 'van_dung') as CognitiveLevel,
+        level: 'nhan_biet' as CognitiveLevel,
         nangLuc: undefined,
         content: '',
-        isCorrect: i === 0 || i === 1 || i === 3,
+        isCorrect: false,
       }));
       setStatements(initialStatements);
     }
@@ -383,15 +365,13 @@ export default function UpdateQuestionModal({
     );
   };
 
+  // Chủ đề/tiểu mục giờ dùng chung 1 field ở "Phần 1" (đã có rule required riêng) — chỉ còn cần
+  // kiểm tra nội dung từng ý ở đây.
   const validateStatements = (): boolean => {
     for (let i = 0; i < statements.length; i++) {
       const st = statements[i];
       if (!st.content || !st.content.trim()) {
         toast.error(`Vui lòng nhập nội dung trả lời cho ý thứ ${i + 1}!`);
-        return false;
-      }
-      if (!st.topicId) {
-        toast.error(`Vui lòng chọn chủ đề cho ý thứ ${i + 1}!`);
         return false;
       }
     }
@@ -415,33 +395,24 @@ export default function UpdateQuestionModal({
     status: 'draft' | 'pending',
   ): Question => {
     if (questionType === 'true_false') {
-      const formattedStatements: TrueFalseStatement[] = statements.map(
-        (st, idx) => {
-          let matchedTitle = '';
-          const parentTopic = topicTreeData.find((t) => t.key === st.topicId);
-          if (parentTopic) {
-            matchedTitle = parentTopic.title;
-          } else {
-            for (const topic of topicTreeData) {
-              const sub = topic.children?.find((c) => c.key === st.topicId);
-              if (sub) {
-                matchedTitle = sub.title;
-                break;
-              }
-            }
-          }
+      // Chủ đề/tiểu mục/cấp độ/năng lực giờ dùng CHUNG 1 bộ cho cả 4 ý (nhập ở "Phần 1" phía trên,
+      // y như Trắc nghiệm 1 lựa chọn) — không còn khác nhau theo từng ý như thiết kế cũ.
+      const parentNode = topicTreeData.find((t) => t.key === values.chuDe);
+      const subNode = parentNode?.children?.find((c) => c.key === values.tieuMuc);
+      const sharedTopicId = values.tieuMuc || values.chuDe || '';
+      const sharedTopicName = (subNode?.title as string) || (parentNode?.title as string) || '';
+      const sharedLevel = (values.level || 'nhan_biet') as CognitiveLevel;
+      const sharedNangLuc = values.nangLuc || undefined;
 
-          return {
-            id: idx + 1,
-            topicId: st.topicId,
-            topicName: matchedTitle,
-            level: st.level,
-            nangLuc: st.nangLuc,
-            content: st.content,
-            isCorrect: st.isCorrect,
-          };
-        },
-      );
+      const formattedStatements: TrueFalseStatement[] = statements.map((st, idx) => ({
+        id: idx + 1,
+        topicId: sharedTopicId,
+        topicName: sharedTopicName,
+        level: sharedLevel,
+        nangLuc: sharedNangLuc,
+        content: st.content,
+        isCorrect: st.isCorrect,
+      }));
 
       const correctAnswerStr = formattedStatements
         .map((st) => `${st.id}. ${st.isCorrect ? 'Đúng' : 'Sai'}`)
@@ -454,12 +425,14 @@ export default function UpdateQuestionModal({
         code: `Q-${subject.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
         text: values.text,
         type: 'true_false',
-        level: statements[0]?.level || 'nhan_biet',
+        level: sharedLevel,
+        nangLucId: sharedNangLuc,
         status,
         subject,
         grade,
-        topicId: statements[0]?.topicId || '',
-        topicName: formattedStatements[0]?.topicName || '',
+        topicId: sharedTopicId,
+        topicName: sharedTopicName,
+        subTopicName: (subNode?.title as string) || '',
         options: optionsList,
         correctAnswer: correctAnswerStr,
         statements: formattedStatements,
@@ -624,8 +597,9 @@ export default function UpdateQuestionModal({
           style={{ padding: '12px 24px 12px 48px' }}
         >
           <Form form={form} layout='vertical'>
-            {/* ── Phần 1: Phân loại câu hỏi (Chỉ hiển thị cho TN Đơn, TN Nhóm, Điền khuyết, Câu hỏi nhóm) ── */}
-            {questionType !== 'true_false' && (
+            {/* ── Phần 1: Phân loại câu hỏi — dùng chung cho MỌI loại (kể cả Đúng/Sai: 4 ý dùng chung
+                 đúng 1 bộ Thành phần năng lực/Cấp độ tư duy/Chủ đề/Tiểu mục, không lặp lại theo từng ý nữa) ── */}
+            {(
               <div className='mb-1.5 animate-in fade-in duration-200'>
                 <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
                   Thông tin câu hỏi
@@ -763,15 +737,6 @@ export default function UpdateQuestionModal({
               </div>
             )}
 
-            {/* ── Phần Đúng/Sai: Cấu hình chung chỉ hiện Đảo câu hỏi ở trên ── */}
-            {questionType === 'true_false' && (
-              <div className='mb-1.5 animate-in fade-in duration-200'>
-                <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
-                  Thông tin câu hỏi
-                </div>
-                <div className='grid grid-cols-3 gap-3 mb-1'></div>
-              </div>
-            )}
 
             {/* ── Phần 2: Đề bài / Nội dung chính (Dùng chung cho tất cả, giảm rows từ 6 xuống 4, mb-1.5) ── */}
             <div className='mb-1.5'>
@@ -898,125 +863,62 @@ export default function UpdateQuestionModal({
               </div>
             )}
 
-            {/* 3.3. Đúng / Sai */}
+            {/* 3.3. Đúng / Sai — y như bảng đáp án Trắc nghiệm 1 lựa chọn ở trên (badge số thứ tự +
+                 ô nhập + checkbox), chỉ khác là checkbox không loại trừ lẫn nhau (được chọn nhiều ý
+                 đúng cùng lúc) thay vì bắt buộc đúng 1 đáp án như trắc nghiệm đơn. Thành phần năng
+                 lực/Cấp độ tư duy/Chủ đề/Tiểu mục giờ dùng chung 1 bộ ở "Phần 1" phía trên, không còn
+                 lặp lại riêng cho từng ý (4 ý luôn thuộc cùng 1 chủ đề/tiểu mục/cấp độ/năng lực). */}
             {questionType === 'true_false' && (
               <div className='mt-2 animate-in fade-in duration-200'>
                 <div className='text-[17px] font-bold text-blue-700 mb-1.5'>
                   Thông tin câu trả lời Đúng / Sai
                 </div>
 
-                <table className='w-full border-collapse text-base'>
-                  <thead>
-                    <tr className='border-b border-slate-200 bg-slate-50/50'>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-12 text-[15px]'>
-                        STT
-                      </th>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-60 text-[15px]'>
-                        Chủ đề
-                      </th>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-44 text-[15px]'>
-                        Mức độ
-                      </th>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold w-52 text-[15px]'>
-                        Thành phần năng lực
-                      </th>
-                      <th className='text-left py-2 px-3 text-slate-600 font-bold text-[15px]'>
-                        Nội dung trả lời
-                      </th>
-                      <th className='text-center py-2 px-3 text-slate-600 font-bold w-24 text-[15px]'>
-                        Đáp án đúng
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {statements.map((ans, idx) => (
-                      <tr
+                <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
+                  <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
+                    <span>
+                      Nội dung trả lời{' '}
+                      <span className='text-red-500 normal-case'>*</span>
+                    </span>
+                    <span className='pr-8'>Đáp án đúng</span>
+                  </div>
+                  <div className='divide-y divide-slate-100'>
+                    {statements.map((st, idx) => (
+                      <div
                         key={idx}
-                        className='border-b border-slate-100 hover:bg-slate-50'
+                        className='flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50/70 transition-colors'
                       >
-                        <td className='py-2.5 px-3 text-slate-400 font-mono align-middle text-[15px]'>
+                        <div className='w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-[13px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
                           {idx + 1}
-                        </td>
-
-                        {/* Dropdown Chủ đề */}
-                        <td className='py-2.5 px-2'>
-                          <Select
-                            size='large'
-                            className='w-full text-base font-medium'
-                            options={flattenedTopics}
-                            value={ans.topicId || undefined}
-                            placeholder='Chọn chủ đề'
-                            onChange={(val) =>
-                              updateStatementRow(idx, { topicId: val })
-                            }
-                            dropdownMatchSelectWidth={false}
-                          />
-                        </td>
-
-                        {/* Dropdown Mức độ câu hỏi */}
-                        <td className='py-2.5 px-2'>
-                          <Select
-                            size='large'
-                            className='w-full text-base font-medium'
-                            options={cognitiveLevelOptions}
-                            value={ans.level}
-                            onChange={(val) =>
-                              updateStatementRow(idx, { level: val })
-                            }
-                          />
-                        </td>
-
-                        {/* Dropdown Thành phần năng lực */}
-                        <td className='py-2.5 px-2'>
-                          <Select
-                            size='large'
-                            className='w-full text-base font-medium'
-                            options={competencyOptions}
-                            value={ans.nangLuc}
-                            onChange={(val) =>
-                              updateStatementRow(idx, { nangLuc: val })
-                            }
-                            dropdownMatchSelectWidth={false}
-                          />
-                        </td>
-
-                        {/* Ô nhập Nội dung câu trả lời */}
-                        <td className='py-2.5 px-2'>
+                        </div>
+                        <div className='flex-1 min-w-0'>
                           <Input
                             size='large'
-                            value={ans.content}
+                            value={st.content}
                             onChange={(e) =>
                               updateStatementRow(idx, {
                                 content: e.target.value,
                               })
                             }
-                            placeholder={
-                              idx === 0
-                                ? '# Ý trả lời thứ 1'
-                                : idx === 1
-                                  ? 'Ý trả lời thứ 2'
-                                  : 'Nhập'
-                            }
+                            placeholder={`Ý trả lời thứ ${idx + 1}`}
                             className='text-base rounded-lg h-9 font-medium'
                           />
-                        </td>
-
-                        {/* Checkbox Đáp án đúng */}
-                        <td className='py-2.5 px-2 text-center align-middle'>
+                        </div>
+                        <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
                           <Checkbox
-                            checked={ans.isCorrect}
+                            checked={st.isCorrect}
                             onChange={(e) =>
                               updateStatementRow(idx, {
                                 isCorrect: e.target.checked,
                               })
                             }
-                            style={{ transform: 'scale(1.1)' }}
+                            style={{ transform: 'scale(1.15)' }}
                           />
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
             )}
 
