@@ -63,6 +63,18 @@ def _map_level(level: str | None) -> str:
     return "nhan_biet"
 
 
+# Alias ngược (enum FE -> danh sách code/tên có thể khớp trong danh mục Cấp độ tư duy) — dùng khi
+# TẠO/SỬA câu hỏi để tra level_id. Cột "code" trong danh mục là ô nhập tự do, không có giá trị cố
+# định duy nhất cho mỗi mức — liệt kê đủ mọi biến thể đã quan sát được (khớp 1-1 với các nhóm trong
+# `_map_level` ở trên, theo chiều ngược lại).
+LEVEL_ALIAS_MAP: dict[str, list[str]] = {
+    "nhan_biet": ["nhận biết", "nhan biet", "vv", "l1", "biết", "biet"],
+    "thong_hieu": ["thông hiểu", "thong hieu", "zz", "l2", "hiểu", "hieu", "th"],
+    "van_dung": ["vận dụng", "van dung", "xx", "l3"],
+    "van_dung_cao": ["vận dụng cao", "van dung cao", "vdc", "l4"],
+}
+
+
 def _map_type(qtype: str | None) -> str:
     """Map question type DB code to frontend QuestionType codes."""
     if not qtype:
@@ -330,11 +342,19 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
          if not grade:
              raise HTTPException(status_code=400, detail=f"Không tìm thấy khối lớp '{body.grade}'")
 
-    # Find CognitiveLevel
-    db_level_code = {"nhan_biet": "vv", "thong_hieu": "zz", "van_dung": "xx", "van_dung_cao": "VDC"}.get(body.level, "vv")
-    level_stmt = select(CognitiveLevel).where(CognitiveLevel.code == db_level_code)
-    level_res = await db.execute(level_stmt)
-    level = level_res.scalar_one_or_none()
+    # Find CognitiveLevel — tra theo NHIỀU alias (code cũ lẫn tên tiếng Việt có dấu), không so
+    # sánh == với đúng 1 giá trị code cố định như trước ("zz" cho thong_hieu...). Cột "code" trong
+    # danh mục Cấp độ tư duy là ô nhập tự do, dữ liệu thật quan sát được "Thông hiểu" có code "TH"
+    # chứ không phải "zz" — so sánh cứng khiến level luôn None, lưu level_id=NULL, và khi đọc lại
+    # (_map_level ở trên) NULL bị mặc định hiển thị thành "Nhận biết", dù người dùng chọn đúng.
+    level_aliases = LEVEL_ALIAS_MAP.get(body.level, [body.level])
+    level = None
+    for alias in level_aliases:
+        level_stmt = select(CognitiveLevel).where(CognitiveLevel.code.ilike(alias) | CognitiveLevel.name.ilike(alias))
+        level_res = await db.execute(level_stmt)
+        level = level_res.scalars().first()
+        if level:
+            break
 
     # Find QuestionType
     db_type_code = {"single": "TN", "multiple": "CHN", "true_false": "ĐS", "short": "TLN"}.get(body.type, "TN")
@@ -432,10 +452,14 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
         if qtype:
             question.type_id = qtype.id
     if body.level is not None:
-        db_level_code = {"nhan_biet": "vv", "thong_hieu": "zz", "van_dung": "xx", "van_dung_cao": "VDC"}.get(body.level, "vv")
-        level_stmt = select(CognitiveLevel).where(CognitiveLevel.code == db_level_code)
-        level_res = await db.execute(level_stmt)
-        level = level_res.scalar_one_or_none()
+        level_aliases = LEVEL_ALIAS_MAP.get(body.level, [body.level])
+        level = None
+        for alias in level_aliases:
+            level_stmt = select(CognitiveLevel).where(CognitiveLevel.code.ilike(alias) | CognitiveLevel.name.ilike(alias))
+            level_res = await db.execute(level_stmt)
+            level = level_res.scalars().first()
+            if level:
+                break
         if level:
             question.level_id = level.id
     if body.topicId is not None:
