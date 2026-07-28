@@ -802,51 +802,53 @@ export default function CreateQuestionModal({
                   Thông tin câu trả lời Đúng / Sai
                 </div>
 
-                <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
-                  <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
-                    <span>
-                      Nội dung trả lời{' '}
-                      <span className='text-red-500 normal-case'>*</span>
-                    </span>
-                    <span className='pr-8'>Đáp án đúng</span>
+                <RichTextGroupProvider>
+                  <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
+                    <RichTextGroupToolbar />
+                    <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
+                      <span>
+                        Nội dung trả lời{' '}
+                        <span className='text-red-500 normal-case'>*</span>
+                      </span>
+                      <span className='pr-8'>Đáp án đúng</span>
+                    </div>
+                    <div className='divide-y divide-slate-100'>
+                      {statements.map((st, idx) => (
+                        <div
+                          key={idx}
+                          className='flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50/70 transition-colors'
+                        >
+                          <div className='w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-[13px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+                            {idx + 1}
+                          </div>
+                          <div className='flex-1 min-w-0'>
+                            <RichTextGroupCell
+                              value={st.content}
+                              onChange={(html) =>
+                                updateStatementRow(idx, {
+                                  content: html,
+                                })
+                              }
+                              placeholder={`Ý trả lời thứ ${idx + 1}`}
+                              minHeight={36}
+                            />
+                          </div>
+                          <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
+                            <Checkbox
+                              checked={st.isCorrect}
+                              onChange={(e) =>
+                                updateStatementRow(idx, {
+                                  isCorrect: e.target.checked,
+                                })
+                              }
+                              style={{ transform: 'scale(1.15)' }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className='divide-y divide-slate-100'>
-                    {statements.map((st, idx) => (
-                      <div
-                        key={idx}
-                        className='flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50/70 transition-colors'
-                      >
-                        <div className='w-7 h-7 rounded-full bg-slate-100 text-slate-500 text-[13px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-                          {idx + 1}
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <Input
-                            size='large'
-                            value={st.content}
-                            onChange={(e) =>
-                              updateStatementRow(idx, {
-                                content: e.target.value,
-                              })
-                            }
-                            placeholder={`Ý trả lời thứ ${idx + 1}`}
-                            className='text-base rounded-lg h-9 font-medium'
-                          />
-                        </div>
-                        <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
-                          <Checkbox
-                            checked={st.isCorrect}
-                            onChange={(e) =>
-                              updateStatementRow(idx, {
-                                isCorrect: e.target.checked,
-                              })
-                            }
-                            style={{ transform: 'scale(1.15)' }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                </RichTextGroupProvider>
               </div>
             )}
 
