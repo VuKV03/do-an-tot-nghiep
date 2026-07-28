@@ -73,8 +73,24 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         grade_result = await db.execute(select(GradeLevel).where(GradeLevel.name.ilike(f"%{grade_key}%")))
         grade = grade_result.scalars().first()
 
-    level_result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code.ilike(level_key) | CognitiveLevel.name.ilike(level_key)))
-    level = level_result.scalars().first()
+    # Cột "code" trong danh mục Cấp độ tư duy là ô nhập tự do (không chuẩn hoá) — tra thẳng bằng
+    # đúng chuỗi enum FE (vd "thong_hieu") gần như không bao giờ khớp dữ liệu thật (đã quan sát
+    # "Thông hiểu" có code "TH", tên có dấu khác hẳn "thong_hieu"), khiến MỌI cấp độ trừ "Nhận biết"
+    # (nếu tình cờ khớp) bị 400 hoặc rơi vào nhánh mặc định "Nhận biết" ở nơi khác. Liệt kê đủ alias,
+    # giống cách xử lý `type_lookup` ngay bên dưới.
+    level_lookup = {
+        'nhan_biet': ['nhan_biet', 'nhận biết', 'nhan biet', 'vv', 'l1', 'biết', 'biet'],
+        'thong_hieu': ['thong_hieu', 'thông hiểu', 'thong hieu', 'zz', 'l2', 'hiểu', 'hieu', 'th'],
+        'van_dung': ['van_dung', 'vận dụng', 'van dung', 'xx', 'l3'],
+        'van_dung_cao': ['van_dung_cao', 'vận dụng cao', 'van dung cao', 'vdc', 'l4'],
+    }
+    matched_level_aliases = level_lookup.get(level_key, [level_key])
+    level = None
+    for alias in matched_level_aliases:
+        level_result = await db.execute(select(CognitiveLevel).where(CognitiveLevel.code.ilike(alias) | CognitiveLevel.name.ilike(alias)))
+        level = level_result.scalars().first()
+        if level:
+            break
 
     type_lookup = {
         'single': ['single', 'tn', 'trắc nghiệm', 'trắc nghiệm một đáp án', 'trắc nghiệm một lựa chọn'],

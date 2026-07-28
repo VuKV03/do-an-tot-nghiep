@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Select, Button, DatePicker, Table, Card, TreeSelect } from 'antd';
+import { Select, Button, DatePicker, Card, TreeSelect, Empty } from 'antd';
 import { SearchOutlined, FileExcelOutlined, BarChartOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { SUBJECTS } from '../../../data';
@@ -11,6 +11,9 @@ import {
   questionTypeApi, QuestionTypeAPI,
   competencyComponentApi, CompetencyComponentAPI
 } from '../../../services/danhMucApi';
+import { toast } from '../../../utils/toast';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 
 const { RangePicker } = DatePicker;
 
@@ -238,54 +241,6 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
   // Formater functions have been moved up
 
-  // Build columns for first table dynamically
-  const columns: any[] = [
-    {
-      title: 'STT',
-      dataIndex: 'stt',
-      key: 'stt',
-      fixed: 'left',
-      width: 50,
-      align: 'center',
-      render: (val: string, record: any) => {
-        if (record.isTotal) return { children: '', props: { rowSpan: 1 } };
-        return {
-          children: val,
-          props: {
-            rowSpan: record.topicRowSpan !== undefined ? record.topicRowSpan : 1,
-          }
-        };
-      }
-    },
-    {
-      title: 'Chủ đề',
-      dataIndex: 'topicName',
-      key: 'topicName',
-      fixed: 'left',
-      width: 120,
-      ellipsis: true,
-      render: (val: string, record: any) => {
-        if (record.isTotal) return { children: '', props: { rowSpan: 1 } };
-        return {
-          children: <div title={val} className="truncate">{val}</div>,
-          props: {
-            rowSpan: record.topicRowSpan !== undefined ? record.topicRowSpan : 1,
-          }
-        };
-      }
-    },
-    { 
-      title: 'Tiểu mục', 
-      dataIndex: 'subTopicName', 
-      key: 'subTopicName', 
-      fixed: 'left', 
-      width: 150, 
-      ellipsis: true,
-      render: (val: string, record: any) => record.isTotal ? <span className="font-bold">Tổng số</span> : <div title={val} className="truncate">{val}</div> 
-    },
-    { title: 'Khối lớp', dataIndex: 'grade', key: 'grade', fixed: 'left', width: 80, align: 'center', ellipsis: true },
-  ];
-
   const nangLucs = useMemo(() => {
     let validComps = competencyList.filter(c => c.is_active);
     if (appliedFilters.subject && appliedFilters.subject !== 'Tất cả') {
@@ -322,33 +277,15 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     ] as any[];
   }, [typesList]);
 
-  nangLucs.forEach(nl => {
-    const nlCol = {
-      title: nl,
-      children: [] as any[]
-    };
-
-    displayLevels.forEach(lvl => {
-      const lvlCol = {
-        title: formatLevel(lvl),
-        children: [] as any[]
-      };
-
-      displayTypes.forEach(typeObj => {
-        lvlCol.children.push({
-          title: typeObj.code || typeObj.name,
-          dataIndex: `${nl}_${lvl}_${typeObj.code}`,
-          key: `${nl}_${lvl}_${typeObj.code}`,
-          align: 'center',
-          width: 50,
-          render: (val: number) => val > 0 ? val : <span className="text-red-500">0</span>
-        });
-      });
-      nlCol.children.push(lvlCol);
-    });
-
-    columns.push(nlCol);
-  });
+  // Danh sách phẳng các cột lá (Năng lực × Mức độ × Loại câu hỏi) — dùng để dựng cả bảng pivot
+  // tự viết (header 3 tầng + resize) lẫn cột xuất Excel (header gộp phẳng thành 1 dòng).
+  const leafColumns = useMemo(() => {
+    const arr: { nl: string; lvl: string; typeObj: any }[] = [];
+    nangLucs.forEach(nl => displayLevels.forEach(lvl => displayTypes.forEach(typeObj => {
+      arr.push({ nl, lvl, typeObj });
+    })));
+    return arr;
+  }, [nangLucs, displayLevels, displayTypes]);
 
   // Data for first table
   const tableData: any[] = [];
@@ -510,14 +447,36 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     };
   });
 
-  const summaryColumns: any[] = [
-    { title: 'STT', dataIndex: 'stt', key: 'stt', width: 60, align: 'center' },
-    { title: 'Loại câu hỏi', dataIndex: 'typeName', key: 'typeName', width: 150 },
-    { title: 'Tổng số câu hỏi', dataIndex: 'totalCount', key: 'totalCount', align: 'center' },
-    { title: 'Câu Đơn', dataIndex: 'cauDon', key: 'cauDon', align: 'center' },
-    { title: 'Câu nhóm', dataIndex: 'cauNhom', key: 'cauNhom', align: 'center' },
-    { title: 'Tổng số lệnh hỏi', dataIndex: 'tongLenhHoi', key: 'tongLenhHoi', align: 'center' },
+  const { colGroup: summaryColGroup, startResize: startSummaryColResize, totalWidth: summaryTableTotalWidth } = useResizableColumns(
+    [60, 180, 150, 120, 120, 150]
+  );
+
+  // Cột lá thay đổi theo môn học/thành phần năng lực đang chọn — key này đổi thì bảng pivot
+  // (PivotStatsTable) tự remount, tránh mảng độ rộng cột (useResizableColumns) lệch số cột thực tế.
+  const pivotColKey = `${appliedFilters.subject}|${nangLucs.join(',')}|${displayLevels.join(',')}|${displayTypes.map((t: any) => t.code).join(',')}`;
+
+  const excelColumns: ExcelColumn<any>[] = [
+    { header: 'STT', accessor: row => row.isTotal ? '' : row.stt, width: 6, align: 'center' },
+    { header: 'Chủ đề', accessor: row => row.isTotal ? '' : row.topicName, width: 22 },
+    { header: 'Tiểu mục', accessor: row => row.isTotal ? 'Tổng số' : row.subTopicName, width: 26 },
+    { header: 'Khối lớp', accessor: row => row.grade || '', width: 12, align: 'center' },
+    ...leafColumns.map(({ nl, lvl, typeObj }) => ({
+      header: `${nl} - ${formatLevel(lvl)} - ${typeObj.code || typeObj.name}`,
+      accessor: (row: any) => row[`${nl}_${lvl}_${typeObj.code}`] || 0,
+      width: 16,
+      align: 'center' as const,
+    })),
   ];
+
+  const handleExportExcel = () => {
+    if (tableData.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `ThongKeNganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(tableData, excelColumns, fileName, 'Thống kê NHCH');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <div className="space-y-6 pt-2 animate-in fade-in duration-300">
@@ -648,46 +607,130 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-3 flex justify-between items-center">
           <span className="font-semibold text-slate-700">Kết quả tìm kiếm</span>
-          <Button icon={<FileExcelOutlined />} className="text-blue-600 border-blue-200 hover:bg-blue-50 font-medium">Xuất Excel</Button>
+          <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white hover:!bg-green-700 font-medium" onClick={handleExportExcel}>Xuất Excel</Button>
         </div>
         <div className="p-5 overflow-hidden">
-          <style>{`
-            .stats-table .ant-table-thead > tr > th {
-              background-color: #f8fafc;
-              color: #334155;
-              font-weight: 600;
-              text-align: center;
-              border-bottom: 1px solid #e2e8f0;
-            }
-            .stats-table .ant-table-tbody > tr.bg-slate-50 > td {
-              background-color: #f8fafc;
-            }
-            .stats-table .ant-table-cell {
-              border-inline-end: 1px solid #f1f5f9 !important;
-            }
-          `}</style>
-
-          <Table
-            columns={columns}
-            dataSource={tableData}
-            pagination={false}
-            scroll={{ x: 'max-content' }}
-            bordered
-            size="middle"
-            rowClassName={(record) => record.isTotal ? 'bg-slate-50 font-bold' : ''}
-            className="mb-8 stats-table"
+          <PivotStatsTable
+            key={pivotColKey}
+            leafColumns={leafColumns}
+            tableData={tableData}
+            formatLevel={formatLevel}
           />
 
-          <Table
-            columns={summaryColumns}
-            dataSource={typeSummaryData}
-            pagination={false}
-            bordered
-            size="middle"
-            className="stats-table"
-          />
+          <ResizableTableStyles />
+          <div className="overflow-x-auto mt-8">
+            <table style={{ minWidth: summaryTableTotalWidth }} className={`w-full text-xs text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+              {summaryColGroup}
+              <thead>
+                <tr className="bg-[#f8fafc] border-b border-slate-200 text-[#334155] font-semibold">
+                  <th className="relative py-2.5 px-3 text-center">STT<ColResizeHandle onMouseDown={startSummaryColResize(0)} /></th>
+                  <th className="relative py-2.5 px-3 text-left">Loại câu hỏi<ColResizeHandle onMouseDown={startSummaryColResize(1)} /></th>
+                  <th className="relative py-2.5 px-3 text-center">Tổng số câu hỏi<ColResizeHandle onMouseDown={startSummaryColResize(2)} /></th>
+                  <th className="relative py-2.5 px-3 text-center">Câu Đơn<ColResizeHandle onMouseDown={startSummaryColResize(3)} /></th>
+                  <th className="relative py-2.5 px-3 text-center">Câu nhóm<ColResizeHandle onMouseDown={startSummaryColResize(4)} /></th>
+                  <th className="relative py-2.5 px-3 text-center">Tổng số lệnh hỏi<ColResizeHandle onMouseDown={startSummaryColResize(5)} /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {typeSummaryData.length === 0 ? (
+                  <tr><td colSpan={6} className="py-8 text-center"><Empty description="Không có dữ liệu" /></td></tr>
+                ) : typeSummaryData.map(row => (
+                  <tr key={row.key} className="hover:bg-[#f1f5f9] transition-colors">
+                    <td className="py-2.5 px-3 text-center">{row.stt}</td>
+                    <td className="py-2.5 px-3"><TruncatedText text={row.typeName} /></td>
+                    <td className="py-2.5 px-3 text-center">{row.totalCount}</td>
+                    <td className="py-2.5 px-3 text-center">{row.cauDon}</td>
+                    <td className="py-2.5 px-3 text-center">{row.cauNhom}</td>
+                    <td className="py-2.5 px-3 text-center">{row.tongLenhHoi}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface PivotStatsTableProps {
+  leafColumns: { nl: string; lvl: string; typeObj: any }[];
+  tableData: any[];
+  formatLevel: (lvl: string) => string;
+}
+
+/** Bảng pivot 3 tầng tiêu đề (Năng lực → Mức độ → Loại câu hỏi) + gộp ô (rowSpan) theo chủ đề.
+ * Tách riêng component để `key={pivotColKey}` ở nơi gọi có thể remount toàn bộ (và reset lại
+ * useResizableColumns) mỗi khi số cột lá đổi theo môn học/năng lực đang lọc. */
+function PivotStatsTable({ leafColumns, tableData, formatLevel }: PivotStatsTableProps) {
+  const nangLucs = useMemo(() => Array.from(new Set(leafColumns.map(c => c.nl))), [leafColumns]);
+  const displayLevels = useMemo(() => Array.from(new Set(leafColumns.map(c => c.lvl))), [leafColumns]);
+  const displayTypesCount = nangLucs.length > 0 && displayLevels.length > 0 ? leafColumns.length / (nangLucs.length * displayLevels.length) : 0;
+
+  const { colGroup, startResize, totalWidth } = useResizableColumns(
+    [50, 160, 180, 90, ...leafColumns.map(() => 70)]
+  );
+
+  const totalCols = 4 + leafColumns.length;
+
+  return (
+    <div className="overflow-x-auto">
+      <ResizableTableStyles />
+      <table style={{ minWidth: totalWidth }} className={`border-collapse table-fixed text-xs ${RESIZABLE_TABLE_CLASS}`}>
+        {colGroup}
+        <thead>
+          <tr className="bg-[#f8fafc] text-[#334155] font-semibold">
+            <th className="relative border border-slate-200 px-2 py-2 text-center align-middle" rowSpan={3}>STT<ColResizeHandle onMouseDown={startResize(0)} /></th>
+            <th className="relative border border-slate-200 px-2 py-2 text-center align-middle" rowSpan={3}>Chủ đề<ColResizeHandle onMouseDown={startResize(1)} /></th>
+            <th className="relative border border-slate-200 px-2 py-2 text-center align-middle" rowSpan={3}>Tiểu mục<ColResizeHandle onMouseDown={startResize(2)} /></th>
+            <th className="relative border border-slate-200 px-2 py-2 text-center align-middle" rowSpan={3}>Khối lớp<ColResizeHandle onMouseDown={startResize(3)} /></th>
+            {nangLucs.map(nl => (
+              <th key={nl} className="border border-slate-200 px-2 py-2 text-center" colSpan={displayLevels.length * displayTypesCount}>{nl}</th>
+            ))}
+          </tr>
+          <tr className="bg-[#f8fafc] text-[#334155] font-semibold">
+            {nangLucs.flatMap(nl => displayLevels.map(lvl => (
+              <th key={`${nl}-${lvl}`} className="border border-slate-200 px-2 py-2 text-center" colSpan={displayTypesCount}>{formatLevel(lvl)}</th>
+            )))}
+          </tr>
+          <tr className="bg-[#f8fafc] text-[#334155] font-semibold">
+            {leafColumns.map(({ nl, lvl, typeObj }, i) => (
+              <th key={`${nl}-${lvl}-${typeObj.code}-${i}`} className="relative border border-slate-200 px-2 py-2 text-center">
+                {typeObj.code || typeObj.name}
+                <ColResizeHandle onMouseDown={startResize(4 + i)} />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tableData.length === 0 ? (
+            <tr><td colSpan={totalCols} className="py-8 text-center border border-slate-200"><Empty description="Không có dữ liệu thống kê" /></td></tr>
+          ) : tableData.map(row => (
+            <tr key={row.key} className={row.isTotal ? 'bg-slate-50 font-bold' : 'hover:bg-slate-50/60'}>
+              {row.topicRowSpan !== 0 && (
+                <td className="border border-slate-200 px-2 py-1.5 text-center align-middle" rowSpan={row.topicRowSpan ?? 1}>{row.isTotal ? '' : row.stt}</td>
+              )}
+              {row.topicRowSpan !== 0 && (
+                <td className="border border-slate-200 px-2 py-1.5 text-left align-middle" rowSpan={row.topicRowSpan ?? 1}>
+                  {row.isTotal ? '' : <TruncatedText text={row.topicName} />}
+                </td>
+              )}
+              <td className="border border-slate-200 px-2 py-1.5 text-left align-middle">
+                {row.isTotal ? <span className="font-bold">Tổng số</span> : <TruncatedText text={row.subTopicName} />}
+              </td>
+              <td className="border border-slate-200 px-2 py-1.5 text-center align-middle">{row.grade}</td>
+              {leafColumns.map(({ nl, lvl, typeObj }) => {
+                const val = row[`${nl}_${lvl}_${typeObj.code}`];
+                return (
+                  <td key={`${nl}_${lvl}_${typeObj.code}`} className="border border-slate-200 px-2 py-1.5 text-center align-middle">
+                    {val > 0 ? val : <span className="text-red-500">0</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

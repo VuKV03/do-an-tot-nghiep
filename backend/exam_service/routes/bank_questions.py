@@ -4,6 +4,7 @@ Using SQLAlchemy ORM to query the `questions` table and its associated tables.
 """
 import json
 import time
+import unicodedata
 import uuid
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -47,20 +48,47 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _map_level(level: str | None) -> str:
-    """Map DB level code to frontend CognitiveLevel codes."""
-    if not level:
-        return "nhan_biet"
-    level_lower = level.lower().strip()
-    if level_lower in ["easy", "nhận biết", "nhan_biet", "vv", "l1", "biết", "biet"]:
-        return "nhan_biet"
-    elif level_lower in ["medium", "thông hiểu", "thong_hieu", "zz", "l2", "hiểu", "hieu"]:
-        return "thong_hieu"
-    elif level_lower in ["hard", "vận dụng", "van_dung", "xx", "l3"]:
-        return "van_dung"
-    elif level_lower in ["very_hard", "vận dụng cao", "van_dung_cao", "vdc", "l4"]:
+def _normalize_vn(s: str | None) -> str:
+    """Bỏ dấu tiếng Việt + hạ chữ thường — soi y hệt `normalize()` phía FE (utils/cognitiveLevel.ts)
+    để 2 chiều map (FE hiển thị dropdown, BE map ngược khi đọc) luôn nhất quán với nhau."""
+    if not s:
+        return ""
+    decomposed = unicodedata.normalize("NFD", s)
+    stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    return stripped.replace("đ", "d").replace("Đ", "d").lower().strip()
+
+
+def _map_level(code: str | None, name: str | None = None) -> str:
+    """Map 1 bản ghi Cấp độ tư duy thật (code + name) về đúng 1 trong 4 giá trị enum FE cố định.
+
+    Khớp theo NAME (tiếng Việt, đã bỏ dấu) TRƯỚC — đáng tin cậy hơn code vì code là ô nhập tự do
+    không theo chuẩn nào (đã quan sát "TH" cho "Thông hiểu", không nằm trong bất kỳ danh sách mã
+    cũ nào), code chỉ dùng làm phương án dự phòng tương thích ngược. Kiểm tra "vận dụng cao" trước
+    "vận dụng" vì chuỗi sau là tập con của chuỗi trước — giống hệt thứ tự ở FE."""
+    norm_name = _normalize_vn(name)
+    norm_code = _normalize_vn(code)
+
+    if "van dung cao" in norm_name or norm_code in ["vdc", "l4"]:
         return "van_dung_cao"
+    if "van dung" in norm_name or norm_code in ["vd", "xx", "l3", "van_dung"]:
+        return "van_dung"
+    if "thong hieu" in norm_name or norm_code in ["th", "zz", "l2", "thong_hieu"]:
+        return "thong_hieu"
+    if "nhan biet" in norm_name or norm_code in ["nb", "vv", "l1", "nhan_biet"]:
+        return "nhan_biet"
     return "nhan_biet"
+
+
+# Alias ngược (enum FE -> danh sách code/tên có thể khớp trong danh mục Cấp độ tư duy) — dùng khi
+# TẠO/SỬA câu hỏi để tra level_id. Cột "code" trong danh mục là ô nhập tự do, không có giá trị cố
+# định duy nhất cho mỗi mức — liệt kê đủ mọi biến thể đã quan sát được (khớp 1-1 với các nhóm trong
+# `_map_level` ở trên, theo chiều ngược lại).
+LEVEL_ALIAS_MAP: dict[str, list[str]] = {
+    "nhan_biet": ["nhận biết", "nhan biet", "vv", "l1", "biết", "biet"],
+    "thong_hieu": ["thông hiểu", "thong hieu", "zz", "l2", "hiểu", "hieu", "th"],
+    "van_dung": ["vận dụng", "van dung", "xx", "l3"],
+    "van_dung_cao": ["vận dụng cao", "van dung cao", "vdc", "l4"],
+}
 
 
 def _map_type(qtype: str | None) -> str:
@@ -127,6 +155,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             GradeLevel.name.label("grade_name"),
             Topic.name.label("topic_name"),
             CognitiveLevel.code.label("level_code"),
+            CognitiveLevel.name.label("level_name"),
             QuestionType.code.label("type_code"),
             Question.competency_component_id,
             CompetencyComponent.name.label("competency_name")
@@ -144,7 +173,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
     rows = result.all()
 
     data = []
-    for q, subj_name, grade_name, topic_name, level_code, type_code, comp_id, comp_name in rows:
+    for q, subj_name, grade_name, topic_name, level_code, level_name, type_code, comp_id, comp_name in rows:
         # Parse options
         opts = []
         if q.options:
@@ -182,7 +211,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "code": q.code or (f"Q-{q.id[-6:].upper()}" if len(q.id) >= 6 else q.id),
             "text": q.content or "",
             "type": _map_type(type_code),
-            "level": _map_level(level_code),
+            "level": _map_level(level_code, level_name),
             "status": _map_status(q.status),
             "subject": subj_name or "",
             "grade": grade_name or "",
@@ -330,11 +359,19 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
          if not grade:
              raise HTTPException(status_code=400, detail=f"Không tìm thấy khối lớp '{body.grade}'")
 
-    # Find CognitiveLevel
-    db_level_code = {"nhan_biet": "vv", "thong_hieu": "zz", "van_dung": "xx", "van_dung_cao": "VDC"}.get(body.level, "vv")
-    level_stmt = select(CognitiveLevel).where(CognitiveLevel.code == db_level_code)
-    level_res = await db.execute(level_stmt)
-    level = level_res.scalar_one_or_none()
+    # Find CognitiveLevel — tra theo NHIỀU alias (code cũ lẫn tên tiếng Việt có dấu), không so
+    # sánh == với đúng 1 giá trị code cố định như trước ("zz" cho thong_hieu...). Cột "code" trong
+    # danh mục Cấp độ tư duy là ô nhập tự do, dữ liệu thật quan sát được "Thông hiểu" có code "TH"
+    # chứ không phải "zz" — so sánh cứng khiến level luôn None, lưu level_id=NULL, và khi đọc lại
+    # (_map_level ở trên) NULL bị mặc định hiển thị thành "Nhận biết", dù người dùng chọn đúng.
+    level_aliases = LEVEL_ALIAS_MAP.get(body.level, [body.level])
+    level = None
+    for alias in level_aliases:
+        level_stmt = select(CognitiveLevel).where(CognitiveLevel.code.ilike(alias) | CognitiveLevel.name.ilike(alias))
+        level_res = await db.execute(level_stmt)
+        level = level_res.scalars().first()
+        if level:
+            break
 
     # Find QuestionType
     db_type_code = {"single": "TN", "multiple": "CHN", "true_false": "ĐS", "short": "TLN"}.get(body.type, "TN")
@@ -432,10 +469,14 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
         if qtype:
             question.type_id = qtype.id
     if body.level is not None:
-        db_level_code = {"nhan_biet": "vv", "thong_hieu": "zz", "van_dung": "xx", "van_dung_cao": "VDC"}.get(body.level, "vv")
-        level_stmt = select(CognitiveLevel).where(CognitiveLevel.code == db_level_code)
-        level_res = await db.execute(level_stmt)
-        level = level_res.scalar_one_or_none()
+        level_aliases = LEVEL_ALIAS_MAP.get(body.level, [body.level])
+        level = None
+        for alias in level_aliases:
+            level_stmt = select(CognitiveLevel).where(CognitiveLevel.code.ilike(alias) | CognitiveLevel.name.ilike(alias))
+            level_res = await db.execute(level_stmt)
+            level = level_res.scalars().first()
+            if level:
+                break
         if level:
             question.level_id = level.id
     if body.topicId is not None:
