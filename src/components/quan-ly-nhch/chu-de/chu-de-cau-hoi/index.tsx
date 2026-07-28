@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, Spin } from 'antd';
+import { Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, Spin, Empty, Pagination } from 'antd';
 import { toast } from '../../../../utils/toast';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreVertical, Send, History } from 'lucide-react';
-import type { ColumnsType } from 'antd/es/table';
+import { FileExcelOutlined } from '@ant-design/icons';
 import CreateChuDeModal from './create';
 import UpdateChuDeModal from './update';
 import DeleteChuDeModal from './delete';
@@ -11,6 +11,8 @@ import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 import { SystemUser } from '../../../../types';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
 
 const { RangePicker } = DatePicker;
 
@@ -102,6 +104,12 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
   const [filterParentTopic, setFilterParentTopic] = useState<string>('Tất cả');
   const [filterStatus, setFilterStatus] = useState<any>('Tất cả');
   const [filterDates, setFilterDates] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const { colGroup: chuDeColGroup, startResize: startChuDeColResize, totalWidth: chuDeTableTotalWidth } = useResizableColumns(
+    [40, 200, 280, 130, 120, 130, 150, 140]
+  );
 
   const parentTopicsOptions = useMemo(() => {
     const parents = rawData
@@ -253,28 +261,21 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
     });
   };
 
-  const handleSelectAll = (selected: boolean, selectedRows: ChuDeType[], changeRows: ChuDeType[]) => {
-    const changeRowKeys: React.Key[] = changeRows.map(row => row.Id);
-    setSelectedRowKeys(prev => {
-      if (selected) {
-        const next = [...prev];
-        changeRowKeys.forEach(key => {
-          if (!next.includes(key)) {
-            next.push(key);
-          }
-        });
-        return next;
-      } else {
-        return prev.filter(key => !changeRowKeys.includes(key));
-      }
+  const toggleExpand = (id: string) => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
     });
   };
 
-  const rowSelection = {
-    selectedRowKeys,
-    onSelect: handleSelect,
-    onSelectAll: handleSelectAll,
-    checkStrictly: true,
+  const getAllIdsUnder = (nodes: ChuDeType[]): string[] => {
+    const ids: string[] = [];
+    const walk = (list: ChuDeType[]) => {
+      list.forEach(n => { ids.push(n.Id); if (n.children) walk(n.children); });
+    };
+    walk(nodes);
+    return ids;
   };
 
   const getTrangThaiTag = (trangThai: number) => {
@@ -368,77 +369,74 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
     return buildTopicTree(filteredFlat);
   }, [rawData, searchTen, filterMonHoc, filterKhoiLop, filterStatus, filterDates, filterParentTopic]);
 
-  const columns: ColumnsType<ChuDeType> = [
-    {
-      title: 'Mã chủ đề/tiểu mục',
-      dataIndex: 'Ma',
-      key: 'Ma',
-      width: 180,
-    },
-    {
-      title: 'Nội dung chủ đề/tiểu mục',
-      dataIndex: 'Ten',
-      key: 'Ten',
-    },
-    {
-      title: 'Môn học',
-      dataIndex: 'MonHocName',
-      key: 'MonHocName',
-      width: 120,
-    },
-    {
-      title: 'Khối lớp',
-      dataIndex: 'KhoiLopName',
-      key: 'KhoiLopName',
-      width: 120,
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'ThoiGianTao',
-      key: 'ThoiGianTao',
-      width: 150,
-      render: (v) => v ? new Date(v).toLocaleDateString('vi-VN') : '',
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'TrangThai',
-      key: 'TrangThai',
-      width: 160,
-      render: (val) => getTrangThaiTag(val),
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      align: 'center',
-      width: 140,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<Eye size={16} className="text-blue-600" />}
-            className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
-            title="Xem chi tiết"
-            onClick={() => handleOpenDetail(record)}
-          />
-          {(record.TrangThai === 0 || record.TrangThai === 3) && (
-            <Button
-              type="text"
-              onClick={() => handleOpenUpdate(record)}
-              icon={<Edit size={16} className="text-blue-600" />}
-              className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
-            />
-          )}
-          <Dropdown menu={renderActionMenu(record)} trigger={['click']} placement="bottomRight">
-            <Button
-              type="text"
-              icon={<MoreVertical size={16} className="text-gray-600" />}
-              className="hover:bg-gray-100 flex items-center justify-center p-2 rounded-md"
-            />
-          </Dropdown>
-        </Space>
-      ),
-    },
+  useEffect(() => { setCurrentPage(1); }, [searchTen, filterMonHoc, filterKhoiLop, filterStatus, filterDates, filterParentTopic]);
+
+  const paginatedRoots = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredTree.slice(start, start + pageSize);
+  }, [filteredTree, currentPage, pageSize]);
+
+  interface FlatRow { node: ChuDeType; depth: number }
+  const visibleRows: FlatRow[] = useMemo(() => {
+    const out: FlatRow[] = [];
+    const walk = (nodes: ChuDeType[], depth: number) => {
+      nodes.forEach(node => {
+        out.push({ node, depth });
+        if (node.children && node.children.length > 0 && expandedKeys.has(node.Id)) {
+          walk(node.children, depth + 1);
+        }
+      });
+    };
+    walk(paginatedRoots, 0);
+    return out;
+  }, [paginatedRoots, expandedKeys]);
+
+  const currentPageAllIds = useMemo(() => getAllIdsUnder(paginatedRoots), [paginatedRoots]);
+  const isAllSelected = currentPageAllIds.length > 0 && currentPageAllIds.every(id => selectedRowKeys.includes(id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedRowKeys(prev => prev.filter(k => !currentPageAllIds.includes(k as string)));
+    else setSelectedRowKeys(prev => Array.from(new Set([...prev, ...currentPageAllIds])));
+  };
+
+  const getTrangThaiLabel = (trangThai: number) => {
+    switch (trangThai) {
+      case 0: return 'Tạo mới';
+      case 1: return 'Chờ thẩm định';
+      case 2: return 'Đã thẩm định';
+      case 3: return 'Từ chối';
+      default: return '';
+    }
+  };
+
+  const flattenChuDeTree = (nodes: ChuDeType[]): ChuDeType[] => {
+    const result: ChuDeType[] = [];
+    const walk = (list: ChuDeType[]) => {
+      list.forEach(n => { result.push(n); if (n.children && n.children.length) walk(n.children); });
+    };
+    walk(nodes);
+    return result;
+  };
+
+  const excelColumns: ExcelColumn<ChuDeType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã chủ đề/tiểu mục', accessor: row => row.Ma, width: 20 },
+    { header: 'Nội dung chủ đề/tiểu mục', accessor: row => row.Ten, width: 34 },
+    { header: 'Môn học', accessor: row => row.MonHocName || '', width: 18 },
+    { header: 'Khối lớp', accessor: row => row.KhoiLopName || '', width: 14 },
+    { header: 'Ngày tạo', accessor: row => row.ThoiGianTao ? new Date(row.ThoiGianTao).toLocaleDateString('vi-VN') : '', width: 14, align: 'center' },
+    { header: 'Trạng thái', accessor: row => getTrangThaiLabel(row.TrangThai), width: 16, align: 'center' },
   ];
+
+  const handleExportExcel = () => {
+    const rows = flattenChuDeTree(filteredTree);
+    if (rows.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `ChuDeCauHoi_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(rows, excelColumns, fileName, 'Chủ đề câu hỏi');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <ConfigProvider
@@ -571,7 +569,10 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
               >
                 Thêm mới
               </Button>
-              <Button 
+              <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white h-10 font-medium px-4 hover:!bg-green-700" onClick={handleExportExcel}>
+                Xuất Excel
+              </Button>
+              <Button
                 className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50"
                 disabled={selectedRowKeys.length === 0}
                 onClick={handleOpenGuiThamDinhMultiple}
@@ -588,24 +589,106 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
             </Space>
           </div>
 
+          <ResizableTableStyles />
           <Spin spinning={loading}>
-            <Table
-              rowSelection={rowSelection}
-              columns={columns}
-              dataSource={filteredTree}
-              rowKey="Id"
-              pagination={{
-                total: filteredTree.length,
-                showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                showSizeChanger: true,
-                defaultPageSize: 10,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                locale: { items_per_page: '/ trang' },
-                className: 'mt-6',
-              }}
-              className="border-t border-gray-200"
-            />
+            <div className="overflow-x-auto border-t border-gray-200">
+              <table style={{ minWidth: chuDeTableTotalWidth }} className={`w-full text-sm text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {chuDeColGroup}
+                <thead>
+                  <tr className="bg-[#f8fafc] border-b border-gray-200 text-[#334155] font-semibold">
+                    <th className="relative py-3 px-3 text-center">
+                      <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                      <ColResizeHandle onMouseDown={startChuDeColResize(0)} />
+                    </th>
+                    <th className="relative py-3 px-3 text-left">Mã chủ đề/tiểu mục<ColResizeHandle onMouseDown={startChuDeColResize(1)} /></th>
+                    <th className="relative py-3 px-3 text-left">Nội dung chủ đề/tiểu mục<ColResizeHandle onMouseDown={startChuDeColResize(2)} /></th>
+                    <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startChuDeColResize(3)} /></th>
+                    <th className="relative py-3 px-3 text-left">Khối lớp<ColResizeHandle onMouseDown={startChuDeColResize(4)} /></th>
+                    <th className="relative py-3 px-3 text-left">Ngày tạo<ColResizeHandle onMouseDown={startChuDeColResize(5)} /></th>
+                    <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startChuDeColResize(6)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startChuDeColResize(7)} /></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visibleRows.length === 0 ? (
+                    <tr><td colSpan={8} className="py-12 text-center"><Empty description="Không có dữ liệu chủ đề/tiểu mục" /></td></tr>
+                  ) : visibleRows.map(({ node, depth }) => {
+                    const hasChildren = !!node.children && node.children.length > 0;
+                    const isExpanded = expandedKeys.has(node.Id);
+                    return (
+                      <tr key={node.Id} className="hover:bg-[#f1f5f9] transition-colors">
+                        <td className="py-3 px-3 text-center">
+                          <input type="checkbox" className="cursor-pointer" checked={selectedRowKeys.includes(node.Id)} onChange={(e) => handleSelect(node, e.target.checked)} />
+                        </td>
+                        <td className="py-3 px-3">
+                          <div style={{ paddingLeft: depth * 20 }} className="flex items-center gap-1.5">
+                            {hasChildren ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(node.Id)}
+                                className="w-4 h-4 flex items-center justify-center text-slate-500 hover:text-slate-800 cursor-pointer flex-shrink-0"
+                              >
+                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              </button>
+                            ) : (
+                              <span className="w-4 flex-shrink-0" />
+                            )}
+                            <TruncatedText text={node.Ma} />
+                          </div>
+                        </td>
+                        <td className="py-3 px-3"><TruncatedText text={node.Ten} /></td>
+                        <td className="py-3 px-3"><TruncatedText text={node.MonHocName || ''} /></td>
+                        <td className="py-3 px-3"><TruncatedText text={node.KhoiLopName || ''} /></td>
+                        <td className="py-3 px-3"><TruncatedText text={node.ThoiGianTao ? new Date(node.ThoiGianTao).toLocaleDateString('vi-VN') : ''} /></td>
+                        <td className="py-3 px-3 text-center">{getTrangThaiTag(node.TrangThai)}</td>
+                        <td className="py-3 px-3 text-center">
+                          <Space size="small">
+                            <Button
+                              type="text"
+                              icon={<Eye size={16} className="text-blue-600" />}
+                              className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
+                              title="Xem chi tiết"
+                              onClick={() => handleOpenDetail(node)}
+                            />
+                            {(node.TrangThai === 0 || node.TrangThai === 3) && (
+                              <Button
+                                type="text"
+                                onClick={() => handleOpenUpdate(node)}
+                                icon={<Edit size={16} className="text-blue-600" />}
+                                className="hover:bg-blue-50 flex items-center justify-center p-2 rounded-md"
+                              />
+                            )}
+                            <Dropdown menu={renderActionMenu(node)} trigger={['click']} placement="bottomRight">
+                              <Button
+                                type="text"
+                                icon={<MoreVertical size={16} className="text-gray-600" />}
+                                className="hover:bg-gray-100 flex items-center justify-center p-2 rounded-md"
+                              />
+                            </Dropdown>
+                          </Space>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Spin>
+          <div className="flex justify-between items-center mt-2">
+            <div className="text-xs text-slate-500 font-medium">
+              {filteredTree.length === 0 ? '0 - 0' : `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, filteredTree.length)}`} / {filteredTree.length} bản ghi
+            </div>
+            <Pagination
+              current={currentPage}
+              total={filteredTree.length}
+              pageSize={pageSize}
+              onChange={(page, size) => { setCurrentPage(page); setPageSize(size); }}
+              showSizeChanger
+              showQuickJumper={false}
+              pageSizeOptions={['10', '20', '50', '100']}
+              locale={{ items_per_page: '/ trang' }}
+            />
+          </div>
         </div>
 
         {/* Modals */}
