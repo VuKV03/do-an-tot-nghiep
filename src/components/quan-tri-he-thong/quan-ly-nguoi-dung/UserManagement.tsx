@@ -581,6 +581,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                 <th className="py-3 px-4 text-left">Họ và tên</th>
                 <th className="py-3 px-4 text-left">Nhóm người dùng</th>
                 <th className="py-3 px-4 text-left">Chức vụ</th>
+                <th className="py-3 px-4 text-left">Môn học phụ trách</th>
                 <th className="py-3 px-4 text-center">Trạng thái</th>
                 <th className="py-3 px-4 text-center w-24">Thao tác</th>
               </tr>
@@ -588,13 +589,13 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="py-12 text-center text-sm text-slate-500">
                     Đang tải dữ liệu người dùng...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <Empty description="Không tìm thấy thông tin tài khoản cán bộ nào phù hợp." />
                   </td>
                 </tr>
@@ -632,6 +633,22 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                       )}
                     </td>
                     <td className="py-3 px-4 text-slate-600">{(u as any).position || 'Cán bộ'}</td>
+                    <td className="py-3 px-4 text-slate-600">
+                      {(u as any).subjects && (u as any).subjects.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {(u as any).subjects.map((sub: string) => {
+                            const subjectName = subjects.find(s => s.id === sub || (s as any).code === sub)?.name || sub;
+                            return (
+                              <span key={sub} className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[11px]">
+                                {subjectName}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic text-xs">-</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-center">
                       <Dropdown
                         disabled={u.username === 'admin'}
