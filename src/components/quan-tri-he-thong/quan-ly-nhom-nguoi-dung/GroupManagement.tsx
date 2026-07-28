@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { message, Form } from 'antd';
+import { message, Form, Modal } from 'antd';
 import { AuditLog } from '../../../types';
 import axios from 'axios';
 
@@ -28,6 +28,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   // State phục vụ cho chức năng tìm kiếm nhóm theo mã và tên
   const [searchCode, setSearchCode] = useState('');
   const [searchName, setSearchName] = useState('');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
   // Hàm gọi API để lấy danh sách nhóm người dùng từ Backend
   const fetchGroups = async () => {
@@ -265,6 +266,50 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
     }
   };
 
+  const handleBulkDelete = () => {
+    if (selectedGroupIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một nhóm để xóa.');
+      return;
+    }
+
+    const selectedGroups = userGroups.filter(g => selectedGroupIds.includes(g.id));
+    const hasAdmin = selectedGroups.some(g => g.code === 'GRP_ADMIN' || g.code === 'QTHT' || g.name.toLowerCase().includes('quản trị hệ thống') || g.name.toLowerCase().includes('qtht'));
+
+    if (hasAdmin) {
+      message.error('Không cho phép xóa nhóm Quản trị hệ thống.');
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Xác nhận xóa nhóm',
+      content: `Bạn có chắc chắn muốn xóa ${selectedGroupIds.length} nhóm đã chọn không? Hành động này không thể hoàn tác.`,
+      okText: 'Xóa',
+      okButtonProps: { danger: true },
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await Promise.all(selectedGroupIds.map(id => axios.delete(`${API_URL}/auth/groups/${id}`)));
+
+          await fetchGroups(); // Refresh list
+          setSelectedGroupIds([]); // Clear selection
+
+          message.success(`Đã xóa thành công ${selectedGroupIds.length} nhóm.`);
+
+          onAddAuditLog({
+            id: `log-sec-${Date.now()}`,
+            user: 'Quản trị viên',
+            action: 'Xóa nhóm người dùng hàng loạt',
+            timestamp: new Date().toISOString(),
+            details: `Đã xóa ${selectedGroupIds.length} nhóm khỏi hệ thống.`
+          });
+        } catch (err: any) {
+          console.error('Error deleting groups:', err);
+          message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa nhóm.');
+        }
+      }
+    });
+  };
+
   // Lấy dữ liệu từ form và gọi API lưu thông tin nhóm (áp dụng cho cả Thêm mới hoặc Cập nhật)
   const handleSaveGroup = async () => {
     try {
@@ -379,6 +424,9 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         handleEditGroup={handleEditGroup}
         handleOpenPermissionEditor={handleOpenPermissionEditor}
         handleDeleteGroup={handleDeleteGroup}
+        handleBulkDelete={handleBulkDelete}
+        selectedGroupIds={selectedGroupIds}
+        setSelectedGroupIds={setSelectedGroupIds}
       />
 
       {/* Permissions Modal */}

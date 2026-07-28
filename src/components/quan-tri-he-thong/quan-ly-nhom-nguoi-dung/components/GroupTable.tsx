@@ -17,6 +17,9 @@ interface GroupTableProps {
   handleEditGroup: (group: UserGroup) => void;
   handleOpenPermissionEditor: (group: UserGroup) => void;
   handleDeleteGroup: (groupId: string, groupName: string) => void;
+  handleBulkDelete: () => void;
+  selectedGroupIds: string[];
+  setSelectedGroupIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
 // component bảng nhóm người dùng
 export default function GroupTable({
@@ -27,7 +30,10 @@ export default function GroupTable({
   handleToggleGroupStatus,
   handleEditGroup,
   handleOpenPermissionEditor,
-  handleDeleteGroup
+  handleDeleteGroup,
+  handleBulkDelete,
+  selectedGroupIds,
+  setSelectedGroupIds
 }: GroupTableProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mt-6">
@@ -35,7 +41,7 @@ export default function GroupTable({
         <h2 className="text-[#1a3b70] font-bold text-sm m-0">Kết quả tìm kiếm</h2>
         <div className="flex gap-2">
           <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleAddGroup}>Thêm mới</Button>
-          <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xóa</Button>
+          <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded" onClick={handleBulkDelete}>Xóa</Button>
           <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
         </div>
       </div>
@@ -43,7 +49,20 @@ export default function GroupTable({
         <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
-              <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
+              <th className="py-3 px-4 text-left w-12">
+                <input 
+                  type="checkbox" 
+                  className="rounded text-[#1e40af] cursor-pointer" 
+                  checked={filteredGroups.length > 0 && selectedGroupIds.length === filteredGroups.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedGroupIds(filteredGroups.map(g => g.id));
+                    } else {
+                      setSelectedGroupIds([]);
+                    }
+                  }}
+                />
+              </th>
               <th className="py-3 px-4 text-center w-16">STT</th>
               <th className="py-3 px-4 text-left">Mã nhóm</th>
               <th className="py-3 px-4 text-left">Tên nhóm</th>
@@ -70,7 +89,18 @@ export default function GroupTable({
               filteredGroups.map((g, index) => (
                 <tr key={g.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-3 px-4">
-                    <input type="checkbox" className="rounded text-[#1e40af]" />
+                    <input 
+                      type="checkbox" 
+                      className="rounded text-[#1e40af] cursor-pointer" 
+                      checked={selectedGroupIds.includes(g.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedGroupIds(prev => [...prev, g.id]);
+                        } else {
+                          setSelectedGroupIds(prev => prev.filter(id => id !== g.id));
+                        }
+                      }}
+                    />
                   </td>
                   <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
                   <td className="py-3 px-4 text-slate-600 font-semibold">{g.code}</td>
