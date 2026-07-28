@@ -1,5 +1,6 @@
 import React from 'react';
-import { Layout, Dropdown, Avatar, message, Modal, Button } from 'antd';
+import { Layout, Dropdown, Avatar, Modal, Button } from 'antd';
+import { toast } from '../../utils/toast';
 import {
   UserOutlined,
   KeyOutlined,
@@ -73,7 +74,7 @@ export default function AppHeader({
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user_info');
           setCurrentUser(null);
-          message.success('Bạn đã đăng xuất tài khoản một cách an toàn!');
+          toast.success('Bạn đã đăng xuất tài khoản một cách an toàn!');
         }
       }
     ]

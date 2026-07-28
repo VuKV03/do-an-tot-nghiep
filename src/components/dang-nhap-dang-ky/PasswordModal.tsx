@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Button, Input, message } from 'antd';
+import { Modal, Button, Input } from 'antd';
+import { toast } from '../../utils/toast';
 import { KeyOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../types';
 
@@ -15,11 +16,11 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
 
   const handleChangePassword = async () => {
     if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      message.error('Vui lòng điền đầy đủ các trường mật khẩu');
+      toast.error('Vui lòng điền đầy đủ các trường mật khẩu');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      message.error('Mật khẩu mới và Xác nhận mật khẩu không khớp');
+      toast.error('Mật khẩu mới và Xác nhận mật khẩu không khớp');
       return;
     }
 
@@ -40,14 +41,14 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
 
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Đổi mật khẩu thành công!');
+        toast.success('Đổi mật khẩu thành công!');
         setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
         onClose();
       } else {
-        message.error(data.detail || data.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+        toast.error(data.detail || data.message || 'Có lỗi xảy ra khi đổi mật khẩu');
       }
     } catch (error) {
-      message.error('Không thể kết nối đến máy chủ');
+      toast.error('Không thể kết nối đến máy chủ');
     } finally {
       setSaving(false);
     }

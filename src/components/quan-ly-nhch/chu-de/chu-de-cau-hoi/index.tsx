@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, message, Spin } from 'antd';
+import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Dropdown, MenuProps, Spin } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreVertical, Send, History } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import CreateChuDeModal from './create';
@@ -143,7 +144,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
       }
     } catch (e: any) {
       console.error(e);
-      message.error('Không thể tải bộ lọc Môn học / Khối lớp!');
+      toast.error('Không thể tải bộ lọc Môn học / Khối lớp!');
     }
   };
 
@@ -154,7 +155,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
       setRawData(res.data);
     } catch (e: any) {
       console.error(e);
-      message.error(e.message || 'Không thể tải danh sách chủ đề!');
+      toast.error(e.message || 'Không thể tải danh sách chủ đề!');
     } finally {
       setLoading(false);
     }
@@ -625,19 +626,19 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 note: values.GhiChu || '',
                 created_by: actorName,
               });
-              message.success('Tạo chủ đề/tiểu mục thành công!');
+              toast.success('Tạo chủ đề/tiểu mục thành công!');
               fetchTopics();
               return true;
             } catch (e: any) {
               if (e.message?.includes('Mã chủ đề đã tồn tại')) {
-                message.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`);
+                toast.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`);
                 return 'duplicate_code';
               }
               if (e.message?.includes('Failed to fetch')) {
-                message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
+                toast.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
                 return false;
               }
-              message.error(e.message || 'Không thể tạo chủ đề!');
+              toast.error(e.message || 'Không thể tạo chủ đề!');
               return false;
             }
           }}
@@ -661,19 +662,19 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 note: values.GhiChu || '',
                 actor: actorName,
               });
-              message.success('Cập nhật chủ đề/tiểu mục thành công!');
+              toast.success('Cập nhật chủ đề/tiểu mục thành công!');
               fetchTopics();
               return true;
             } catch (e: any) {
               if (e.message?.includes('Mã chủ đề đã tồn tại')) {
-                message.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng chọn mã khác!`);
+                toast.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng chọn mã khác!`);
                 return 'duplicate_code';
               }
               if (e.message?.includes('Failed to fetch')) {
-                message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
+                toast.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend!');
                 return false;
               }
-              message.error(e.message || 'Không thể cập nhật chủ đề!');
+              toast.error(e.message || 'Không thể cập nhật chủ đề!');
               return false;
             }
           }}
@@ -712,16 +713,16 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 for (const key of rootKeys) {
                   await topicsApi.delete(key.toString());
                 }
-                message.success('Đã xóa các chủ đề được chọn!');
+                toast.success('Đã xóa các chủ đề được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
                 await topicsApi.delete(selectedRecord.Id);
-                message.success(`Đã xóa chủ đề "${selectedRecord.Ten}"!`);
+                toast.success(`Đã xóa chủ đề "${selectedRecord.Ten}"!`);
               }
               setIsDeleteModalOpen(false);
               fetchTopics();
             } catch (e: any) {
-              message.error(e.message || 'Không thể xóa chủ đề!');
+              toast.error(e.message || 'Không thể xóa chủ đề!');
             }
           }}
         />
@@ -743,7 +744,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 if (allIdsToSubmit.length > 0) {
                   await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id, actorName)));
                 }
-                message.success(
+                toast.success(
                   allIdsToSubmit.length > 0
                     ? 'Đã gửi thẩm định các chủ đề được chọn!'
                     : 'Các chủ đề được chọn đều đã thẩm định, không cần gửi lại.'
@@ -755,19 +756,19 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 if (allIdsToSubmit.length > 0) {
                   await Promise.all(allIdsToSubmit.map(id => topicsApi.submit(id, actorName)));
                   const hasChildren = allIdsToSubmit.length > 1;
-                  message.success(
+                  toast.success(
                     hasChildren
                       ? `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
                       : `Đã gửi thẩm định chủ đề "${selectedRecord.Ten}"!`
                   );
                 } else {
-                  message.success(`Chủ đề "${selectedRecord.Ten}" đã thẩm định, giữ nguyên trạng thái.`);
+                  toast.success(`Chủ đề "${selectedRecord.Ten}" đã thẩm định, giữ nguyên trạng thái.`);
                 }
               }
               setIsGuiThamDinhModalOpen(false);
               fetchTopics();
             } catch (e: any) {
-              message.error(e.message || 'Không thể gửi thẩm định!');
+              toast.error(e.message || 'Không thể gửi thẩm định!');
             }
           }}
         />

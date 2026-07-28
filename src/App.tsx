@@ -34,6 +34,7 @@ import { getBreadcrumbTitle, getUserInitials, getRoleLabel } from './utils/helpe
 import { rawMenuItems } from './config/menuConfig';
 import AppSidebar from './components/layout/AppSidebar';
 import AppHeader from './components/layout/AppHeader';
+import { ToastContainer } from './utils/toast';
 
 const { Header, Sider, Content } = Layout;
 
@@ -451,6 +452,7 @@ export default function App() {
 
   return (
     <Layout className="min-h-screen bg-[#f5f7fa] font-sans" id="app-root-layout">
+      <ToastContainer />
       <AppSidebar
         collapsed={collapsed}
         setCollapsed={setCollapsed}

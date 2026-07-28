@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Input, Upload, Button, Tag, Divider, message } from 'antd';
+import { Modal, Input, Upload, Button, Tag, Divider } from 'antd';
+import { toast } from '../utils/toast';
 import { InboxOutlined, CheckCircleOutlined, CloseCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Question } from '../types';
 import { RichTextView } from '../utils/htmlContent';
@@ -22,11 +23,11 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
     setSubmitting('approve');
     try {
       await onApprove(question.id, feedback);
-      message.success('Đã duyệt câu hỏi thành công!');
+      toast.success('Đã duyệt câu hỏi thành công!');
       setFeedback('');
       onClose();
     } catch (e: any) {
-      message.error(e?.message || 'Không thể duyệt câu hỏi!');
+      toast.error(e?.message || 'Không thể duyệt câu hỏi!');
     } finally {
       setSubmitting(null);
     }
@@ -34,17 +35,17 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
 
   const handleRejectAction = async () => {
     if (!feedback.trim()) {
-      message.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
+      toast.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
       return;
     }
     setSubmitting('reject');
     try {
       await onReject(question.id, feedback);
-      message.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
+      toast.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
       setFeedback('');
       onClose();
     } catch (e: any) {
-      message.error(e?.message || 'Không thể từ chối câu hỏi!');
+      toast.error(e?.message || 'Không thể từ chối câu hỏi!');
     } finally {
       setSubmitting(null);
     }
@@ -169,7 +170,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
             onChange={(info) => {
               const { status } = info.file;
               if (status === 'done') {
-                message.success(`${info.file.name} đã được đính kèm thành công vào hồ sơ thẩm định.`);
+                toast.success(`${info.file.name} đã được đính kèm thành công vào hồ sơ thẩm định.`);
               }
             }}
             className="bg-slate-50 border-dashed border-slate-250 rounded-xl py-4"

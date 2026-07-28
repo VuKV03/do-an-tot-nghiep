@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Button, Select, Input, message, Popconfirm, Tooltip, Empty } from 'antd';
+import { Modal, Button, Select, Input, Popconfirm, Tooltip, Empty } from 'antd';
+import { toast } from '../../../utils/toast';
 import { SwapOutlined, DeleteOutlined, SaveOutlined, PlusOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
@@ -164,7 +165,7 @@ export default function ModalDeRiengLe({
       return updated;
     });
     setIsPickerOpen(false);
-    message.success(`Đã thêm ${selected.length} câu hỏi vào đề thi.`);
+    toast.success(`Đã thêm ${selected.length} câu hỏi vào đề thi.`);
   };
 
   // Xoá 1 câu hỏi
@@ -172,7 +173,7 @@ export default function ModalDeRiengLe({
     setParts(prev => prev.map(p =>
       p.id === partId ? { ...p, questions: p.questions.filter((_, i) => i !== qIdx) } : p
     ));
-    message.success('Đã xóa câu hỏi khỏi đề.');
+    toast.success('Đã xóa câu hỏi khỏi đề.');
   };
 
   // Mở modal thay thế
@@ -192,17 +193,17 @@ export default function ModalDeRiengLe({
     ));
     setIsSwapOpen(false);
     setSwapTarget(null);
-    message.success('Đã thay thế câu hỏi thành công.');
+    toast.success('Đã thay thế câu hỏi thành công.');
   };
 
   // Lưu đề thi
   const handleSave = async () => {
     if (!examTitle.trim()) {
-      message.error('Vui lòng nhập tên đề thi!');
+      toast.error('Vui lòng nhập tên đề thi!');
       return;
     }
     if (totalQuestions === 0) {
-      message.error('Đề thi phải có ít nhất 1 câu hỏi!');
+      toast.error('Đề thi phải có ít nhất 1 câu hỏi!');
       return;
     }
 
@@ -230,13 +231,13 @@ export default function ModalDeRiengLe({
 
       const json = await response.json();
       if (json.success) {
-        message.success(typeAdd ? 'Đã tạo đề thi thủ công thành công!' : 'Đã lưu thay đổi đề thi.');
+        toast.success(typeAdd ? 'Đã tạo đề thi thủ công thành công!' : 'Đã lưu thay đổi đề thi.');
         onSuccess();
       } else {
-        message.error(json.message || json.error || 'Lỗi khi lưu đề.');
+        toast.error(json.message || json.error || 'Lỗi khi lưu đề.');
       }
     } catch {
-      message.error('Lỗi kết nối máy chủ khi lưu đề.');
+      toast.error('Lỗi kết nối máy chủ khi lưu đề.');
     } finally {
       setLoading(false);
     }

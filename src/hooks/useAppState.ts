@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { message } from 'antd';
+import { toast } from '../utils/toast';
 import { Question, MatrixConfig, AuditLog } from '../types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES } from '../data';
 import { bankQuestionApi } from '../services/danhMucApi';
@@ -64,11 +64,11 @@ export const useAppState = () => {
 
           setAuditLogs(logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
         } else {
-          message.error('Không thể tải dữ liệu câu hỏi');
+          toast.error('Không thể tải dữ liệu câu hỏi');
         }
       } catch (error) {
         console.error('Lỗi khi tải dữ liệu câu hỏi:', error);
-        message.error('Lỗi kết nối đến máy chủ');
+        toast.error('Lỗi kết nối đến máy chủ');
       }
     };
 
@@ -131,7 +131,7 @@ export const useAppState = () => {
 
   const handleUpdateQuestion = (q: Question) => {
     setQuestions(prev => prev.map(item => item.id === q.id ? q : item));
-    message.success(`Đã cập nhật câu hỏi ${q.code}.`);
+    toast.success(`Đã cập nhật câu hỏi ${q.code}.`);
   };
 
   const handleDeleteQuestion = (id: string) => {
@@ -148,7 +148,7 @@ export const useAppState = () => {
       details: `Đã xóa ma trận cấu hình khỏi danh sách.`
     };
     setAuditLogs(prev => [newLog, ...prev]);
-    message.success('Đã gỡ bỏ cấu hình ma trận đề khỏi hệ thống.');
+    toast.success('Đã gỡ bỏ cấu hình ma trận đề khỏi hệ thống.');
   };
 
   const handleSaveMatrix = (matrix: MatrixConfig) => {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Table, Input, Select, DatePicker, Button, Tooltip, message, ConfigProvider } from 'antd';
+import { Table, Input, Select, DatePicker, Button, Tooltip, ConfigProvider } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus } from '../../../../types';
@@ -53,7 +54,7 @@ export default function QuestionReviewModule({
     setSearchType('all');
     setSearchStatus('pending');
     setFilterDates(null);
-    message.info('Đã làm mới bộ lọc.');
+    toast.info('Đã làm mới bộ lọc.');
   };
 
   // Perform filtering

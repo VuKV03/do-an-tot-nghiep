@@ -4,9 +4,13 @@ import {
   SettingOutlined,
   TeamOutlined,
   EditOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  FileExcelOutlined
 } from '@ant-design/icons';
 import { UserGroup } from '../types';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
+import { toast } from '../../../../utils/toast';
 // interface định nghĩa các props cần thiết cho component GroupTable
 interface GroupTableProps {
   loading: boolean;
@@ -29,28 +33,53 @@ export default function GroupTable({
   handleOpenPermissionEditor,
   handleDeleteGroup
 }: GroupTableProps) {
+  const { colGroup: groupTableColGroup, startResize: startGroupColResize, totalWidth: groupTableTotalWidth } = useResizableColumns(
+    [48, 64, 140, 180, 260, 120, 112, 128]
+  );
+
+  const groupExcelColumns: ExcelColumn<UserGroup>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã nhóm', accessor: row => row.code, width: 16 },
+    { header: 'Tên nhóm', accessor: row => row.name, width: 24 },
+    { header: 'Mô tả chi tiết', accessor: row => row.description || 'Không có mô tả', width: 40 },
+    { header: 'Thành viên', accessor: row => row.memberCount, width: 12, align: 'center' },
+    { header: 'Trạng thái', accessor: row => row.status !== 'inactive' ? 'Đang hoạt động' : 'Đã khóa', width: 16, align: 'center' },
+  ];
+
+  const handleExportExcel = () => {
+    if (filteredGroups.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `NhomNguoiDung_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredGroups, groupExcelColumns, fileName, 'Nhóm người dùng');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mt-6">
+      <ResizableTableStyles />
       <div className="p-4 border-b border-slate-200 flex justify-between items-center">
         <h2 className="text-[#1a3b70] font-bold text-sm m-0">Kết quả tìm kiếm</h2>
         <div className="flex gap-2">
           <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleAddGroup}>Thêm mới</Button>
           <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xóa</Button>
-          <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
+          <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700" onClick={handleExportExcel}>Xuất Excel</Button>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+        <table style={{ minWidth: groupTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+          {groupTableColGroup}
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
-              <th className="py-3 px-4 text-left w-12"><input type="checkbox" className="rounded text-[#1e40af]" /></th>
-              <th className="py-3 px-4 text-center w-16">STT</th>
-              <th className="py-3 px-4 text-left">Mã nhóm</th>
-              <th className="py-3 px-4 text-left">Tên nhóm</th>
-              <th className="py-3 px-4 text-left">Mô tả chi tiết</th>
-              <th className="py-3 px-4 text-center">Thành viên</th>
-              <th className="py-3 px-4 text-center w-28">Trạng thái</th>
-              <th className="py-3 px-4 text-center w-32">Thao tác</th>
+              <th className="relative py-3 px-4 text-left"><input type="checkbox" className="rounded text-[#1e40af]" /><ColResizeHandle onMouseDown={startGroupColResize(0)} /></th>
+              <th className="relative py-3 px-4 text-center">STT<ColResizeHandle onMouseDown={startGroupColResize(1)} /></th>
+              <th className="relative py-3 px-4 text-left">Mã nhóm<ColResizeHandle onMouseDown={startGroupColResize(2)} /></th>
+              <th className="relative py-3 px-4 text-left">Tên nhóm<ColResizeHandle onMouseDown={startGroupColResize(3)} /></th>
+              <th className="relative py-3 px-4 text-left">Mô tả chi tiết<ColResizeHandle onMouseDown={startGroupColResize(4)} /></th>
+              <th className="relative py-3 px-4 text-center">Thành viên<ColResizeHandle onMouseDown={startGroupColResize(5)} /></th>
+              <th className="relative py-3 px-4 text-center">Trạng thái<ColResizeHandle onMouseDown={startGroupColResize(6)} /></th>
+              <th className="relative py-3 px-4 text-center">Thao tác<ColResizeHandle onMouseDown={startGroupColResize(7)} /></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -73,12 +102,10 @@ export default function GroupTable({
                     <input type="checkbox" className="rounded text-[#1e40af]" />
                   </td>
                   <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
-                  <td className="py-3 px-4 text-slate-600 font-semibold">{g.code}</td>
-                  <td className="py-3 px-4 text-slate-600">{g.name}</td>
+                  <td className="py-3 px-4 text-slate-600 font-semibold"><TruncatedText text={g.code} /></td>
+                  <td className="py-3 px-4 text-slate-600"><TruncatedText text={g.name} /></td>
                   <td className="py-3 px-4 text-slate-600">
-                    <div className="truncate max-w-[200px]" title={g.description}>
-                      {g.description || 'Không có mô tả'}
-                    </div>
+                    <TruncatedText text={g.description || 'Không có mô tả'} />
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div

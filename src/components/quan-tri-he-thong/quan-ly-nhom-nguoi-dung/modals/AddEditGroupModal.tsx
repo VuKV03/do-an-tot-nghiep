@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Form, Input, Button, Table, message } from 'antd';
+import { Modal, Form, Input, Button, Table } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import { UserGroup } from '../../../../types';
 
@@ -156,7 +157,7 @@ export default function AddEditGroupModal({
                       className="bg-red-50 text-red-500 p-1.5 rounded inline-flex cursor-pointer hover:bg-red-100"
                       onClick={() => {
                         setGroupMembers(prev => prev.filter(m => m.id !== record.id));
-                        message.success('Đã xóa người dùng khỏi danh sách.');
+                        toast.success('Đã xóa người dùng khỏi danh sách.');
                       }}
                     >
                       <DeleteOutlined />

@@ -8,10 +8,10 @@ import {
   Slider, 
   Select, 
   Input, 
-  Badge, 
-  Empty,
-  message
+  Badge,
+  Empty
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import {
   SafetyCertificateOutlined,
   AuditOutlined,
@@ -93,7 +93,7 @@ export default function SecurityPolicy({
         enable2FAForAdmin
       });
 
-      message.success('Đã áp dụng các quy chuẩn chính sách bảo mật thế hệ mới lên toàn phân hệ!');
+      toast.success('Đã áp dụng các quy chuẩn chính sách bảo mật thế hệ mới lên toàn phân hệ!');
       
       const details = `Độ dài tối thiểu MK: ${minPasswordLength}; 2FA cho quản trị viên: ${enable2FAForAdmin ? 'BẬT' : 'TẮT'}`;
 
@@ -121,7 +121,7 @@ export default function SecurityPolicy({
 
     } catch (error: any) {
       console.error('Error saving security policy:', error);
-      message.error(error.response?.data?.detail || 'Có lỗi xảy ra khi lưu thay đổi.');
+      toast.error(error.response?.data?.detail || 'Có lỗi xảy ra khi lưu thay đổi.');
     } finally {
       setLoading(false);
     }
@@ -140,9 +140,9 @@ export default function SecurityPolicy({
   }, [securityLogs, securitySearchKey, securityFilterLevel]);
 
   const handleSimulateExportLogs = () => {
-    message.loading({ content: 'Đang kết xuất tệp nhật ký bảo mật dạng CSV...', key: 'exportLogs' });
+    toast.loading({ content: 'Đang kết xuất tệp nhật ký bảo mật dạng CSV...', key: 'exportLogs' });
     setTimeout(() => {
-      message.success({ content: 'Kết xuất thành công tệp logs_system_security_2026.csv! Trình duyệt đang tải xuống.', key: 'exportLogs', duration: 3 });
+      toast.success({ content: 'Kết xuất thành công tệp logs_system_security_2026.csv! Trình duyệt đang tải xuống.', key: 'exportLogs', duration: 3 });
     }, 1500);
   };
 

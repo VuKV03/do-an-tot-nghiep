@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Avatar, Input, Tooltip, message } from 'antd';
+import { Modal, Button, Avatar, Input, Tooltip } from 'antd';
+import { toast } from '../../utils/toast';
 import { UserOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../types';
 
@@ -36,7 +37,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const handleUpdateProfile = async () => {
     if (!profileForm.fullName || !profileForm.email) {
-      message.error('Vui lòng nhập đầy đủ thông tin');
+      toast.error('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
@@ -57,15 +58,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Cập nhật hồ sơ cá nhân thành công!');
+        toast.success('Cập nhật hồ sơ cá nhân thành công!');
         setCurrentUser(data.user);
         localStorage.setItem('user_info', JSON.stringify(data.user));
         setIsEditingProfile(false);
       } else {
-        message.error(data.detail || data.message || 'Có lỗi xảy ra khi cập nhật hồ sơ');
+        toast.error(data.detail || data.message || 'Có lỗi xảy ra khi cập nhật hồ sơ');
       }
     } catch (error) {
-      message.error('Không thể kết nối đến máy chủ');
+      toast.error('Không thể kết nối đến máy chủ');
     } finally {
       setSaving(false);
     }

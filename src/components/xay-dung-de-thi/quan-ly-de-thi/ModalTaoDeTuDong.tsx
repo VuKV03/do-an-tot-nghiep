@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Button, Select, Input, Steps, Tree, Spin, message, Tooltip, Empty, Tag, Segmented, Radio, Switch } from 'antd';
+import { Modal, Button, Select, Input, Steps, Tree, Spin, Tooltip, Empty, Tag, Segmented, Radio, Switch } from 'antd';
+import { toast } from '../../../utils/toast';
 import { SearchOutlined, ThunderboltOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TreeDataNode } from 'antd';
 import { Question, CognitiveLevel } from '../../../types';
@@ -126,8 +127,8 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     setSubjectConfig(null);
     setGenResults([]); setGenQuestions([]); setExamName(''); setExamCode('');
     setRegeneratingIndex(null); setEditingIndex(null); setEditingDraft(null);
-    subjectCategoryApi.list().then(res => setSubjects((res.data || []).filter(s => s.is_active))).catch(() => message.error('Không tải được danh sách môn học.'));
-    gradeLevelApi.list().then(res => setGrades((res.data || []).filter(g => g.is_active))).catch(() => message.error('Không tải được danh sách khối lớp.'));
+    subjectCategoryApi.list().then(res => setSubjects((res.data || []).filter(s => s.is_active))).catch(() => toast.error('Không tải được danh sách môn học.'));
+    gradeLevelApi.list().then(res => setGrades((res.data || []).filter(g => g.is_active))).catch(() => toast.error('Không tải được danh sách khối lớp.'));
     questionTypeApi.list().then(res => setQuestionTypes(res.data || [])).catch(() => setQuestionTypes([]));
   }, [open]);
 
@@ -161,7 +162,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         setTopicTree(buildChuDeTree(flat));
         setCheckedTopicKeys([]);
       })
-      .catch(() => message.error('Không tải được danh sách chủ đề.'))
+      .catch(() => toast.error('Không tải được danh sách chủ đề.'))
       .finally(() => setLoadingTopics(false));
   }, [open, sourceMode, selectedSubjectId, selectedGradeId]);
 
@@ -179,7 +180,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           setMatrices(filtered);
         }
       })
-      .catch(() => message.error('Không tải được danh sách ma trận đề.'))
+      .catch(() => toast.error('Không tải được danh sách ma trận đề.'))
       .finally(() => setLoadingMatrices(false));
   }, [open, sourceMode, step, selectedSubjectId]);
 
@@ -192,7 +193,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     setLoadingSubjectConfig(true);
     subjectConfigApi.getBySubjectId(selectedSubjectId)
       .then(res => setSubjectConfig(res.success ? res.data : null))
-      .catch(() => { setSubjectConfig(null); message.error('Không tải được Cấu hình môn học.'); })
+      .catch(() => { setSubjectConfig(null); toast.error('Không tải được Cấu hình môn học.'); })
       .finally(() => setLoadingSubjectConfig(false));
   }, [open, sourceMode, selectedSubjectId]);
 
@@ -228,7 +229,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       if (res.success && res.data) {
         setMatrixRows(res.data.ds_cau_truc || []);
       } else {
-        message.error(res.message || 'Không tải được chi tiết ma trận.');
+        toast.error(res.message || 'Không tải được chi tiết ma trận.');
         setMatrixRows([]);
       }
     } finally {
@@ -310,22 +311,22 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           }))
       );
       if (cells.length === 0) {
-        message.warning('Ma trận đã chọn không có ô nào yêu cầu số câu trong phạm vi chủ đề đã tick.');
+        toast.warning('Ma trận đã chọn không có ô nào yêu cầu số câu trong phạm vi chủ đề đã tick.');
         setGenResults([]); setGenQuestions([]);
         return;
       }
       const res = await bankQuestionApi.randomSelect(cells, selectedGradeId || undefined);
-      if (!res.success) { message.error('Lỗi khi sinh câu hỏi tự động.'); return; }
+      if (!res.success) { toast.error('Lỗi khi sinh câu hỏi tự động.'); return; }
       setGenResults(res.data);
       const ids = new Set(res.data.flatMap(r => r.questionIds));
       if (ids.size === 0) {
         setGenQuestions([]);
-        message.warning('Không tìm được câu hỏi nào phù hợp trong Ngân hàng câu hỏi.');
+        toast.warning('Không tìm được câu hỏi nào phù hợp trong Ngân hàng câu hỏi.');
         return;
       }
       setGenQuestions(await mapBankQuestions(ids));
     } catch {
-      message.error('Lỗi kết nối khi sinh câu hỏi tự động.');
+      toast.error('Lỗi kết nối khi sinh câu hỏi tự động.');
     } finally {
       setGenerating(false);
     }
@@ -350,7 +351,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const handleGenerateFromSubjectConfig = async () => {
     if (!selectedSubject || !selectedGrade) return;
     if (configParts.length === 0) {
-      message.warning('Môn học này chưa có Cấu hình môn học hợp lệ (Phần I/II/III) — vui lòng cấu hình ở "Danh mục môn học" trước khi sinh đề bằng AI.');
+      toast.warning('Môn học này chưa có Cấu hình môn học hợp lệ (Phần I/II/III) — vui lòng cấu hình ở "Danh mục môn học" trước khi sinh đề bằng AI.');
       setGenQuestions([]);
       return;
     }
@@ -377,7 +378,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
             });
             const data = await res.json();
             if (!data.success || !data.questions?.length) {
-              message.error(data.error || data.detail || `AI không sinh được câu hỏi cho ${part.content || 'phần'}.`);
+              toast.error(data.error || data.detail || `AI không sinh được câu hỏi cho ${part.content || 'phần'}.`);
               aborted = true;
               break;
             }
@@ -419,7 +420,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
               }
             });
           } catch {
-            message.error(`Lỗi kết nối AI khi sinh câu hỏi cho ${part.content || 'phần'}.`);
+            toast.error(`Lỗi kết nối AI khi sinh câu hỏi cho ${part.content || 'phần'}.`);
             aborted = true;
             break;
           }
@@ -428,7 +429,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       }
       setGenQuestions(allGenerated);
       if (allGenerated.length > 0) {
-        message.success(
+        toast.success(
           aborted
             ? `AI đã sinh được ${allGenerated.length} câu trước khi gặp lỗi — có thể lưu tạm hoặc bấm Sinh lại.`
             : `AI đã sinh ${allGenerated.length} câu hỏi theo Cấu hình môn học.`
@@ -445,13 +446,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     setRegeneratingIndex(index);
     try {
       const res = await bankQuestionApi.list();
-      if (!res.success || !res.data) { message.error('Không tải được Ngân hàng câu hỏi.'); return; }
+      if (!res.success || !res.data) { toast.error('Không tải được Ngân hàng câu hỏi.'); return; }
       const usedIds = new Set(genQuestions.map(q => q.id));
       const candidates = res.data.filter(q =>
         q.id !== current.id && !usedIds.has(q.id) && q.type === current.type && q.level === current.level
       );
       if (candidates.length === 0) {
-        message.warning('Không tìm thấy câu hỏi khác cùng loại/mức độ còn trống trong Ngân hàng câu hỏi.');
+        toast.warning('Không tìm thấy câu hỏi khác cùng loại/mức độ còn trống trong Ngân hàng câu hỏi.');
         return;
       }
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
@@ -463,7 +464,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       };
       setGenQuestions(prev => prev.map((q, i) => (i === index ? replacement : q)));
     } catch {
-      message.error('Lỗi kết nối khi sinh lại câu hỏi.');
+      toast.error('Lỗi kết nối khi sinh lại câu hỏi.');
     } finally {
       setRegeneratingIndex(null);
     }
@@ -489,7 +490,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       });
       const data = await res.json();
       if (!data.success || !data.questions?.length) {
-        message.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
+        toast.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
         return;
       }
       const aiQ = data.questions[0];
@@ -515,9 +516,9 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         replacement = { ...base, options: aiQ.options || [], correctAnswer: correctText || aiQ.correctAnswer || '' };
       }
       setGenQuestions(prev => prev.map((q, i) => (i === index ? replacement : q)));
-      message.success('AI đã sinh lại câu hỏi này.');
+      toast.success('AI đã sinh lại câu hỏi này.');
     } catch {
-      message.error('Lỗi kết nối AI khi sinh lại câu hỏi.');
+      toast.error('Lỗi kết nối AI khi sinh lại câu hỏi.');
     } finally {
       setRegeneratingIndex(null);
     }
@@ -567,8 +568,8 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const isUnderfilled = sourceMode === 'matrix' ? underfilledCount > 0 : totalFound < totalRequested;
 
   const handleSaveMatrixExam = async () => {
-    if (!examName.trim()) { message.error('Vui lòng nhập tên đề thi!'); return; }
-    if (genQuestions.length === 0) { message.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
+    if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
+    if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/exams', {
@@ -587,13 +588,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       });
       const json = await res.json();
       if (json.success) {
-        message.success('Đã tạo đề thi tự động thành công!');
+        toast.success('Đã tạo đề thi tự động thành công!');
         onSuccess();
       } else {
-        message.error(json.error || json.message || 'Lỗi khi lưu đề thi.');
+        toast.error(json.error || json.message || 'Lỗi khi lưu đề thi.');
       }
     } catch {
-      message.error('Lỗi kết nối khi lưu đề thi.');
+      toast.error('Lỗi kết nối khi lưu đề thi.');
     } finally {
       setSaving(false);
     }
@@ -603,8 +604,8 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   // tạo đề trống trước rồi tạo từng câu hỏi mới gắn thẳng vào đề (examId) qua POST /questions/ —
   // endpoint này fuzzy-match môn/khối/mức độ/loại theo TÊN nên không cần tự resolve id ở FE.
   const handleSaveAiConfigExam = async () => {
-    if (!examName.trim()) { message.error('Vui lòng nhập tên đề thi!'); return; }
-    if (genQuestions.length === 0) { message.error('Chưa có câu hỏi nào được AI sinh để lưu.'); return; }
+    if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
+    if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được AI sinh để lưu.'); return; }
     if (!selectedSubject || !selectedGrade) return;
     setSaving(true);
     try {
@@ -622,7 +623,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       });
       const examJson = await examRes.json();
       if (!examJson.success) {
-        message.error(examJson.error || examJson.message || 'Lỗi khi tạo đề thi.');
+        toast.error(examJson.error || examJson.message || 'Lỗi khi tạo đề thi.');
         return;
       }
       const newExamId = examJson.data.id;
@@ -640,10 +641,10 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           examId: newExamId,
         });
       }
-      message.success('AI đã sinh và lưu đề thi thành công!');
+      toast.success('AI đã sinh và lưu đề thi thành công!');
       onSuccess();
     } catch {
-      message.error('Lỗi kết nối khi lưu đề thi.');
+      toast.error('Lỗi kết nối khi lưu đề thi.');
     } finally {
       setSaving(false);
     }

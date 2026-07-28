@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { message, Form } from 'antd';
+import { Form } from 'antd';
+import { toast } from '../../../utils/toast';
 import { AuditLog } from '../../../types';
 import axios from 'axios';
 
@@ -39,7 +40,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       }
     } catch (err) {
       console.error('Error fetching groups:', err);
-      message.error('Không thể tải danh sách nhóm.');
+      toast.error('Không thể tải danh sách nhóm.');
     } finally {
       setLoading(false);
     }
@@ -153,7 +154,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       }
     } catch (err) {
       console.error('Error fetching members:', err);
-      message.error('Không thể tải danh sách thành viên.');
+      toast.error('Không thể tải danh sách thành viên.');
     } finally {
       setLoadingMembers(false);
     }
@@ -230,7 +231,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
 
       if (res.data.success) {
         await fetchGroups(); // Refresh list
-        message.success(`Đã ${statusText.toLowerCase()} nhóm người dùng: ${group.name}`);
+        toast.success(`Đã ${statusText.toLowerCase()} nhóm người dùng: ${group.name}`);
 
         await logSecurityAction(
           `${statusText} nhóm`,
@@ -240,7 +241,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       }
     } catch (err: any) {
       console.error('Error toggling group status:', err);
-      message.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái nhóm.');
+      toast.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái nhóm.');
     }
   };
 
@@ -250,7 +251,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       const res = await axios.delete(`${API_URL}/auth/groups/${groupId}`);
       if (res.data.success) {
         setUserGroups(prev => prev.filter(g => g.id !== groupId));
-        message.success(`Đã xóa nhóm "${groupName}"`);
+        toast.success(`Đã xóa nhóm "${groupName}"`);
         onAddAuditLog({
           id: `log-sec-${Date.now()}`,
           user: 'Quản trị viên',
@@ -261,7 +262,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       }
     } catch (err: any) {
       console.error('Error deleting group:', err);
-      message.error(err.response?.data?.detail || 'Không thể xóa nhóm.');
+      toast.error(err.response?.data?.detail || 'Không thể xóa nhóm.');
     }
   };
 
@@ -278,7 +279,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         const res = await axios.put(`${API_URL}/auth/groups/${editingGroup.id}`, payload);
         if (res.data.success) {
           setUserGroups(prev => prev.map(g => g.id === editingGroup.id ? res.data.group : g));
-          message.success(`Đã cập nhật nhóm "${values.name}"`);
+          toast.success(`Đã cập nhật nhóm "${values.name}"`);
           onAddAuditLog({
             id: `log-sec-${Date.now()}`,
             user: 'Quản trị viên',
@@ -291,7 +292,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         const res = await axios.post(`${API_URL}/auth/groups`, payload);
         if (res.data.success) {
           setUserGroups(prev => [...prev, res.data.group]);
-          message.success(`Đã thêm mới nhóm "${values.name}"`);
+          toast.success(`Đã thêm mới nhóm "${values.name}"`);
           onAddAuditLog({
             id: `log-sec-${Date.now()}`,
             user: 'Quản trị viên',
@@ -304,7 +305,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
       setIsEditGroupModalOpen(false);
     } catch (err: any) {
       if (err.response) {
-        message.error(err.response?.data?.detail || 'Lỗi khi lưu thông tin nhóm.');
+        toast.error(err.response?.data?.detail || 'Lỗi khi lưu thông tin nhóm.');
       } else {
         // form validation failed
       }
@@ -345,11 +346,11 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
           `Đã thiết lập lại ${selectedPermissions.length} quyền khả dụng cho nhóm ${activeGroupForPermissions.name}.`
         );
 
-        message.success(`Cập nhật thành công quyền hạn cho nhóm "${activeGroupForPermissions.name}"`);
+        toast.success(`Cập nhật thành công quyền hạn cho nhóm "${activeGroupForPermissions.name}"`);
         setIsGroupModalOpen(false);
       }
     } catch (err: any) {
-      message.error(err.response?.data?.detail || 'Lỗi khi cập nhật quyền hạn.');
+      toast.error(err.response?.data?.detail || 'Lỗi khi cập nhật quyền hạn.');
     } finally {
       setSavingPermissions(false);
     }

@@ -43,7 +43,7 @@ import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
-import { toast, ToastContainer } from '../../../utils/toast';
+import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
@@ -504,7 +504,6 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
 
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="exam-management-layout-facade">
-      <ToastContainer />
       <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">

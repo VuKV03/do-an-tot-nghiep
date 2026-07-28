@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Input, Select, Button, Tree, InputNumber, Spin, message, Tooltip, Empty } from 'antd';
+import { Input, Select, Button, Tree, InputNumber, Spin, Tooltip, Empty } from 'antd';
+import { toast } from '../../../utils/toast';
 import { ArrowLeftOutlined, SaveOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const getShortCode = (ma: string, ten: string) => {
@@ -125,7 +126,7 @@ const fetchSubjectMatrixConfig = async (
   const typeMap = new Map<string, QuestionTypeAPI>((typesRes.data || []).map(t => [t.id, t]));
 
   if (!subjectConfig) {
-    message.warning('Môn học chưa được cấu hình (Cấu hình môn học) — vui lòng cấu hình trước khi tạo ma trận.');
+    toast.warning('Môn học chưa được cấu hình (Cấu hình môn học) — vui lòng cấu hình trước khi tạo ma trận.');
     cd.ds_loai_cau_hoi = [];
     return { cd, chuDe, subjectConfig: null };
   }
@@ -328,10 +329,10 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
             })),
           })));
         } else {
-          message.error(res.message || 'Lỗi khi tải chi tiết ma trận.');
+          toast.error(res.message || 'Lỗi khi tải chi tiết ma trận.');
         }
       } catch (e) {
-        message.error('Lỗi khi tải chi tiết ma trận.');
+        toast.error('Lỗi khi tải chi tiết ma trận.');
       }
     };
 
@@ -347,7 +348,7 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
       setMonHocList(list);
       loadDetail(rawList);
     }).catch(() => {
-      message.error('Lỗi khi tải danh sách môn học từ database.');
+      toast.error('Lỗi khi tải danh sách môn học từ database.');
       loadDetail([]);
     });
   }, [editingId]);
@@ -535,12 +536,12 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
   // --- Save ---
   const handleSave = async () => {
     setAttemptedSave(true);
-    if (!monHocId) { message.warning('Vui lòng chọn môn học.'); return; }
-    if (!maMatran.trim()) { message.warning('Vui lòng nhập mã ma trận.'); return; }
-    if (maMatran.length > MA_MAX_LENGTH) { message.warning(`Mã ma trận không được vượt quá ${MA_MAX_LENGTH} ký tự.`); return; }
-    if (!tenMatran.trim()) { message.warning('Vui lòng nhập tên ma trận.'); return; }
-    if (tenMatran.length > TEN_MAX_LENGTH) { message.warning(`Tên ma trận không được vượt quá ${TEN_MAX_LENGTH} ký tự.`); return; }
-    if (obj.length === 0) { message.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
+    if (!monHocId) { toast.warning('Vui lòng chọn môn học.'); return; }
+    if (!maMatran.trim()) { toast.warning('Vui lòng nhập mã ma trận.'); return; }
+    if (maMatran.length > MA_MAX_LENGTH) { toast.warning(`Mã ma trận không được vượt quá ${MA_MAX_LENGTH} ký tự.`); return; }
+    if (!tenMatran.trim()) { toast.warning('Vui lòng nhập tên ma trận.'); return; }
+    if (tenMatran.length > TEN_MAX_LENGTH) { toast.warning(`Tên ma trận không được vượt quá ${TEN_MAX_LENGTH} ký tự.`); return; }
+    if (obj.length === 0) { toast.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
     setSaving(true);
     let res;
     if (editingId) {
@@ -550,10 +551,10 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
     }
     setSaving(false);
     if (res.success) {
-      message.success(res.message);
+      toast.success(res.message);
       onBack();
     } else {
-      message.error(res.message || 'Lỗi khi lưu ma trận.');
+      toast.error(res.message || 'Lỗi khi lưu ma trận.');
     }
   };
 

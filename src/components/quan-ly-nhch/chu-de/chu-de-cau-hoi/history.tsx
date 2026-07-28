@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Modal, ConfigProvider, Table, Input, Select, DatePicker, Button, message, Spin } from 'antd';
+import { Modal, ConfigProvider, Table, Input, Select, DatePicker, Button, Spin } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { Eye } from 'lucide-react';
+import { FileExcelOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChuDeType } from './index';
 import { topicsApi } from '../../../../services/danhMucApi.ts';
+import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
 
 const { RangePicker } = DatePicker;
 
@@ -40,7 +43,7 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
       setRawData(res.data);
     } catch (e: any) {
       console.error(e);
-      message.error(e.message || 'Không thể tải lịch sử!');
+      toast.error(e.message || 'Không thể tải lịch sử!');
     } finally {
       setLoading(false);
     }
@@ -82,6 +85,23 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
+  };
+
+  const excelColumns: ExcelColumn<HistoryRecordType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Người thực hiện', accessor: row => row.actor, width: 22 },
+    { header: 'Thời gian thực hiện', accessor: row => row.timestamp ? new Date(row.timestamp).toLocaleString('vi-VN') : '', width: 20, align: 'center' },
+    { header: 'Nội dung thực hiện', accessor: row => row.note, width: 50 },
+  ];
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `LichSuChuDe_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredData, excelColumns, fileName, 'Lịch sử chủ đề');
+    toast.success('Xuất báo cáo Excel thành công!');
   };
 
   const columns: ColumnsType<HistoryRecordType> = [
@@ -215,7 +235,7 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h3 className="text-[#1e3a8a] font-semibold text-[15px] m-0">Kết quả đánh giá</h3>
-              <Button className="border-[#1d4ed8] text-[#1d4ed8] h-[36px] font-medium px-4 hover:bg-blue-50">
+              <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white h-[36px] font-medium px-4 hover:!bg-green-700" onClick={handleExportExcel}>
                 Xuất Excel
               </Button>
             </div>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Button, Table, Tag, Input, message } from 'antd';
+import { Modal, Button, Table, Tag, Input } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { SearchOutlined } from '@ant-design/icons';
 
 interface AddUserToGroupModalProps {
@@ -56,7 +57,7 @@ export default function AddUserToGroupModal({
               });
               setGroupMembers(newMembers);
               onCancel();
-              message.success(`Đã thêm ${selectedUsers.length} người dùng vào danh sách.`);
+              toast.success(`Đã thêm ${selectedUsers.length} người dùng vào danh sách.`);
             }}
             className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold rounded px-8 w-32"
           >
