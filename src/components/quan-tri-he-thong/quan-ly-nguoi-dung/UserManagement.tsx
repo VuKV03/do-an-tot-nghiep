@@ -314,7 +314,19 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
         setIsUserModalOpen(false);
       } catch (err: any) {
         console.error('Error saving user:', err);
-        message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi lưu thông tin người dùng.');
+        let errorMsg = err.response?.data?.detail || 'Đã xảy ra lỗi khi lưu thông tin người dùng.';
+
+        if (errorMsg === 'Tên đăng nhập hoặc email đã tồn tại.') {
+          errorMsg = 'Email đã tồn tại, vui lòng nhập lại';
+        } else if (
+          errorMsg === 'Đã xảy ra lỗi khi lưu thông tin người dùng.' ||
+          errorMsg === 'Internal Server Error'
+        ) {
+          // Sửa người dùng bị trùng email (backend ném lỗi 500 thay vì 400 có detail)
+          errorMsg = 'Email đã tồn tại, vui lòng nhập lại';
+        }
+
+        message.error(errorMsg);
       } finally {
         setSavingUser(false);
       }
