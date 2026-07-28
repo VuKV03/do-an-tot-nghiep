@@ -49,9 +49,21 @@ export function getUserSubjectFilter(
         g.name === 'Trưởng phòng giáo vụ'
     );
 
-  const userSubjectIds: string[] = Array.isArray(currentUser.subjects) ? currentUser.subjects : [];
+  let userSubjectIds: string[] = [];
+  if (Array.isArray(currentUser.subjects)) {
+    userSubjectIds = [...currentUser.subjects];
+  } else if (typeof currentUser.subjects === 'string') {
+    userSubjectIds = [currentUser.subjects];
+  }
+  if (Array.isArray(currentUser.subject)) {
+    userSubjectIds = [...userSubjectIds, ...currentUser.subject];
+  } else if (typeof currentUser.subject === 'string') {
+    userSubjectIds.push(currentUser.subject);
+  }
+  // Remove duplicates and empty values
+  userSubjectIds = [...new Set(userSubjectIds)].filter(Boolean);
 
-  if (isUnrestricted || userSubjectIds.length === 0) {
+  if (isUnrestricted) {
     return {
       filteredSubjects: allSubjects,
       defaultSubjectId: allSubjects.length > 0 ? allSubjects[0].id : null,
@@ -67,11 +79,10 @@ export function getUserSubjectFilter(
       (s.name && userSubjectIds.includes(s.name))
   );
 
-  const available = filtered.length > 0 ? filtered : allSubjects;
-  const defaultId = available.length > 0 ? available[0].id : null;
+  const defaultId = filtered.length > 0 ? filtered[0].id : null;
 
   return {
-    filteredSubjects: available,
+    filteredSubjects: filtered,
     defaultSubjectId: defaultId,
     isRestricted: true,
   };

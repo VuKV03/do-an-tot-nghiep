@@ -108,6 +108,8 @@ async def update_group(group_id: str, body: GroupUpdateRequest, db: AsyncSession
             p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one_or_none()
             if p_id:
                 db.add(GroupPermission(id=f"gp-{int(time.time() * 10000)}-{p_id}", group_id=group_id, permission_id=p_id))
+            else:
+                print(f"[WARN] Permission code '{p_code}' không tồn tại trong bảng permissions — bị bỏ qua!")
     if body.status is not None:
         group.status = body.status
         

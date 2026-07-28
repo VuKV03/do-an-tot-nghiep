@@ -35,19 +35,23 @@ import { subjectCategoryApi, examPeriodApi, bankQuestionApi, type SubjectCategor
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import ExamContentDisplay from '../quan-ly-de-thi/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
 
 interface PackageManagementModuleProps {
   initialTab?: 'list' | 'review';
+  currentUser?: any;
 }
 
 // Gói đề thi hiện chỉ được tạo ra qua "Sinh đề hoán vị" (ModalSinhDeHoanVi.tsx, trong "Quản lý đề
 // thi & gói đề") — mỗi lần sinh hoán vị 1 đề gốc tạo ra đúng 1 gói. Màn này chỉ để xem/lọc/thẩm
 // định/tải/xóa, không có luồng tạo gói thủ công riêng.
-export default function PackageManagementModule({ initialTab }: PackageManagementModuleProps) {
-  const [activeTab, setActiveTab] = useState<'list' | 'review'>(initialTab || 'list');
+export default function PackageManagementModule({ initialTab, currentUser }: PackageManagementModuleProps) {
+  const [activeTab, setActiveTab] = useState<'list' | 'review'>(
+    initialTab || (checkUserPermission(currentUser, 'tab-goi-de') ? 'list' : 'review')
+  );
   const { colGroup: pkgTableColGroup, startResize: startPkgColResize, totalWidth: pkgTableTotalWidth } = useResizableColumns(
     [40, 48, 140, 200, 120, 100, 100, 130, 140, 100, 120, 140]
   );
@@ -419,24 +423,28 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
-        <button
-          onClick={() => { setActiveTab('list'); setSelectedPkgIds([]); }}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-        >
-          Gói đề
-        </button>
-        <button
-          onClick={() => { setActiveTab('review'); setSelectedPkgIds([]); }}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
-            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-        >
-          Thẩm định/phản biện gói đề
-        </button>
+        {checkUserPermission(currentUser, 'tab-goi-de') && (
+          <button
+            onClick={() => { setActiveTab('list'); setSelectedPkgIds([]); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+          >
+            Gói đề
+          </button>
+        )}
+        {checkUserPermission(currentUser, 'tab-tham-dinh-goi-de') && (
+          <button
+            onClick={() => { setActiveTab('review'); setSelectedPkgIds([]); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+          >
+            Thẩm định gói đề
+          </button>
+        )}
       </div>
 
       {/* Filters Panel */}
@@ -520,7 +528,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
           <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
           <Space size={8}>
-            {activeTab === 'list' && (
+            {activeTab === 'list' && hasActionPermission(currentUser, 'exams.manage') && (
               <Button
                 danger
                 onClick={handleBatchDelete}
@@ -530,7 +538,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                 Xóa
               </Button>
             )}
-            {activeTab === 'review' && (
+            {activeTab === 'review' && hasActionPermission(currentUser, 'exams.export') && (
               <Button
                 type="primary"
                 icon={<FileExcelOutlined />}
@@ -617,7 +625,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                       <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
-                          {activeTab === 'review' && (
+                          {activeTab === 'review' && hasActionPermission(currentUser, 'exams.approve') && (
                             <>
                               <Popconfirm
                                 title={`Duyệt gói đề "${row.name}"?`}
@@ -647,7 +655,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               </Popconfirm>
                             </>
                           )}
-                          {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && (
+                          {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
                               title={`Phát thi gói đề "${row.name}"?`}
                               okText="Phát thi" cancelText="Hủy"
@@ -662,7 +670,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               </Tooltip>
                             </Popconfirm>
                           )}
-                          {row.status === 'active' && activeTab === 'list' && (
+                          {row.status === 'active' && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
                               title={`Tắt phát thi gói đề "${row.name}"?`}
                               okText="Tắt phát" cancelText="Hủy"
@@ -681,12 +689,15 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                               onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
-                          <Tooltip title="Tải gói đề thi">
-                            <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
-                              onClick={() => handleDownloadPackage(row)} className="cursor-pointer" />
-                          </Tooltip>
-                          <Popconfirm
-                            title={`Xóa gói đề "${row.name}"?`}
+                          {hasActionPermission(currentUser, 'exams.export') && (
+                            <Tooltip title="Tải gói đề thi">
+                              <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
+                                onClick={() => handleDownloadPackage(row)} className="cursor-pointer" />
+                            </Tooltip>
+                          )}
+                          {hasActionPermission(currentUser, 'exams.manage') && (
+                            <Popconfirm
+                              title={`Xóa gói đề "${row.name}"?`}
                             okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
                             onConfirm={() => handleDeletePackage(row.id, row.name)}
                           >
@@ -698,6 +709,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                               />
                             </Tooltip>
                           </Popconfirm>
+                          )}
                         </Space>
                       </td>
                     </tr>

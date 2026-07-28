@@ -44,26 +44,43 @@ import CreateMatrixForm from './CreateMatrixForm';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 
 const NAME_MAX_LENGTH = 255;
 
-export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list' | 'evaluation' }) {
+export default function MatrixConfigModule({ initialTab, currentUser }: { initialTab?: 'list' | 'evaluation', currentUser?: any }) {
   // Real Môn thi list fetched from database API
   const [dbSubjects, setDbSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
+  const [allowedSubjects, setAllowedSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
+  const [isSubjectsLoaded, setIsSubjectsLoaded] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
         const res = await subjectCategoryApi.list();
         if (res && res.data) {
-          setDbSubjects(res.data.filter((item: any) => item.is_active));
+          const activeSubjects = res.data.filter((item: any) => item.is_active);
+          setDbSubjects(activeSubjects);
+          
+          const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
+          setAllowedSubjects(filteredSubjects as any[]);
+          setIsSubjectRestricted(isRestricted);
+          
+          if (isRestricted && filteredSubjects.length > 0) {
+            setFilterSubject(filteredSubjects[0].name);
+            setEvalFilterSubject(filteredSubjects[0].name);
+          }
         }
       } catch (err) {
         console.error('Không thể tải danh sách môn thi:', err);
+      } finally {
+        setIsSubjectsLoaded(true);
       }
     };
     fetchSubjects();
-  }, []);
+  }, [currentUser]);
 
   // View mode: 'list' | 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
@@ -81,8 +98,14 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
   useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
+    } else {
+      if (checkUserPermission(currentUser, 'tab-ma-tran-de')) {
+        setActiveTab('list');
+      } else if (checkUserPermission(currentUser, 'tab-tham-dinh-ma-tran-de')) {
+        setActiveTab('evaluation');
+      }
     }
-  }, [initialTab]);
+  }, [initialTab, currentUser]);
 
   // List Searching & Filtering states
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
@@ -185,6 +208,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
   // Load on mount and react to tab switches
   useEffect(() => {
+    if (!isSubjectsLoaded) return;
     if (activeTab === 'list') {
       fetchMatrixList(1, pageSize);
       setSelectedRowIds([]);
@@ -192,7 +216,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       fetchEvalList(1, evalPageSize);
       setEvalSelectedRowIds([]);
     }
-  }, [activeTab]);
+  }, [activeTab, isSubjectsLoaded]);
 
   // Handle search button click
   const handleSearchClick = () => {
@@ -453,6 +477,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
   if (viewMode === 'create') {
     return (
       <CreateMatrixForm
+        currentUser={currentUser}
         editingId={editingMatrixId}
         onBack={() => {
           setEditingMatrixId(undefined);
@@ -468,30 +493,34 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
-        <button
-          onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'list' ? '#eff6ff' : undefined
-          }}
-        >
-          Ma trận đề
-        </button>
-        <button
-          onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'evaluation'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'evaluation' ? '#eff6ff' : undefined
-          }}
-        >
-          Thẩm định ma trận đề
-        </button>
+        {checkUserPermission(currentUser, 'tab-ma-tran-de') && (
+          <button
+            onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'list' ? '#eff6ff' : undefined
+            }}
+          >
+            Ma trận đề
+          </button>
+        )}
+        {checkUserPermission(currentUser, 'tab-tham-dinh-ma-tran-de') && (
+          <button
+            onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'evaluation'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'evaluation' ? '#eff6ff' : undefined
+            }}
+          >
+            Thẩm định ma trận đề
+          </button>
+        )}
       </div>
 
       {activeTab === 'list' ? (
@@ -539,8 +568,8 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                       onChange={setFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        { value: 'all', label: 'Tất cả' },
-                        ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
+                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
                   </div>
@@ -584,25 +613,29 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
               <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
               <div className="flex items-center gap-2">
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
-                  onClick={() => {
-                    setEditingMatrixId(undefined);
-                    setViewMode('create');
-                  }}
-                >
-                  Thêm mới
-                </Button>
-                <Button
-                  danger
-                  className="font-semibold text-xs rounded cursor-pointer"
-                  onClick={handleBatchDelete}
-                  disabled={selectedRowIds.length === 0}
-                >
-                  Xóa{selectedRowIds.length > 0 ? ` (${selectedRowIds.length})` : ''}
-                </Button>
+                {hasActionPermission(currentUser, 'matrix.manage') && (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                    onClick={() => {
+                      setEditingMatrixId(undefined);
+                      setViewMode('create');
+                    }}
+                  >
+                    Thêm mới
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'matrix.manage') && (
+                  <Button
+                    danger
+                    className="font-semibold text-xs rounded cursor-pointer"
+                    onClick={handleBatchDelete}
+                    disabled={selectedRowIds.length === 0}
+                  >
+                    Xóa{selectedRowIds.length > 0 ? ` (${selectedRowIds.length})` : ''}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -664,41 +697,47 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
-                            <Tooltip title="Chỉnh sửa">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<EditOutlined className="text-[#2c3e9e]" />}
-                                className="cursor-pointer"
-                                onClick={() => {
-                                  setEditingMatrixId(row.id);
-                                  setViewMode('create');
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Gửi thẩm định">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<SendOutlined className="text-amber-500" />}
-                                className="cursor-pointer"
-                                onClick={() => handleConfirmSendToEvaluation(row)}
-                              />
-                            </Tooltip>
-                            <Popconfirm
-                              title="Xóa ma trận này?"
-                              onConfirm={() => handleDeleteRow(row.id)}
-                              okText="Xóa"
-                              cancelText="Hủy"
-                            >
-                              <Tooltip title="Xóa">
+                            {hasActionPermission(currentUser, 'matrix.manage') && (
+                              <Tooltip title="Chỉnh sửa">
                                 <Button
-                                  size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
-                                  loading={deletingId === row.id}
-                                  disabled={deletingId !== null && deletingId !== row.id}
+                                  size="small"
+                                  type="text"
+                                  icon={<EditOutlined className="text-[#2c3e9e]" />}
+                                  className="cursor-pointer"
+                                  onClick={() => {
+                                    setEditingMatrixId(row.id);
+                                    setViewMode('create');
+                                  }}
                                 />
                               </Tooltip>
-                            </Popconfirm>
+                            )}
+                            {hasActionPermission(currentUser, 'matrix.submit') && (
+                              <Tooltip title="Gửi thẩm định">
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<SendOutlined className="text-amber-500" />}
+                                  className="cursor-pointer"
+                                  onClick={() => handleConfirmSendToEvaluation(row)}
+                                />
+                              </Tooltip>
+                            )}
+                            {hasActionPermission(currentUser, 'matrix.manage') && (
+                              <Popconfirm
+                                title="Xóa ma trận này?"
+                                onConfirm={() => handleDeleteRow(row.id)}
+                                okText="Xóa"
+                                cancelText="Hủy"
+                              >
+                                <Tooltip title="Xóa">
+                                  <Button
+                                    size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                    loading={deletingId === row.id}
+                                    disabled={deletingId !== null && deletingId !== row.id}
+                                  />
+                                </Tooltip>
+                              </Popconfirm>
+                            )}
                           </Space>
                         </td>
                       </tr>
@@ -812,8 +851,8 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                       onChange={setEvalFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        { value: 'all', label: 'Tất cả' },
-                        ...dbSubjects.map(s => ({ value: s.name, label: s.name }))
+                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
                   </div>
@@ -845,23 +884,27 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  type="primary"
-                  icon={<CheckCircleOutlined />}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
-                  onClick={handleBatchReviewClick}
-                  disabled={evalSelectedRowIds.length === 0}
-                >
-                  Thẩm định nhiều{evalSelectedRowIds.length > 0 ? ` (${evalSelectedRowIds.length})` : ''}
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<FileExcelOutlined />}
-                  className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
-                  onClick={handleExportExcel}
-                >
-                  Xuất Excel
-                </Button>
+                {hasActionPermission(currentUser, 'matrix.approve') && (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+                    onClick={handleBatchReviewClick}
+                    disabled={evalSelectedRowIds.length === 0}
+                  >
+                    Thẩm định nhiều{evalSelectedRowIds.length > 0 ? ` (${evalSelectedRowIds.length})` : ''}
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'matrix.export') && (
+                  <Button
+                    type="primary"
+                    icon={<FileExcelOutlined />}
+                    className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
+                    onClick={handleExportExcel}
+                  >
+                    Xuất Excel
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -922,15 +965,17 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                         <td className="py-3 px-3 text-center">{row.duration}</td>
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
-                          <Tooltip title="Thẩm định">
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<FileTextOutlined className="text-[#2c3e9e]" />}
-                              className="cursor-pointer"
-                              onClick={() => handleSingleReviewClick(row)}
-                            />
-                          </Tooltip>
+                          {hasActionPermission(currentUser, 'matrix.approve') && (
+                            <Tooltip title="Thẩm định">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                className="cursor-pointer"
+                                onClick={() => handleSingleReviewClick(row)}
+                              />
+                            </Tooltip>
+                          )}
                         </td>
                       </tr>
                     );

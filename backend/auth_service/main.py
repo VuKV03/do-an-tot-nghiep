@@ -84,48 +84,9 @@ async def seed_admin_user():
             db.add_all([admin_group, teacher_group, head_group, academic_group])
             await db.commit()
 
-            # Định nghĩa danh sách các quyền hạn (Permissions) chi tiết bám sát theo quy trình nghiệp vụ (Flowchart)
-            default_perms = [
-                # Quản trị hệ thống
-                {"code": "system.groups", "name": "Quản lý nhóm người dùng", "module": "Quản trị hệ thống"},
-                {"code": "system.users", "name": "Quản lý người dùng", "module": "Quản trị hệ thống"},
-                {"code": "system.categories", "name": "Quản trị danh mục (môn thi, khối lớp...)", "module": "Quản trị hệ thống"},
-                
-                # Quản lý Chủ đề
-                {"code": "topics.manage", "name": "Thêm/Sửa chủ đề", "module": "Quản lý Nội dung"},
-                {"code": "topics.submit", "name": "Gửi thẩm định chủ đề", "module": "Quản lý Nội dung"},
-                {"code": "topics.approve", "name": "Thẩm định chủ đề", "module": "Thẩm định"},
-
-                # Quản lý Câu hỏi
-                {"code": "questions.manage", "name": "Thêm/Sửa câu hỏi (Thủ công & AI)", "module": "Quản lý Nội dung"},
-                {"code": "questions.submit", "name": "Gửi thẩm định câu hỏi", "module": "Quản lý Nội dung"},
-                {"code": "questions.approve", "name": "Thẩm định câu hỏi", "module": "Thẩm định"},
-
-                # Quản lý Ma trận
-                {"code": "matrices.manage", "name": "Thêm/Sửa ma trận đề", "module": "Quản lý Nội dung"},
-                {"code": "matrices.submit", "name": "Gửi thẩm định ma trận đề", "module": "Quản lý Nội dung"},
-                {"code": "matrices.approve", "name": "Thẩm định ma trận đề", "module": "Thẩm định"},
-
-                # Quản lý Đề thi
-                {"code": "exams.manage", "name": "Tạo/Sửa đề thi gốc", "module": "Quản lý Nội dung"},
-                {"code": "exams.submit", "name": "Gửi thẩm định đề thi gốc", "module": "Quản lý Nội dung"},
-                {"code": "exams.approve", "name": "Thẩm định đề thi gốc", "module": "Thẩm định"},
-
-                # Tổ chức thi
-                {"code": "exams.generate_variants", "name": "Sinh đề hoán vị từ đề thi gốc", "module": "Tổ chức thi"},
-                {"code": "exams.export", "name": "Xuất gói đề thi", "module": "Tổ chức thi"},
-                {"code": "exams.test_run", "name": "Cho thi thử nghiệm", "module": "Tổ chức thi"},
-            ]
-            
-            # Duyệt qua danh sách và thêm các quyền vào cơ sở dữ liệu (nếu chưa tồn tại)
-            for p in default_perms:
-                existing_p = await db.execute(select(Permission).where(Permission.code == p["code"]))
-                if not existing_p.scalar_one_or_none():
-                    db.add(Permission(id=f"p-{int(time.time() * 1000)}-{p['code']}", code=p["code"], name=p["name"], module=p["module"]))
-            await db.commit()
-
-            # BẢNG MA TRẬN PHÂN QUYỀN: Ánh xạ quyền hạn cụ thể cho từng nhóm người dùng
-            # Cấu trúc: { "id_nhóm_quyền": ["danh_sách", "các_mã_quyền"] }
+        # BẢNG MA TRẬN PHÂN QUYỀN: Ánh xạ quyền hạn cụ thể cho từng nhóm người dùng
+        # Cấu trúc: { "id_nhóm_quyền": ["danh_sách", "các_mã_quyền"] }
+        if group_count == 0:
             matrix_assignments = {
                 admin_group.id: ["system.groups", "system.users", "system.categories"],
                 teacher_group.id: ["topics.manage", "topics.submit", "questions.manage", "questions.submit", "matrices.manage", "matrices.submit", "exams.manage", "exams.submit"],
@@ -136,11 +97,114 @@ async def seed_admin_user():
             # Duyệt qua ma trận và tạo liên kết (GroupPermission) giữa Nhóm và Quyền
             for group_id, perms in matrix_assignments.items():
                 for p_code in perms:
-                    p_id = (await db.execute(select(Permission.id).where(Permission.code == p_code))).scalar_one()
-                    db.add(GroupPermission(id=f"gp-{int(time.time() * 1000)}-{p_id}", group_id=group_id, permission_id=p_id))
+                    p_id_result = await db.execute(select(Permission.id).where(Permission.code == p_code))
+                    p_id = p_id_result.scalar_one_or_none()
+                    if p_id:
+                        db.add(GroupPermission(id=f"gp-{int(time.time() * 10000)}-{p_id}", group_id=group_id, permission_id=p_id))
 
             await db.commit()
             print("[Auth Service] Da tao 4 nhom va phan quyen theo so do Flowchart.")
+
+        # Định nghĩa danh sách các quyền hạn (Permissions) chi tiết bám sát theo quy trình nghiệp vụ (Flowchart)
+        # Đồng bộ quyền hạn luôn chạy bất kể đã có nhóm hay chưa để đảm bảo cập nhật các quyền mới
+        default_perms = [
+            # ═══════════════════════════════════════════════════════
+            # QUYỀN CHỨC NĂNG (Functional Permissions)
+            # ═══════════════════════════════════════════════════════
+
+            # Quản trị hệ thống
+            {"code": "system.groups", "name": "Quản lý nhóm người dùng", "module": "Quản trị hệ thống"},
+            {"code": "system.users", "name": "Quản lý người dùng", "module": "Quản trị hệ thống"},
+            {"code": "system.categories", "name": "Quản trị danh mục (môn thi, khối lớp...)", "module": "Quản trị hệ thống"},
+            
+            # Quản lý Chủ đề
+            {"code": "topics.manage", "name": "Thêm/Sửa chủ đề", "module": "Quản lý Nội dung"},
+            {"code": "topics.submit", "name": "Gửi thẩm định chủ đề", "module": "Quản lý Nội dung"},
+            {"code": "topics.approve", "name": "Thẩm định chủ đề", "module": "Thẩm định"},
+
+            # Quản lý Câu hỏi
+            {"code": "questions.manage", "name": "Thêm/Sửa câu hỏi (Thủ công & AI)", "module": "Quản lý Nội dung"},
+            {"code": "questions.submit", "name": "Gửi thẩm định câu hỏi", "module": "Quản lý Nội dung"},
+            {"code": "questions.approve", "name": "Thẩm định câu hỏi", "module": "Thẩm định"},
+            {"code": "questions.delete", "name": "Xóa câu hỏi", "module": "Quản lý Nội dung"},
+            {"code": "questions.export", "name": "Xuất câu hỏi", "module": "Quản lý Nội dung"},
+
+            # Quản lý Ma trận
+            {"code": "matrices.manage", "name": "Thêm/Sửa ma trận đề", "module": "Quản lý Nội dung"},
+            {"code": "matrices.submit", "name": "Gửi thẩm định ma trận đề", "module": "Quản lý Nội dung"},
+            {"code": "matrices.approve", "name": "Thẩm định ma trận đề", "module": "Thẩm định"},
+
+            # Quản lý Đề thi
+            {"code": "exams.manage", "name": "Tạo/Sửa đề gốc", "module": "Quản lý Nội dung"},
+            {"code": "exams.submit", "name": "Gửi thẩm định đề gốc", "module": "Quản lý Nội dung"},
+            {"code": "exams.approve", "name": "Thẩm định đề gốc", "module": "Thẩm định"},
+
+            # Tổ chức thi
+            {"code": "exams.generate_variants", "name": "Sinh đề hoán vị từ đề thi gốc", "module": "Tổ chức thi"},
+            {"code": "exams.export", "name": "Xuất gói đề thi", "module": "Tổ chức thi"},
+            {"code": "exams.test_run", "name": "Cho thi thử nghiệm", "module": "Tổ chức thi"},
+
+            # Tổ chức thi - quản lý
+            {"code": "sessions.manage", "name": "Quản lý phiên thi", "module": "Tổ chức thi"},
+            {"code": "sessions.monitor", "name": "Giám sát phiên thi", "module": "Tổ chức thi"},
+            {"code": "results.view", "name": "Xem kết quả thi", "module": "Tổ chức thi"},
+
+            # ═══════════════════════════════════════════════════════
+            # QUYỀN TRUY CẬP MENU (Menu Access Permissions)
+            # Các key này tương ứng với MENU_STRUCTURE trong GroupConstants.ts
+            # ═══════════════════════════════════════════════════════
+
+            # Menu cấp 1: Xây dựng đề thi
+            {"code": "xay-dung-de", "name": "Menu: Xây dựng đề thi", "module": "Menu truy cập"},
+            {"code": "quan-ly-ma-tran-de", "name": "Menu: Quản lý ma trận đề", "module": "Menu truy cập"},
+            {"code": "tab-ma-tran-de", "name": "Tab: Ma trận đề", "module": "Menu truy cập"},
+            {"code": "tab-tham-dinh-ma-tran-de", "name": "Tab: Thẩm định ma trận đề", "module": "Menu truy cập"},
+            {"code": "quan-ly-de-thi-goi-de", "name": "Menu: Quản lý đề gốc", "module": "Menu truy cập"},
+            {"code": "tab-de-goc", "name": "Tab: Đề gốc", "module": "Menu truy cập"},
+            {"code": "tab-tham-dinh-de-goc", "name": "Tab: Thẩm định đề gốc", "module": "Menu truy cập"},
+            {"code": "quan-ly-goi-de", "name": "Menu: Quản lý gói đề", "module": "Menu truy cập"},
+            {"code": "tab-goi-de", "name": "Tab: Gói đề", "module": "Menu truy cập"},
+            {"code": "tab-tham-dinh-goi-de", "name": "Tab: Thẩm định gói đề", "module": "Menu truy cập"},
+
+            # Menu cấp 1: Tổ chức thi
+            {"code": "to-chuc-thi", "name": "Menu: Tổ chức thi", "module": "Menu truy cập"},
+            {"code": "quan-ly-ky-thi", "name": "Menu: Quản lý kỳ thi", "module": "Menu truy cập"},
+            {"code": "quan-ly-thi-sinh", "name": "Menu: Quản lý thí sinh", "module": "Menu truy cập"},
+            {"code": "quan-ly-de-thi", "name": "Menu: Quản lý đề thi", "module": "Menu truy cập"},
+            {"code": "quan-ly-ket-qua-thi", "name": "Menu: Quản lý kết quả thi", "module": "Menu truy cập"},
+
+            # Menu cấp 1: Quản lý NHCH
+            {"code": "quan-ly-nhch", "name": "Menu: Quản lý ngân hàng câu hỏi", "module": "Menu truy cập"},
+            {"code": "chu-de-cau-hoi", "name": "Menu: Chủ đề câu hỏi", "module": "Menu truy cập"},
+            {"code": "tab-chu-de-cau-hoi", "name": "Tab: Chủ đề câu hỏi", "module": "Menu truy cập"},
+            {"code": "tab-tham-dinh-chu-de", "name": "Tab: Thẩm định chủ đề", "module": "Menu truy cập"},
+            {"code": "ngan-hang-cau-hoi", "name": "Menu: Ngân hàng câu hỏi", "module": "Menu truy cập"},
+            {"code": "tab-ngan-hang-cau-hoi", "name": "Tab: Ngân hàng câu hỏi", "module": "Menu truy cập"},
+            {"code": "tab-tham-dinh-cau-hoi", "name": "Tab: Thẩm định câu hỏi", "module": "Menu truy cập"},
+            {"code": "thong-ke-nhch", "name": "Menu: Thống kê NHCH", "module": "Menu truy cập"},
+
+            # Menu cấp 1: Quản trị danh mục
+            {"code": "quan-tri-danh-muc", "name": "Menu: Quản trị danh mục", "module": "Menu truy cập"},
+            {"code": "danh-muc-mon-hoc", "name": "Menu: Danh mục môn học", "module": "Menu truy cập"},
+            {"code": "danh-muc-khoi-lop", "name": "Menu: Danh mục khối lớp", "module": "Menu truy cập"},
+            {"code": "cap-do-tu-duy", "name": "Menu: Cấp độ tư duy", "module": "Menu truy cập"},
+            {"code": "loai-hinh-cau-hoi", "name": "Menu: Loại hình câu hỏi", "module": "Menu truy cập"},
+            {"code": "thanh-phan-nang-luc", "name": "Menu: Thành phần năng lực", "module": "Menu truy cập"},
+            {"code": "danh-muc-dot-thi", "name": "Menu: Danh mục kỳ thi", "module": "Menu truy cập"},
+
+            # Menu cấp 1: Quản trị hệ thống
+            {"code": "quan-tri-he-thong", "name": "Menu: Quản trị hệ thống", "module": "Menu truy cập"},
+            {"code": "quan-ly-nguoi-dung", "name": "Menu: Quản lý người dùng", "module": "Menu truy cập"},
+            {"code": "quan-ly-nhom-nguoi-dung", "name": "Menu: Quản lý nhóm người dùng", "module": "Menu truy cập"},
+            {"code": "chinh-sach-bao-mat", "name": "Menu: Chính sách bảo mật", "module": "Menu truy cập"},
+        ]
+        
+        # Duyệt qua danh sách và thêm các quyền vào cơ sở dữ liệu (nếu chưa tồn tại)
+        for p in default_perms:
+            existing_p = await db.execute(select(Permission).where(Permission.code == p["code"]))
+            if not existing_p.scalar_one_or_none():
+                db.add(Permission(id=f"p-{int(time.time() * 1000)}-{p['code']}", code=p["code"], name=p["name"], module=p["module"]))
+        await db.commit()
 
 
 # Quản lý vòng đời (Lifespan) của ứng dụng FastAPI

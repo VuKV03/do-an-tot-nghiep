@@ -4,27 +4,63 @@ export const MENU_STRUCTURE = [
     key: 'xay-dung-de',
     label: 'Xây dựng đề thi',
     children: [
-      { key: 'quan-ly-ma-tran-de', label: 'Quản lý ma trận đề' },
-      { key: 'quan-ly-de-thi-goi-de', label: 'Quản lý đề gốc' },
-      { key: 'quan-ly-goi-de', label: 'Quản lý gói đề' }
+      {
+        key: 'quan-ly-ma-tran-de',
+        label: 'Quản lý ma trận đề',
+        children: [
+          { key: 'tab-ma-tran-de', label: 'Ma trận đề' },
+          { key: 'tab-tham-dinh-ma-tran-de', label: 'Thẩm định ma trận đề' }
+        ]
+      },
+      {
+        key: 'quan-ly-de-thi-goi-de',
+        label: 'Quản lý đề gốc',
+        children: [
+          { key: 'tab-de-goc', label: 'Đề gốc' },
+          { key: 'tab-tham-dinh-de-goc', label: 'Thẩm định đề gốc' }
+        ]
+      },
+      {
+        key: 'quan-ly-goi-de',
+        label: 'Quản lý gói đề',
+        children: [
+          { key: 'tab-goi-de', label: 'Gói đề' },
+          { key: 'tab-tham-dinh-goi-de', label: 'Thẩm định gói đề' }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'to-chuc-thi',
+    label: 'Tổ chức thi',
+    children: [
+      { key: 'quan-ly-ky-thi', label: 'Quản lý kỳ thi' },
+      { key: 'quan-ly-thi-sinh', label: 'Quản lý thí sinh' },
+      { key: 'quan-ly-de-thi', label: 'Quản lý đề thi' },
+      { key: 'quan-ly-ket-qua-thi', label: 'Quản lý kết quả thi' }
     ]
   },
   {
     key: 'quan-ly-nhch',
     label: 'Quản lý ngân hàng câu hỏi',
     children: [
-      { key: 'chu-de-cau-hoi', label: 'Chủ đề câu hỏi' },
-      { key: 'ngan-hang-cau-hoi', label: 'Ngân hàng câu hỏi' },
+      {
+        key: 'chu-de-cau-hoi',
+        label: 'Chủ đề câu hỏi',
+        children: [
+          { key: 'tab-chu-de-cau-hoi', label: 'Chủ đề câu hỏi' },
+          { key: 'tab-tham-dinh-chu-de', label: 'Thẩm định chủ đề' }
+        ]
+      },
+      {
+        key: 'ngan-hang-cau-hoi',
+        label: 'Ngân hàng câu hỏi',
+        children: [
+          { key: 'tab-ngan-hang-cau-hoi', label: 'Ngân hàng câu hỏi' },
+          { key: 'tab-tham-dinh-cau-hoi', label: 'Thẩm định câu hỏi' }
+        ]
+      },
       { key: 'thong-ke-nhch', label: 'Thống kê NHCH' }
-    ]
-  },
-  {
-    key: 'quan-tri-he-thong',
-    label: 'Quản trị hệ thống',
-    children: [
-      { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
-      { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
-      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
     ]
   },
   {
@@ -38,6 +74,15 @@ export const MENU_STRUCTURE = [
       { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' },
       { key: 'danh-muc-dot-thi', label: 'Danh mục kỳ thi' }
     ]
+  },
+  {
+    key: 'quan-tri-he-thong',
+    label: 'Quản trị hệ thống',
+    children: [
+      { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
+      { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
+      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
+    ]
   }
 ];
 
@@ -45,8 +90,16 @@ export const MENU_STRUCTURE = [
 export const PERMISSION_MAP: Record<string, string[]> = {
   'xay-dung-de': ['matrices.manage', 'matrices.submit', 'matrices.approve', 'exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
   'quan-ly-ma-tran-de': ['matrices.manage', 'matrices.submit', 'matrices.approve'],
+  'tab-ma-tran-de': ['matrices.manage', 'matrices.submit'],
+  'tab-tham-dinh-ma-tran-de': ['matrices.approve'],
+
   'quan-ly-de-thi-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'tab-de-goc': ['exams.manage', 'exams.submit', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'tab-tham-dinh-de-goc': ['exams.approve'],
+
   'quan-ly-goi-de': ['exams.manage', 'exams.submit', 'exams.approve', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'tab-goi-de': ['exams.manage', 'exams.submit', 'exams.generate_variants', 'exams.export', 'exams.test_run'],
+  'tab-tham-dinh-goi-de': ['exams.approve'],
 
   'to-chuc-thi': ['sessions.manage', 'sessions.monitor', 'results.view'],
   'quan-ly-ky-thi': ['sessions.manage', 'sessions.monitor'],
@@ -54,9 +107,15 @@ export const PERMISSION_MAP: Record<string, string[]> = {
   'quan-ly-de-thi': ['sessions.manage', 'exams.manage'],
   'quan-ly-ket-qua-thi': ['results.view'],
 
-  'quan-ly-nhch': ['topics.manage', 'topics.submit', 'topics.approve', 'questions.manage', 'questions.submit', 'questions.approve'],
+  'quan-ly-nhch': ['topics.manage', 'topics.submit', 'topics.approve', 'questions.manage', 'questions.submit', 'questions.approve', 'questions.delete', 'questions.export'],
   'chu-de-cau-hoi': ['topics.manage', 'topics.submit', 'topics.approve'],
-  'ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.approve'],
+  'tab-chu-de-cau-hoi': ['topics.manage', 'topics.submit'],
+  'tab-tham-dinh-chu-de': ['topics.approve'],
+
+  'ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.approve', 'questions.delete', 'questions.export'],
+  'tab-ngan-hang-cau-hoi': ['questions.manage', 'questions.submit', 'questions.delete', 'questions.export'],
+  'tab-tham-dinh-cau-hoi': ['questions.approve'],
+
   'thong-ke-nhch': ['topics.manage', 'questions.manage', 'topics.approve', 'questions.approve'],
 
   'quan-tri-he-thong': ['system.users', 'system.groups'],

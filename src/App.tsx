@@ -265,7 +265,10 @@ export default function App() {
         );
       case 'quan-ly-ma-tran-de':
         return (
-          <MatrixConfigModule initialTab={targetSubTab as 'list' | 'evaluation'} />
+          <MatrixConfigModule 
+            initialTab={targetSubTab as 'list' | 'evaluation'} 
+            currentUser={currentUser}
+          />
         );
       case 'chu-de-cau-hoi':
         return (
@@ -284,11 +287,15 @@ export default function App() {
         return (
           <ExamManagementModule
             onNavigateTab={(key) => setActiveMenuKey(key)}
+            currentUser={currentUser}
           />
         );
       case 'quan-ly-goi-de':
         return (
-          <PackageManagementModule initialTab={targetSubTab as 'list' | 'review'} />
+          <PackageManagementModule 
+            initialTab={targetSubTab as 'list' | 'review'} 
+            currentUser={currentUser}
+          />
         );
 
       case 'quan-ly-thi-sinh':

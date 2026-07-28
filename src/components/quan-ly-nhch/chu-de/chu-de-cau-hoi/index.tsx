@@ -11,6 +11,8 @@ import GuiThamDinhChuDeModal from './send-review';
 import LichSuChuDeModal from './history';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 import { SystemUser } from '../../../../types';
+import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
+import { hasActionPermission } from '../../../../utils/permissionUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -86,11 +88,15 @@ interface ChuDeCauHoiProps {
 
 export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
   const actorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
+  const canManage = hasActionPermission(currentUser, 'topics.manage');
+  const canSubmit = hasActionPermission(currentUser, 'topics.submit');
+  
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
   const [monHocs, setMonHocs] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
   const [khoiLops, setKhoiLops] = useState<{ Id: string; Ma: string; Ten: string; IsActive?: boolean }[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
@@ -137,9 +143,21 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
       ]);
       const mappedMonHoc = mtRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
       const mappedKhoiLop = klRes.data.map((i: any) => ({ Id: i.id, Ma: i.code, Ten: i.name, IsActive: i.is_active }));
-      setMonHocs(mappedMonHoc);
+      
+      const { filteredSubjects, isRestricted, defaultSubjectId } = getUserSubjectFilter(
+        mappedMonHoc.map((m: any) => ({ id: m.Id, name: m.Ten, code: m.Ma })), 
+        currentUser
+      );
+
+      const finalMonHocs = mappedMonHoc.filter((m: any) => filteredSubjects.some(fs => fs.id === m.Id));
+
+      setMonHocs(finalMonHocs);
+      setIsSubjectRestricted(isRestricted);
       setKhoiLops(mappedKhoiLop);
-      if (mappedMonHoc.length > 0) {
+      
+      if (isRestricted && defaultSubjectId) {
+        setFilterMonHoc(defaultSubjectId);
+      } else if (mappedMonHoc.length > 0) {
         setFilterMonHoc('');
       }
     } catch (e: any) {
@@ -295,7 +313,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
   const renderActionMenu = (record: ChuDeType): MenuProps => {
     const items: MenuProps['items'] = [];
     
-    if (record.TrangThai === 0 || record.TrangThai === 3) {
+    if (canSubmit && (record.TrangThai === 0 || record.TrangThai === 3)) {
       items.push({
         key: 'send',
         icon: <Send size={16} />,
@@ -311,12 +329,14 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
       onClick: () => handleOpenLichSu(record)
     });
 
-    items.push({
-      key: 'delete',
-      icon: <Trash2 size={16} className="text-red-500" />,
-      label: <span className="text-red-500 font-medium">Xóa chủ đề</span>,
-      onClick: () => handleOpenDelete(record)
-    });
+    if (canManage) {
+      items.push({
+        key: 'delete',
+        icon: <Trash2 size={16} className="text-red-500" />,
+        label: <span className="text-red-500 font-medium">Xóa chủ đề</span>,
+        onClick: () => handleOpenDelete(record)
+      });
+    }
 
     return { items };
   };
@@ -348,7 +368,11 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
         item.Ten.toLowerCase().includes(kwTen) ||
         item.Ma.toLowerCase().includes(kwTen);
       
-      const matchMonHoc = !filterMonHoc || item.IdMonHoc === filterMonHoc;
+      const allowedSubjectIds = isSubjectRestricted ? monHocs.map(m => m.Id) : null;
+      const matchMonHoc = filterMonHoc 
+        ? item.IdMonHoc === filterMonHoc
+        : (allowedSubjectIds ? allowedSubjectIds.includes(item.IdMonHoc) : true);
+        
       const matchKhoiLop = filterKhoiLop.length === 0 || filterKhoiLop.includes(item.IdKhoiLop);
       const matchStatus = filterStatus === 'Tất cả' || item.TrangThai === filterStatus;
       
@@ -366,7 +390,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
     });
 
     return buildTopicTree(filteredFlat);
-  }, [rawData, searchTen, filterMonHoc, filterKhoiLop, filterStatus, filterDates, filterParentTopic]);
+  }, [rawData, searchTen, filterMonHoc, filterKhoiLop, filterStatus, filterDates, filterParentTopic, isSubjectRestricted, monHocs]);
 
   const columns: ColumnsType<ChuDeType> = [
     {
@@ -420,7 +444,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
             title="Xem chi tiết"
             onClick={() => handleOpenDetail(record)}
           />
-          {(record.TrangThai === 0 || record.TrangThai === 3) && (
+          {canManage && (record.TrangThai === 0 || record.TrangThai === 3) && (
             <Button
               type="text"
               onClick={() => handleOpenUpdate(record)}
@@ -564,27 +588,33 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
               )}
             </div>
             <Space>
-              <Button
-                type="primary"
-                className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none h-10 font-medium px-4 outline-none"
-                onClick={() => setIsCreateModalOpen(true)}
-              >
-                Thêm mới
-              </Button>
-              <Button 
-                className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50"
-                disabled={selectedRowKeys.length === 0}
-                onClick={handleOpenGuiThamDinhMultiple}
-              >
-                Gửi thẩm định
-              </Button>
-              <Button
-                className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
-                disabled={selectedRowKeys.length === 0}
-                onClick={handleOpenDeleteMultiple}
-              >
-                Xóa
-              </Button>
+              {canManage && (
+                <Button
+                  type="primary"
+                  className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none h-10 font-medium px-4 outline-none"
+                  onClick={() => setIsCreateModalOpen(true)}
+                >
+                  Thêm mới
+                </Button>
+              )}
+              {canSubmit && (
+                <Button 
+                  className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50"
+                  disabled={selectedRowKeys.length === 0}
+                  onClick={handleOpenGuiThamDinhMultiple}
+                >
+                  Gửi thẩm định
+                </Button>
+              )}
+              {canManage && (
+                <Button
+                  className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
+                  disabled={selectedRowKeys.length === 0}
+                  onClick={handleOpenDeleteMultiple}
+                >
+                  Xóa
+                </Button>
+              )}
             </Space>
           </div>
 
@@ -614,6 +644,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
           onClose={() => setIsCreateModalOpen(false)} 
           monHocs={monHocs.filter(m => m.IsActive !== false)}
           khoiLops={khoiLops.filter(k => k.IsActive !== false)}
+          isSubjectRestricted={isSubjectRestricted}
           onSave={async (values: any) => {
             try {
               await topicsApi.create({
@@ -651,6 +682,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
           record={selectedRecord}
           monHocs={monHocs}
           khoiLops={khoiLops}
+          isSubjectRestricted={isSubjectRestricted}
           onSave={async (values) => {
             try {
               await topicsApi.update(selectedRecord!.Id, {

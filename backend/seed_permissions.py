@@ -1,8 +1,10 @@
 import asyncio
 import time
+# pyrefly: ignore [missing-import]
 from sqlalchemy import select
 from backend.shared.database import engine
 from backend.auth_service.models import Permission
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 async def run():
@@ -18,6 +20,12 @@ async def run():
             {"code": "questions.create", "name": "Thêm mới câu hỏi & Nhập từ Word/Excel", "module": "Quản lý Ngân hàng câu hỏi"},
             {"code": "questions.edit", "name": "Biên sửa thông tin câu hỏi chưa kiểm duyệt", "module": "Quản lý Ngân hàng câu hỏi"},
             {"code": "questions.delete", "name": "Hạ tải & Xóa vĩnh viễn câu hỏi khỏi ngân hàng", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "questions.manage", "name": "Quản lý danh sách câu hỏi", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "questions.submit", "name": "Gửi duyệt câu hỏi", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "questions.export", "name": "Xuất dữ liệu câu hỏi", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "topics.manage", "name": "Quản lý chủ đề", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "topics.submit", "name": "Gửi duyệt chủ đề", "module": "Quản lý Ngân hàng câu hỏi"},
+            {"code": "topics.approve", "name": "Duyệt chủ đề", "module": "Quản lý Ngân hàng câu hỏi"},
             # Thẩm định & Chất lượng
             {"code": "questions.approve", "name": "Duyệt câu hỏi vào Ngân hàng chính thức", "module": "Thẩm định & Chất lượng chuyên môn"},
             {"code": "questions.review", "name": "Phản hồi, chấm điểm đóng góp nội dung", "module": "Thẩm định & Chất lượng chuyên môn"},

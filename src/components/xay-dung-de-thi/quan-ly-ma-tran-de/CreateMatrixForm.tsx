@@ -21,6 +21,7 @@ import {
   subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi,
   subjectConfigApi, type TopicAPI, type SubjectConfigAPI, type QuestionTypeAPI,
 } from '../../../services/danhMucApi.ts';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 
 const countKey = (topicId: string, levelId: string | null, typeId: string | null, competencyId: string | null) =>
   `${topicId}|${levelId}|${typeId}|${competencyId}`;
@@ -214,12 +215,13 @@ const fetchSubjectMatrixConfig = async (
 interface Props {
   onBack: () => void;
   editingId?: string;
+  currentUser?: any;
 }
 
 const MA_MAX_LENGTH = 12;
 const TEN_MAX_LENGTH = 255;
 
-export default function CreateMatrixForm({ onBack, editingId }: Props) {
+export default function CreateMatrixForm({ onBack, editingId, currentUser }: Props) {
   // --- State ---
   const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
   const [fullSubjects, setFullSubjects] = useState<any[]>([]);
@@ -338,14 +340,21 @@ export default function CreateMatrixForm({ onBack, editingId }: Props) {
 
     subjectCategoryApi.list().then(res => {
       const rawList = res.data || [];
+      const activeSubjects = rawList.filter((item: any) => item.is_active);
+      const { filteredSubjects, defaultSubjectId, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
+      
       setFullSubjects(rawList);
-      const list = rawList
-        .filter((item: any) => item.is_active)
-        .map((item: any) => ({
-          id: item.code,
-          ten: item.name
-        }));
+      const list = filteredSubjects.map((item: any) => ({
+        id: item.code,
+        ten: item.name
+      }));
       setMonHocList(list);
+      
+      if (!editingId && isRestricted && list.length > 0) {
+        setMonHocId(list[0].id);
+        changeMonHoc(list[0].id);
+      }
+      
       loadDetail(rawList);
     }).catch(() => {
       toast.error('Lỗi khi tải danh sách môn học từ database.');

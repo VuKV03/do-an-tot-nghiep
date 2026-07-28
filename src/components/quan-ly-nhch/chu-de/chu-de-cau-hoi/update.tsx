@@ -13,10 +13,11 @@ export interface UpdateChuDeModalProps {
   allData: ChuDeType[];
   monHocs?: { Id: string; Ma: string; Ten: string }[];
   khoiLops?: { Id: string; Ma: string; Ten: string }[];
+  isSubjectRestricted?: boolean;
   onDuplicateCode?: () => void;
 }
 
-export default function UpdateChuDeModal({ open, onClose, onSave, record, allData, monHocs = [], khoiLops = [], onDuplicateCode }: UpdateChuDeModalProps) {
+export default function UpdateChuDeModal({ open, onClose, onSave, record, allData, monHocs = [], khoiLops = [], isSubjectRestricted = false, onDuplicateCode }: UpdateChuDeModalProps) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
@@ -125,7 +126,7 @@ export default function UpdateChuDeModal({ open, onClose, onSave, record, allDat
               <Select
                 placeholder="Chọn môn học"
                 className="h-[42px] text-base"
-                options={(monHocs.length > 0 ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
+                options={(monHocs.length > 0 || isSubjectRestricted ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
                 disabled // Thường khi sửa không cho đổi môn học nếu đã map câu hỏi, tạm disable
               />
             </Form.Item>
