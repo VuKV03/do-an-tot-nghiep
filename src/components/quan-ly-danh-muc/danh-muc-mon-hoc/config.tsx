@@ -9,8 +9,8 @@ import {
   Select,
   Space,
   Spin,
-  message,
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import type { Rule } from 'antd/es/form';
 import type { SubjectCategoryType } from './index';
 import {
@@ -285,7 +285,6 @@ export default function CauHinhMonHocModal({
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
-  const [messageApi, contextHolder] = message.useMessage();
 
   const typeOptions = useMemo(
     () =>
@@ -367,7 +366,7 @@ export default function CauHinhMonHocModal({
         form.setFieldsValue(mapConfigToFormValues(config));
       } catch {
         if (mounted) {
-          messageApi.error('Không thể tải dữ liệu cấu hình môn học.');
+          toast.error('Không thể tải dữ liệu cấu hình môn học.');
         }
       } finally {
         if (mounted) {
@@ -381,7 +380,7 @@ export default function CauHinhMonHocModal({
     return () => {
       mounted = false;
     };
-  }, [open, record, form, messageApi]);
+  }, [open, record, form]);
 
   useEffect(() => {
     if (!open) {
@@ -405,7 +404,7 @@ export default function CauHinhMonHocModal({
 
       const totalScore = computeMaxTotalScore(values, submitDsFlags);
       if (values.scale != null && totalScore > values.scale) {
-        messageApi.error(
+        toast.error(
           `Tổng điểm tối đa của cấu trúc đề (${formatScore(totalScore)}) đang vượt quá thang điểm (${values.scale}). Vui lòng điều chỉnh lại điểm hoặc số câu hỏi.`,
         );
         return;
@@ -413,7 +412,7 @@ export default function CauHinhMonHocModal({
 
       const totalQuestions = computeTotalQuestionCount(values);
       if (values.questions_number != null && totalQuestions !== values.questions_number) {
-        messageApi.error(
+        toast.error(
           `Tổng số câu của các phần (${totalQuestions}) không khớp với Số câu hỏi (${values.questions_number}). Vui lòng điều chỉnh lại "Đến câu" của từng phần hoặc Số câu hỏi.`,
         );
         return;
@@ -431,12 +430,12 @@ export default function CauHinhMonHocModal({
 
       if (configId) {
         await subjectConfigApi.update(configId, payload);
-        messageApi.success('Cập nhật cấu hình môn học thành công!');
+        toast.success('Cập nhật cấu hình môn học thành công!');
       } else {
         await subjectConfigApi.create(
           payload as Omit<SubjectConfigAPI, 'id' | 'created_at' | 'updated_at'>,
         );
-        messageApi.success('Thêm cấu hình môn học thành công!');
+        toast.success('Thêm cấu hình môn học thành công!');
       }
 
       form.resetFields();
@@ -446,7 +445,7 @@ export default function CauHinhMonHocModal({
       if (error?.errorFields) {
         return;
       }
-      messageApi.error(error?.message || 'Lỗi khi lưu cấu hình môn học!');
+      toast.error(error?.message || 'Lỗi khi lưu cấu hình môn học!');
     } finally {
       setSaving(false);
     }
@@ -465,7 +464,6 @@ export default function CauHinhMonHocModal({
     <ConfigProvider
       theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 } }}
     >
-      {contextHolder}
       <Modal
         title={
           <div className='flex items-center gap-2'>

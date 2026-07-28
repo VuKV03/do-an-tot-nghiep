@@ -6,13 +6,13 @@ import {
   Button,
   Table,
   Tooltip,
-  message,
   Modal,
   Radio,
   ConfigProvider,
   DatePicker,
   Divider
 } from 'antd';
+import { toast } from '../../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
 import {
   FilterOutlined,
@@ -129,7 +129,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { message.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
     if (!question) return;
     setSubmitting(true);
     setTimeout(() => {
@@ -254,7 +254,7 @@ function BulkReviewModal({ visible, count, onClose, onConfirm }: BulkReviewModal
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { message.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
     setSubmitting(true);
     setTimeout(() => {
       onConfirm(verdict, comment);
@@ -509,7 +509,7 @@ export default function ThamDinhCauHoiTab({
 
   const handleBulkReview = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui lòng chọn ít nhất một câu hỏi để thẩm định!');
+      toast.warning('Vui lòng chọn ít nhất một câu hỏi để thẩm định!');
       return;
     }
     setIsBulkReviewOpen(true);
@@ -517,12 +517,12 @@ export default function ThamDinhCauHoiTab({
 
   const handleApprove = (q: Question, _comment: string) => {
     onUpdateQuestion({ ...q, status: 'approved' as QuestionStatus });
-    message.success(`✅ Đã thông qua câu hỏi ${q.code}!`);
+    toast.success(`✅ Đã thông qua câu hỏi ${q.code}!`);
   };
 
   const handleReject = (q: Question, _comment: string) => {
     onUpdateQuestion({ ...q, status: 'draft' as QuestionStatus });
-    message.error(`❌ Đã từ chối câu hỏi ${q.code}.`);
+    toast.error(`❌ Đã từ chối câu hỏi ${q.code}.`);
   };
 
   // ── Table columns ──────────────────────────────
@@ -967,7 +967,7 @@ export default function ThamDinhCauHoiTab({
                 });
               }
             });
-            message.success(`Đã thẩm định ${selectedRowKeys.length} câu hỏi!`);
+            toast.success(`Đã thẩm định ${selectedRowKeys.length} câu hỏi!`);
           }
           setSelectedRowKeys([]);
         }}

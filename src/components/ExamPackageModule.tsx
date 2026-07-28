@@ -19,9 +19,9 @@ import {
   Slider,
   InputNumber,
   Spin,
-  Tooltip,
-  message
+  Tooltip
 } from 'antd';
+import { toast } from '../utils/toast';
 import {
   ProjectOutlined,
   PlusOutlined,
@@ -140,11 +140,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       if (data.success) {
         setExams(data.data);
       } else {
-        message.error('Lỗi khi tải danh sách đề thi.');
+        toast.error('Lỗi khi tải danh sách đề thi.');
       }
     } catch (err) {
       console.error(err);
-      message.error('Không kết nối được dịch vụ danh sách đề.');
+      toast.error('Không kết nối được dịch vụ danh sách đề.');
     } finally {
       setLoadingExams(false);
     }
@@ -159,11 +159,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       if (data.success) {
         setPackages(data.data);
       } else {
-        message.error('Lỗi khi tải danh sách gói đề.');
+        toast.error('Lỗi khi tải danh sách gói đề.');
       }
     } catch (err) {
       console.error(err);
-      message.error('Không kết nối được dịch vụ gói đề.');
+      toast.error('Không kết nối được dịch vụ gói đề.');
     } finally {
       setLoadingPackages(false);
     }
@@ -217,20 +217,20 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       const data = await res.json();
       if (data.success) {
         setExams(prev => prev.map(item => item.id === record.id ? { ...item, status: nextStatus } : item));
-        message.success(`Đã cập nhật trạng thái đề thi sang: ${nextStatus.toUpperCase()}`);
+        toast.success(`Đã cập nhật trạng thái đề thi sang: ${nextStatus.toUpperCase()}`);
       } else {
-        message.error(data.error || 'Cập nhật trạng thái thất bại');
+        toast.error(data.error || 'Cập nhật trạng thái thất bại');
       }
     } catch (err) {
-      message.error('Phát sinh lỗi truyền dữ liệu.');
+      toast.error('Phát sinh lỗi truyền dữ liệu.');
     }
   };
 
   // Action: Download Mock Word/PDF
   const handleDownloadExam = (exam: ExamPaper) => {
-    message.loading({ content: `Đang kết xuất tệp Word/PDF chất lượng cao cho ${exam.code}...`, key: 'dl' });
+    toast.loading({ content: `Đang kết xuất tệp Word/PDF chất lượng cao cho ${exam.code}...`, key: 'dl' });
     setTimeout(() => {
-      message.success({ content: `Đã kết xuất thành công đề thi thử: "${exam.name}" (Tải về định dạng .docx hoàn tất!)`, key: 'dl', duration: 3 });
+      toast.success({ content: `Đã kết xuất thành công đề thi thử: "${exam.name}" (Tải về định dạng .docx hoàn tất!)`, key: 'dl', duration: 3 });
       
       // Update download statistics/attempts locally to make it visual
       setExams(prev => prev.map(item => item.id === exam.id ? { ...item, attempts: item.attempts + 1 } : item));
@@ -244,12 +244,12 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       const data = await res.json();
       if (data.success) {
         setExams(prev => prev.filter(item => item.id !== id));
-        message.success(`Đã xóa hoàn thành đề thi: ${name}`);
+        toast.success(`Đã xóa hoàn thành đề thi: ${name}`);
       } else {
-        message.error(data.error || 'Xoá đề thi thất bại');
+        toast.error(data.error || 'Xoá đề thi thất bại');
       }
     } catch (err) {
-      message.error('Phát sinh lỗi truyền tải khi xóa đề.');
+      toast.error('Phát sinh lỗi truyền tải khi xóa đề.');
     }
   };
 
@@ -265,12 +265,12 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       const data = await res.json();
       if (data.success) {
         setPackages(prev => prev.map(item => item.id === pkg.id ? { ...item, status: nextStatus } : item));
-        message.info(`Thay đổi trạng thái gói đề: ${pkg.code} đã sang ${nextStatus === 'active' ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}`);
+        toast.info(`Thay đổi trạng thái gói đề: ${pkg.code} đã sang ${nextStatus === 'active' ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}`);
       } else {
-        message.error('Thay đổi trạng thái lỗi.');
+        toast.error('Thay đổi trạng thái lỗi.');
       }
     } catch (err) {
-      message.error('Lỗi cổng kết nối.');
+      toast.error('Lỗi cổng kết nối.');
     }
   };
 
@@ -281,12 +281,12 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       const data = await res.json();
       if (data.success) {
         setPackages(prev => prev.filter(item => item.id !== id));
-        message.success(`Đã giải tán thành công gói đề: ${name}`);
+        toast.success(`Đã giải tán thành công gói đề: ${name}`);
       } else {
-        message.error('Xóa gói đề thất bại.');
+        toast.error('Xóa gói đề thất bại.');
       }
     } catch (err) {
-      message.error('Lỗi đường dẫn khi xóa gói đề.');
+      toast.error('Lỗi đường dẫn khi xóa gói đề.');
     }
   };
 
@@ -313,7 +313,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
   const handleAiSuggestInfo = async () => {
     const values = wizardForm.getFieldsValue();
     setAiSuggestingInfo(true);
-    message.loading({ content: 'Đang kết nối Gemini 3.5 Flash để dựng cấu hình học thuật bóng bẩy...', key: 'ai-info' });
+    toast.loading({ content: 'Đang kết nối Gemini 3.5 Flash để dựng cấu hình học thuật bóng bẩy...', key: 'ai-info' });
 
     try {
       const res = await fetch('/api/suggest-info', {
@@ -332,12 +332,12 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
           duration: data.suggestedDuration,
           description: data.suggestedDescription
         });
-        message.success({ content: 'Đã nhận cấu hình gợi ý từ Gemini AI lý tưởng!', key: 'ai-info', duration: 3 });
+        toast.success({ content: 'Đã nhận cấu hình gợi ý từ Gemini AI lý tưởng!', key: 'ai-info', duration: 3 });
       } else {
-        message.error({ content: data.error || 'Gemini không đưa ra phản hồi phù hợp.', key: 'ai-info' });
+        toast.error({ content: data.error || 'Gemini không đưa ra phản hồi phù hợp.', key: 'ai-info' });
       }
     } catch (err: any) {
-      message.error({ content: 'Lỗi API: ' + err.message, key: 'ai-info' });
+      toast.error({ content: 'Lỗi API: ' + err.message, key: 'ai-info' });
     } finally {
       setAiSuggestingInfo(false);
     }
@@ -347,7 +347,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
   const handleAiGenerateQuestions = async () => {
     const values = wizardForm.getFieldsValue();
     if (!values.title) {
-      message.warning('Vui lòng điền tiêu đề đề thi hoặc bấm nút "AI tự gợi ý"!');
+      toast.warning('Vui lòng điền tiêu đề đề thi hoặc bấm nút "AI tự gợi ý"!');
       return;
     }
 
@@ -410,14 +410,14 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
         setTimeout(() => {
           setAiLogLines(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Gemini phát sinh lỗi: ${data.error || 'Dữ liệu trả về bị rỗng.'}`]);
           setWizardStep(0); // bounce back
-          message.error(data.error || 'Không tạo được câu hỏi tự động. Vui lòng thử cấu hình khác.');
+          toast.error(data.error || 'Không tạo được câu hỏi tự động. Vui lòng thử cấu hình khác.');
         }, 2200);
       }
     } catch (err: any) {
       setTimeout(() => {
         setAiLogLines(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Lỗi kết nối API Gateway: ${err.message}`]);
         setWizardStep(0);
-        message.error('Gặp sự cố khi gọi Gemini AI: ' + err.message);
+        toast.error('Gặp sự cố khi gọi Gemini AI: ' + err.message);
       }, 2200);
     } finally {
       setTimeout(() => {
@@ -455,14 +455,14 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
 
       const data = await res.json();
       if (data.success) {
-        message.success('Đã cấu sinh đề thi và lưu vào Ngân Hàng Đề Thi Quốc Gia!');
+        toast.success('Đã cấu sinh đề thi và lưu vào Ngân Hàng Đề Thi Quốc Gia!');
         setIsWizardOpen(false);
         fetchExams();
       } else {
-        message.error(data.error || 'Lưu đề thi thất bại.');
+        toast.error(data.error || 'Lưu đề thi thất bại.');
       }
     } catch (err) {
-      message.error('Không lưu được dữ liệu đề thi mới.');
+      toast.error('Không lưu được dữ liệu đề thi mới.');
     }
   };
 
@@ -514,11 +514,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
         });
         const data = await res.json();
         if (data.success) {
-          message.success('Đã thêm mới gói đề kiểm tra thành công!');
+          toast.success('Đã thêm mới gói đề kiểm tra thành công!');
           setIsPkgModalOpen(false);
           fetchPackages();
         } else {
-          message.error(data.error || 'Không thêm được gói đề');
+          toast.error(data.error || 'Không thêm được gói đề');
         }
       } else {
         const res = await fetch(`/api/exams/packages/${activePkgId}`, {
@@ -528,11 +528,11 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
         });
         const data = await res.json();
         if (data.success) {
-          message.success('Đã cập nhật dán nhãn gói phân nhóm thành công!');
+          toast.success('Đã cập nhật dán nhãn gói phân nhóm thành công!');
           setIsPkgModalOpen(false);
           fetchPackages();
         } else {
-          message.error(data.error || 'Cập nhật thất bại');
+          toast.error(data.error || 'Cập nhật thất bại');
         }
       }
     } catch (err) {
@@ -1006,7 +1006,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
           if (!aiGeneratingQuestions) {
             setIsWizardOpen(false);
           } else {
-            message.warning('Mô hình đang liên kết tạo đề. Vui lòng đợi trong giây lát...');
+            toast.warning('Mô hình đang liên kết tạo đề. Vui lòng đợi trong giây lát...');
           }
         }}
         footer={

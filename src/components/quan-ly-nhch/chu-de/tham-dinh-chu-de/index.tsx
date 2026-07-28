@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Tooltip, message, Spin } from 'antd';
+import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Tooltip, Spin } from 'antd';
+import { toast } from '../../../../utils/toast';
 import { ChevronDown, ChevronUp, HelpCircle, FileText } from 'lucide-react';
+import { FileExcelOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import ChuDeCauHoi from '../chu-de-cau-hoi';
 import ReviewModal from './review';
@@ -8,6 +10,7 @@ import ReviewMultipleModal from './review-multiple';
 import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../services/danhMucApi.ts';
 import { SystemUser } from '../../../../types';
 import { hasActionPermission, hasAnyPermission } from '../../../../utils/permissionUtils';
+import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
 
 const { RangePicker } = DatePicker;
 
@@ -124,7 +127,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       setKhoiLops(mappedKhoiLop);
     } catch (e: any) {
       console.error(e);
-      message.error(e.message || 'Không thể tải dữ liệu thẩm định!');
+      toast.error(e.message || 'Không thể tải dữ liệu thẩm định!');
     } finally {
       setLoading(false);
     }
@@ -142,7 +145,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
 
   const handleOpenReviewMultiple = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui lòng chọn ít nhất một chủ đề để thẩm định');
+      toast.warning('Vui lòng chọn ít nhất một chủ đề để thẩm định');
       return;
     }
     setIsMultipleAction(true);
@@ -356,6 +359,48 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
     },
   ];
 
+  const getStatusLabel = (status: ThamDinhType['TrangThai']) => {
+    switch (status) {
+      case 'approved': return 'Đã thẩm định';
+      case 'rejected': return 'Từ chối';
+      case 'pending': return 'Chờ thẩm định';
+      default: return 'Tạo mới';
+    }
+  };
+
+  const flattenThamDinh = (nodes: ThamDinhType[]): ThamDinhType[] => {
+    const result: ThamDinhType[] = [];
+    const walk = (list: ThamDinhType[]) => {
+      list.forEach(n => {
+        result.push(n);
+        if (n.children && n.children.length) walk(n.children);
+      });
+    };
+    walk(nodes);
+    return result;
+  };
+
+  const excelColumns: ExcelColumn<ThamDinhType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã chủ đề/tiểu mục', accessor: row => row.Ma, width: 18 },
+    { header: 'Nội dung chủ đề/tiểu mục', accessor: row => row.Ten, width: 34 },
+    { header: 'Môn học', accessor: row => row.MonHoc, width: 16 },
+    { header: 'Khối lớp', accessor: row => row.KhoiLop, width: 14 },
+    { header: 'Ngày tạo', accessor: row => row.NgayTao ? new Date(row.NgayTao).toLocaleDateString('vi-VN') : '', width: 14, align: 'center' },
+    { header: 'Trạng thái', accessor: row => getStatusLabel(row.TrangThai), width: 16, align: 'center' },
+  ];
+
+  const handleExportExcel = () => {
+    const rows = flattenThamDinh(filteredTree);
+    if (rows.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `ThamDinhChuDe_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(rows, excelColumns, fileName, 'Thẩm định chủ đề');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
+
   return (
     <ConfigProvider
       theme={{
@@ -531,7 +576,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                   >
                     Thẩm định
                   </Button>
-                  <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-semibold px-6 hover:bg-blue-50">
+                  <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white h-10 font-semibold px-6 hover:!bg-green-700" onClick={handleExportExcel}>
                     Xuất Excel
                   </Button>
                 </Space>
@@ -569,14 +614,14 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
                   await Promise.all(ids.map(id => topicsApi.approve(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
-                  message.success(
+                  toast.success(
                     hasChildren
                       ? `Đã phê duyệt chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
                       : `Đã phê duyệt chủ đề "${selectedRecord.Ten}"!`
                   );
                   fetchData();
                 } catch (e: any) {
-                  message.error(e.message || 'Không thể phê duyệt chủ đề!');
+                  toast.error(e.message || 'Không thể phê duyệt chủ đề!');
                 }
               }}
               onReject={async (comment) => {
@@ -585,14 +630,14 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
-                  message.warning(
+                  toast.warning(
                     hasChildren
                       ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
                       : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
                   );
                   fetchData();
                 } catch (e: any) {
-                  message.error(e.message || 'Không thể từ chối chủ đề!');
+                  toast.error(e.message || 'Không thể từ chối chủ đề!');
                 }
               }}
             />
@@ -605,22 +650,22 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
                   await Promise.all(ids.map(id => topicsApi.approve(id, comment, actorName)));
-                  message.success('Đã phê duyệt các chủ đề được chọn!');
+                  toast.success('Đã phê duyệt các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {
-                  message.error(e.message || 'Không thể phê duyệt chủ đề!');
+                  toast.error(e.message || 'Không thể phê duyệt chủ đề!');
                 }
               }}
               onReject={async (comment) => {
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
-                  message.warning('Từ chối các chủ đề được chọn!');
+                  toast.warning('Từ chối các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {
-                  message.error(e.message || 'Không thể từ chối chủ đề!');
+                  toast.error(e.message || 'Không thể từ chối chủ đề!');
                 }
               }}
             />

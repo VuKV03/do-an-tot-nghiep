@@ -16,9 +16,9 @@ import {
   Card,
   Row,
   Col,
-  Divider,
-  message
+  Divider
 } from 'antd';
+import { toast } from '../utils/toast';
 import {
   FolderOutlined,
   BookOutlined,
@@ -236,10 +236,10 @@ export default function CategoryAdminModule({
             status: values.status
           };
           setSubjects(prev => [newItem, ...prev]);
-          message.success(`Đã thêm mới môn học "${newItem.name}" vào hệ thống.`);
+          toast.success(`Đã thêm mới môn học "${newItem.name}" vào hệ thống.`);
         } else {
           setSubjects(prev => prev.map(item => item.id === activeCategoryId ? { ...item, ...values, code: values.code.toUpperCase() } : item));
-          message.success('Cập nhật môn học thành công.');
+          toast.success('Cập nhật môn học thành công.');
         }
       } 
       
@@ -254,10 +254,10 @@ export default function CategoryAdminModule({
             status: values.status
           };
           setGrades(prev => [...prev, newItem]);
-          message.success(`Đã gán thành công khối lớp học mới: "${newItem.name}".`);
+          toast.success(`Đã gán thành công khối lớp học mới: "${newItem.name}".`);
         } else {
           setGrades(prev => prev.map(item => item.id === activeCategoryId ? { ...item, ...values, displayOrder: parseInt(values.displayOrder), code: values.code.toUpperCase() } : item));
-          message.success('Cập nhật cấu hình khối học thành công.');
+          toast.success('Cập nhật cấu hình khối học thành công.');
         }
       } 
       
@@ -273,10 +273,10 @@ export default function CategoryAdminModule({
             status: values.status
           };
           setLevels(prev => [...prev, newItem]);
-          message.success(`Đã khởi tạo chuẩn tư duy đánh giá mới: ${newItem.name}`);
+          toast.success(`Đã khởi tạo chuẩn tư duy đánh giá mới: ${newItem.name}`);
         } else {
           setLevels(prev => prev.map(item => item.id === activeCategoryId ? { ...item, ...values, pointMultiplier: parseFloat(values.pointMultiplier), code: values.code.toUpperCase() } : item));
-          message.success('Cập nhật chỉ tiêu cấp độ tư duy thành công.');
+          toast.success('Cập nhật chỉ tiêu cấp độ tư duy thành công.');
         }
       } 
       
@@ -292,10 +292,10 @@ export default function CategoryAdminModule({
             status: values.status
           };
           setQuestionTypes(prev => [...prev, newItem]);
-          message.success(`Đã đăng ký thêm danh mục phân loại câu hỏi mới: ${newItem.name}`);
+          toast.success(`Đã đăng ký thêm danh mục phân loại câu hỏi mới: ${newItem.name}`);
         } else {
           setQuestionTypes(prev => prev.map(item => item.id === activeCategoryId ? { ...item, ...values, scoreWeight: parseFloat(values.scoreWeight) } : item));
-          message.success('Cập nhật hướng dẫn loại hình câu hỏi thành công.');
+          toast.success('Cập nhật hướng dẫn loại hình câu hỏi thành công.');
         }
       }
 
@@ -309,20 +309,20 @@ export default function CategoryAdminModule({
     if (currentTabKey === 'danh-muc-mon-hoc') {
       const target = subjects.find(s => s.id === id);
       if (target && target.questionCount > 0) {
-        message.error(`Không thể xóa môn học "${name}" vì có ${target.questionCount} câu hỏi đang liên kết hoạt động!`);
+        toast.error(`Không thể xóa môn học "${name}" vì có ${target.questionCount} câu hỏi đang liên kết hoạt động!`);
         return;
       }
       setSubjects(prev => prev.filter(s => s.id !== id));
-      message.success(`Đã thu hồi danh mục môn học: ${name}`);
+      toast.success(`Đã thu hồi danh mục môn học: ${name}`);
     } else if (currentTabKey === 'danh-muc-khoi-lop') {
       setGrades(prev => prev.filter(g => g.id !== id));
-      message.success(`Đã xóa khối lớp "${name}" khỏi bản đồ khối.`);
+      toast.success(`Đã xóa khối lớp "${name}" khỏi bản đồ khối.`);
     } else if (currentTabKey === 'cap-do-tu-duy') {
       setLevels(prev => prev.filter(l => l.id !== id));
-      message.success(`Đã gỡ định danh cấp độ tư duy: ${name}`);
+      toast.success(`Đã gỡ định danh cấp độ tư duy: ${name}`);
     } else if (currentTabKey === 'loai-hinh-cau-hoi') {
       setQuestionTypes(prev => prev.filter(t => t.id !== id));
-      message.success(`Đã loại bỏ phân loại câu hỏi: ${name}`);
+      toast.success(`Đã loại bỏ phân loại câu hỏi: ${name}`);
     }
   };
 
@@ -340,7 +340,7 @@ export default function CategoryAdminModule({
     }
 
     const colorLabel = updatedStatus === 'active' ? '🟢 HOẠT ĐỘNG' : '🔴 KHÓA TẠM THỜI';
-    message.warning(`Đã gán trạng thái mới cho "${record.name}" sang: ${colorLabel}`);
+    toast.warning(`Đã gán trạng thái mới cho "${record.name}" sang: ${colorLabel}`);
   };
 
   // Helper title renderer as string

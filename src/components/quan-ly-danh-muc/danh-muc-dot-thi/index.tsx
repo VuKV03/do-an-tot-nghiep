@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, message, Spin } from 'antd';
+import { Input, Select, DatePicker, Button, Space, ConfigProvider, Spin, Empty, Pagination } from 'antd';
+import { toast } from '../../../utils/toast';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
-import type { ColumnsType } from 'antd/es/table';
+import { FileExcelOutlined } from '@ant-design/icons';
 import CreateDotThiModal from './create.tsx';
 import UpdateDotThiModal from './update.tsx';
 import DetailDotThiModal from './detail.tsx';
 import DeleteDotThiModal from './delete.tsx';
 import { examPeriodApi } from '../../../services/danhMucApi.ts';
 import { formatDateTime } from '../../../utils/formatDate';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 
 const { RangePicker } = DatePicker;
 
@@ -53,6 +56,11 @@ export default function DanhMucDotThi() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleteMultiple, setIsDeleteMultiple] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ExamPeriodType | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { colGroup: dotThiColGroup, startResize: startDotThiColResize, totalWidth: dotThiTableTotalWidth } = useResizableColumns(
+    [40, 60, 140, 220, 150, 130, 130, 140, 140]
+  );
 
   const fetchData = async () => {
     setLoading(true);
@@ -89,7 +97,7 @@ export default function DanhMucDotThi() {
       setData(mapped);
     } catch (e: any) {
       console.error(e);
-      message.error(e.message || 'Không thể tải danh sách kỳ thi!');
+      toast.error(e.message || 'Không thể tải danh sách kỳ thi!');
     } finally {
       setLoading(false);
     }
@@ -120,15 +128,6 @@ export default function DanhMucDotThi() {
     setIsDeleteModalOpen(true);
   };
 
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: onSelectChange,
-  };
-
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const kwTen = searchTen.trim().toLowerCase();
@@ -151,86 +150,41 @@ export default function DanhMucDotThi() {
     });
   }, [data, searchTen, searchTinhTrang, searchDates]);
 
-  const columns: ColumnsType<ExamPeriodType> = [
-    {
-      title: 'STT',
-      dataIndex: 'stt',
-      key: 'stt',
-      width: 60,
-      align: 'center',
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: 'Mã kỳ thi',
-      dataIndex: 'Ma',
-      key: 'Ma',
-    },
-    {
-      title: 'Tên kỳ thi',
-      dataIndex: 'Ten',
-      key: 'Ten',
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'CreatedAt',
-      key: 'CreatedAt',
-      render: (v) => formatDateTime(v),
-    },
-    {
-      title: 'Ngày bắt đầu',
-      dataIndex: 'NgayBatDau',
-      key: 'NgayBatDau',
-      render: (v) => formatDate(v),
-    },
-    {
-      title: 'Ngày kết thúc',
-      dataIndex: 'NgayKetThuc',
-      key: 'NgayKetThuc',
-      render: (v) => formatDate(v),
-    },
-    {
-      title: 'Tình trạng',
-      dataIndex: 'IsActive',
-      key: 'IsActive',
-      render: (isActive: boolean) => (
-        <span
-          className={`px-3 py-1 rounded border text-sm font-medium ${isActive
-              ? 'border-emerald-400 text-emerald-600 bg-emerald-50'
-              : 'border-rose-400 text-rose-500 bg-rose-50'
-            }`}
-        >
-          {isActive ? 'Hoạt động' : 'Không hoạt động'}
-        </span>
-      ),
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      align: 'center',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="text"
-            onClick={() => handleOpenDetail(record)}
-            icon={<Eye size={16} className="text-blue-600" />}
-            className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md"
-          />
-          <Button
-            type="text"
-            onClick={() => handleOpenUpdate(record)}
-            icon={<Edit size={16} className="text-blue-600" />}
-            className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md"
-          />
-          <Button
-            type="text"
-            onClick={() => handleOpenDelete(record)}
-            icon={<Trash2 size={16} className="text-red-500" />}
-            className="bg-red-50 hover:bg-red-100 flex items-center justify-center p-2 rounded-md"
-          />
-        </Space>
-      ),
-    },
+  useEffect(() => { setCurrentPage(1); }, [searchTen, searchTinhTrang, searchDates]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+  const isAllSelected = paginatedData.length > 0 && paginatedData.every(r => selectedRowKeys.includes(r.Id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedRowKeys(prev => prev.filter(k => !paginatedData.some(r => r.Id === k)));
+    else setSelectedRowKeys(prev => Array.from(new Set([...prev, ...paginatedData.map(r => r.Id)])));
+  };
+  const toggleSelectRow = (id: string) => {
+    setSelectedRowKeys(prev => prev.includes(id) ? prev.filter(k => k !== id) : [...prev, id]);
+  };
+
+  const excelColumns: ExcelColumn<ExamPeriodType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã kỳ thi', accessor: row => row.Ma, width: 16 },
+    { header: 'Tên kỳ thi', accessor: row => row.Ten, width: 30 },
+    { header: 'Ngày tạo', accessor: row => formatDateTime(row.CreatedAt), width: 18, align: 'center' },
+    { header: 'Ngày bắt đầu', accessor: row => formatDate(row.NgayBatDau), width: 14, align: 'center' },
+    { header: 'Ngày kết thúc', accessor: row => formatDate(row.NgayKetThuc), width: 14, align: 'center' },
+    { header: 'Tình trạng', accessor: row => row.IsActive ? 'Hoạt động' : 'Không hoạt động', width: 16, align: 'center' },
   ];
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `DotThi_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredData, excelColumns, fileName, 'Đợt thi');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <ConfigProvider
@@ -320,7 +274,7 @@ export default function DanhMucDotThi() {
               >
                 Thêm mới
               </Button>
-              <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50">
+              <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white h-10 font-medium px-4 hover:!bg-green-700" onClick={handleExportExcel}>
                 Xuất Excel
               </Button>
               <Button
@@ -334,24 +288,72 @@ export default function DanhMucDotThi() {
             </Space>
           </div>
 
+          <ResizableTableStyles />
           <Spin spinning={loading}>
-            <Table
-              rowSelection={rowSelection}
-              columns={columns}
-              dataSource={filteredData}
-              rowKey="Id"
-              pagination={{
-                total: filteredData.length,
-                showTotal: (total, range) => `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                showSizeChanger: true,
-                defaultPageSize: 10,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                locale: { items_per_page: '/ trang' },
-                className: 'mt-6',
-              }}
-              className="border-t border-gray-200"
-            />
+            <div className="overflow-x-auto border-t border-gray-200">
+              <table style={{ minWidth: dotThiTableTotalWidth }} className={`w-full text-sm text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {dotThiColGroup}
+                <thead>
+                  <tr className="bg-[#f8fafc] border-b border-gray-200 text-[#334155] font-semibold">
+                    <th className="relative py-3 px-3 text-center">
+                      <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                      <ColResizeHandle onMouseDown={startDotThiColResize(0)} />
+                    </th>
+                    <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startDotThiColResize(1)} /></th>
+                    <th className="relative py-3 px-3 text-left">Mã kỳ thi<ColResizeHandle onMouseDown={startDotThiColResize(2)} /></th>
+                    <th className="relative py-3 px-3 text-left">Tên kỳ thi<ColResizeHandle onMouseDown={startDotThiColResize(3)} /></th>
+                    <th className="relative py-3 px-3 text-left">Ngày tạo<ColResizeHandle onMouseDown={startDotThiColResize(4)} /></th>
+                    <th className="relative py-3 px-3 text-left">Ngày bắt đầu<ColResizeHandle onMouseDown={startDotThiColResize(5)} /></th>
+                    <th className="relative py-3 px-3 text-left">Ngày kết thúc<ColResizeHandle onMouseDown={startDotThiColResize(6)} /></th>
+                    <th className="relative py-3 px-3 text-center">Tình trạng<ColResizeHandle onMouseDown={startDotThiColResize(7)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startDotThiColResize(8)} /></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginatedData.length === 0 ? (
+                    <tr><td colSpan={9} className="py-12 text-center"><Empty description="Không có dữ liệu kỳ thi" /></td></tr>
+                  ) : paginatedData.map((r, idx) => (
+                    <tr key={r.Id} className="hover:bg-[#f1f5f9] transition-colors">
+                      <td className="py-3 px-3 text-center">
+                        <input type="checkbox" className="cursor-pointer" checked={selectedRowKeys.includes(r.Id)} onChange={() => toggleSelectRow(r.Id)} />
+                      </td>
+                      <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className="py-3 px-3"><TruncatedText text={r.Ma} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={r.Ten} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={formatDateTime(r.CreatedAt)} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={formatDate(r.NgayBatDau)} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={formatDate(r.NgayKetThuc)} /></td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`px-3 py-1 rounded border text-sm font-medium ${r.IsActive ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{r.IsActive ? 'Hoạt động' : 'Không hoạt động'}</span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Space size="small">
+                          <Button type="text" onClick={() => handleOpenDetail(r)} icon={<Eye size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md" />
+                          <Button type="text" onClick={() => handleOpenUpdate(r)} icon={<Edit size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md" />
+                          <Button type="text" onClick={() => handleOpenDelete(r)} icon={<Trash2 size={16} className="text-red-500" />} className="bg-red-50 hover:bg-red-100 flex items-center justify-center p-2 rounded-md" />
+                        </Space>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Spin>
+          <div className="flex justify-between items-center mt-2">
+            <div className="text-xs text-slate-500 font-medium">
+              {filteredData.length === 0 ? '0 - 0' : `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, filteredData.length)}`} / {filteredData.length} bản ghi
+            </div>
+            <Pagination
+              current={currentPage}
+              total={filteredData.length}
+              pageSize={pageSize}
+              onChange={(page, size) => { setCurrentPage(page); setPageSize(size); }}
+              showSizeChanger
+              showQuickJumper={false}
+              pageSizeOptions={['10', '20', '50', '100']}
+              locale={{ items_per_page: '/ trang' }}
+            />
+          </div>
         </div>
 
         {/* Modals */}
@@ -369,11 +371,11 @@ export default function DanhMucDotThi() {
                 is_active: values.isActive,
                 note: values.GhiChu || '',
               });
-              message.success('Thêm mới kỳ thi thành công!');
+              toast.success('Thêm mới kỳ thi thành công!');
               fetchData();
               return true;
             } catch (e: any) {
-              message.error(e.message || 'Không thể tạo kỳ thi!');
+              toast.error(e.message || 'Không thể tạo kỳ thi!');
               return false;
             }
           }}
@@ -401,11 +403,11 @@ export default function DanhMucDotThi() {
                 is_active: values.isActive,
                 note: values.GhiChu || '',
               });
-              message.success('Cập nhật kỳ thi thành công!');
+              toast.success('Cập nhật kỳ thi thành công!');
               fetchData();
               return true;
             } catch (e: any) {
-              message.error(e.message || 'Không thể cập nhật kỳ thi!');
+              toast.error(e.message || 'Không thể cập nhật kỳ thi!');
               return false;
             }
           }}
@@ -429,16 +431,16 @@ export default function DanhMucDotThi() {
                 for (const key of selectedRowKeys) {
                   await examPeriodApi.delete(key.toString());
                 }
-                message.success('Đã xóa kỳ thi được chọn!');
+                toast.success('Đã xóa kỳ thi được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
                 await examPeriodApi.delete(selectedRecord.Id);
-                message.success(`Đã xóa kỳ thi "${selectedRecord.Ten}"!`);
+                toast.success(`Đã xóa kỳ thi "${selectedRecord.Ten}"!`);
               }
               setIsDeleteModalOpen(false);
               fetchData();
             } catch (e: any) {
-              message.error(e.message || 'Không thể xóa kỳ thi!');
+              toast.error(e.message || 'Không thể xóa kỳ thi!');
             }
           }}
         />

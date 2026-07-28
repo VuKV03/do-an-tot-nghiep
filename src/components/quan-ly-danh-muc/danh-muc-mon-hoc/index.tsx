@@ -7,11 +7,12 @@ import {
   Input,
   Select,
   Space,
-  Table,
-  message,
   Spin,
+  Pagination,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { toast } from '../../../utils/toast';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import {
   ChevronDown,
   ChevronUp,
@@ -20,6 +21,7 @@ import {
   Settings,
   Trash2,
 } from 'lucide-react';
+import { FileExcelOutlined } from '@ant-design/icons';
 import CreateSubjectCategoryModal from './create.tsx';
 import UpdateSubjectCategoryModal from './update.tsx';
 import DetailSubjectCategoryModal from './detail.tsx';
@@ -59,7 +61,11 @@ export default function DanhMucMonHoc() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchActive, setSearchActive] = useState('all');
   const [searchDates, setSearchDates] = useState<any>(null);
-  const [messageApi, contextHolder] = message.useMessage();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { colGroup: monHocColGroup, startResize: startMonHocColResize, totalWidth: monHocTableTotalWidth } = useResizableColumns(
+    [40, 60, 140, 220, 160, 140, 160]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -68,11 +74,11 @@ export default function DanhMucMonHoc() {
       // API trả về đúng tên field → dùng thẳng, không cần convert
       setData(res.data as SubjectCategoryType[]);
     } catch {
-      messageApi.error('Không thể tải danh sách môn học!');
+      toast.error('Không thể tải danh sách môn học!');
     } finally {
       setLoading(false);
     }
-  }, [messageApi]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -100,11 +106,6 @@ export default function DanhMucMonHoc() {
     setIsCauHinhModalOpen(true);
   };
 
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (newKeys: React.Key[]) => setSelectedRowKeys(newKeys),
-  };
-
   const filteredData = React.useMemo(() => {
     return data.filter((item) => {
       const kw = searchKeyword.trim().toLowerCase();
@@ -127,68 +128,39 @@ export default function DanhMucMonHoc() {
     });
   }, [data, searchKeyword, searchActive, searchDates]);
 
-  const columns: ColumnsType<SubjectCategoryType> = [
-    {
-      title: 'STT',
-      key: 'stt',
-      width: 60,
-      align: 'center',
-      render: (_, __, i) => i + 1,
-    },
-    { title: 'Mã', dataIndex: 'code', key: 'code' },
-    { title: 'Tên', dataIndex: 'name', key: 'name' },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (v) => (v ? new Date(v).toLocaleString('vi-VN') : ''),
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      render: (v: boolean) => (
-        <span
-          className={`px-3 py-1 rounded border text-sm font-medium ${v ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}
-        >
-          {v ? 'Hoạt động' : 'Không hoạt động'}
-        </span>
-      ),
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      align: 'center',
-      render: (_, record) => (
-        <Space size='small'>
-          <Button
-            type='text'
-            onClick={() => handleOpenDetail(record)}
-            icon={<Eye size={16} className='text-blue-600' />}
-            className='bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md'
-          />
-          <Button
-            type='text'
-            onClick={() => handleOpenUpdate(record)}
-            icon={<Edit size={16} className='text-blue-600' />}
-            className='bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md'
-          />
-          <Button
-            type='text'
-            onClick={() => handleOpenDelete(record)}
-            icon={<Trash2 size={16} className='text-red-500' />}
-            className='bg-red-50 hover:bg-red-100 flex items-center justify-center p-2 rounded-md'
-          />
-          <Button
-            type='text'
-            onClick={() => handleOpenCauHinh(record)}
-            icon={<Settings size={16} className='text-orange-500' />}
-            className='bg-orange-50 hover:bg-orange-100 flex items-center justify-center p-2 rounded-md'
-          />
-        </Space>
-      ),
-    },
+  useEffect(() => { setCurrentPage(1); }, [searchKeyword, searchActive, searchDates]);
+
+  const paginatedData = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+  const isAllSelected = paginatedData.length > 0 && paginatedData.every(r => selectedRowKeys.includes(r.id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedRowKeys(prev => prev.filter(k => !paginatedData.some(r => r.id === k)));
+    else setSelectedRowKeys(prev => Array.from(new Set([...prev, ...paginatedData.map(r => r.id)])));
+  };
+  const toggleSelectRow = (id: string) => {
+    setSelectedRowKeys(prev => prev.includes(id) ? prev.filter(k => k !== id) : [...prev, id]);
+  };
+
+  const excelColumns: ExcelColumn<SubjectCategoryType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã', accessor: row => row.code, width: 16 },
+    { header: 'Tên', accessor: row => row.name, width: 30 },
+    { header: 'Ngày tạo', accessor: row => row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '', width: 18, align: 'center' },
+    { header: 'Trạng thái', accessor: row => row.is_active ? 'Hoạt động' : 'Không hoạt động', width: 16, align: 'center' },
   ];
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `MonHoc_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredData, excelColumns, fileName, 'Môn học');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <ConfigProvider
@@ -203,7 +175,6 @@ export default function DanhMucMonHoc() {
         },
       }}
     >
-      {contextHolder}
       <div className='p-6 flex flex-col gap-8 bg-white min-h-[calc(100vh-200px)]'>
         <div className='flex flex-col gap-4 border-b border-gray-200 pb-8 transition-all duration-300'>
           <div
@@ -295,7 +266,7 @@ export default function DanhMucMonHoc() {
               >
                 Thêm mới
               </Button>
-              <Button className='border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50'>
+              <Button type='primary' icon={<FileExcelOutlined />} className='!bg-green-600 !border-green-600 !text-white h-10 font-medium px-4 hover:!bg-green-700' onClick={handleExportExcel}>
                 Xuất Excel
               </Button>
               <Button
@@ -308,28 +279,69 @@ export default function DanhMucMonHoc() {
               </Button>
             </Space>
           </div>
+          <ResizableTableStyles />
           <Spin spinning={loading}>
-            <Table
-              rowSelection={rowSelection}
-              columns={columns}
-              dataSource={filteredData}
-              rowKey='id'
-              locale={{
-                emptyText: <Empty description='Không có dữ liệu môn học' />,
-              }}
-              pagination={{
-                total: filteredData.length,
-                showTotal: (total: number, range: [number, number]) =>
-                  `${range[0]} - ${range[1]} / ${total} bản ghi`,
-                showSizeChanger: true,
-                defaultPageSize: 10,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                locale: { items_per_page: '/ trang' },
-                className: 'mt-6',
-              }}
-              className='border-t border-gray-200'
-            />
+            <div className='overflow-x-auto border-t border-gray-200'>
+              <table style={{ minWidth: monHocTableTotalWidth }} className={`w-full text-sm text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {monHocColGroup}
+                <thead>
+                  <tr className='bg-[#f8fafc] border-b border-gray-200 text-[#334155] font-semibold'>
+                    <th className='relative py-3 px-3 text-center'>
+                      <input type='checkbox' className='cursor-pointer' checked={isAllSelected} onChange={toggleSelectAll} />
+                      <ColResizeHandle onMouseDown={startMonHocColResize(0)} />
+                    </th>
+                    <th className='relative py-3 px-3 text-center'>STT<ColResizeHandle onMouseDown={startMonHocColResize(1)} /></th>
+                    <th className='relative py-3 px-3 text-left'>Mã<ColResizeHandle onMouseDown={startMonHocColResize(2)} /></th>
+                    <th className='relative py-3 px-3 text-left'>Tên<ColResizeHandle onMouseDown={startMonHocColResize(3)} /></th>
+                    <th className='relative py-3 px-3 text-left'>Ngày tạo<ColResizeHandle onMouseDown={startMonHocColResize(4)} /></th>
+                    <th className='relative py-3 px-3 text-center'>Trạng thái<ColResizeHandle onMouseDown={startMonHocColResize(5)} /></th>
+                    <th className='relative py-3 px-3 text-center'>Thao tác<ColResizeHandle onMouseDown={startMonHocColResize(6)} /></th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-gray-100'>
+                  {paginatedData.length === 0 ? (
+                    <tr><td colSpan={7} className='py-12 text-center'><Empty description='Không có dữ liệu môn học' /></td></tr>
+                  ) : paginatedData.map((r, idx) => (
+                    <tr key={r.id} className='hover:bg-[#f1f5f9] transition-colors'>
+                      <td className='py-3 px-3 text-center'>
+                        <input type='checkbox' className='cursor-pointer' checked={selectedRowKeys.includes(r.id)} onChange={() => toggleSelectRow(r.id)} />
+                      </td>
+                      <td className='py-3 px-3 text-center'>{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className='py-3 px-3'><TruncatedText text={r.code} /></td>
+                      <td className='py-3 px-3'><TruncatedText text={r.name} /></td>
+                      <td className='py-3 px-3'><TruncatedText text={r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : ''} /></td>
+                      <td className='py-3 px-3 text-center'>
+                        <span className={`px-3 py-1 rounded border text-sm font-medium ${r.is_active ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{r.is_active ? 'Hoạt động' : 'Không hoạt động'}</span>
+                      </td>
+                      <td className='py-3 px-3 text-center'>
+                        <Space size='small'>
+                          <Button type='text' onClick={() => handleOpenDetail(r)} icon={<Eye size={16} className='text-blue-600' />} className='bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md' />
+                          <Button type='text' onClick={() => handleOpenUpdate(r)} icon={<Edit size={16} className='text-blue-600' />} className='bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md' />
+                          <Button type='text' onClick={() => handleOpenDelete(r)} icon={<Trash2 size={16} className='text-red-500' />} className='bg-red-50 hover:bg-red-100 flex items-center justify-center p-2 rounded-md' />
+                          <Button type='text' onClick={() => handleOpenCauHinh(r)} icon={<Settings size={16} className='text-orange-500' />} className='bg-orange-50 hover:bg-orange-100 flex items-center justify-center p-2 rounded-md' />
+                        </Space>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Spin>
+          <div className='flex justify-between items-center mt-2'>
+            <div className='text-xs text-slate-500 font-medium'>
+              {filteredData.length === 0 ? '0 - 0' : `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, filteredData.length)}`} / {filteredData.length} bản ghi
+            </div>
+            <Pagination
+              current={currentPage}
+              total={filteredData.length}
+              pageSize={pageSize}
+              onChange={(page, size) => { setCurrentPage(page); setPageSize(size); }}
+              showSizeChanger
+              showQuickJumper={false}
+              pageSizeOptions={['10', '20', '50', '100']}
+              locale={{ items_per_page: '/ trang' }}
+            />
+          </div>
         </div>
 
         <CreateSubjectCategoryModal
@@ -343,11 +355,11 @@ export default function DanhMucMonHoc() {
                 is_active: values.is_active ?? true,
                 note: values.note ?? '',
               });
-              messageApi.success('Thêm môn học thành công!');
+              toast.success('Thêm môn học thành công!');
               fetchData();
               return true;
             } catch (error: any) {
-              messageApi.error(error.message || 'Lỗi khi thêm môn học!');
+              toast.error(error.message || 'Lỗi khi thêm môn học!');
               return false;
             }
           }}
@@ -366,11 +378,11 @@ export default function DanhMucMonHoc() {
                 is_active: values.is_active,
                 note: values.note,
               });
-              messageApi.success('Cập nhật môn học thành công!');
+              toast.success('Cập nhật môn học thành công!');
               fetchData();
               return true;
             } catch (error: any) {
-              messageApi.error(error.message || 'Lỗi khi cập nhật môn học!');
+              toast.error(error.message || 'Lỗi khi cập nhật môn học!');
               return false;
             }
           }}
@@ -398,19 +410,19 @@ export default function DanhMucMonHoc() {
                 .filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
 
               if (failed.length === 0) {
-                messageApi.success(`Đã xóa ${succeeded.length} môn học!`);
+                toast.success(`Đã xóa ${succeeded.length} môn học!`);
               } else if (succeeded.length === 0) {
-                messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
+                toast.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
               } else {
-                messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
+                toast.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
               }
               setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
             } else if (selectedRecord) {
               try {
                 await subjectCategoryApi.delete(selectedRecord.id);
-                messageApi.success('Đã xóa môn học!');
+                toast.success('Đã xóa môn học!');
               } catch (e: any) {
-                messageApi.error(e.message || 'Lỗi khi xóa môn học!');
+                toast.error(e.message || 'Lỗi khi xóa môn học!');
               }
             }
             fetchData();

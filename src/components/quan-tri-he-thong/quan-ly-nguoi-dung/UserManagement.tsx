@@ -10,7 +10,6 @@ import {
   Space,
   Popconfirm,
   Alert,
-  message,
   Empty,
   Tooltip,
   Row,
@@ -20,6 +19,7 @@ import {
   Radio,
   Dropdown
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import {
   PlusOutlined,
   EditOutlined,
@@ -31,12 +31,15 @@ import {
   UsergroupAddOutlined,
   QuestionCircleFilled,
   MoreOutlined,
-  EyeOutlined
+  EyeOutlined,
+  FileExcelOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/danhMucApi';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
 
@@ -71,6 +74,9 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [searchFullName, setSearchFullName] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const { colGroup: userTableColGroup, startResize: startUserColResize, totalWidth: userTableTotalWidth } = useResizableColumns(
+    [48, 64, 180, 160, 200, 120, 200, 140, 96]
+  );
 
   // Modals for Users
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -114,7 +120,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       }
     } catch (err) {
       console.error('Error fetching users:', err);
-      message.error('Không thể tải danh sách người dùng.');
+      toast.error('Không thể tải danh sách người dùng.');
     } finally {
       setLoading(false);
     }
@@ -269,7 +275,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               `Thêm mới tài khoản chuyên viên ${values.fullName} thành công.`
             );
 
-            message.success(`Kích hoạt thành công tài khoản cán bộ: ${values.fullName}`);
+            toast.success(`Kích hoạt thành công tài khoản cán bộ: ${values.fullName}`);
             Modal.success({
               title: 'MẬT KHẨU TẠM THỜI',
               content: (
@@ -308,7 +314,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
               details: `Đã thay đổi thông tin người dùng: @${values.username}`
             });
 
-            message.success('Cập nhật thông tin cán bộ thành công.');
+            toast.success('Cập nhật thông tin cán bộ thành công.');
           }
         }
         setIsUserModalOpen(false);
@@ -326,7 +332,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           errorMsg = 'Email đã tồn tại, vui lòng nhập lại';
         }
 
-        message.error(errorMsg);
+        toast.error(errorMsg);
       } finally {
         setSavingUser(false);
       }
@@ -353,17 +359,17 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           `Đã xóa tài khoản @${user.username} khỏi hệ thống theo yêu cầu của hội đồng.`
         );
 
-        message.success(`Đã gỡ quyền truy cập của cán bộ: ${user.fullName}`);
+        toast.success(`Đã gỡ quyền truy cập của cán bộ: ${user.fullName}`);
       }
     } catch (err: any) {
       console.error('Error deleting user:', err);
-      message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
+      toast.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
     }
   };
 
   const handleBulkDelete = () => {
     if (selectedUserIds.length === 0) {
-      message.warning('Vui lòng chọn ít nhất một tài khoản để xóa.');
+      toast.warning('Vui lòng chọn ít nhất một tài khoản để xóa.');
       return;
     }
 
@@ -385,7 +391,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     });
 
     if (hasAdmin) {
-      message.error('Không cho phép xóa nhóm QTHT');
+      toast.error('Không cho phép xóa nhóm QTHT');
       return;
     }
 
@@ -402,7 +408,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           await fetchUsers(); // Refresh list
           setSelectedUserIds([]); // Clear selection
 
-          message.success(`Đã xóa thành công ${selectedUserIds.length} tài khoản.`);
+          toast.success(`Đã xóa thành công ${selectedUserIds.length} tài khoản.`);
 
           onAddAuditLog({
             id: `log-sec-${Date.now()}`,
@@ -413,7 +419,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           });
         } catch (err: any) {
           console.error('Error deleting users:', err);
-          message.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
+          toast.error(err.response?.data?.detail || 'Đã xảy ra lỗi khi xóa người dùng.');
         }
       }
     });
@@ -431,7 +437,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       if (res.data.success) {
         await fetchUsers(); // Refresh list
 
-        message.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
+        toast.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
 
         await logSecurityAction(
           `${statusText} tài khoản`,
@@ -441,7 +447,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       }
     } catch (err: any) {
       console.error('Error toggling user status:', err);
-      message.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái tài khoản.');
+      toast.error(err.response?.data?.detail || 'Không thể thay đổi trạng thái tài khoản.');
     }
   };
 
@@ -487,12 +493,43 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       }
     } catch (err: any) {
       console.error('Error resetting password:', err);
-      message.error(err.response?.data?.detail || 'Không thể đặt lại mật khẩu.');
+      toast.error(err.response?.data?.detail || 'Không thể đặt lại mật khẩu.');
     }
+  };
+
+  const userExcelColumns: ExcelColumn<SystemUser>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã người dùng/tên đăng nhập', accessor: row => row.username, width: 22 },
+    { header: 'Họ và tên', accessor: row => row.fullName, width: 24 },
+    {
+      header: 'Nhóm người dùng',
+      accessor: row => ((row as any).groups || []).map((g: any) => g.name).join(', ') || 'Chưa phân nhóm',
+      width: 26,
+    },
+    { header: 'Chức vụ', accessor: row => (row as any).position || 'Cán bộ', width: 18 },
+    {
+      header: 'Môn học phụ trách',
+      accessor: row => (((row as any).subjects || []) as string[])
+        .map(sub => subjects.find(s => s.id === sub || (s as any).code === sub)?.name || sub)
+        .join(', ') || '-',
+      width: 26,
+    },
+    { header: 'Trạng thái', accessor: row => row.status === 'active' ? 'Đang hoạt động' : 'Khóa', width: 16, align: 'center' },
+  ];
+
+  const handleExportExcel = () => {
+    if (filteredUsers.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `NguoiDung_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredUsers, userExcelColumns, fileName, 'Người dùng');
+    toast.success('Xuất báo cáo Excel thành công!');
   };
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+      <ResizableTableStyles />
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
         <h1 className="text-[#1a3b70] text-lg font-bold uppercase m-0">Quản lý người dùng</h1>
       </div>
@@ -555,14 +592,15 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           <div className="flex gap-2">
             <Button type="primary" className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold text-xs rounded" onClick={handleOpenCreateUser}>Thêm mới</Button>
             <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded" onClick={handleBulkDelete}>Xóa</Button>
-            <Button className="border-[#1e40af] text-[#1e40af] font-semibold text-xs rounded">Xuất Excel</Button>
+            <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700" onClick={handleExportExcel}>Xuất Excel</Button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+          <table style={{ minWidth: userTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+            {userTableColGroup}
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-bold">
-                <th className="py-3 px-4 text-left w-12">
+                <th className="relative py-3 px-4 text-left">
                   <input
                     type="checkbox"
                     className="rounded text-[#1e40af] cursor-pointer"
@@ -575,15 +613,16 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                       }
                     }}
                   />
+                  <ColResizeHandle onMouseDown={startUserColResize(0)} />
                 </th>
-                <th className="py-3 px-4 text-center w-16">STT</th>
-                <th className="py-3 px-4 text-left">Mã người dùng<br />/tên đăng nhập</th>
-                <th className="py-3 px-4 text-left">Họ và tên</th>
-                <th className="py-3 px-4 text-left">Nhóm người dùng</th>
-                <th className="py-3 px-4 text-left">Chức vụ</th>
-                <th className="py-3 px-4 text-left">Môn học phụ trách</th>
-                <th className="py-3 px-4 text-center">Trạng thái</th>
-                <th className="py-3 px-4 text-center w-24">Thao tác</th>
+                <th className="relative py-3 px-4 text-center">STT<ColResizeHandle onMouseDown={startUserColResize(1)} /></th>
+                <th className="relative py-3 px-4 text-left">Mã người dùng<br />/tên đăng nhập<ColResizeHandle onMouseDown={startUserColResize(2)} /></th>
+                <th className="relative py-3 px-4 text-left">Họ và tên<ColResizeHandle onMouseDown={startUserColResize(3)} /></th>
+                <th className="relative py-3 px-4 text-left">Nhóm người dùng<ColResizeHandle onMouseDown={startUserColResize(4)} /></th>
+                <th className="relative py-3 px-4 text-left">Chức vụ<ColResizeHandle onMouseDown={startUserColResize(5)} /></th>
+                <th className="relative py-3 px-4 text-left">Môn học phụ trách<ColResizeHandle onMouseDown={startUserColResize(6)} /></th>
+                <th className="relative py-3 px-4 text-center">Trạng thái<ColResizeHandle onMouseDown={startUserColResize(7)} /></th>
+                <th className="relative py-3 px-4 text-center">Thao tác<ColResizeHandle onMouseDown={startUserColResize(8)} /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -617,8 +656,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                       />
                     </td>
                     <td className="py-3 px-4 text-center text-slate-600">{index + 1}</td>
-                    <td className="py-3 px-4 text-slate-600">{u.username}</td>
-                    <td className="py-3 px-4 text-slate-600">{u.fullName}</td>
+                    <td className="py-3 px-4 text-slate-600"><TruncatedText text={u.username} /></td>
+                    <td className="py-3 px-4 text-slate-600"><TruncatedText text={u.fullName} /></td>
                     <td className="py-3 px-4 text-slate-600">
                       {(u as any).groups && (u as any).groups.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -632,7 +671,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                         <span className="text-slate-400 italic text-xs">Chưa phân nhóm</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-600">{(u as any).position || 'Cán bộ'}</td>
+                    <td className="py-3 px-4 text-slate-600"><TruncatedText text={(u as any).position || 'Cán bộ'} /></td>
                     <td className="py-3 px-4 text-slate-600">
                       {(u as any).subjects && (u as any).subjects.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -726,7 +765,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
                                   ));
 
                                   if (isQTHT) {
-                                    message.error('Không cho phép xóa nhóm QTHT');
+                                    toast.error('Không cho phép xóa nhóm QTHT');
                                     return;
                                   }
 

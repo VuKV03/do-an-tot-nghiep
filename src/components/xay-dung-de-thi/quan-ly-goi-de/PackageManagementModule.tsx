@@ -3,7 +3,6 @@ import {
   Input,
   Select,
   Button,
-  message,
   Modal,
   Spin,
   Tag,
@@ -15,6 +14,7 @@ import {
   Pagination,
   Tabs,
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import {
   DeleteOutlined,
   EyeOutlined,
@@ -33,6 +33,8 @@ import JSZip from 'jszip';
 import { Question } from '../../../types';
 import { subjectCategoryApi, examPeriodApi, bankQuestionApi, type SubjectCategoryAPI, type ExamPeriodAPI } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import ExamContentDisplay from '../quan-ly-de-thi/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
@@ -46,6 +48,9 @@ interface PackageManagementModuleProps {
 // định/tải/xóa, không có luồng tạo gói thủ công riêng.
 export default function PackageManagementModule({ initialTab }: PackageManagementModuleProps) {
   const [activeTab, setActiveTab] = useState<'list' | 'review'>(initialTab || 'list');
+  const { colGroup: pkgTableColGroup, startResize: startPkgColResize, totalWidth: pkgTableTotalWidth } = useResizableColumns(
+    [40, 48, 140, 200, 120, 100, 100, 130, 140, 100, 120, 140]
+  );
 
   const [packages, setPackages] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
@@ -85,7 +90,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       if (pkgRes.success) setPackages(pkgRes.data || []);
       if (examRes.success) setExams(examRes.data || []);
     } catch {
-      message.error('Lỗi kết nối khi tải danh sách gói đề.');
+      toast.error('Lỗi kết nối khi tải danh sách gói đề.');
     } finally {
       setLoading(false);
     }
@@ -159,6 +164,18 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case '1': case 'draft': case 'new': return 'Nháp';
+      case '2': case 'pending': return 'Chờ thẩm định';
+      case '3': case 'approved': return 'Đã thẩm định';
+      case 'active': return 'Đang phát';
+      case 'inactive': return 'Ngừng phát';
+      case '4': case 'rejected': return 'Từ chối';
+      default: return status;
+    }
+  };
+
   const filteredListPackages = useMemo(() => {
     const kw = pkgSearch.trim().toLowerCase();
     return packages.filter(p => {
@@ -196,13 +213,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       });
       const json = await res.json();
       if (json.success) {
-        message.success(status === 'approved' ? `Đã duyệt gói đề "${pkg.name}".` : `Đã từ chối gói đề "${pkg.name}".`);
+        toast.success(status === 'approved' ? `Đã duyệt gói đề "${pkg.name}".` : `Đã từ chối gói đề "${pkg.name}".`);
         fetchData();
       } else {
-        message.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
+        toast.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
       }
     } catch {
-      message.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
+      toast.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
     } finally {
       setActioning(null);
     }
@@ -216,13 +233,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       });
       const json = await res.json();
       if (json.success) {
-        message.success(json.message || `Đã phát thi gói đề "${pkg.name}".`);
+        toast.success(json.message || `Đã phát thi gói đề "${pkg.name}".`);
         fetchData();
       } else {
-        message.error(json.detail || json.error || 'Lỗi khi phát thi gói đề.');
+        toast.error(json.detail || json.error || 'Lỗi khi phát thi gói đề.');
       }
     } catch {
-      message.error('Lỗi kết nối khi phát thi gói đề.');
+      toast.error('Lỗi kết nối khi phát thi gói đề.');
     } finally {
       setActioning(null);
     }
@@ -236,13 +253,13 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       });
       const json = await res.json();
       if (json.success) {
-        message.success(json.message || `Đã tắt phát thi gói đề "${pkg.name}".`);
+        toast.success(json.message || `Đã tắt phát thi gói đề "${pkg.name}".`);
         fetchData();
       } else {
-        message.error(json.detail || json.error || 'Lỗi khi tắt phát thi gói đề.');
+        toast.error(json.detail || json.error || 'Lỗi khi tắt phát thi gói đề.');
       }
     } catch {
-      message.error('Lỗi kết nối khi tắt phát thi gói đề.');
+      toast.error('Lỗi kết nối khi tắt phát thi gói đề.');
     } finally {
       setActioning(null);
     }
@@ -261,12 +278,12 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           const res = await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
-            message.success(json.message);
+            toast.success(json.message);
             setSelectedPkgIds(prev => prev.filter(x => x !== id));
             fetchData();
           }
         } catch {
-          message.error('Không thể xóa gói đề.');
+          toast.error('Không thể xóa gói đề.');
         } finally {
           setActioning(null);
         }
@@ -288,11 +305,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           for (const id of selectedPkgIds) {
             await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
           }
-          message.success('Đã xóa thành công các gói đề được chọn.');
+          toast.success('Đã xóa thành công các gói đề được chọn.');
           setSelectedPkgIds([]);
           fetchData();
         } catch {
-          message.error('Có lỗi xảy ra khi xóa hàng loạt.');
+          toast.error('Có lỗi xảy ra khi xóa hàng loạt.');
         }
       },
     });
@@ -303,10 +320,10 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
   const handleDownloadPackage = async (pkg: any) => {
     const examIds: string[] = pkg.examIds || [];
     if (examIds.length === 0) {
-      message.error('Gói đề này chưa có đề thi nào.');
+      toast.error('Gói đề này chưa có đề thi nào.');
       return;
     }
-    message.loading({ content: `Đang chuẩn bị tải gói đề ${pkg.code}...`, key: 'pkg-dl' });
+    toast.loading({ content: `Đang chuẩn bị tải gói đề ${pkg.code}...`, key: 'pkg-dl' });
     try {
       const res = await bankQuestionApi.list();
       const allQuestions = res.data || [];
@@ -327,9 +344,9 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       }));
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       triggerBlobDownload(zipBlob, `${pkg.code}_GoiDeThi`, 'zip');
-      message.success({ content: `Đã tải gói đề ${pkg.code}!`, key: 'pkg-dl', duration: 3 });
+      toast.success({ content: `Đã tải gói đề ${pkg.code}!`, key: 'pkg-dl', duration: 3 });
     } catch {
-      message.error({ content: 'Lỗi khi tải gói đề.', key: 'pkg-dl' });
+      toast.error({ content: 'Lỗi khi tải gói đề.', key: 'pkg-dl' });
     }
   };
 
@@ -357,7 +374,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
       });
       setViewQuestionsByExamId(map);
     } catch {
-      message.error('Không tải được nội dung các đề trong gói.');
+      toast.error('Không tải được nội dung các đề trong gói.');
     } finally {
       setViewLoading(false);
     }
@@ -374,15 +391,32 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
     triggerBlobDownload(blob, exam.code, 'docx');
   };
 
+  const packageExcelColumns: ExcelColumn<any>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã gói đề', accessor: row => row.code, width: 16 },
+    { header: 'Tên gói đề', accessor: row => row.name, width: 30 },
+    { header: 'Đợt thi', accessor: row => row.exam_period_id ? (examPeriodNameById.get(row.exam_period_id) || '—') : '—', width: 20 },
+    { header: 'Môn thi', accessor: row => row.subject, width: 14, align: 'center' },
+    { header: 'Tổng số đề', accessor: row => row.examsCount || 0, width: 12, align: 'center' },
+    { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
+    { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
+    { header: 'Ngày tạo', accessor: row => row.createdAt ? row.createdAt.slice(0, 10) : '', width: 14, align: 'center' },
+    { header: 'Trạng thái', accessor: row => getStatusLabel(row.status), width: 16, align: 'center' },
+  ];
+
   const handleExportExcel = () => {
-    message.loading({ content: 'Đang kết xuất danh sách báo cáo Excel...', key: 'excel' });
-    setTimeout(() => {
-      message.success({ content: 'Xuất báo cáo Excel thành công!', key: 'excel', duration: 3 });
-    }, 1000);
+    if (currentRows.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `GoiDeThi_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(currentRows, packageExcelColumns, fileName, 'Gói đề thi');
+    toast.success('Xuất báo cáo Excel thành công!');
   };
 
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="package-management-layout-facade">
+      <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
         <button
@@ -498,9 +532,10 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
             )}
             {activeTab === 'review' && (
               <Button
+                type="primary"
                 icon={<FileExcelOutlined />}
                 onClick={handleExportExcel}
-                className="border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold text-xs rounded cursor-pointer"
+                className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
               >
                 Xuất Excel
               </Button>
@@ -517,10 +552,11 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
           ) : currentRows.length === 0 ? (
             <Empty description="Không có gói đề nào." className="py-12" />
           ) : (
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <table style={{ minWidth: pkgTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+              {pkgTableColGroup}
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="py-3 px-3 text-center w-10">
+                  <th className="relative py-3 px-3 text-center">
                     <input
                       type="checkbox"
                       className="cursor-pointer accent-[#2c3e9e]"
@@ -531,18 +567,19 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                         else setSelectedPkgIds(prev => Array.from(new Set([...prev, ...paginatedRows.map(p => p.id)])));
                       }}
                     />
+                    <ColResizeHandle onMouseDown={startPkgColResize(0)} />
                   </th>
-                  <th className="py-3 px-3 text-center w-12 font-semibold">STT</th>
-                  <th className="py-3 px-3 text-left font-semibold">Mã gói đề</th>
-                  <th className="py-3 px-3 text-left font-semibold">Tên gói đề</th>
-                  <th className="py-3 px-3 text-center font-semibold">Đợt thi</th>
-                  <th className="py-3 px-3 text-center font-semibold">Môn thi</th>
-                  <th className="py-3 px-3 text-center font-semibold">Tổng số đề</th>
-                  <th className="py-3 px-3 text-center font-semibold">Số câu hỏi trong đề</th>
-                  <th className="py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)</th>
-                  <th className="py-3 px-3 text-center font-semibold">Ngày tạo</th>
-                  <th className="py-3 px-3 text-center font-semibold">Trạng thái</th>
-                  <th className="py-3 px-3 text-center font-semibold">Thao tác</th>
+                  <th className="relative py-3 px-3 text-center font-semibold">STT<ColResizeHandle onMouseDown={startPkgColResize(1)} /></th>
+                  <th className="relative py-3 px-3 text-left font-semibold">Mã gói đề<ColResizeHandle onMouseDown={startPkgColResize(2)} /></th>
+                  <th className="relative py-3 px-3 text-left font-semibold">Tên gói đề<ColResizeHandle onMouseDown={startPkgColResize(3)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Đợt thi<ColResizeHandle onMouseDown={startPkgColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Môn thi<ColResizeHandle onMouseDown={startPkgColResize(5)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Tổng số đề<ColResizeHandle onMouseDown={startPkgColResize(6)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Số câu hỏi trong đề<ColResizeHandle onMouseDown={startPkgColResize(7)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startPkgColResize(8)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Ngày tạo<ColResizeHandle onMouseDown={startPkgColResize(9)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Trạng thái<ColResizeHandle onMouseDown={startPkgColResize(10)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Thao tác<ColResizeHandle onMouseDown={startPkgColResize(11)} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -563,7 +600,7 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
                         <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">{row.code}</span>
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-800 text-[11px] max-w-[180px] truncate">{row.name}</div>
+                        <TruncatedText text={row.name} className="font-semibold text-slate-800 text-[11px]" />
                       </td>
                       <td className="py-2.5 px-3 text-center text-[11px] text-slate-500">
                         {row.exam_period_id ? (examPeriodNameById.get(row.exam_period_id) || '—') : '—'}

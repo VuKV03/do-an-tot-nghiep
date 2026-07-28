@@ -5,7 +5,6 @@ import {
   Select,
   Button,
   Table,
-  message,
   Modal,
   Spin,
   Badge,
@@ -15,6 +14,7 @@ import {
   Space,
   Empty
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import {
   SaveOutlined,
   CloseOutlined,
@@ -24,7 +24,7 @@ import {
   LoadingOutlined,
   CheckCircleOutlined,
   FileTextOutlined,
-  DownloadOutlined,
+  FileExcelOutlined,
   ProjectOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -42,6 +42,8 @@ import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNod
 import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 
 const NAME_MAX_LENGTH = 255;
 
@@ -69,6 +71,12 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>(initialTab || 'list');
+  const { colGroup: matrixTableColGroup, startResize: startMatrixColResize, totalWidth: matrixTableTotalWidth } = useResizableColumns(
+    [40, 56, 130, 220, 140, 100, 100, 140, 120, 120]
+  );
+  const { colGroup: evalMatrixTableColGroup, startResize: startEvalMatrixColResize, totalWidth: evalMatrixTableTotalWidth } = useResizableColumns(
+    [40, 56, 130, 220, 140, 100, 100, 140, 120, 120]
+  );
 
   useEffect(() => {
     if (initialTab) {
@@ -144,7 +152,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
         setCurrentPage(json.page);
       }
     } catch (err) {
-      message.error('Lỗi kết nối API khi tải danh sách ma trận.');
+      toast.error('Lỗi kết nối API khi tải danh sách ma trận.');
     } finally {
       setTableLoading(false);
     }
@@ -169,7 +177,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
         setEvalCurrentPage(json.page);
       }
     } catch (err) {
-      message.error('Lỗi kết nối API khi tải danh sách thẩm định.');
+      toast.error('Lỗi kết nối API khi tải danh sách thẩm định.');
     } finally {
       setEvalTableLoading(false);
     }
@@ -195,7 +203,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
   // Handle batch delete
   const handleBatchDelete = async () => {
     if (selectedRowIds.length === 0) {
-      message.warning('Vui lòng chọn ít nhất 1 bản ghi để xóa.');
+      toast.warning('Vui lòng chọn ít nhất 1 bản ghi để xóa.');
       return;
     }
     Modal.confirm({
@@ -214,14 +222,14 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
           });
           const json = await res.json();
           if (json.success) {
-            message.success(json.message);
+            toast.success(json.message);
             setSelectedRowIds([]);
             fetchMatrixList(1, pageSize);
           } else {
-            message.error(json.error);
+            toast.error(json.error);
           }
         } catch {
-          message.error('Lỗi kết nối API khi xóa.');
+          toast.error('Lỗi kết nối API khi xóa.');
         }
       }
     });
@@ -234,13 +242,13 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       const res = await fetch(`/api/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
-        message.success(json.message);
+        toast.success(json.message);
         fetchMatrixList(currentPage, pageSize);
       } else {
-        message.error(json.error);
+        toast.error(json.error);
       }
     } catch {
-      message.error('Lỗi kết nối API khi xóa.');
+      toast.error('Lỗi kết nối API khi xóa.');
     } finally {
       setDeletingId(null);
     }
@@ -259,13 +267,13 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       });
       const json = await res.json();
       if (json.success) {
-        message.success('Đã gửi ma trận đề đi thẩm định thành công!');
+        toast.success('Đã gửi ma trận đề đi thẩm định thành công!');
         setActiveTab('evaluation');
       } else {
-        message.error(json.error || 'Lỗi khi gửi thẩm định.');
+        toast.error(json.error || 'Lỗi khi gửi thẩm định.');
       }
     } catch {
-      message.error('Lỗi kết nối API khi gửi thẩm định.');
+      toast.error('Lỗi kết nối API khi gửi thẩm định.');
     }
   };
 
@@ -361,39 +369,30 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
     setEvalSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const evalMatrixExcelColumns: ExcelColumn<MatrixTableDataRow>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã ma trận', accessor: row => row.code, width: 16 },
+    { header: 'Tên ma trận', accessor: row => row.name, width: 30 },
+    { header: 'Môn học', accessor: row => row.subject, width: 18 },
+    { header: 'Tổng điểm', accessor: row => row.totalScore.toFixed(2), width: 12, align: 'center' },
+    { header: 'Số câu hỏi', accessor: row => row.totalQuestions, width: 12, align: 'center' },
+    { header: 'Thời gian làm bài (phút)', accessor: row => row.duration, width: 18, align: 'center' },
+    { header: 'Trạng thái', accessor: row => row.status === 'approved' ? 'Đã thẩm định' : row.status === 'rejected' ? 'Từ chối' : 'Chờ thẩm định', width: 16, align: 'center' },
+  ];
+
   const handleExportExcel = () => {
     if (sortedEvalData.length === 0) {
-      message.warning('Không có dữ liệu để xuất file.');
+      toast.warning('Không có dữ liệu để xuất file.');
       return;
     }
-    const headers = ['Mã ma trận', 'Tên ma trận', 'Môn học', 'Tổng điểm', 'Số câu hỏi', 'Thời gian làm bài (phút)', 'Trạng thái'];
-    const csvContent = "\uFEFF" + [
-      headers.join(','),
-      ...sortedEvalData.map(r => [
-        `"${r.code}"`,
-        `"${r.name.replace(/"/g, '""')}"`,
-        `"${r.subject}"`,
-        r.totalScore.toFixed(2),
-        r.totalQuestions,
-        r.duration,
-        r.status === 'approved' ? 'Đã thẩm định' : r.status === 'rejected' ? 'Từ chối' : 'Chờ thẩm định'
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `danh_sach_tham_dinh_ma_tran_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    message.success('Đã xuất file báo cáo thẩm định ma trận thành công!');
+    const fileName = `ThamDinhMaTranDe_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(sortedEvalData, evalMatrixExcelColumns, fileName, 'Thẩm định ma trận đề');
+    toast.success('Đã xuất file báo cáo thẩm định ma trận thành công!');
   };
 
   const handleBatchReviewClick = () => {
     if (evalSelectedRowIds.length === 0) {
-      message.warning('Vui lòng chọn ít nhất 1 ma trận để thẩm định.');
+      toast.warning('Vui lòng chọn ít nhất 1 ma trận để thẩm định.');
       return;
     }
     setIsBatchReview(true);
@@ -426,15 +425,15 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
       });
       const json = await res.json();
       if (json.success) {
-        message.success(json.message || 'Cập nhật kết quả thẩm định thành công.');
+        toast.success(json.message || 'Cập nhật kết quả thẩm định thành công.');
         setIsReviewModalOpen(false);
         setEvalSelectedRowIds([]);
         fetchEvalList(evalCurrentPage, evalPageSize);
       } else {
-        message.error(json.error || 'Lỗi khi lưu thẩm định.');
+        toast.error(json.error || 'Lỗi khi lưu thẩm định.');
       }
     } catch {
-      message.error('Gặp sự cố khi lưu thẩm định.');
+      toast.error('Gặp sự cố khi lưu thẩm định.');
     } finally {
       setReviewSubmitting(false);
     }
@@ -466,6 +465,7 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
 
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="matrix-module-facade">
+      <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
         <button
@@ -607,21 +607,23 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
             </div>
 
             {/* Table */}
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <table style={{ minWidth: matrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+              {matrixTableColGroup}
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="py-3 px-3 text-center w-10">
+                  <th className="relative py-3 px-3 text-center">
                     <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                    <ColResizeHandle onMouseDown={startMatrixColResize(0)} />
                   </th>
-                  <th className="py-3 px-3 text-center w-14">STT</th>
-                  <th className="py-3 px-3 text-left">Mã ma trận</th>
-                  <th className="py-3 px-3 text-left">Tên ma trận</th>
-                  <th className="py-3 px-3 text-left">Môn học</th>
-                  <th className="py-3 px-3 text-center">Tổng điểm</th>
-                  <th className="py-3 px-3 text-center">Số câu hỏi</th>
-                  <th className="py-3 px-3 text-center">Thời gian làm bài (phút)</th>
-                  <th className="py-3 px-3 text-center">Trạng thái</th>
-                  <th className="py-3 px-3 text-center">Thao tác</th>
+                  <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startMatrixColResize(1)} /></th>
+                  <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startMatrixColResize(2)} /></th>
+                  <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startMatrixColResize(3)} /></th>
+                  <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startMatrixColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startMatrixColResize(5)} /></th>
+                  <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startMatrixColResize(6)} /></th>
+                  <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startMatrixColResize(7)} /></th>
+                  <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startMatrixColResize(8)} /></th>
+                  <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startMatrixColResize(9)} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -651,13 +653,11 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                           />
                         </td>
                         <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="py-3 px-3">{row.code}</td>
+                        <td className="py-3 px-3"><TruncatedText text={row.code} /></td>
                         <td className="py-3 px-3">
-                          <Tooltip title={row.name}>
-                            <span className="block max-w-[200px] truncate">{row.name}</span>
-                          </Tooltip>
+                          <TruncatedText text={row.name} />
                         </td>
-                        <td className="py-3 px-3">{row.subject}</td>
+                        <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
                         <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
                         <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
                         <td className="py-3 px-3 text-center">{row.duration}</td>
@@ -855,8 +855,9 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                   Thẩm định nhiều{evalSelectedRowIds.length > 0 ? ` (${evalSelectedRowIds.length})` : ''}
                 </Button>
                 <Button
-                  icon={<DownloadOutlined />}
-                  className="font-semibold text-xs rounded cursor-pointer border-slate-300 text-slate-700 hover:text-[#2c3e9e] hover:border-[#2c3e9e]"
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
                   onClick={handleExportExcel}
                 >
                   Xuất Excel
@@ -865,21 +866,23 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
             </div>
 
             {/* Table */}
-            <table className="w-full text-xs font-medium text-slate-700 border-collapse table-auto">
+            <table style={{ minWidth: evalMatrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+              {evalMatrixTableColGroup}
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="py-3 px-3 text-center w-10">
+                  <th className="relative py-3 px-3 text-center">
                     <input type="checkbox" className="cursor-pointer" checked={isAllEvalSelected} onChange={toggleSelectAllEval} />
+                    <ColResizeHandle onMouseDown={startEvalMatrixColResize(0)} />
                   </th>
-                  <th className="py-3 px-3 text-center w-14">STT</th>
-                  <th className="py-3 px-3 text-left">Mã ma trận</th>
-                  <th className="py-3 px-3 text-left">Tên ma trận</th>
-                  <th className="py-3 px-3 text-left">Môn học</th>
-                  <th className="py-3 px-3 text-center">Tổng điểm</th>
-                  <th className="py-3 px-3 text-center">Số câu hỏi</th>
-                  <th className="py-3 px-3 text-center">Thời gian làm bài (phút)</th>
-                  <th className="py-3 px-3 text-center">Trạng thái</th>
-                  <th className="py-3 px-3 text-center">Thao tác</th>
+                  <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startEvalMatrixColResize(1)} /></th>
+                  <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(2)} /></th>
+                  <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(3)} /></th>
+                  <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startEvalMatrixColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startEvalMatrixColResize(5)} /></th>
+                  <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startEvalMatrixColResize(6)} /></th>
+                  <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startEvalMatrixColResize(7)} /></th>
+                  <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startEvalMatrixColResize(8)} /></th>
+                  <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startEvalMatrixColResize(9)} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -909,13 +912,11 @@ export default function MatrixConfigModule({ initialTab }: { initialTab?: 'list'
                           />
                         </td>
                         <td className="py-3 px-3 text-center">{(evalCurrentPage - 1) * evalPageSize + idx + 1}</td>
-                        <td className="py-3 px-3 font-semibold">{row.code}</td>
+                        <td className="py-3 px-3 font-semibold"><TruncatedText text={row.code} /></td>
                         <td className="py-3 px-3">
-                          <Tooltip title={row.name}>
-                            <span className="block max-w-[220px] truncate">{row.name}</span>
-                          </Tooltip>
+                          <TruncatedText text={row.name} />
                         </td>
-                        <td className="py-3 px-3">{row.subject}</td>
+                        <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
                         <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
                         <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
                         <td className="py-3 px-3 text-center">{row.duration}</td>

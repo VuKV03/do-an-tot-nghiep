@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Tree, Select, Input, Button, Space, Modal, Form, Spin, Empty, Pagination, Divider, Tooltip, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { FileExcelOutlined } from '@ant-design/icons';
-import { toast, ToastContainer } from '../../../../utils/toast';
+import { toast } from '../../../../utils/toast';
 import CreateQuestionModal from './manual-create';
 import AIGenerateQuestionModal from './ai-generate';
 import UpdateQuestionModal from './update';
@@ -721,7 +721,6 @@ export default function QuestionBankModule({
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <ToastContainer />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative mb-2">
         <button

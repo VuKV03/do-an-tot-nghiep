@@ -7,9 +7,9 @@ import {
   Button,
   Table,
   Tooltip,
-  message,
   ConfigProvider
 } from 'antd';
+import { toast } from '../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, ExportOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
@@ -183,7 +183,7 @@ export default function QuestionHistoryModal({
   };
 
   const handleExportExcel = () => {
-    message.success('Xuất Excel thành công! (tính năng đang phát triển)');
+    toast.success('Xuất Excel thành công! (tính năng đang phát triển)');
   };
 
   // ── Table columns ─────────────────────────
@@ -248,7 +248,7 @@ export default function QuestionHistoryModal({
             icon={<EyeOutlined className="text-blue-600" />}
             className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 mx-auto"
             onClick={() =>
-              message.info(`Xem chi tiết lịch sử #${record.stt} (tính năng đang phát triển)`)
+              toast.info(`Xem chi tiết lịch sử #${record.stt} (tính năng đang phát triển)`)
             }
             style={{ cursor: 'pointer' }}
           />

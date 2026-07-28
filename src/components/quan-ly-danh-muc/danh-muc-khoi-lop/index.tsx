@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Input, Select, DatePicker, Button, Space, ConfigProvider, Empty, Spin, message } from 'antd';
+import { Input, Select, DatePicker, Button, Space, ConfigProvider, Empty, Spin, Pagination } from 'antd';
+import { toast } from '../../../utils/toast';
 import { ChevronDown, ChevronUp, Eye, Edit, Trash2 } from 'lucide-react';
-import type { ColumnsType } from 'antd/es/table';
+import { FileExcelOutlined } from '@ant-design/icons';
 import { gradeLevelApi, type GradeLevelAPI } from '../../../services/danhMucApi.ts';
 import { formatDateTime } from '../../../utils/formatDate';
+import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 
 const { RangePicker } = DatePicker;
 
@@ -192,14 +195,18 @@ export default function DanhMucKhoiLop() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchActive, setSearchActive] = useState('all');
   const [searchDates, setSearchDates] = useState<any>(null);
-  const [messageApi, contextHolder] = message.useMessage();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { colGroup: khoiLopColGroup, startResize: startKhoiLopColResize, totalWidth: khoiLopTableTotalWidth } = useResizableColumns(
+    [40, 60, 140, 220, 160, 140, 140]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try { const res = await gradeLevelApi.list(); setData(res.data as GradeLevelType[]); }
-    catch { messageApi.error('Không thể tải dữ liệu!'); }
+    catch { toast.error('Không thể tải dữ liệu!'); }
     finally { setLoading(false); }
-  }, [messageApi]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -221,30 +228,42 @@ export default function DanhMucKhoiLop() {
     });
   }, [data, searchKeyword, searchActive, searchDates]);
 
-  const columns: ColumnsType<GradeLevelType> = [
-    { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, i) => i + 1 },
-    { title: 'Mã', dataIndex: 'code', key: 'code' },
-    { title: 'Tên', dataIndex: 'name', key: 'name' },
-    { title: 'Ngày tạo', dataIndex: 'created_at', key: 'created_at', render: (v) => v ? new Date(v).toLocaleString('vi-VN') : '' },
-    {
-      title: 'Trạng thái', dataIndex: 'is_active', key: 'is_active',
-      render: (v: boolean) => <span className={`px-3 py-1 rounded border text-sm font-medium ${v ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{v ? 'Hoạt động' : 'Không hoạt động'}</span>,
-    },
-    {
-      title: 'Thao tác', key: 'action', align: 'center',
-      render: (_, r) => (
-        <Space size="small">
-          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDetailOpen(true); }} icon={<Eye size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
-          <Button type="text" onClick={() => { setSelectedRecord(r); setIsUpdateOpen(true); }} icon={<Edit size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
-          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDeleteMultiple(false); setIsDeleteOpen(true); }} icon={<Trash2 size={16} className="text-red-500" />} className="bg-red-50 hover:bg-red-100 p-2 rounded-md" />
-        </Space>
-      ),
-    },
+  useEffect(() => { setCurrentPage(1); }, [searchKeyword, searchActive, searchDates]);
+
+  const paginatedData = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+  const isAllSelected = paginatedData.length > 0 && paginatedData.every(r => selectedRowKeys.includes(r.id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedRowKeys(prev => prev.filter(k => !paginatedData.some(r => r.id === k)));
+    else setSelectedRowKeys(prev => Array.from(new Set([...prev, ...paginatedData.map(r => r.id)])));
+  };
+  const toggleSelectRow = (id: string) => {
+    setSelectedRowKeys(prev => prev.includes(id) ? prev.filter(k => k !== id) : [...prev, id]);
+  };
+
+  const excelColumns: ExcelColumn<GradeLevelType>[] = [
+    { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
+    { header: 'Mã', accessor: row => row.code, width: 16 },
+    { header: 'Tên', accessor: row => row.name, width: 30 },
+    { header: 'Ngày tạo', accessor: row => row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '', width: 18, align: 'center' },
+    { header: 'Trạng thái', accessor: row => row.is_active ? 'Hoạt động' : 'Không hoạt động', width: 16, align: 'center' },
   ];
+
+  const handleExportExcel = () => {
+    if (filteredData.length === 0) {
+      toast.warning('Không có dữ liệu để xuất Excel.');
+      return;
+    }
+    const fileName = `KhoiLop_${new Date().toISOString().slice(0, 10)}`;
+    exportToExcel(filteredData, excelColumns, fileName, 'Khối lớp');
+    toast.success('Xuất báo cáo Excel thành công!');
+  };
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1d4ed8', borderRadius: 6 }, components: { Table: { headerBg: '#f8fafc', headerColor: '#334155', rowHoverBg: '#f1f5f9' } } }}>
-      {contextHolder}
       <div className="p-6 flex flex-col gap-8 bg-white min-h-[calc(100vh-200px)]">
         <div className="flex flex-col gap-4 border-b border-gray-200 pb-8">
           <div className="flex items-center gap-2 cursor-pointer text-[#1e3a8a] font-semibold text-lg select-none w-fit" onClick={() => setIsSearchExpanded(!isSearchExpanded)}>
@@ -273,17 +292,76 @@ export default function DanhMucKhoiLop() {
             </div>
             <Space>
               <Button type="primary" className="bg-[#1d4ed8] border-none h-10 font-medium px-4" onClick={() => setIsCreateOpen(true)}>Thêm mới</Button>
-              <Button className="border-[#1d4ed8] text-[#1d4ed8] h-10 font-medium px-4 hover:bg-blue-50">Xuất Excel</Button>
+              <Button type="primary" icon={<FileExcelOutlined />} className="!bg-green-600 !border-green-600 !text-white h-10 font-medium px-4 hover:!bg-green-700" onClick={handleExportExcel}>Xuất Excel</Button>
               <Button danger className="border-red-500 text-red-500 h-10 font-medium px-4" disabled={selectedRowKeys.length === 0} onClick={() => { setIsDeleteMultiple(true); setIsDeleteOpen(true); }}>Xóa</Button>
             </Space>
           </div>
+          <ResizableTableStyles />
           <Spin spinning={loading}>
-            <Table rowSelection={{ selectedRowKeys, onChange: (k) => setSelectedRowKeys(k) }} columns={columns} dataSource={filteredData} rowKey="id" locale={{ emptyText: <Empty description="Không có dữ liệu khối lớp" /> }} pagination={{ total: filteredData.length, showTotal: (t, r) => `${r[0]} - ${r[1]} / ${t} bản ghi`, showSizeChanger: true, defaultPageSize: 10, pageSizeOptions: ['10', '20', '50', '100'], locale: { items_per_page: '/ trang' }, className: 'mt-6' }} className="border-t border-gray-200" />
+            <div className="overflow-x-auto border-t border-gray-200">
+              <table style={{ minWidth: khoiLopTableTotalWidth }} className={`w-full text-sm text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {khoiLopColGroup}
+                <thead>
+                  <tr className="bg-[#f8fafc] border-b border-gray-200 text-[#334155] font-semibold">
+                    <th className="relative py-3 px-3 text-center">
+                      <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                      <ColResizeHandle onMouseDown={startKhoiLopColResize(0)} />
+                    </th>
+                    <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startKhoiLopColResize(1)} /></th>
+                    <th className="relative py-3 px-3 text-left">Mã<ColResizeHandle onMouseDown={startKhoiLopColResize(2)} /></th>
+                    <th className="relative py-3 px-3 text-left">Tên<ColResizeHandle onMouseDown={startKhoiLopColResize(3)} /></th>
+                    <th className="relative py-3 px-3 text-left">Ngày tạo<ColResizeHandle onMouseDown={startKhoiLopColResize(4)} /></th>
+                    <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startKhoiLopColResize(5)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startKhoiLopColResize(6)} /></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginatedData.length === 0 ? (
+                    <tr><td colSpan={7} className="py-12 text-center"><Empty description="Không có dữ liệu khối lớp" /></td></tr>
+                  ) : paginatedData.map((r, idx) => (
+                    <tr key={r.id} className="hover:bg-[#f1f5f9] transition-colors">
+                      <td className="py-3 px-3 text-center">
+                        <input type="checkbox" className="cursor-pointer" checked={selectedRowKeys.includes(r.id)} onChange={() => toggleSelectRow(r.id)} />
+                      </td>
+                      <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className="py-3 px-3"><TruncatedText text={r.code} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={r.name} /></td>
+                      <td className="py-3 px-3"><TruncatedText text={r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : ''} /></td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`px-3 py-1 rounded border text-sm font-medium ${r.is_active ? 'border-emerald-400 text-emerald-600 bg-emerald-50' : 'border-rose-400 text-rose-500 bg-rose-50'}`}>{r.is_active ? 'Hoạt động' : 'Không hoạt động'}</span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Space size="small">
+                          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDetailOpen(true); }} icon={<Eye size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
+                          <Button type="text" onClick={() => { setSelectedRecord(r); setIsUpdateOpen(true); }} icon={<Edit size={16} className="text-blue-600" />} className="bg-blue-50 hover:bg-blue-100 p-2 rounded-md" />
+                          <Button type="text" onClick={() => { setSelectedRecord(r); setIsDeleteMultiple(false); setIsDeleteOpen(true); }} icon={<Trash2 size={16} className="text-red-500" />} className="bg-red-50 hover:bg-red-100 p-2 rounded-md" />
+                        </Space>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Spin>
+          <div className="flex justify-between items-center mt-2">
+            <div className="text-xs text-slate-500 font-medium">
+              {filteredData.length === 0 ? '0 - 0' : `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, filteredData.length)}`} / {filteredData.length} bản ghi
+            </div>
+            <Pagination
+              current={currentPage}
+              total={filteredData.length}
+              pageSize={pageSize}
+              onChange={(page, size) => { setCurrentPage(page); setPageSize(size); }}
+              showSizeChanger
+              showQuickJumper={false}
+              pageSizeOptions={['10', '20', '50', '100']}
+              locale={{ items_per_page: '/ trang' }}
+            />
+          </div>
         </div>
       </div>
-      <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSave={async (v) => { try { await gradeLevelApi.create({ code: v.code!, name: v.name!, is_active: v.is_active ?? true, note: v.note ?? '' }); messageApi.success('Thêm thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
-      <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord} onSave={async (v) => { if (!selectedRecord) return false; try { await gradeLevelApi.update(selectedRecord.id, { code: v.code, name: v.name, is_active: v.is_active, note: v.note }); messageApi.success('Cập nhật thành công!'); fetchData(); return true; } catch (error: any) { messageApi.error(error.message || 'Lỗi!'); return false; } }} />
+      <CreateModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSave={async (v) => { try { await gradeLevelApi.create({ code: v.code!, name: v.name!, is_active: v.is_active ?? true, note: v.note ?? '' }); toast.success('Thêm thành công!'); fetchData(); return true; } catch (error: any) { toast.error(error.message || 'Lỗi!'); return false; } }} />
+      <UpdateModal open={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} record={selectedRecord} onSave={async (v) => { if (!selectedRecord) return false; try { await gradeLevelApi.update(selectedRecord.id, { code: v.code, name: v.name, is_active: v.is_active, note: v.note }); toast.success('Cập nhật thành công!'); fetchData(); return true; } catch (error: any) { toast.error(error.message || 'Lỗi!'); return false; } }} />
       <DetailModal open={isDetailOpen} onClose={() => setIsDetailOpen(false)} record={selectedRecord} />
       <DeleteModal open={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} itemName={selectedRecord?.name} isMultiple={isDeleteMultiple} multipleCount={selectedRowKeys.length} onConfirm={async () => {
         if (isDeleteMultiple) {
@@ -291,13 +369,13 @@ export default function DanhMucKhoiLop() {
           const results = await Promise.allSettled(keys.map((k) => gradeLevelApi.delete(k)));
           const succeeded = keys.filter((_, i) => results[i].status === 'fulfilled');
           const failed = keys.map((k, i) => ({ k, r: results[i] })).filter(({ r }) => r.status === 'rejected') as { k: string; r: PromiseRejectedResult }[];
-          if (failed.length === 0) { messageApi.success(`Đã xóa ${succeeded.length} khối lớp!`); }
-          else if (succeeded.length === 0) { messageApi.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
-          else { messageApi.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          if (failed.length === 0) { toast.success(`Đã xóa ${succeeded.length} khối lớp!`); }
+          else if (succeeded.length === 0) { toast.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
+          else { toast.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`); }
           setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
         } else if (selectedRecord) {
-          try { await gradeLevelApi.delete(selectedRecord.id); messageApi.success('Đã xóa!'); }
-          catch (e: any) { messageApi.error(e.message || 'Lỗi!'); }
+          try { await gradeLevelApi.delete(selectedRecord.id); toast.success('Đã xóa!'); }
+          catch (e: any) { toast.error(e.message || 'Lỗi!'); }
         }
         fetchData();
       }} />

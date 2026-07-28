@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Select, Input, InputNumber, message, Tabs, Spin, Empty, Tag, Checkbox } from 'antd';
+import { Modal, Button, Select, Input, InputNumber, Tabs, Spin, Empty, Tag, Checkbox } from 'antd';
+import { toast } from '../../../utils/toast';
 import { ThunderboltOutlined, DownloadOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import JSZip from 'jszip';
 import { Question } from '../../../types';
@@ -145,7 +146,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           }));
         setSourceQuestions(qs);
       })
-      .catch(() => message.error('Không tải được nội dung đề gốc.'))
+      .catch(() => toast.error('Không tải được nội dung đề gốc.'))
       .finally(() => setLoadingSource(false));
 
     // Ma trận đề: map thẳng theo exam.matrix_id (đề sinh từ luồng "Theo ma trận đề" mới có).
@@ -167,18 +168,18 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   const handleGenerate = () => {
     if (sourceQuestions.length === 0) {
-      message.error('Đề gốc chưa có câu hỏi nào để sinh đề hoán vị.');
+      toast.error('Đề gốc chưa có câu hỏi nào để sinh đề hoán vị.');
       return;
     }
     if (!permutationCount || permutationCount < 1) {
-      message.error('Vui lòng nhập số lượng đề hoán vị cần sinh (tối thiểu 1).');
+      toast.error('Vui lòng nhập số lượng đề hoán vị cần sinh (tối thiểu 1).');
       return;
     }
     setGenerating(true);
     try {
       const generated: Question[][] = Array.from({ length: permutationCount }, () => buildVariantQuestions(sourceQuestions));
       setVariants(generated);
-      message.success(`Đã sinh xem trước ${permutationCount} đề hoán vị.`);
+      toast.success(`Đã sinh xem trước ${permutationCount} đề hoán vị.`);
     } finally {
       setGenerating(false);
     }
@@ -319,11 +320,11 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
   const handleSavePackage = async () => {
     if (!exam) return;
     if (variants.length === 0) {
-      message.error('Vui lòng bấm "Sinh đề hoán vị" trước khi lưu.');
+      toast.error('Vui lòng bấm "Sinh đề hoán vị" trước khi lưu.');
       return;
     }
     if (!packageCode.trim() || !packageName.trim()) {
-      message.error('Vui lòng nhập Mã gói đề thi và Tên gói đề thi.');
+      toast.error('Vui lòng nhập Mã gói đề thi và Tên gói đề thi.');
       return;
     }
     setSaving(true);
@@ -376,11 +377,11 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const failedCodes = results.filter(r => !r.examId).map(r => r.code);
 
       if (failedCodes.length > 0) {
-        message.warning(`Không tạo được đề mã: ${failedCodes.map(c => `${exam.code}-${c}`).join(', ')} — có thể mã đề đã tồn tại. Hãy đổi "Mã đề thi bắt đầu từ" rồi thử lại cho các mã còn thiếu.`);
+        toast.warning(`Không tạo được đề mã: ${failedCodes.map(c => `${exam.code}-${c}`).join(', ')} — có thể mã đề đã tồn tại. Hãy đổi "Mã đề thi bắt đầu từ" rồi thử lại cho các mã còn thiếu.`);
       }
 
       if (newExamIds.length === 0) {
-        message.error('Không tạo được đề hoán vị nào — vui lòng thử lại.');
+        toast.error('Không tạo được đề hoán vị nào — vui lòng thử lại.');
         return;
       }
 
@@ -401,16 +402,16 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       });
       const pkgJson = await pkgRes.json().catch(() => null);
       if (!pkgRes.ok || !pkgJson?.success) {
-        message.error(
+        toast.error(
           `Lỗi khi lưu gói đề thi — Mã gói đề thi "${packageCode}" có thể đã tồn tại, vui lòng đổi mã khác. ` +
           `${newExamIds.length} đề hoán vị đã được tạo (mã ${exam.code}-${startCode}...) nhưng CHƯA được gắn vào gói nào — vào "Ngân hàng câu hỏi/Danh sách đề" để xử lý thủ công nếu cần.`
         );
         return;
       }
-      message.success(`Đã lưu gói đề thi với ${newExamIds.length} đề hoán vị!`);
+      toast.success(`Đã lưu gói đề thi với ${newExamIds.length} đề hoán vị!`);
       onSuccess();
     } catch {
-      message.error('Lỗi kết nối khi lưu gói đề thi.');
+      toast.error('Lỗi kết nối khi lưu gói đề thi.');
     } finally {
       setSaving(false);
     }

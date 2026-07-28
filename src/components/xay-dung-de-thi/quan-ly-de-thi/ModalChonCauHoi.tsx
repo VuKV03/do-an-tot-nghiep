@@ -5,6 +5,7 @@ import { topicsApi } from '../../../services/danhMucApi';
 import { Question } from '../../../types';
 import { stripHtmlToText } from '../../../utils/htmlContent';
 import ModalChiTietCauHoi from './ModalChiTietCauHoi';
+import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 
 interface ModalChonCauHoiProps {
   open: boolean;
@@ -62,6 +63,9 @@ export default function ModalChonCauHoi({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { colGroup: chonCauHoiColGroup, startResize: startChonCauHoiColResize, totalWidth: chonCauHoiTotalWidth } = useResizableColumns(
+    [32, 40, 110, 220, 110, 110, 140, 100, 90]
+  );
 
   // Detail modal
   const [detailQ, setDetailQ] = useState<any>(null);
@@ -282,11 +286,13 @@ export default function ModalChonCauHoi({
 
           {/* Results */}
           <div className="text-[#1a3c8b] font-bold text-xs italic mb-2">Kết quả tìm kiếm</div>
+          <ResizableTableStyles />
           <div className="overflow-auto border border-slate-200 rounded" style={{ maxHeight: 280 }}>
-            <table className="w-full text-[11px] font-medium text-slate-700 border-collapse">
+            <table style={{ minWidth: chonCauHoiTotalWidth }} className={`w-full text-[11px] font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+              {chonCauHoiColGroup}
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-600 font-semibold">
-                  <th className="py-2 px-2 text-center w-8">
+                  <th className="relative py-2 px-2 text-center">
                     {mode === 'multi' && (
                       <input type="checkbox" className="cursor-pointer accent-[#2c3e9e]"
                         checked={filtered.length > 0 && filtered.every(q => selectedIds.includes(q.id))}
@@ -299,15 +305,16 @@ export default function ModalChonCauHoi({
                         }}
                       />
                     )}
+                    <ColResizeHandle onMouseDown={startChonCauHoiColResize(0)} />
                   </th>
-                  <th className="py-2 px-2 text-center w-10">STT</th>
-                  <th className="py-2 px-2 text-left">Mã câu hỏi</th>
-                  <th className="py-2 px-2 text-left" style={{ minWidth: 180 }}>Nội dung câu hỏi</th>
-                  <th className="py-2 px-2 text-center">Loại câu hỏi</th>
-                  <th className="py-2 px-2 text-center">Cấp độ tư duy</th>
-                  <th className="py-2 px-2 text-left">Thuộc chủ đề</th>
-                  <th className="py-2 px-2 text-center">Ngày tạo</th>
-                  <th className="py-2 px-2 text-center">Thao tác</th>
+                  <th className="relative py-2 px-2 text-center">STT<ColResizeHandle onMouseDown={startChonCauHoiColResize(1)} /></th>
+                  <th className="relative py-2 px-2 text-left">Mã câu hỏi<ColResizeHandle onMouseDown={startChonCauHoiColResize(2)} /></th>
+                  <th className="relative py-2 px-2 text-left">Nội dung câu hỏi<ColResizeHandle onMouseDown={startChonCauHoiColResize(3)} /></th>
+                  <th className="relative py-2 px-2 text-center">Loại câu hỏi<ColResizeHandle onMouseDown={startChonCauHoiColResize(4)} /></th>
+                  <th className="relative py-2 px-2 text-center">Cấp độ tư duy<ColResizeHandle onMouseDown={startChonCauHoiColResize(5)} /></th>
+                  <th className="relative py-2 px-2 text-left">Thuộc chủ đề<ColResizeHandle onMouseDown={startChonCauHoiColResize(6)} /></th>
+                  <th className="relative py-2 px-2 text-center">Ngày tạo<ColResizeHandle onMouseDown={startChonCauHoiColResize(7)} /></th>
+                  <th className="relative py-2 px-2 text-center">Thao tác<ColResizeHandle onMouseDown={startChonCauHoiColResize(8)} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -323,15 +330,15 @@ export default function ModalChonCauHoi({
                           checked={checked} onChange={() => toggleRow(q.id)} onClick={e => e.stopPropagation()} />
                       </td>
                       <td className="py-2 px-2 text-center text-slate-400">{idx + 1}</td>
-                      <td className="py-2 px-2 font-mono text-[10px]">{q.code}</td>
+                      <td className="py-2 px-2 font-mono text-[10px]"><TruncatedText text={q.code} /></td>
                       <td className="py-2 px-2">
-                        <span className="block max-w-[200px] truncate">{stripHtmlToText(q.text)}</span>
+                        <TruncatedText text={stripHtmlToText(q.text)} />
                       </td>
                       <td className="py-2 px-2 text-center">{getTypeLabel(q.type)}</td>
                       <td className="py-2 px-2 text-center">
                         <Tag className="rounded-full text-[9px] font-bold px-1.5 m-0 border-transparent" color="blue">{getLevelLabel(q.level)}</Tag>
                       </td>
-                      <td className="py-2 px-2 text-[10px] text-slate-500">{q.topicName || '—'}</td>
+                      <td className="py-2 px-2 text-[10px] text-slate-500"><TruncatedText text={q.topicName || '—'} /></td>
                       <td className="py-2 px-2 text-center text-[10px] text-slate-400">{q.createdAt?.slice(0, 10) || '—'}</td>
                       <td className="py-2 px-2 text-center" onClick={e => e.stopPropagation()}>
                         <Tooltip title="Xem chi tiết">

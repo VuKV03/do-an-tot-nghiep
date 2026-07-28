@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { message, Image } from 'antd';
+import { Image } from 'antd';
+import { toast } from '../utils/toast';
 import 'katex/dist/katex.min.css';
 import { isLikelyHtml, sanitizeHtml } from '../utils/htmlContent';
 import { compressImageFile } from '../utils/imageCompress';
@@ -280,12 +281,12 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
 
     const invalid = files.find((f) => !f.type.startsWith('image/'));
     if (invalid) {
-      message.error('Vui lòng chỉ chọn các tệp ảnh (PNG/JPG/GIF).');
+      toast.error('Vui lòng chỉ chọn các tệp ảnh (PNG/JPG/GIF).');
       return;
     }
     const tooBig = files.find((f) => f.size > MAX_ORIGINAL_FILE_BYTES);
     if (tooBig) {
-      message.error(`Ảnh "${tooBig.name}" quá lớn (${Math.round(tooBig.size / 1024 / 1024)}MB). Vui lòng chọn ảnh dưới 25MB.`);
+      toast.error(`Ảnh "${tooBig.name}" quá lớn (${Math.round(tooBig.size / 1024 / 1024)}MB). Vui lòng chọn ảnh dưới 25MB.`);
       return;
     }
 
@@ -303,7 +304,7 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
       setAttachments(next);
       emitChange(next);
     } catch (err: any) {
-      message.error(err?.message || 'Không thể xử lý ảnh này. Vui lòng thử ảnh khác.');
+      toast.error(err?.message || 'Không thể xử lý ảnh này. Vui lòng thử ảnh khác.');
     } finally {
       setIsProcessingImage(false);
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Select, Button, Table, Row, Col, Typography, Tag, message } from 'antd';
+import { Card, Select, Button, Table, Row, Col, Typography, Tag } from 'antd';
+import { toast } from '../../utils/toast';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -55,7 +56,7 @@ export default function QuanLyKetQuaThi() {
       }
     } catch (error) {
       console.error(error);
-      message.error("Lỗi khi tải danh sách gói đề");
+      toast.error("Lỗi khi tải danh sách gói đề");
     } finally {
       setLoadingPackages(false);
     }
@@ -63,7 +64,7 @@ export default function QuanLyKetQuaThi() {
 
   const fetchResults = async () => {
     if (!selectedPackageId) {
-      message.warning("Vui lòng chọn gói đề");
+      toast.warning("Vui lòng chọn gói đề");
       return;
     }
     setLoadingResults(true);
@@ -74,11 +75,11 @@ export default function QuanLyKetQuaThi() {
         const resultsList = data.data || data;
         setResults(Array.isArray(resultsList) ? resultsList : []);
       } else {
-        message.error("Lỗi khi tải kết quả thi");
+        toast.error("Lỗi khi tải kết quả thi");
       }
     } catch (error) {
       console.error(error);
-      message.error("Lỗi kết nối");
+      toast.error("Lỗi kết nối");
     } finally {
       setLoadingResults(false);
     }
