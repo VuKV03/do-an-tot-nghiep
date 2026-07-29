@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode } from '../../../../types';
 import { SUBJECTS, GRADES, TOPICS_TREE } from '../../../../data';
-import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
+import { RichTextView, stripHtmlToText, renderQuestionPreview } from '../../../../utils/htmlContent';
 import QuestionHistoryModal from '../history';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -560,7 +560,7 @@ export default function ThamDinhCauHoiTab({
                 maxWidth: '320px',
               }}
             >
-              {plainText}
+              {renderQuestionPreview(text)}
             </div>
           </Tooltip>
         );

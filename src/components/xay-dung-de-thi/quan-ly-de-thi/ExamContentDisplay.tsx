@@ -124,8 +124,9 @@ export default function ExamContentDisplay({
                   <div className="pl-4 border-l-2 border-slate-100 space-y-4 mt-2">
                     {q.subQuestions.map((subQ: any, subIdx: number) => (
                       <div key={subQ.id || subIdx} className="space-y-2">
-                        <div className="font-medium text-slate-800">
-                          {idx + 1}.{subIdx + 1}: {subQ.text}
+                        <div className="font-medium text-slate-800 flex gap-1">
+                          <span className="shrink-0">{idx + 1}.{subIdx + 1}:</span>
+                          <RichTextView html={subQ.text} />
                         </div>
                         {Array.isArray(subQ.options) && subQ.options.length > 0 && (
                           <div className="grid grid-cols-2 gap-2 pl-2 text-slate-500">
@@ -140,14 +141,15 @@ export default function ExamContentDisplay({
                                     : 'border-transparent'
                                     }`}
                                 >
-                                  {label}. {opt}
+                                  <span className="shrink-0">{label}.</span> <RichTextView html={opt} className="inline" />
                                 </div>
                               );
                             })}
                           </div>
                         )}
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                          Đáp án đúng: <span className="text-emerald-600 font-bold">{subQ.correctAnswer}</span>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex gap-1">
+                          <span className="shrink-0">Đáp án đúng:</span>
+                          <RichTextView html={String(subQ.correctAnswer ?? '')} className="text-emerald-600 font-bold inline" />
                         </div>
                       </div>
                     ))}
@@ -170,7 +172,7 @@ export default function ExamContentDisplay({
                             : 'bg-slate-50/40 border-slate-100 hover:border-slate-200 text-slate-600'
                             }`}
                         >
-                          {label}. {opt}
+                          <span className="shrink-0">{label}.</span> <RichTextView html={opt} className="inline" />
                         </div>
                       );
                     })}
@@ -181,10 +183,10 @@ export default function ExamContentDisplay({
                 {!isGroup && (
                   <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     <span>Hình thức: Trắc nghiệm khách quan</span>
-                    <span>
-                      Đáp án chính xác:{' '}
+                    <span className="flex items-center gap-1">
+                      Đáp án chính xác:
                       <Tag color="emerald" className="font-bold border-transparent m-0 py-0.5 px-1.5 rounded text-[10px]">
-                        {q.correctAnswer}
+                        <RichTextView html={String(q.correctAnswer ?? '')} className="inline" />
                       </Tag>
                     </span>
                   </div>

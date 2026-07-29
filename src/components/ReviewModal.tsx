@@ -130,7 +130,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
                         : 'bg-slate-50 border-slate-200 text-slate-700'
                     }`}
                   >
-                    {opt}
+                    <RichTextView html={opt} />
                   </div>
                 ))}
               </div>

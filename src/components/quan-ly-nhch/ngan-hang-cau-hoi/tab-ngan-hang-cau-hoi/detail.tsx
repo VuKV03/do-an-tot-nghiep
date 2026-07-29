@@ -144,7 +144,7 @@ export default function QuestionDetailModal({
                 {statements.map((st, idx) => (
                   <tr key={st.id || idx} className="border-b border-slate-100 hover:bg-slate-50/40">
                     <td className="py-3 px-4 text-center text-slate-400 font-mono font-medium">{idx + 1}</td>
-                    <td className="py-3 px-4 text-slate-700 font-medium">{st.content}</td>
+                    <td className="py-3 px-4 text-slate-700 font-medium"><RichTextView html={st.content} /></td>
                     <td className="py-3 px-4 text-center">
                       <Tag color={st.isCorrect ? 'emerald' : 'rose'} className="font-bold border px-3 py-0.5 rounded">
                         {st.isCorrect ? 'Đúng' : 'Sai'}

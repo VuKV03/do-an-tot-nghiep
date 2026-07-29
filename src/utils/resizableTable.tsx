@@ -134,10 +134,14 @@ export function TruncatedText({
   text,
   maxTooltipLength = DEFAULT_TOOLTIP_MAX_LENGTH,
   className,
+  tooltipText,
 }: {
   text: React.ReactNode;
   maxTooltipLength?: number;
   className?: string;
+  /** Nội dung tooltip hiển thị khi bị cắt — chỉ định rõ khi `text` không phải string/number (vd:
+   * JSX có chứa công thức toán render sẵn), vì khi đó không thể tự suy ra text thuần từ `text`. */
+  tooltipText?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -152,7 +156,7 @@ export function TruncatedText({
     return () => ro.disconnect();
   }, [text]);
 
-  const plainText = typeof text === 'string' ? text : typeof text === 'number' ? String(text) : '';
+  const plainText = tooltipText ?? (typeof text === 'string' ? text : typeof text === 'number' ? String(text) : '');
   const tooltipContent = plainText.length > maxTooltipLength
     ? `${plainText.slice(0, maxTooltipLength)}…`
     : plainText;

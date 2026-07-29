@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Button, message, Spin, Typography, Modal, Radio, Space, Input } from 'antd';
 import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FlagFilled, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../../types';
+import { RichTextView } from '../../../utils/htmlContent';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -419,7 +420,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                     const globalIdx = getQuestionGlobalIndex(q.id);
                     return (
                       <div key={q.id} className="border-b pb-6 last:border-0 border-slate-100">
-                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {globalIdx + 1}: </span> <span className="font-medium">{q.content}</span></div>
+                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {globalIdx + 1}: </span> <RichTextView html={q.content} className="font-medium" /></div>
                         {q.type_code === 'true_false' || q.type_code?.toLowerCase() === 'đs' || q.type_code?.toLowerCase() === 'ds' ? (
                           <div className="pl-12 w-full max-w-4xl">
                             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -443,7 +444,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                                     return (
                                       <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
                                         <td className="py-3 px-4 text-center font-bold">{letter})</td>
-                                        <td className="py-3 px-4">{opt}</td>
+                                        <td className="py-3 px-4"><RichTextView html={opt} /></td>
                                         <td className="py-3 px-4 text-center border-l border-slate-100">
                                           <Radio
                                             checked={isTrue}
@@ -488,7 +489,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                               const letter = String.fromCharCode(65 + oIdx);
                               return (
                                 <Radio key={letter} value={letter} className="text-slate-700">
-                                  <span className="font-bold">{letter}. </span> {opt.substring(3)}
+                                  <span className="font-bold">{letter}. </span> <RichTextView html={opt.substring(3)} className="inline" />
                                 </Radio>
                               );
                             })}
@@ -677,8 +678,8 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                   <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
                     Câu {currentQuestionIdx + 1}:
                   </div>
-                  <div className="text-[15px] text-slate-800 font-medium leading-relaxed flex-1">
-                    {currentQ.content}
+                  <div className="flex-1">
+                    <RichTextView html={currentQ.content} className="text-[15px] text-slate-800 font-medium leading-relaxed" />
                   </div>
                   <div
                     className="cursor-pointer shrink-0 ml-4 flex flex-col items-center justify-center p-2 rounded-lg transition-all hover:bg-slate-100"
@@ -719,7 +720,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                             return (
                               <tr key={letter} className="hover:bg-slate-50 transition-colors bg-white">
                                 <td className="py-3.5 px-4 text-center font-bold">{letter})</td>
-                                <td className="py-3.5 px-4">{opt}</td>
+                                <td className="py-3.5 px-4"><RichTextView html={opt} /></td>
                                 <td className="py-3.5 px-4 text-center border-l border-slate-100">
                                   <Radio
                                     checked={isTrue}
@@ -772,7 +773,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                             className="text-[15px] text-slate-800 font-normal w-full m-0 py-1"
                           >
                             <span className={`font-bold mr-1 ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{letter}.</span>
-                            <span>{opt.substring(3)}</span>
+                            <RichTextView html={opt.substring(3)} className="inline" />
                           </Radio>
                         );
                       })}

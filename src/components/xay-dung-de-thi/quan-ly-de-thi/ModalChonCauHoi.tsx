@@ -3,7 +3,7 @@ import { Modal, Button, Select, Input, Tree, Empty, Tooltip, Tag } from 'antd';
 import { SearchOutlined, EyeOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
 import { topicsApi } from '../../../services/danhMucApi';
 import { Question } from '../../../types';
-import { stripHtmlToText } from '../../../utils/htmlContent';
+import { stripHtmlToText, renderQuestionPreview } from '../../../utils/htmlContent';
 import ModalChiTietCauHoi from './ModalChiTietCauHoi';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 
@@ -332,7 +332,7 @@ export default function ModalChonCauHoi({
                       <td className="py-2 px-2 text-center text-slate-400">{idx + 1}</td>
                       <td className="py-2 px-2 font-mono text-[10px]"><TruncatedText text={q.code} /></td>
                       <td className="py-2 px-2">
-                        <TruncatedText text={stripHtmlToText(q.text)} />
+                        <TruncatedText text={renderQuestionPreview(q.text)} tooltipText={stripHtmlToText(q.text)} />
                       </td>
                       <td className="py-2 px-2 text-center">{getTypeLabel(q.type)}</td>
                       <td className="py-2 px-2 text-center">

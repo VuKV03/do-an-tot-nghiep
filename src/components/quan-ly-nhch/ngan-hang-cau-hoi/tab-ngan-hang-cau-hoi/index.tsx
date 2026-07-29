@@ -29,7 +29,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { Question, QuestionType, CognitiveLevel, QuestionStatus, TopicNode, SystemUser } from '../../../../types';
-import { stripHtmlToText } from '../../../../utils/htmlContent';
+import { stripHtmlToText, renderQuestionPreview } from '../../../../utils/htmlContent';
 import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
 import { buildQuestionTypeFilterOptions } from '../../../../utils/questionTypeCategory';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../../utils/resizableTable';
@@ -1100,7 +1100,7 @@ export default function QuestionBankModule({
                           </td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px] font-mono">{idx + 1}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.code} className="text-black text-[11px] font-semibold" /></td>
-                          <td className="py-2.5 px-3"><TruncatedText text={stripHtmlToText(record.text)} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={renderQuestionPreview(record.text)} tooltipText={stripHtmlToText(record.text)} className="text-black text-[11px]" /></td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getQuestionTypeLabelShort(record.type)}</td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getCognitiveLevelLabelShort(record.level)}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.creator || ''} className="text-black text-[11px]" /></td>

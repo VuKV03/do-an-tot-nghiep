@@ -43,6 +43,44 @@ export function stripHtmlToText(value: string | undefined | null): string {
   return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
+/** Bản xem trước cho bảng danh sách/modal chọn câu hỏi — KHÁC với stripHtmlToText: công thức toán
+ * được giữ nguyên HTML đã render (KaTeX), không thay bằng mã LaTeX gốc, để danh sách hiện đúng công
+ * thức đã "convert" giống màn thêm mới/sửa thay vì lộ ký tự LaTeX thô ra ngoài. Các định dạng khác
+ * (đậm/nghiêng/ảnh/bảng) vẫn bị bóc bỏ để giữ đồng nhất font/không đậm giữa các ô trong bảng.
+ */
+export function renderQuestionPreview(value: string | undefined | null): React.ReactNode {
+  if (!value) return '';
+  if (!isLikelyHtml(value)) return value;
+  const clean = sanitizeHtml(value);
+  const doc = new DOMParser().parseFromString(clean, 'text/html');
+  doc.querySelectorAll('table').forEach((table) => table.remove());
+
+  const flatten = (node: Node): string => {
+    let out = '';
+    node.childNodes.forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        out += (child.textContent ?? '').replace(/\s+/g, ' ');
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        if (el.tagName === 'BR') {
+          out += ' ';
+        } else if (el.classList.contains(FORMULA_CLASS)) {
+          out += el.outerHTML;
+        } else if (el.tagName !== 'IMG') {
+          out += flatten(el);
+        }
+      }
+    });
+    return out;
+  };
+
+  const previewHtml = flatten(doc.body).trim();
+  if (!previewHtml.includes(FORMULA_CLASS)) {
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+  return <span dangerouslySetInnerHTML={{ __html: previewHtml }} />;
+}
+
 const parserOptions: HTMLReactParserOptions = {
   replace: (domNode) => {
     if (domNode instanceof ParserElement && domNode.name === 'img') {
