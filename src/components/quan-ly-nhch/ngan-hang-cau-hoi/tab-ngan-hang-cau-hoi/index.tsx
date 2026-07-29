@@ -186,7 +186,11 @@ export default function QuestionBankModule({
       setAllTopicsRaw(topRes.data);
 
       if (subjectOptions.length > 0) {
-        setSelectedSubject('');
+        if (isRestricted && subjectOptions.length < 2) {
+          setSelectedSubject(subjectOptions[0].value);
+        } else {
+          setSelectedSubject('');
+        }
       }
     } catch (e) {
       console.error('Không thể tải dữ liệu môn học / chủ đề:', e);
@@ -238,12 +242,15 @@ export default function QuestionBankModule({
   }, [fetchFiltersAndTopics, fetchQuestions]);
 
 
-  // Subjects dropdown: prefer API data, fallback to static
   const subjectDropdownOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS))
-    ],
+    () => {
+      const options = [];
+      if (!isSubjectRestricted || apiSubjects.length >= 2) {
+        options.push({ value: '', label: 'Tất cả' });
+      }
+      options.push(...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS)));
+      return options;
+    },
     [apiSubjects, isSubjectRestricted]
   );
   // Grades dropdown: prefer API data, fallback to static
