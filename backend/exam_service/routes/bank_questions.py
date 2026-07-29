@@ -18,6 +18,7 @@ from sqlalchemy import select, text, func, or_, and_
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
+
 from backend.shared.database import get_db
 from backend.exam_service.models import (
     Question,
