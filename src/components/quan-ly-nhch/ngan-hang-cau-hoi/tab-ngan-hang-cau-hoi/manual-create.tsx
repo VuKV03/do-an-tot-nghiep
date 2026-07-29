@@ -516,10 +516,43 @@ export default function CreateQuestionModal({
             <button
               key={item.value}
               onClick={() => {
-                setQuestionType(item.value);
-                if (item.value !== 'true_false') {
+                const from = questionType;
+                const to = item.value;
+
+                if (from === 'single' && to === 'true_false') {
+                  // Trắc nghiệm -> Đúng/Sai: giữ nguyên nội dung + cờ đúng của từng dòng — khác
+                  // biệt duy nhất là Đúng/Sai cho phép nhiều ý đúng cùng lúc thay vì đúng 1 đáp án,
+                  // nên giữ nguyên isCorrect của từng dòng thay vì reset.
+                  setStatements(
+                    Array.from({ length: 4 }).map((_, i) => {
+                      const a = answers[i];
+                      return {
+                        topicId: formTopicKey || '',
+                        topicName: '',
+                        level: 'nhan_biet' as CognitiveLevel,
+                        nangLuc: undefined,
+                        content: a?.content || '',
+                        isCorrect: a?.isCorrect || false,
+                      };
+                    }),
+                  );
+                } else if (from === 'true_false' && to === 'single') {
+                  // Đúng/Sai -> Trắc nghiệm: giữ nguyên nội dung từng dòng, nhưng trắc nghiệm chỉ
+                  // được đúng 1 đáp án nên chỉ giữ lại ý đúng ĐẦU TIÊN, các ý đúng khác (nếu có)
+                  // chuyển thành chưa chọn thay vì mất nội dung.
+                  let markedFirst = false;
+                  setAnswers(
+                    statements.map((st, i) => {
+                      const isCorrect = !markedFirst && st.isCorrect;
+                      if (isCorrect) markedFirst = true;
+                      return { id: i + 1, content: st.content, isCorrect };
+                    }),
+                  );
+                } else if (to !== 'true_false') {
                   resetAnswers();
                 }
+
+                setQuestionType(to);
               }}
               className={`flex items-center gap-3 px-5 py-3 text-left transition-all border-l-4 ${
                 questionType === item.value
