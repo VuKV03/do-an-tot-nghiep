@@ -17,8 +17,7 @@ from sqlalchemy import select, delete, or_, and_, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import MatrixConfig
-from backend.exam_service.reference_guard import SUBJECT_MAP
+from backend.exam_service.models import MatrixConfig, SubjectCategory
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
 
@@ -33,6 +32,27 @@ class MatrixConfigCreate(BaseModel):
 
 class BatchDeleteRequest(BaseModel):
     ids: List[str]
+
+
+# ─── Helpers ────────────────────────────────────────────────────────
+
+async def _resolve_subject_name(db: AsyncSession, subject_id: Optional[str]) -> Optional[str]:
+    """Tra tên môn học từ bảng subject_categories theo subject_id."""
+    if not subject_id:
+        return None
+    result = await db.execute(select(SubjectCategory.name).where(SubjectCategory.id == subject_id))
+    name = result.scalar_one_or_none()
+    return name or subject_id  # fallback hiển thị id nếu không tìm thấy
+
+
+async def _build_subject_map(db: AsyncSession, subject_ids: list[str]) -> dict[str, str]:
+    """Batch-load tên môn học cho danh sách subject_id (tránh N+1 query)."""
+    if not subject_ids:
+        return {}
+    result = await db.execute(
+        select(SubjectCategory.id, SubjectCategory.name).where(SubjectCategory.id.in_(subject_ids))
+    )
+    return {row.id: row.name for row in result.all()}
 
 
 # ─── Routes ─────────────────────────────────────────────────────────
@@ -82,6 +102,10 @@ async def list_matrix_configs(
     result = await db.execute(query)
     configs = result.scalars().all()
 
+    # Batch-load subject names to avoid N+1 queries
+    subject_ids = list({c.subject_id for c in configs if c.subject_id})
+    subject_name_map = await _build_subject_map(db, subject_ids)
+
     data = []
     for c in configs:
         data.append({
@@ -89,7 +113,7 @@ async def list_matrix_configs(
             "code": c.code,
             "name": c.name,
             "subject_id": c.subject_id,
-            "subject": SUBJECT_MAP.get(c.subject_id, c.subject_id) if c.subject_id else None,
+            "subject": subject_name_map.get(c.subject_id, c.subject_id) if c.subject_id else None,
             "totalScore": c.totalScore,
             "totalQuestions": c.totalQuestions,
             "duration": c.duration,
@@ -112,61 +136,72 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
     if not body.ten.strip():
         raise HTTPException(status_code=400, detail="Tên ma trận không được để trống.")
 
-    # Calculate total questions and total score
-    total_questions = 0
-    total_score = 0.0
+    try:
+        # Calculate total questions and total score
+        total_questions = 0
+        total_score = 0.0
 
-    for row in body.ds_cau_truc:
-        for cell in row.get("ds_loai_cau_hoi", []):
-            so_cau = cell.get("so_cau") or 0
-            diem = cell.get("diem") or 0.0
-            total_questions += so_cau
-            total_score += so_cau * diem
+        for row in body.ds_cau_truc:
+            for cell in row.get("ds_loai_cau_hoi", []):
+                so_cau = cell.get("so_cau") or 0
+                diem = cell.get("diem") or 0.0
+                total_questions += so_cau
+                total_score += so_cau * diem
 
-    matrix_id = f"mtr-{int(time.time() * 1000)}"
-    
-    # Generate code if empty
-    subj_code = body.mon_hoc_id.split("-")[-1].upper()
-    matrix_code = body.ma.strip() if (body.ma and body.ma.strip()) else f"MTR-{subj_code}-{int(time.time())}"
+        matrix_id = f"mtr-{int(time.time() * 1000)}"
+        
+        # Generate code if empty
+        subj_code = body.mon_hoc_id.split("-")[-1].upper()
+        matrix_code = body.ma.strip() if (body.ma and body.ma.strip()) else f"MTR-{subj_code}-{int(time.time())}"
 
-    # Check unique code
-    existing_result = await db.execute(select(MatrixConfig).where(MatrixConfig.code == matrix_code))
-    if existing_result.scalar_one_or_none():
-        matrix_code = f"{matrix_code}-{str(int(time.time()))[-4:]}"
+        # Check unique code
+        existing_result = await db.execute(select(MatrixConfig).where(MatrixConfig.code == matrix_code))
+        if existing_result.scalar_one_or_none():
+            matrix_code = f"{matrix_code}-{str(int(time.time()))[-4:]}"
 
-    now = datetime.utcnow().isoformat() + "Z"
-    subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
+        now = datetime.utcnow().isoformat() + "Z"
 
-    new_config = MatrixConfig(
-        id=matrix_id,
-        code=matrix_code,
-        name=body.ten,
-        subject_id=body.mon_hoc_id,
-        totalScore=total_score,
-        totalQuestions=total_questions,
-        duration=90, # Default duration in minutes
-        status="new",
-        createdAt=now,
-        structure=json.dumps(body.ds_cau_truc, ensure_ascii=False)
-    )
+        # Serialize structure — ensure it is valid JSON
+        structure_json = json.dumps(body.ds_cau_truc, ensure_ascii=False, default=str)
 
-    db.add(new_config)
-    await db.commit()
+        # Resolve subject name for response
+        subject_name = await _resolve_subject_name(db, body.mon_hoc_id)
 
-    return {
-        "success": True,
-        "message": "Lưu ma trận thành công!",
-        "data": {
-            "id": new_config.id,
-            "code": new_config.code,
-            "name": new_config.name,
-            "subject_id": new_config.subject_id,
-            "subject": SUBJECT_MAP.get(new_config.subject_id, new_config.subject_id) if new_config.subject_id else None,
-            "totalScore": new_config.totalScore,
-            "totalQuestions": new_config.totalQuestions,
-            "createdAt": new_config.createdAt
+        new_config = MatrixConfig(
+            id=matrix_id,
+            code=matrix_code,
+            name=body.ten,
+            subject_id=body.mon_hoc_id,
+            totalScore=total_score,
+            totalQuestions=total_questions,
+            duration=90, # Default duration in minutes
+            status="new",
+            createdAt=now,
+            structure=structure_json
+        )
+
+        db.add(new_config)
+        await db.commit()
+
+        return {
+            "success": True,
+            "message": "Lưu ma trận thành công!",
+            "data": {
+                "id": new_config.id,
+                "code": new_config.code,
+                "name": new_config.name,
+                "subject_id": new_config.subject_id,
+                "subject": subject_name,
+                "totalScore": new_config.totalScore,
+                "totalQuestions": new_config.totalQuestions,
+                "createdAt": new_config.createdAt
+            }
         }
-    }
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu ma trận: {str(e)}")
 
 
 @router.delete("/{config_id}")
@@ -209,12 +244,14 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
     if not config:
         raise HTTPException(status_code=404, detail="Không tìm thấy ma trận đề thi.")
 
-    mon_hoc_id = config.subject_id if config.subject_id else "mh-toan"
+    mon_hoc_id = config.subject_id or ""
 
     try:
         ds_cau_truc = json.loads(config.structure) if config.structure else []
     except Exception:
         ds_cau_truc = []
+
+    subject_name = await _resolve_subject_name(db, config.subject_id)
 
     return {
         "success": True,
@@ -224,7 +261,7 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
             "name": config.name,
             "mon_hoc_id": mon_hoc_id,
             "subject_id": config.subject_id,
-            "subject": SUBJECT_MAP.get(config.subject_id, config.subject_id) if config.subject_id else None,
+            "subject": subject_name,
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions,
             "status": config.status,
@@ -270,40 +307,44 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
     if not body.ten.strip():
         raise HTTPException(status_code=400, detail="Tên ma trận không được để trống.")
 
-    # Calculate total questions and total score
-    total_questions = 0
-    total_score = 0.0
+    try:
+        # Calculate total questions and total score
+        total_questions = 0
+        total_score = 0.0
 
-    for row in body.ds_cau_truc:
-        for cell in row.get("ds_loai_cau_hoi", []):
-            so_cau = cell.get("so_cau") or 0
-            diem = cell.get("diem") or 0.0
-            total_questions += so_cau
-            total_score += so_cau * diem
+        for row in body.ds_cau_truc:
+            for cell in row.get("ds_loai_cau_hoi", []):
+                so_cau = cell.get("so_cau") or 0
+                diem = cell.get("diem") or 0.0
+                total_questions += so_cau
+                total_score += so_cau * diem
 
-    subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
+        # Update fields
+        config.name = body.ten
+        if body.ma and body.ma.strip():
+            config.code = body.ma.strip()
+        config.subject_id = body.mon_hoc_id
+        config.totalScore = total_score
+        config.totalQuestions = total_questions
+        config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False, default=str)
 
-    # Update fields
-    config.name = body.ten
-    if body.ma and body.ma.strip():
-        config.code = body.ma.strip()
-    config.subject_id = body.mon_hoc_id
-    config.totalScore = total_score
-    config.totalQuestions = total_questions
-    config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
+        await db.commit()
 
-    await db.commit()
-
-    return {
-        "success": True,
-        "message": "Cập nhật ma trận thành công!",
-        "data": {
-            "id": config.id,
-            "code": config.code,
-            "name": config.name,
-            "subject_id": config.subject_id,
-            "subject": SUBJECT_MAP.get(config.subject_id, config.subject_id) if config.subject_id else None,
-            "totalScore": config.totalScore,
-            "totalQuestions": config.totalQuestions
+        return {
+            "success": True,
+            "message": "Cập nhật ma trận thành công!",
+            "data": {
+                "id": config.id,
+                "code": config.code,
+                "name": config.name,
+                "subject_id": config.subject_id,
+                "subject": await _resolve_subject_name(db, config.subject_id),
+                "totalScore": config.totalScore,
+                "totalQuestions": config.totalQuestions
+            }
         }
-    }
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật ma trận: {str(e)}")

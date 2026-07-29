@@ -259,7 +259,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
     let chuDe: ChuDeNode[] = [];
     let subjectCfg: SubjectConfigAPI | null = null;
     try {
-      const selectedSubj = fullSubjects.find(s => s.code === value);
+      const selectedSubj = fullSubjects.find(s => s.id === value);
       if (selectedSubj) {
         const result = await fetchSubjectMatrixConfig(selectedSubj);
         cd = result.cd;
@@ -293,7 +293,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
           let cd: CaiDatMaTran = { ds_dm_muc_do: [], ds_dm_thanh_phan_nang_luc: [], ds_loai_cau_hoi: [] };
           let chuDe: ChuDeNode[] = [];
           try {
-            const selectedSubj = subjectsList.find(s => s.code === mId);
+            const selectedSubj = subjectsList.find(s => s.id === mId);
             if (selectedSubj) {
               const result = await fetchSubjectMatrixConfig(selectedSubj);
               cd = result.cd;
@@ -345,7 +345,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
       
       setFullSubjects(rawList);
       const list = filteredSubjects.map((item: any) => ({
-        id: item.code,
+        id: item.id,
         ten: item.name
       }));
       setMonHocList(list);
@@ -633,7 +633,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
 
       {/* Content: Tree + Table */}
       {monHocId && (
-        <Spin spinning={isChangingSubject} tip="Đang tải dữ liệu...">
+        <Spin spinning={isChangingSubject} description="Đang tải dữ liệu...">
           <div className="flex gap-4" style={{ minHeight: 400 }}>
             {/* Left: Cây chủ đề */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-xs" style={{ width: 300, flexShrink: 0 }}>

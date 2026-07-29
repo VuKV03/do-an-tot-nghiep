@@ -105,7 +105,7 @@ class MatrixConfig(Base):
     duration = Column(Integer, default=45)
     status = Column(String(50), default="new")
     createdAt = Column(String(100), nullable=False)
-    structure = Column(Text)  # JSON string of ds_cau_truc array
+    structure = Column(LONGTEXT)  # JSON string of ds_cau_truc array
 
 
 # ─── Danh mục môn học (SubjectCategory) ──────────────────────────────

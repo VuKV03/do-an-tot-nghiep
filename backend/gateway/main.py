@@ -108,6 +108,7 @@ async def proxy_request(request: Request, target_url: str) -> Response:
 
 
 # ─── Route: Exam Service ────────────────────────────────────────────
+@app.api_route("/api/v1/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/v1/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams(request: Request, path: str = ""):
     """Forward exam requests to Exam Service."""
@@ -116,6 +117,7 @@ async def proxy_exams(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
+@app.api_route("/api/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams_fallback(request: Request, path: str = ""):
     """Backward compatible exam route."""
@@ -129,6 +131,7 @@ async def proxy_exams_fallback(request: Request, path: str = ""):
 
 
 # ─── Route: Matrix Configs ──────────────────────────────────────────
+@app.api_route("/api/matrix-configs", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/matrix-configs/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_matrix_configs(request: Request, path: str = ""):
     """Forward matrix config requests to Exam Service."""
@@ -151,6 +154,7 @@ async def proxy_suggest_info(request: Request):
     return await proxy_request(request, SERVICE_MAP["ai"])
 
 
+@app.api_route("/api/ai/v1", methods=["GET", "POST"])
 @app.api_route("/api/ai/v1/{path:path}", methods=["GET", "POST"])
 async def proxy_ai_v1(request: Request, path: str = ""):
     """Forward AI v1 routes."""
@@ -166,6 +170,7 @@ async def proxy_analytics_summary(request: Request):
     return await proxy_request(request, SERVICE_MAP["analytics"])
 
 
+@app.api_route("/api/auth", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_auth(request: Request, path: str = ""):
     """Forward auth requests to Auth Service."""
@@ -174,6 +179,7 @@ async def proxy_auth(request: Request, path: str = ""):
 
 
 # ─── Route: QuanLyThi Service ───────────────────────────────────────
+@app.api_route("/api/exam/admin", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exam/admin/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_quanlythi_admin(request: Request, path: str = ""):
     """Forward admin requests to QuanLyThi Service."""
@@ -181,6 +187,7 @@ async def proxy_quanlythi_admin(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["quanlythi"])
 
 
+@app.api_route("/api/exam/portal", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exam/portal/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_quanlythi_portal(request: Request, path: str = ""):
     """Forward portal requests to QuanLyThi Service."""
