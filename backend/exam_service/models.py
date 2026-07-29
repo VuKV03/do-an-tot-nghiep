@@ -99,7 +99,7 @@ class MatrixConfig(Base):
     id = Column(String(255), primary_key=True)
     code = Column(String(100), unique=True, nullable=False)
     name = Column(String(255), nullable=False)
-    subject = Column(String(100), nullable=False)
+    subject_id = Column(String(36), nullable=True)
     totalScore = Column(Float, default=0.0)
     totalQuestions = Column(Integer, default=0)
     duration = Column(Integer, default=45)

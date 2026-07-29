@@ -61,9 +61,8 @@ async def list_matrix_configs(
         )
 
     if subject and subject != "all":
-        # Resolve to subject name if it's an ID
-        subj_name = SUBJECT_MAP.get(subject, subject)
-        conditions.append(MatrixConfig.subject == subj_name)
+        # We filter by subject_id
+        conditions.append(MatrixConfig.subject_id == subject)
 
     if status and status != "all":
         conditions.append(MatrixConfig.status == status)
@@ -89,7 +88,8 @@ async def list_matrix_configs(
             "id": c.id,
             "code": c.code,
             "name": c.name,
-            "subject": c.subject,
+            "subject_id": c.subject_id,
+            "subject": SUBJECT_MAP.get(c.subject_id, c.subject_id) if c.subject_id else None,
             "totalScore": c.totalScore,
             "totalQuestions": c.totalQuestions,
             "duration": c.duration,
@@ -141,7 +141,7 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
         id=matrix_id,
         code=matrix_code,
         name=body.ten,
-        subject=subject_name,
+        subject_id=body.mon_hoc_id,
         totalScore=total_score,
         totalQuestions=total_questions,
         duration=90, # Default duration in minutes
@@ -160,7 +160,8 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
             "id": new_config.id,
             "code": new_config.code,
             "name": new_config.name,
-            "subject": new_config.subject,
+            "subject_id": new_config.subject_id,
+            "subject": SUBJECT_MAP.get(new_config.subject_id, new_config.subject_id) if new_config.subject_id else None,
             "totalScore": new_config.totalScore,
             "totalQuestions": new_config.totalQuestions,
             "createdAt": new_config.createdAt
@@ -208,8 +209,7 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
     if not config:
         raise HTTPException(status_code=404, detail="Không tìm thấy ma trận đề thi.")
 
-    inv_map = {v: k for k, v in SUBJECT_MAP.items()}
-    mon_hoc_id = inv_map.get(config.subject, "mh-toan")
+    mon_hoc_id = config.subject_id if config.subject_id else "mh-toan"
 
     try:
         ds_cau_truc = json.loads(config.structure) if config.structure else []
@@ -223,7 +223,8 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
             "code": config.code,
             "name": config.name,
             "mon_hoc_id": mon_hoc_id,
-            "subject": config.subject,
+            "subject_id": config.subject_id,
+            "subject": SUBJECT_MAP.get(config.subject_id, config.subject_id) if config.subject_id else None,
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions,
             "status": config.status,
@@ -286,7 +287,7 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
     config.name = body.ten
     if body.ma and body.ma.strip():
         config.code = body.ma.strip()
-    config.subject = subject_name
+    config.subject_id = body.mon_hoc_id
     config.totalScore = total_score
     config.totalQuestions = total_questions
     config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
@@ -300,7 +301,8 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             "id": config.id,
             "code": config.code,
             "name": config.name,
-            "subject": config.subject,
+            "subject_id": config.subject_id,
+            "subject": SUBJECT_MAP.get(config.subject_id, config.subject_id) if config.subject_id else None,
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions
         }

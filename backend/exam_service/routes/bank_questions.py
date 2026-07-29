@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select, text, func, or_, and_
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
