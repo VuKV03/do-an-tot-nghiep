@@ -55,6 +55,23 @@ class QuestionManualCreate(BaseModel):
     examId: Optional[str] = None
 
 
+class QuestionHistoryResponse(BaseModel):
+    id: str
+    question_id: str
+    action: str
+    actor: Optional[str] = None
+    timestamp: str
+    note: str
+
+    model_config = {"from_attributes": True}
+
+
+class QuestionHistoryListResponse(BaseModel):
+    success: bool = True
+    count: int
+    data: List[QuestionHistoryResponse]
+
+
 # ─── Exam Schemas ────────────────────────────────────────────────────
 class ExamCreate(BaseModel):
     name: str

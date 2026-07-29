@@ -487,6 +487,17 @@ export interface BankQuestionCreateAPI {
   options?: string[] | null;
   correctAnswer?: string | null;
   status?: string;
+  /** Người thực hiện thay đổi — chỉ dùng để ghi lịch sử (question_histories), không phải cột dữ liệu câu hỏi. */
+  actor?: string;
+}
+
+export interface BankQuestionHistoryAPI {
+  id: string;
+  question_id: string;
+  action: string;
+  actor: string | null;
+  timestamp: string;
+  note: string;
 }
 
 export interface BankQuestionCountByTopicAPI {
@@ -544,25 +555,29 @@ export const bankQuestionApi = {
       `/bank-questions/${id}`,
       { method: 'DELETE' },
     ),
-  submit: (id: string) =>
+  submit: (id: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/submit`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify({ actor }) },
     ),
-  approve: (id: string, comment?: string) =>
+  approve: (id: string, comment?: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/approve`,
-      { method: 'POST', body: comment !== undefined ? JSON.stringify({ comment }) : undefined },
+      { method: 'POST', body: JSON.stringify({ comment, actor }) },
     ),
-  reject: (id: string, comment?: string) =>
+  reject: (id: string, comment?: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/reject`,
-      { method: 'POST', body: comment !== undefined ? JSON.stringify({ comment }) : undefined },
+      { method: 'POST', body: JSON.stringify({ comment, actor }) },
     ),
-  bulkReview: (ids: string[], verdict: 'approve' | 'reject', comment?: string) =>
+  bulkReview: (ids: string[], verdict: 'approve' | 'reject', comment?: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/bulk-review`,
-      { method: 'POST', body: JSON.stringify({ ids, verdict, comment }) },
+      { method: 'POST', body: JSON.stringify({ ids, verdict, comment, actor }) },
+    ),
+  getHistory: (id: string) =>
+    apiFetch<{ success: boolean; count: number; data: BankQuestionHistoryAPI[] }>(
+      `/bank-questions/${id}/history`,
     ),
 };
 

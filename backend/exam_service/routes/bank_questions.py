@@ -29,19 +29,30 @@ from backend.exam_service.models import (
     CompetencyComponent,
     QuestionHistory
 )
+from backend.exam_service.schemas import QuestionHistoryResponse, QuestionHistoryListResponse
 
 router = APIRouter(prefix="/bank-questions", tags=["Bank Questions"])
+
+_DEFAULT_ACTOR = "Hội đồng Chuyên môn"
 
 
 class QuestionReviewRequest(BaseModel):
     comment: Optional[str] = ""
+    # Người thực hiện thẩm định — trước đây route này không nhận actor nên luôn ghi cứng "admin"
+    # bất kể ai bấm duyệt/từ chối thật.
+    actor: Optional[str] = None
 
 
 class BulkReviewRequest(BaseModel):
     ids: List[str]
     verdict: str  # "approve" or "reject"
     comment: Optional[str] = ""
+    actor: Optional[str] = None
 
+
+class BankQuestionSubmitRequest(BaseModel):
+    # Người gửi thẩm định — trước đây endpoint submit không nhận body nào.
+    actor: Optional[str] = None
 
 
 def _now() -> str:
@@ -143,6 +154,8 @@ class BankQuestionUpdate(BaseModel):
     status: Optional[str] = None
     competencyComponentId: Optional[str] = None
     statements: Optional[list] = None
+    # Người thực hiện chỉnh sửa — dùng để ghi lịch sử, không phải cột dữ liệu câu hỏi.
+    actor: Optional[str] = None
 
 
 @router.get("/")
@@ -422,8 +435,19 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         statements=statements_str,
         created_by=body.creator,
     )
-    
+
     db.add(question)
+
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor=body.creator or _DEFAULT_ACTOR,
+        action="Thêm mới",
+        timestamp=_now(),
+        note=f"Thêm mới câu hỏi mã {question.code}",
+    )
+    db.add(history_obj)
+
     await db.commit()
     await db.refresh(question)
 
@@ -458,6 +482,8 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
     question = res.scalar_one_or_none()
     if not question:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
+
+    old_status = question.status
 
     if body.text is not None:
         question.content = body.text
@@ -504,6 +530,26 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
     if body.statements is not None:
         question.statements = json.dumps(body.statements, ensure_ascii=False)
 
+    # FE "Gửi thẩm định" trong modal Cập nhật gửi thẳng status='pending' qua route này (không qua
+    # /submit riêng) — phân biệt 2 trường hợp để lịch sử đúng ý nghĩa, không phải luôn ghi "Sửa".
+    actor = body.actor or _DEFAULT_ACTOR
+    is_submit_transition = (
+        body.status == "pending" and old_status in (0, -1) and old_status != question.status
+    )
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor=actor,
+        action="Gửi thẩm định" if is_submit_transition else "Sửa",
+        timestamp=_now(),
+        note=(
+            f"Gửi thẩm định câu hỏi mã {question.code}"
+            if is_submit_transition
+            else f"Sửa thông tin câu hỏi mã {question.code}"
+        ),
+    )
+    db.add(history_obj)
+
     await db.commit()
     return {"success": True, "message": "Cập nhật câu hỏi thành công!"}
 
@@ -535,7 +581,11 @@ async def delete_bank_question(question_id: str, db: AsyncSession = Depends(get_
 
 
 @router.post("/{question_id}/submit")
-async def submit_bank_question(question_id: str, db: AsyncSession = Depends(get_db)):
+async def submit_bank_question(
+    question_id: str,
+    body: BankQuestionSubmitRequest = BankQuestionSubmitRequest(),
+    db: AsyncSession = Depends(get_db),
+):
     """Gửi câu hỏi đi thẩm định (status → 1)."""
     stmt = select(Question).where(Question.id == question_id)
     res = await db.execute(stmt)
@@ -544,6 +594,17 @@ async def submit_bank_question(question_id: str, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi.")
 
     question.status = 1
+
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor=body.actor or _DEFAULT_ACTOR,
+        action="Gửi thẩm định",
+        timestamp=_now(),
+        note=f"Gửi thẩm định câu hỏi mã {question.code}",
+    )
+    db.add(history_obj)
+
     await db.commit()
     return {"success": True, "message": "Đã gửi câu hỏi đi thẩm định!"}
 
@@ -557,18 +618,19 @@ async def bulk_review_bank_questions(body: BulkReviewRequest, db: AsyncSession =
     
     status_val = 2 if body.verdict == "approve" else -1
     action_label = "Đồng ý" if body.verdict == "approve" else "Từ chối"
-    
+    actor = body.actor or _DEFAULT_ACTOR
+
     for question in questions:
         question.status = status_val
         question.approved_note = body.comment or ""
-        
+
         # Log QuestionHistory
         history_obj = QuestionHistory(
             id=str(uuid.uuid4()),
             question_id=question.id,
-            actor="admin",
+            actor=actor,
             action=action_label,
-            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            timestamp=_now(),
             note=body.comment or (f"{action_label} thẩm định hàng loạt")
         )
         db.add(history_obj)
@@ -588,14 +650,14 @@ async def approve_bank_question(question_id: str, body: QuestionReviewRequest = 
 
     question.status = 2
     question.approved_note = body.comment or ""
-    
+
     # Log QuestionHistory
     history_obj = QuestionHistory(
         id=str(uuid.uuid4()),
         question_id=question.id,
-        actor="admin",
+        actor=body.actor or _DEFAULT_ACTOR,
         action="Đồng ý",
-        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        timestamp=_now(),
         note=body.comment or "Đồng ý thẩm định"
     )
     db.add(history_obj)
@@ -615,17 +677,42 @@ async def reject_bank_question(question_id: str, body: QuestionReviewRequest = Q
 
     question.status = -1
     question.approved_note = body.comment or ""
-    
+
     # Log QuestionHistory
     history_obj = QuestionHistory(
         id=str(uuid.uuid4()),
         question_id=question.id,
-        actor="admin",
+        actor=body.actor or _DEFAULT_ACTOR,
         action="Từ chối",
-        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        timestamp=_now(),
         note=body.comment or "Từ chối thẩm định"
     )
     db.add(history_obj)
-    
+
     await db.commit()
     return {"success": True, "message": "Đã từ chối câu hỏi!"}
+
+
+@router.get("/{question_id}/history", response_model=QuestionHistoryListResponse)
+async def get_bank_question_history(question_id: str, db: AsyncSession = Depends(get_db)):
+    """Lấy lịch sử chỉnh sửa/thẩm định thật của 1 câu hỏi (bảng question_histories)."""
+    stmt = (
+        select(QuestionHistory)
+        .where(QuestionHistory.question_id == question_id)
+        .order_by(QuestionHistory.timestamp.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    data = [
+        QuestionHistoryResponse(
+            id=r.id,
+            question_id=r.question_id,
+            action=r.action,
+            actor=r.actor,
+            timestamp=r.timestamp,
+            note=r.note,
+        )
+        for r in rows
+    ]
+    return QuestionHistoryListResponse(success=True, count=len(data), data=data)
