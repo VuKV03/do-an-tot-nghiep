@@ -127,9 +127,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       const { filteredSubjects, isRestricted } = getUserSubjectFilter(mappedMonHoc, currentUser);
       setIsSubjectRestricted(isRestricted);
       setMonHocs(filteredSubjects as any[]);
-      if (isRestricted && filteredSubjects.length > 0) {
-        setSearchSubject(filteredSubjects[0].name);
-      }
       const mappedKhoiLop = klRes.data.map((i: any) => ({ id: i.id, name: i.name }));
       setKhoiLops(mappedKhoiLop);
     } catch (e: any) {
@@ -498,7 +495,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                         onChange={setSearchSubject}
                         className="h-10 w-full"
                         options={[
-                          ...(!isSubjectRestricted ? [{ value: '', label: 'Tất cả' }] : []),
+                          { value: '', label: 'Tất cả' },
                           ...monHocs.map(m => ({ value: m.name, label: m.name }))
                         ]}
                       />

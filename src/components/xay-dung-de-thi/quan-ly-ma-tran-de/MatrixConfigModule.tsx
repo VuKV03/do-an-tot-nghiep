@@ -69,8 +69,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           setIsSubjectRestricted(isRestricted);
 
           if (isRestricted && filteredSubjects.length > 0) {
-            setFilterSubject(filteredSubjects[0].name);
-            setEvalFilterSubject(filteredSubjects[0].name);
+            // Không gán cứng môn học đầu tiên nữa để hiển thị "Tất cả" các môn được phân công
+            // setFilterSubject(filteredSubjects[0].name);
+            // setEvalFilterSubject(filteredSubjects[0].name);
           }
         }
       } catch (err) {
@@ -568,7 +569,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       onChange={setFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
@@ -851,7 +852,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       onChange={setEvalFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />

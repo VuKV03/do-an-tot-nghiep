@@ -40,7 +40,8 @@ import {
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
-import { bankQuestionApi } from '../../../services/danhMucApi';
+import { bankQuestionApi, subjectCategoryApi } from '../../../services/danhMucApi';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { toast } from '../../../utils/toast';
@@ -67,6 +68,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Core Data States
   const [exams, setExams] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Filters for Exams
@@ -124,16 +127,22 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const fetchData = async () => {
     setLoading(true);
     try {
-      const resExams = await fetch('/api/exams');
-      const dataExams = await resExams.json();
-      if (dataExams.success) {
-        setExams(dataExams.data || []);
-      }
+      const [resExams, resPkgs, resSubjects] = await Promise.all([
+        fetch('/api/exams').then(r => r.json()),
+        fetch('/api/exams/packages').then(r => r.json()),
+        subjectCategoryApi.list()
+      ]);
 
-      const resPkgs = await fetch('/api/exams/packages');
-      const dataPkgs = await resPkgs.json();
-      if (dataPkgs.success) {
-        setPackages(dataPkgs.data || []);
+      if (resExams.success) setExams(resExams.data || []);
+      if (resPkgs.success) setPackages(resPkgs.data || []);
+      
+      const activeSubjects = (resSubjects?.data || []).filter((s: any) => s.is_active);
+      const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
+      setSubjects(filteredSubjects);
+      setIsSubjectRestricted(isRestricted);
+      if (isRestricted && filteredSubjects.length > 0) {
+        // Không gán cứng môn học đầu tiên nữa để hiển thị "Tất cả" các môn được phân công
+        // setExamSubject(filteredSubjects[0].name);
       }
     } catch {
       toast.error('Lỗi cổng kết nối khi tải danh sách.');
@@ -153,7 +162,9 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
       const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' || e.subject === examSubject;
+      const matchesSubject = examSubject === 'all' 
+        ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
+        : e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isVariant && matchesSearch && matchesSubject && matchesGrade && matchesStatus;
@@ -165,15 +176,21 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     return exams.filter(e => {
       const isRoot = e.source !== 'ai';
       const matchesSearch = (e.name || '').toLowerCase().includes(kw) || (e.code || '').toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' || e.subject === examSubject;
+      const matchesSubject = examSubject === 'all' 
+        ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
+        : e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isRoot && matchesSearch && matchesSubject && matchesStatus;
     });
   }, [exams, examSearch, examSubject, examStatus]);
 
   const filteredExamReview = useMemo(() => {
-    return exams.filter(e => e.status === 'pending' || e.status === '2');
-  }, [exams]);
+    return exams.filter(e => {
+      const isPending = e.status === 'pending' || e.status === '2';
+      const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === e.subject);
+      return isPending && isAllowedSubject;
+    });
+  }, [exams, isSubjectRestricted, subjects]);
 
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
@@ -583,7 +600,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   value={examSubject}
                   onChange={setExamSubject}
                   className="w-full text-[14px]"
-                  options={[{ value: 'all', label: 'Tất cả' }, ...SUBJECTS]}
+                  options={[
+                    { value: 'all', label: 'Tất cả' },
+                    ...subjects.map(s => ({ value: s.name, label: s.name }))
+                  ]}
                 />
               </div>
               <div>
