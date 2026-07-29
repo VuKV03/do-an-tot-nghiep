@@ -22,7 +22,7 @@ from sqlalchemy import select, func, text
 from backend.exam_service.models import (
     Exam, Question, Package, MatrixConfig,  # existing models
     SubjectCategory, CognitiveLevel, QuestionType,  # category models
-    CompetencyComponent, GradeLevel, ExamPeriod, Topic, SubjectConfig,
+    CompetencyComponent, GradeLevel, Topic, SubjectConfig,
     QuestionHistory
 )
 from backend.exam_service.routes.exams import router as exams_router
@@ -33,7 +33,6 @@ from backend.exam_service.routes.cognitive_levels import router as cognitive_lev
 from backend.exam_service.routes.question_types import router as question_types_router
 from backend.exam_service.routes.competency_components import router as competency_components_router
 from backend.exam_service.routes.grade_levels import router as grade_levels_router
-from backend.exam_service.routes.exam_periods import router as exam_periods_router
 from backend.exam_service.routes.topics import router as topics_router
 from backend.exam_service.routes.questions import router as questions_router
 from backend.exam_service.routes.bank_questions import router as bank_questions_router
@@ -396,28 +395,6 @@ async def seed_demo_data():
             print("[Exam Service] \u2705 grade_levels seeded.")
 
         # ─── Seed exam_periods (ExamPeriod) ──────────────────────────
-        result8 = await db.execute(select(func.count()).select_from(ExamPeriod))
-        if result8.scalar() == 0:
-            print("[Exam Service] Seeding exam_periods...")
-            now = datetime.utcnow().isoformat() + "Z"
-            periods = [
-                ExamPeriod(
-                    id="ep-1", code="D1", name="Thi thử nghiệm đợt 1 2025",
-                    start_date="2025-12-22", end_date="2025-12-25",
-                    status="HOAT_DONG", is_active=True, note="Đợt khảo sát chất lượng đầu năm",
-                    created_at=now
-                ),
-                ExamPeriod(
-                    id="ep-2", code="D2", name="Thi chính thức đợt 1 2024",
-                    start_date="2024-12-22", end_date="2024-12-23",
-                    status="HOAT_DONG", is_active=True, note="Đợt chính thức kỳ thi TN THPT",
-                    created_at=now
-                )
-            ]
-            for p in periods:
-                db.add(p)
-            await db.commit()
-            print("[Exam Service] \u2705 exam_periods seeded.")
 
         # ─── Seed topics (Topic) ─────────────────────────────────────
         result9 = await db.execute(select(func.count()).select_from(Topic))
@@ -626,7 +603,6 @@ app.include_router(cognitive_levels_router)
 app.include_router(question_types_router)
 app.include_router(competency_components_router)
 app.include_router(grade_levels_router)
-app.include_router(exam_periods_router)
 app.include_router(topics_router)
 app.include_router(questions_router)
 app.include_router(bank_questions_router)

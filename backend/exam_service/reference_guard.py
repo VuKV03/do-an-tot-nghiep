@@ -14,10 +14,9 @@ from fastapi import HTTPException
 from sqlalchemy import select, func, or_
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.exam_service.models import (
     Question, Topic, CompetencyComponent, SubjectConfig, MatrixConfig, Package,
-    SubjectCategory, CognitiveLevel, QuestionType, GradeLevel, ExamPeriod,
+    SubjectCategory, CognitiveLevel, QuestionType, GradeLevel,
 )
 
 # Nguồn duy nhất cho map code môn học cũ -> tên hiển thị (dùng chung với routes/matrix_configs.py).
@@ -177,9 +176,4 @@ async def assert_grade_level_deletable(db: AsyncSession, grade: GradeLevel) -> N
     _raise_if_in_use("khối lớp", grade.name, reasons)
 
 
-async def assert_exam_period_deletable(db: AsyncSession, period: ExamPeriod) -> None:
-    reasons: list[str] = []
-    n = await _count(db, Package.exam_period_id, period.id)
-    if n:
-        reasons.append(f"{n} gói đề thi")
-    _raise_if_in_use("kỳ thi", period.name, reasons)
+

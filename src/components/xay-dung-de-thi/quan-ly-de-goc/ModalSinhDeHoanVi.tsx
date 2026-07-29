@@ -5,8 +5,7 @@ import { ThunderboltOutlined, DownloadOutlined, DeleteOutlined, SaveOutlined } f
 import JSZip from 'jszip';
 import { Question } from '../../../types';
 import {
-  examPeriodApi, bankQuestionApi, questionApi,
-  type ExamPeriodAPI,
+  bankQuestionApi, questionApi,
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
@@ -87,11 +86,9 @@ function parseTrueFalseCorrectness(correctAnswer: string | string[] | undefined,
 }
 
 export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: ModalSinhDeHoanViProps) {
-  const [examPeriods, setExamPeriods] = useState<ExamPeriodAPI[]>([]);
   // Ma trận đề gắn sẵn với đề gốc (exam.matrix_id) — chỉ có ở đề sinh từ luồng "Theo ma trận đề"
   // của ModalTaoDeTuDong. null = đề tự chọn/thủ công/AI-config, không có ma trận nào để map.
   const [sourceMatrixInfo, setSourceMatrixInfo] = useState<{ id: string; name: string; code: string } | null>(null);
-  const [selectedExamPeriodId, setSelectedExamPeriodId] = useState<string | null>(null);
 
   const [packageCode, setPackageCode] = useState('');
   const [packageName, setPackageName] = useState('');
@@ -125,13 +122,10 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     setStartCode(1);
     setPermutationCount(3);
     setNote('');
-    setSelectedExamPeriodId(null);
     setVariants([]);
     setSourceMatrixInfo(null);
     setEditingTarget(null);
     setEditingOriginal(null);
-
-    examPeriodApi.list().then(res => setExamPeriods((res.data || []).filter(p => p.is_active))).catch(() => setExamPeriods([]));
 
     setLoadingSource(true);
     bankQuestionApi.list()
@@ -397,7 +391,6 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           description: note,
           examIds: [exam.id, ...newExamIds],
           matrix_id: selectedMatrixId,
-          exam_period_id: selectedExamPeriodId,
         }),
       });
       const pkgJson = await pkgRes.json().catch(() => null);
@@ -459,14 +452,6 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
                 />
               </div>
             )}
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">kỳ thi</label>
-              <Select
-                allowClear placeholder="Chọn kỳ thi (tuỳ chọn)" className="w-full"
-                value={selectedExamPeriodId} onChange={setSelectedExamPeriodId}
-                options={examPeriods.map(p => ({ value: p.id, label: p.name }))}
-              />
-            </div>
             <div>
               <label className="block font-medium text-slate-700 mb-1">Mã gói đề thi <span className="text-red-500">*</span></label>
               <Input value={packageCode} onChange={e => setPackageCode(e.target.value)} />

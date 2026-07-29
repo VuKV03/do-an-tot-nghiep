@@ -87,7 +87,6 @@ class Package(Base):
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
     matrix_id = Column(String(255), nullable=True)
-    exam_period_id = Column(String(36), nullable=True)
 
 
 class MatrixConfig(Base):
@@ -178,23 +177,6 @@ class GradeLevel(Base):
     created_at = Column(String(50), nullable=False)
     updated_at = Column(String(50), nullable=True)
 
-
-# ─── Danh mục kỳ thi (ExamPeriod) ────────────────────────────────────
-class ExamPeriod(Base):
-    __tablename__ = "exam_periods"
-
-    id = Column(String(36), primary_key=True)                     # Id
-    code = Column(String(50), unique=True, nullable=False)        # Ma
-    name = Column(String(255), nullable=False)                    # Ten
-    start_date = Column(String(50), nullable=False)               # NgayBatDau
-    end_date = Column(String(50), nullable=False)                 # NgayKetThuc
-    status = Column(String(50), default="HOAT_DONG")              # TrangThai
-    is_active = Column(Boolean, default=True)                     # IsActive
-    note = Column(Text, default="")                               # GhiChu
-    created_by = Column(String(36), nullable=True)                # CreatedBy
-    updated_by = Column(String(36), nullable=True)                # UpdatedBy
-    created_at = Column(String(50), nullable=False)               # CreatedAt
-    updated_at = Column(String(50), nullable=True)                # UpdatedAt
 
 
 # ─── Chủ đề (chu_de) ────────────────────────────────────────────────
