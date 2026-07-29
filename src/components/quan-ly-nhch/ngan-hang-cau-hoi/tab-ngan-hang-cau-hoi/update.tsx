@@ -13,6 +13,7 @@ import { questionApi, bankQuestionApi, subjectCategoryApi, gradeLevelApi, compet
 import RichTextEditor from '../../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
+import { stripHtmlToText } from '../../../../utils/htmlContent';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -378,6 +379,18 @@ export default function UpdateQuestionModal({
     return true;
   };
 
+  // Trắc nghiệm đơn — phải chọn đúng 1 đáp án đúng VÀ đáp án đó phải có nội dung, tránh trường hợp
+  // để nguyên đáp án A (mặc định isCorrect=true) trống nội dung trong khi các đáp án khác đã điền,
+  // dẫn tới lưu câu hỏi với correctAnswer rỗng mà không ai hay biết.
+  const validateSingleAnswer = (): boolean => {
+    const correct = answers.find((a) => a.isCorrect);
+    if (!correct || !stripHtmlToText(correct.content).trim()) {
+      toast.error('Vui lòng nhập nội dung đáp án đúng cho câu hỏi!');
+      return false;
+    }
+    return true;
+  };
+
   // ── Close / Reset ──────────────────────────────────────────────────────────
   const handleClose = () => {
     onClose();
@@ -495,6 +508,9 @@ export default function UpdateQuestionModal({
       if (questionType === 'true_false' && !validateStatements()) {
         return;
       }
+      if (questionType === 'single' && !validateSingleAnswer()) {
+        return;
+      }
 
       const q = buildQuestion(values, status);
       const { id: _localId, ...payload } = q;
@@ -502,6 +518,7 @@ export default function UpdateQuestionModal({
       const apiPayload = {
         ...payload,
         competencyComponentId: q.nangLucId,
+        actor: resolvedCreator,
       };
 
       let savedQuestion = { ...q };

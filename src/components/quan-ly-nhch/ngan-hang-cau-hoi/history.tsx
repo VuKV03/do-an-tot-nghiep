@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   Input,
@@ -13,25 +13,25 @@ import { toast } from '../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, ExportOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
+import { bankQuestionApi } from '../../../services/danhMucApi';
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 
-export type HistoryActionType =
-  | 'them'        // Thêm mới câu hỏi
-  | 'sua'         // Sửa thông tin
-  | 'phan_tich'   // Phân tích, đánh giá
-  | 'tham_dinh'   // Thẩm định
-  | 'phan_bien';  // Phản biện
+// Đúng 5 giá trị `action` thật được ghi vào bảng question_histories (xem
+// backend/exam_service/routes/{questions,bank_questions}.py) — khác hẳn bộ enum cũ
+// ('them'/'sua'/'phan_tich'/'tham_dinh'/'phan_bien') vốn chỉ tồn tại trong dữ liệu giả lập,
+// không khớp với bất kỳ giá trị thật nào backend từng ghi.
+export type HistoryActionType = 'Thêm mới' | 'Sửa' | 'Gửi thẩm định' | 'Đồng ý' | 'Từ chối';
 
 export interface HistoryRecord {
   id: string;
   stt: number;
-  performer: string;   // Người thực hiện (mã + tên)
+  performer: string;   // Người thực hiện
   performedAt: string; // ISO datetime string
   action: HistoryActionType;
-  description: string; // Nội dung thực hiện
+  description: string; // Nội dung thực hiện (note)
 }
 
 interface QuestionHistoryModalProps {
@@ -43,61 +43,16 @@ interface QuestionHistoryModalProps {
 }
 
 // ─────────────────────────────────────────────
-// Mock data generator
-// ─────────────────────────────────────────────
-
-function generateMockHistory(question: Question): HistoryRecord[] {
-  const base: Omit<HistoryRecord, 'id' | 'stt'>[] = [
-    {
-      performer: '4005 - Nguyễn Văn A',
-      performedAt: '2025-05-10T08:00:00',
-      action: 'them',
-      description: `Thêm mới câu hỏi '${question.text.slice(0, 40)}...'`
-    },
-    {
-      performer: '4005 - Nguyễn Văn A',
-      performedAt: '2025-05-12T09:30:00',
-      action: 'sua',
-      description: 'Sửa thông tin "ghi chú..."'
-    },
-    {
-      performer: '4005 - Nguyễn Văn A',
-      performedAt: '2025-05-14T10:15:00',
-      action: 'phan_tich',
-      description: `Sửa thông tin câu hỏi '${question.text.slice(0, 30)}...'`
-    },
-    {
-      performer: '4005 - Nguyễn Văn A',
-      performedAt: '2025-05-16T14:00:00',
-      action: 'tham_dinh',
-      description: `Từ chối thẩm định câu hỏi '${question.text.slice(0, 30)}...'`
-    },
-    {
-      performer: '4005 - Nguyễn Văn A',
-      performedAt: '2025-05-18T15:45:00',
-      action: 'phan_bien',
-      description: `Đồng ý thẩm định câu hỏi '${question.text.slice(0, 30)}...'`
-    }
-  ];
-
-  return base.map((item, idx) => ({
-    id: `history-${question.id}-${idx}`,
-    stt: idx + 1,
-    ...item
-  }));
-}
-
-// ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 
 const ACTION_OPTIONS = [
-  { value: 'all',       label: 'Tất cả' },
-  { value: 'them',      label: 'Thêm' },
-  { value: 'sua',       label: 'Sửa' },
-  { value: 'phan_tich', label: 'Phân tích, đánh giá' },
-  { value: 'tham_dinh', label: 'Thẩm định' },
-  { value: 'phan_bien', label: 'Phản biện' }
+  { value: 'all', label: 'Tất cả' },
+  { value: 'Thêm mới', label: 'Thêm mới' },
+  { value: 'Sửa', label: 'Sửa' },
+  { value: 'Gửi thẩm định', label: 'Gửi thẩm định' },
+  { value: 'Đồng ý', label: 'Đồng ý (thẩm định)' },
+  { value: 'Từ chối', label: 'Từ chối (thẩm định)' }
 ];
 
 function getActionLabel(action: HistoryActionType): string {
@@ -138,11 +93,47 @@ export default function QuestionHistoryModal({
     dates: null as any
   });
 
-  // ── Derived data ──────────────────────────
-  const allRecords = useMemo<HistoryRecord[]>(() => {
-    if (!question) return [];
-    return generateMockHistory(question);
-  }, [question]);
+  // ── Fetch lịch sử thật từ backend (bảng question_histories) ─────────────
+  const [allRecords, setAllRecords] = useState<HistoryRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const questionId = question?.id;
+
+  useEffect(() => {
+    if (!questionId) {
+      setAllRecords([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    bankQuestionApi
+      .getHistory(questionId)
+      .then((res) => {
+        if (cancelled) return;
+        const rows = res.data || [];
+        setAllRecords(
+          rows.map((r, idx) => ({
+            id: r.id,
+            stt: idx + 1,
+            performer: r.actor || 'Hội đồng Chuyên môn',
+            performedAt: r.timestamp,
+            action: (r.action as HistoryActionType) || 'Sửa',
+            description: r.note || '',
+          })),
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Không thể tải lịch sử câu hỏi:', err);
+        toast.error('Không thể tải lịch sử câu hỏi.');
+        setAllRecords([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [questionId]);
 
   const filteredRecords = useMemo(() => {
     return allRecords.filter((r) => {
@@ -370,6 +361,7 @@ export default function QuestionHistoryModal({
             columns={columns}
             rowKey="id"
             size="small"
+            loading={loading}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
