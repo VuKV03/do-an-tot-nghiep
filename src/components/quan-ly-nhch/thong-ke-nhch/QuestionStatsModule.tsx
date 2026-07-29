@@ -14,6 +14,7 @@ import {
 import { toast } from '../../../utils/toast';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { resolveInternalQuestionType } from '../../../utils/questionTypeCategory';
 
 const { RangePicker } = DatePicker;
 
@@ -122,28 +123,6 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     }
   };
 
-  const getQTypeCode = (type: string) => {
-    switch (type) {
-      case 'single': return 'TN';
-      case 'multiple': return 'CHN';
-      case 'true_false': 
-      case 'multiple_true_false': return 'ĐS';
-      case 'short': 
-      case 'short_answer': return 'TLN';
-      case 'essay': return 'TL';
-      case 'matching': return 'Nối';
-      case 'fill_blank': return 'Điền';
-      case 'reading': return 'Đọc';
-      default: return type;
-    }
-  };
-
-  const formatType = (type: string) => {
-    const found = typesList.find(t => t.code === type || t.id === type);
-    if (found) return found.code || found.name;
-    return getQTypeCode(type);
-  };
-
   // Filter questions based on criteria
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
@@ -175,10 +154,9 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
       if (appliedFilters.type !== 'Tất cả') {
         const typeObj = typesList.find(t => t.id === appliedFilters.type);
         if (typeObj) {
-           const qTypeCode = formatType(q.type);
-           if (qTypeCode !== typeObj.code && qTypeCode !== typeObj.name) return false;
-        } else {
-           if (q.type !== appliedFilters.type) return false;
+          if (q.type !== resolveInternalQuestionType(typeObj)) return false;
+        } else if (q.type !== appliedFilters.type) {
+          return false;
         }
       }
 
@@ -270,10 +248,13 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     if (typesList.length > 0) {
       return typesList;
     }
+    // Code dùng đúng quy ước viết tắt thật của danh mục question_types (TN/DS/TLN — xem
+    // utils/questionTypeCategory.ts) để resolveInternalQuestionType() nhận diện đúng, không phải
+    // literal enum nội bộ ('single'/'true_false'...) vốn không khớp quy ước code thật.
     return [
-      { id: 'single', code: 'single', name: 'TN' },
-      { id: 'true_false', code: 'true_false', name: 'ĐS' },
-      { id: 'short', code: 'short', name: 'TLN' }
+      { id: 'single', code: 'TN', name: 'TN' },
+      { id: 'true_false', code: 'DS', name: 'ĐS' },
+      { id: 'short', code: 'TLN', name: 'TLN' }
     ] as any[];
   }, [typesList]);
 
@@ -305,9 +286,7 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
             const colLevelName = formatLevel(lvl).toLowerCase();
             if (qLevelName !== colLevelName) return false;
 
-            const qFoundType = typesList.find(t => t.id === q.type || t.code === q.type);
-            const qTypeCode = qFoundType ? qFoundType.code : getQTypeCode(q.type);
-            if (qTypeCode !== typeObj.code && q.type !== typeObj.id) return false;
+            if (q.type !== resolveInternalQuestionType(typeObj)) return false;
 
             return true;
           }).length;
@@ -415,19 +394,14 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
   // Data for second table (Summary by Type)
   const typeSummaryData = displayTypes.map((typeObj, index) => {
-    const qs = filteredQuestions.filter(q => {
-      const qTypeCode = formatType(q.type);
-      return qTypeCode === typeObj.code || qTypeCode === typeObj.name || q.type === typeObj.id || q.type === typeObj.code;
-    });
+    const qs = filteredQuestions.filter(q => q.type === resolveInternalQuestionType(typeObj));
 
     let cauDon = 0;
     let cauNhom = 0;
     let tongLenhHoi = 0;
 
     qs.forEach(q => {
-      const qTypeCode = formatType(q.type);
-
-      if (qTypeCode === 'ĐS' || qTypeCode === 'true_false' || qTypeCode === 'multiple_true_false' || q.type === 'true_false') {
+      if (q.type === 'true_false') {
         cauNhom += 1;
         tongLenhHoi += q.statements?.length || 4; // usually 4 statements in a group question
       } else {
