@@ -35,7 +35,9 @@ import { buildQuestionTypeFilterOptions } from '../../../../utils/questionTypeCa
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
 import { SUBJECTS, GRADES } from '../../../../data';
-import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi, questionTypeApi } from '../../../../services/danhMucApi.ts';
+import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi, questionTypeApi } from '../../../../services/danhMucApi';
+import { checkUserPermission } from '../../../../utils/permissionUtils';
+import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
@@ -55,8 +57,13 @@ export default function QuestionBankModule({
   currentUser
 }: QuestionBankModuleProps) {
   const creatorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
+  
+  const canManageOrSubmit = checkUserPermission(currentUser, 'tab-ngan-hang-cau-hoi');
+  const canApprove = checkUserPermission(currentUser, 'tab-tham-dinh-cau-hoi');
+  const defaultTab = canManageOrSubmit ? 'bank' : (canApprove ? 'review' : 'bank');
+
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'bank' | 'review'>(initialTab || 'bank');
+  const [activeTab, setActiveTab] = useState<'bank' | 'review'>(initialTab || defaultTab);
 
   useEffect(() => {
     if (initialTab) {
@@ -74,6 +81,7 @@ export default function QuestionBankModule({
   const [apiGrades, setApiGrades] = useState<{ value: string; label: string }[]>([]);
   const [allTopicsRaw, setAllTopicsRaw] = useState<any[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
 
   // Cấp độ tư duy — lấy đúng danh mục thật từ API, không hard-code để tránh lệch với danh mục quản trị
   const [cognitiveLevelFilterOptions, setCognitiveLevelFilterOptions] = useState<{ value: CognitiveLevel; label: string }[]>([]);
@@ -167,17 +175,27 @@ export default function QuestionBankModule({
         gradeLevelApi.list(),
         topicsApi.list(),
       ]);
-      const subjectOptions = subRes.data.map((s: any) => ({ value: s.name, label: s.name }));
+      const mappedMonHoc = subRes.data.map((i: any) => ({ id: i.id, code: i.code, name: i.name, IsActive: i.is_active }));
+      const { filteredSubjects, isRestricted } = getUserSubjectFilter(mappedMonHoc, currentUser);
+      setIsSubjectRestricted(isRestricted);
+      const subjectOptions = filteredSubjects.map((s: any) => ({ value: s.name, label: s.name }));
       const gradeOptions = grRes.data.map((g: any) => ({ value: g.name, label: g.name }));
+      
       setApiSubjects(subjectOptions);
       setApiGrades(gradeOptions);
       setAllTopicsRaw(topRes.data);
+
+      if (isRestricted && subjectOptions.length > 0) {
+        setSelectedSubject(subjectOptions[0].value);
+      } else if (subjectOptions.length > 0) {
+        setSelectedSubject('');
+      }
     } catch (e) {
       console.error('Không thể tải dữ liệu môn học / chủ đề:', e);
     } finally {
       setTopicsLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   // Fetch questions from bank API
   const fetchQuestions = useCallback(async () => {
@@ -225,10 +243,10 @@ export default function QuestionBankModule({
   // Subjects dropdown: prefer API data, fallback to static
   const subjectDropdownOptions = useMemo(
     () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiSubjects.length > 0 ? apiSubjects : SUBJECTS)
+      ...(!isSubjectRestricted ? [{ value: '', label: 'Tất cả' }] : []),
+      ...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS))
     ],
-    [apiSubjects]
+    [apiSubjects, isSubjectRestricted]
   );
   // Grades dropdown: prefer API data, fallback to static
   const gradeDropdownOptions = useMemo(
@@ -723,32 +741,36 @@ export default function QuestionBankModule({
     <div className="flex flex-col gap-4 w-full">
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative mb-2">
-        <button
-          onClick={() => setActiveTab('bank')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'bank'
+        {canManageOrSubmit && (
+          <button
+            onClick={() => setActiveTab('bank')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'bank'
               ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'bank' ? '#eff6ff' : undefined,
-            cursor: 'pointer'
-          }}
-        >
-          Ngân hàng câu hỏi
-        </button>
-        <button
-          onClick={() => setActiveTab('review')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'bank' ? '#eff6ff' : undefined,
+              cursor: 'pointer'
+            }}
+          >
+            Ngân hàng câu hỏi
+          </button>
+        )}
+        {canApprove && (
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
               ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined,
-            cursor: 'pointer'
-          }}
-        >
-          Thẩm định/phản biện câu hỏi
-        </button>
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined,
+              cursor: 'pointer'
+            }}
+          >
+            Thẩm định ngân hàng câu hỏi
+          </button>
+        )}
       </div>
 
       {activeTab === 'bank' ? (

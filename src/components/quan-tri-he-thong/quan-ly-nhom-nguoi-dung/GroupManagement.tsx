@@ -65,37 +65,7 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
   const [activeGroupForPermissions, setActiveGroupForPermissions] = useState<UserGroup | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  // Tính toán và hiển thị danh sách các menu/chức năng mà nhóm hiện tại có quyền truy cập, dựa trên danh sách quyền đã chọn
-  const accessibleMenus = useMemo(() => {
-    const hasAccess = (key: string) => {
-      if (selectedPermissions.includes('system.*')) return true;
-      const requiredPerms = PERMISSION_MAP[key];
-      if (requiredPerms) {
-        return requiredPerms.some(p =>
-          selectedPermissions.includes(p) || selectedPermissions.some(vp => vp.endsWith('.*') && p.startsWith(vp.replace('.*', '')))
-        );
-      }
-      return false;
-    };
 
-    const filterMenu = (items: any[]): any[] => {
-      return items.reduce((acc, item) => {
-        if (item.children) {
-          const filteredChildren = filterMenu(item.children);
-          if (filteredChildren.length > 0) {
-            acc.push({ ...item, children: filteredChildren });
-          }
-        } else {
-          if (hasAccess(item.key)) {
-            acc.push(item);
-          }
-        }
-        return acc;
-      }, []);
-    };
-
-    return filterMenu(MENU_STRUCTURE);
-  }, [selectedPermissions]);
 
   const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<UserGroup | null>(null);
@@ -438,7 +408,6 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
         selectedPermissions={selectedPermissions}
         setSelectedPermissions={setSelectedPermissions}
         systemScopes={SYSTEM_PERMISSION_SCOPES}
-        accessibleMenus={accessibleMenus}
         onSave={handleSaveGroupPermissions}
         saving={savingPermissions}
       />

@@ -45,6 +45,7 @@ import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordE
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
+import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -54,11 +55,14 @@ const { RangePicker } = DatePicker;
 
 interface ExamManagementModuleProps {
   onNavigateTab?: (key: string) => void;
+  currentUser?: any;
 }
 
-export default function ExamManagementModule({ onNavigateTab }: ExamManagementModuleProps) {
+export default function ExamManagementModule({ onNavigateTab, currentUser }: ExamManagementModuleProps) {
   // Tabs: 'exam_variants' | 'exam_roots' | 'exam_packages'
-  const [activeTab, setActiveTab] = useState<'exam_roots' | 'exam_review'>('exam_roots');
+  const [activeTab, setActiveTab] = useState<'exam_roots' | 'exam_review'>(
+    checkUserPermission(currentUser, 'tab-de-goc') ? 'exam_roots' : 'exam_review'
+  );
 
   // Core Data States
   const [exams, setExams] = useState<any[]>([]);
@@ -460,77 +464,92 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
   const canEditExam = (status: string) => !['3', 'approved', 'active'].includes(status);
 
   // Dropdown actions generator
-  const getActionMenuItems = (exam: any) => [
-    {
-      key: 'review',
-      label: 'Gửi thẩm định/phản biên',
-      icon: <SafetyCertificateOutlined />,
-      onClick: () => handleSendReview()
-    },
-    {
-      key: 'permission',
-      label: 'Phân quyền quản lý',
-      icon: <SlidersOutlined />,
-      onClick: () => handleOpenPermissions(exam)
-    },
-    {
-      key: 'history',
-      label: 'Lịch sử chỉnh sửa',
-      icon: <HistoryOutlined />,
-      onClick: () => handleOpenHistory(exam)
-    },
-    {
-      key: 'docx',
-      label: 'Tải đề thi (.docx)',
-      icon: <DownloadOutlined />,
-      onClick: () => handleExportWord(exam)
-    },
-    {
-      key: 'sync',
-      label: 'Đồng bộ hệ thống thi',
-      icon: <ShareAltOutlined />,
-      onClick: () => handleOpenSync(exam)
-    },
-    {
-      type: 'divider' as const
-    },
-    {
-      key: 'delete',
-      label: <span className="text-red-500 font-semibold">Xóa đề thi</span>,
-      icon: <DeleteOutlined className="text-red-500" />,
-      onClick: () => handleSingleDeleteExam(exam.id, exam.name)
+  const getActionMenuItems = (exam: any) => {
+    const items = [];
+    if (hasActionPermission(currentUser, 'exams.submit')) {
+      items.push({
+        key: 'review',
+        label: 'Gửi thẩm định/phản biên',
+        icon: <SafetyCertificateOutlined />,
+        onClick: () => handleSendReview()
+      });
     }
-  ];
+    if (hasActionPermission(currentUser, 'exams.manage')) {
+      items.push({
+        key: 'permission',
+        label: 'Phân quyền quản lý',
+        icon: <SlidersOutlined />,
+        onClick: () => handleOpenPermissions(exam)
+      });
+      items.push({
+        key: 'history',
+        label: 'Lịch sử chỉnh sửa',
+        icon: <HistoryOutlined />,
+        onClick: () => handleOpenHistory(exam)
+      });
+    }
+    if (hasActionPermission(currentUser, 'exams.export')) {
+      items.push({
+        key: 'docx',
+        label: 'Tải đề thi (.docx)',
+        icon: <DownloadOutlined />,
+        onClick: () => handleExportWord(exam)
+      });
+    }
+    if (hasActionPermission(currentUser, 'exams.test_run')) {
+      items.push({
+        key: 'sync',
+        label: 'Đồng bộ hệ thống thi',
+        icon: <ShareAltOutlined />,
+        onClick: () => handleOpenSync(exam)
+      });
+    }
+    
+    if (hasActionPermission(currentUser, 'exams.manage')) {
+      if (items.length > 0) items.push({ type: 'divider' as const });
+      items.push({
+        key: 'delete',
+        label: <span className="text-red-500 font-semibold">Xóa đề thi</span>,
+        icon: <DeleteOutlined className="text-red-500" />,
+        onClick: () => handleSingleDeleteExam(exam.id, exam.name)
+      });
+    }
+    return items;
+  };
 
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="exam-management-layout-facade">
       <ResizableTableStyles />
       {/* Tab Headers */}
       <div className="flex gap-1 border-b border-gray-300 relative select-none">
-        <button
-          onClick={() => { setActiveTab('exam_roots'); setSelectedExamIds([]); }}
-          className={`px-3 py-1.5 text-[14px] font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_roots'
-            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'exam_roots' ? '#eff6ff' : undefined
-          }}
-        >
-          Đề gốc
-        </button>
-        <button
-          onClick={() => { setActiveTab('exam_review'); setSelectedExamIds([]); }}
-          className={`px-3 py-1.5 text-[14px] font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_review'
-            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
-          style={{
-            borderBottomColor: activeTab === 'exam_review' ? '#eff6ff' : undefined
-          }}
-        >
-          Thẩm định/phản biện đề
-        </button>
+        {checkUserPermission(currentUser, 'tab-de-goc') && (
+          <button
+            onClick={() => { setActiveTab('exam_roots'); setSelectedExamIds([]); }}
+            className={`px-3 py-1.5 text-[14px] font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_roots'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'exam_roots' ? '#eff6ff' : undefined
+            }}
+          >
+            Đề gốc
+          </button>
+        )}
+        {checkUserPermission(currentUser, 'tab-tham-dinh-de-goc') && (
+          <button
+            onClick={() => { setActiveTab('exam_review'); setSelectedExamIds([]); }}
+            className={`px-3 py-1.5 text-[14px] font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'exam_review'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            style={{
+              borderBottomColor: activeTab === 'exam_review' ? '#eff6ff' : undefined
+            }}
+          >
+            Thẩm định đề gốc
+          </button>
+        )}
       </div>
 
       {/* Advanced Filters Panel */}
@@ -639,49 +658,59 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
           <Space size={8}>
             {activeTab === 'exam_roots' && (
               <>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => { setSelectedExam(null); setIsDeRiengLeOpen(true); }}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
-                >
-                  Thêm mới thủ công
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setIsTuDongMoiOpen(true)}
-                  className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
-                >
-                  Thêm mới tự động
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<FileExcelOutlined />}
-                  onClick={handleExportExcel}
-                  className="!bg-green-600 !border-green-600 !text-white font-semibold text-[14px] rounded hover:!bg-green-700 cursor-pointer"
-                >
-                  Xuất Excel
-                </Button>
-                <Button
-                  icon={<SafetyCertificateOutlined />}
-                  disabled={selectedExamIds.length === 0}
-                  onClick={handleSendReview}
-                  className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
-                >
-                  Gửi thẩm định
-                </Button>
-                <Button
-                  danger
-                  onClick={handleBatchDeleteExams}
-                  disabled={selectedExamIds.length === 0}
-                  className="font-semibold text-[14px] rounded cursor-pointer"
-                >
-                  Xóa
-                </Button>
+                {hasActionPermission(currentUser, 'exams.manage') && (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => { setSelectedExam(null); setIsDeRiengLeOpen(true); }}
+                      className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
+                    >
+                      Thêm mới thủ công
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setIsTuDongMoiOpen(true)}
+                      className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
+                    >
+                      Thêm mới tự động
+                    </Button>
+                  </>
+                )}
+                {hasActionPermission(currentUser, 'exams.export') && (
+                  <Button
+                    type="primary"
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExportExcel}
+                    className="!bg-green-600 !border-green-600 !text-white font-semibold text-[14px] rounded hover:!bg-green-700 cursor-pointer"
+                  >
+                    Xuất Excel
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'exams.submit') && (
+                  <Button
+                    icon={<SafetyCertificateOutlined />}
+                    disabled={selectedExamIds.length === 0}
+                    onClick={handleSendReview}
+                    className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
+                  >
+                    Gửi thẩm định
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'exams.manage') && (
+                  <Button
+                    danger
+                    onClick={handleBatchDeleteExams}
+                    disabled={selectedExamIds.length === 0}
+                    className="font-semibold text-[14px] rounded cursor-pointer"
+                  >
+                    Xóa
+                  </Button>
+                )}
               </>
             )}
-            {activeTab === 'exam_review' && (
+            {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.export') && (
               <Button
                 type="primary"
                 icon={<FileExcelOutlined />}
@@ -759,7 +788,7 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                     <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
                     <td className="py-2.5 px-3 text-center">
                       <Space size={2}>
-                        {activeTab === 'exam_review' && (
+                        {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.approve') && (
                           <>
                             <Popconfirm
                               title={`Duyệt đề thi "${row.name}"?`}
@@ -793,19 +822,23 @@ export default function ExamManagementModule({ onNavigateTab }: ExamManagementMo
                           <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                             onClick={() => handleOpenView(row)} className="cursor-pointer" />
                         </Tooltip>
-                        {canEditExam(row.status) && (
+                        {canEditExam(row.status) && hasActionPermission(currentUser, 'exams.manage') && (
                           <Tooltip title="Chỉnh sửa">
                             <Button size="small" type="text" icon={<EditOutlined className="text-[#2c3e9e]" />}
                               onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
                           </Tooltip>
                         )}
-                        <Tooltip title="Sinh đề hoán vị">
-                          <Button size="small" type="text" icon={<RetweetOutlined className="text-[#2c3e9e]" />}
-                            onClick={() => { setSelectedExam(row); setIsSinhHoanViOpen(true); }} className="cursor-pointer" />
-                        </Tooltip>
-                        <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
-                          <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
-                        </Dropdown>
+                        {hasActionPermission(currentUser, 'exams.generate_variants') && (
+                          <Tooltip title="Sinh đề hoán vị">
+                            <Button size="small" type="text" icon={<RetweetOutlined className="text-[#2c3e9e]" />}
+                              onClick={() => { setSelectedExam(row); setIsSinhHoanViOpen(true); }} className="cursor-pointer" />
+                          </Tooltip>
+                        )}
+                        {getActionMenuItems(row).length > 0 && (
+                          <Dropdown menu={{ items: getActionMenuItems(row) }} trigger={['click']} placement="bottomRight">
+                            <Button size="small" type="text" icon={<MoreOutlined className="text-[#2c3e9e]" />} className="cursor-pointer" />
+                          </Dropdown>
+                        )}
                       </Space>
                     </td>
                   </tr>

@@ -111,6 +111,8 @@ export interface SystemUser {
   dob?: string;         // Ngày sinh
   gender?: string;      // Giới tính
   groups?: UserGroup[]; // Danh sách các nhóm mà người dùng tham gia
+  subject?: string | string[]; // Môn học phụ trách
+  subjects?: string[];  // Danh sách môn học phụ trách
 }
 
 // Interface ghi lại nhật ký hoạt động (Audit log) của hệ thống

@@ -11,6 +11,7 @@ import { topicsApi, subjectCategoryApi, gradeLevelApi } from '../../../../servic
 import { SystemUser } from '../../../../types';
 import { hasActionPermission, hasAnyPermission } from '../../../../utils/permissionUtils';
 import { exportToExcel, type ExcelColumn } from '../../../../utils/excelExport';
+import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -75,6 +76,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [loading, setLoading] = useState(false);
   const [monHocs, setMonHocs] = useState<{ id: string; name: string }[]>([]);
   const [khoiLops, setKhoiLops] = useState<{ id: string; name: string }[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
 
   const canManageOrSubmit = hasAnyPermission(currentUser || null, ['topics.manage', 'topics.submit']);
   const canApprove = hasActionPermission(currentUser || null, 'topics.approve');
@@ -121,9 +123,14 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
         gradeLevelApi.list(),
       ]);
       setRawData(tRes.data);
-      const mappedMonHoc = mtRes.data.map(i => ({ id: i.id, name: i.name }));
-      const mappedKhoiLop = klRes.data.map(i => ({ id: i.id, name: i.name }));
-      setMonHocs(mappedMonHoc);
+      const mappedMonHoc = mtRes.data.map((i: any) => ({ id: i.id, name: i.name, code: i.code || i.id }));
+      const { filteredSubjects, isRestricted } = getUserSubjectFilter(mappedMonHoc, currentUser);
+      setIsSubjectRestricted(isRestricted);
+      setMonHocs(filteredSubjects as any[]);
+      if (isRestricted && filteredSubjects.length > 0) {
+        setSearchSubject(filteredSubjects[0].name);
+      }
+      const mappedKhoiLop = klRes.data.map((i: any) => ({ id: i.id, name: i.name }));
       setKhoiLops(mappedKhoiLop);
     } catch (e: any) {
       console.error(e);
@@ -445,7 +452,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                 borderBottomColor: activeTab === 'review' ? '#eff6ff' : undefined
               }}
             >
-              Thẩm định chủ đề
+              Thẩm định chủ đề câu hỏi
             </button>
           )}
         </div>
@@ -491,7 +498,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                         onChange={setSearchSubject}
                         className="h-10 w-full"
                         options={[
-                          { value: '', label: 'Tất cả' },
+                          ...(!isSubjectRestricted ? [{ value: '', label: 'Tất cả' }] : []),
                           ...monHocs.map(m => ({ value: m.name, label: m.name }))
                         ]}
                       />

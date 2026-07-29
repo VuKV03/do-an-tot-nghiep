@@ -12,10 +12,11 @@ export interface CreateChuDeModalProps {
   allData: ChuDeType[];
   monHocs?: { Id: string; Ma: string; Ten: string }[];
   khoiLops?: { Id: string; Ma: string; Ten: string }[];
+  isSubjectRestricted?: boolean;
   onDuplicateCode?: () => void;
 }
 
-export default function CreateChuDeModal({ open, onClose, onSave, allData, monHocs = [], khoiLops = [], onDuplicateCode }: CreateChuDeModalProps) {
+export default function CreateChuDeModal({ open, onClose, onSave, allData, monHocs = [], khoiLops = [], isSubjectRestricted = false, onDuplicateCode }: CreateChuDeModalProps) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const cap = Form.useWatch('Cap', form);
@@ -127,7 +128,7 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monHo
               <Select
                 placeholder="Chọn môn học"
                 className="h-[42px] text-base"
-                options={(monHocs.length > 0 ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
+                options={(monHocs.length > 0 || isSubjectRestricted ? monHocs : mockMonHoc).map(m => ({ value: m.Id, label: m.Ten }))}
                 onChange={() => {
                   form.setFieldsValue({ ParentId: undefined });
                 }}
