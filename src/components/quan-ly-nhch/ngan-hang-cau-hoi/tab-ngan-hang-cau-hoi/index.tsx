@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Tree, Select, Input, Button, Space, Modal, Form, Spin, Empty, Pagination, Divider, Tooltip, DatePicker, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { FileExcelOutlined } from '@ant-design/icons';
@@ -324,6 +324,36 @@ export default function QuestionBankModule({
       setSelectedTopicKey(null);
     }
   };
+
+  // Danh sách chủ đề dạng phẳng cho ô tìm kiếm "Chọn chủ đề" (autocomplete) — lấy đúng từ
+  // topicTreeData (đã lọc theo môn học/khối lớp đang chọn) để luôn khớp với cây chủ đề hiển thị bên
+  // dưới. Nhãn ghép theo đường dẫn cha > con để phân biệt các tiểu mục trùng tên ở chủ đề khác nhau.
+  const topicSearchOptions = useMemo(() => {
+    const flatten = (nodes: any[], parentPath: string[] = []): { value: string; label: string }[] =>
+      nodes.flatMap((n) => {
+        const path = [...parentPath, n.title];
+        const own = { value: n.key, label: path.join(' › ') };
+        return n.children && n.children.length > 0 ? [own, ...flatten(n.children, path)] : [own];
+      });
+    return flatten(topicTreeData);
+  }, [topicTreeData]);
+
+  // Cây chủ đề luôn hiện đầy đủ (giữ hành vi defaultExpandAll cũ) — nhưng phải chủ động tính lại mỗi
+  // khi topicTreeData đổi (đổi môn học/khối lớp), vì defaultExpandAll của antd Tree chỉ tự áp dụng
+  // đúng 1 lần lúc mount, không tự mở lại khi treeData thay đổi sau đó.
+  const [treeExpandedKeys, setTreeExpandedKeys] = useState<React.Key[]>([]);
+  useEffect(() => {
+    setTreeExpandedKeys(topicSearchOptions.map((o) => o.value));
+  }, [topicSearchOptions]);
+
+  // Chọn chủ đề qua ô search bên trên phải cuộn cây chủ đề tới đúng node tương ứng để người dùng
+  // thấy ngay vị trí vừa chọn, không phải tự dò trong cây.
+  const topicTreeRef = useRef<any>(null);
+  useEffect(() => {
+    if (selectedTopicKey) {
+      topicTreeRef.current?.scrollTo({ key: selectedTopicKey, align: 'auto' });
+    }
+  }, [selectedTopicKey]);
 
   // Perform filtering of questions (using DB-fetched data)
   const filteredQuestions = useMemo(() => {
@@ -803,12 +833,21 @@ export default function QuestionBankModule({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Khối lớp học</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chọn chủ đề</label>
                 <Select
-                  id="select-grade-filter"
-                  value={selectedGrade}
-                  onChange={setSelectedGrade}
-                  options={gradeDropdownOptions}
+                  id="select-topic-search-filter"
+                  showSearch={{
+                    optionFilterProp: 'label',
+                    filterOption: (input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+                  }}
+                  allowClear
+                  value={selectedTopicKey || undefined}
+                  onChange={(val) => setSelectedTopicKey(val || null)}
+                  onClear={() => setSelectedTopicKey(null)}
+                  options={topicSearchOptions}
+                  placeholder="Nhập tên chủ đề để tìm kiếm..."
+                  notFoundContent="Không tìm thấy chủ đề phù hợp"
                   className="w-full text-xs font-bold"
                 />
               </div>
@@ -820,9 +859,11 @@ export default function QuestionBankModule({
               <Spin spinning={topicsLoading} size="small">
                 {topicTreeData.length > 0 ? (
                   <Tree
+                    ref={topicTreeRef}
                     showLine={{ showLeafIcon: false }}
                     blockNode
-                    defaultExpandAll
+                    expandedKeys={treeExpandedKeys}
+                    onExpand={(keys) => setTreeExpandedKeys(keys)}
                     onSelect={handleSelectTopicNode}
                     treeData={topicTreeData}
                     selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
