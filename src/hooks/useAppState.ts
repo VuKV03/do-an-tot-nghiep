@@ -131,7 +131,7 @@ export const useAppState = () => {
 
   const handleUpdateQuestion = (q: Question) => {
     setQuestions(prev => prev.map(item => item.id === q.id ? q : item));
-    toast.success(`Đã cập nhật câu hỏi ${q.code}.`);
+    toast.success(`Cập nhật thành công câu hỏi ${q.code}!`);
   };
 
   const handleDeleteQuestion = (id: string) => {

@@ -119,9 +119,9 @@ export default function GroupTable({
               filteredGroups.map((g, index) => (
                 <tr key={g.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-3 px-4">
-                    <input 
-                      type="checkbox" 
-                      className="rounded text-[#1e40af] cursor-pointer" 
+                    <input
+                      type="checkbox"
+                      className="rounded text-[#1e40af] cursor-pointer"
                       checked={selectedGroupIds.includes(g.id)}
                       onChange={(e) => {
                         if (e.target.checked) {

@@ -179,7 +179,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
     const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
       const matchesSearch = e.name.toLowerCase().includes(kw) ||
-                            e.code.toLowerCase().includes(kw);
+        e.code.toLowerCase().includes(kw);
       const matchesSubject = examSubjectFilter === 'all' || e.subject === examSubjectFilter;
       const matchesGrade = examGradeFilter === 'all' || e.grade === examGradeFilter;
       const matchesStatus = examStatusFilter === 'all' || e.status === examStatusFilter;
@@ -192,7 +192,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
     const kw = pkgSearch.trim().toLowerCase();
     return packages.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(kw) ||
-                            p.code.toLowerCase().includes(kw);
+        p.code.toLowerCase().includes(kw);
       const matchesSubject = pkgSubjectFilter === 'all' || p.subject === pkgSubjectFilter;
       return matchesSearch && matchesSubject;
     });
@@ -207,7 +207,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       closed: "active"
     };
     const nextStatus = nextStatusMap[record.status] || "active";
-    
+
     try {
       const res = await fetch(`/api/exams/${record.id}`, {
         method: "PUT",
@@ -231,7 +231,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
     toast.loading({ content: `Đang kết xuất tệp Word/PDF chất lượng cao cho ${exam.code}...`, key: 'dl' });
     setTimeout(() => {
       toast.success({ content: `Đã kết xuất thành công đề thi thử: "${exam.name}" (Tải về định dạng .docx hoàn tất!)`, key: 'dl', duration: 3 });
-      
+
       // Update download statistics/attempts locally to make it visual
       setExams(prev => prev.map(item => item.id === exam.id ? { ...item, attempts: item.attempts + 1 } : item));
     }, 1500);
@@ -281,7 +281,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
       const data = await res.json();
       if (data.success) {
         setPackages(prev => prev.filter(item => item.id !== id));
-        toast.success(`Đã giải tán thành công gói đề: ${name}`);
+        toast.success(`Đã xóa thành công gói đề: ${name}`);
       } else {
         toast.error('Xóa gói đề thất bại.');
       }
@@ -354,7 +354,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
     setAiGeneratingQuestions(true);
     setWizardStep(2); // Jump to Step 2 (generating)
     setGeneratedQuestions([]);
-    
+
     // Add realistic server step logs for microservice simulation
     const addLogLine = (line: string, delay: number) => {
       setTimeout(() => {
@@ -382,9 +382,9 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
           hardPercent: values.hardPercent
         })
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success && data.questions && data.questions.length > 0) {
         // Map backend's 'easy', 'medium', 'hard' into our levels representation
         const levelMap: { [key: string]: string } = {
@@ -573,9 +573,8 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
             size="small"
             icon={<FileTextOutlined />}
             onClick={() => setActiveTab('exams')}
-            className={`text-xs font-black rounded-lg py-1 px-3.5 border-transparent ${
-              activeTab === 'exams' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`text-xs font-black rounded-lg py-1 px-3.5 border-transparent ${activeTab === 'exams' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             Danh sách Đề thi ({exams.length})
           </Button>
@@ -584,9 +583,8 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
             size="small"
             icon={<GroupOutlined />}
             onClick={() => setActiveTab('packages')}
-            className={`text-xs font-black rounded-lg py-1 px-3.5 border-transparent ${
-              activeTab === 'packages' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
-            }`}
+            className={`text-xs font-black rounded-lg py-1 px-3.5 border-transparent ${activeTab === 'packages' ? 'bg-[#002147] text-white shadow-none' : 'text-slate-500 hover:text-slate-800'
+              }`}
           >
             Gói tuyển tập đề ({packages.length})
           </Button>
@@ -1048,7 +1046,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
           />
 
           <Form form={wizardForm} layout="vertical" className="space-y-4">
-            
+
             {/* STEP 0: SELECT BASIC LABEL GRADES */}
             {wizardStep === 0 && (
               <div className="space-y-4 animate-in fade-in duration-300">
@@ -1121,7 +1119,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
 
                 <div className="bg-slate-50 border rounded-2xl p-4 space-y-3">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">Tự phân bố tỷ lệ khó dễ (%)</span>
-                  
+
                   <Row gutter={16} className="items-center text-xs">
                     <Col span={8}>
                       <span>Nhận biết (Dễ):</span>

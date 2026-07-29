@@ -513,12 +513,13 @@ export default function UpdateQuestionModal({
         savedQuestion.id = response.data.id || q.id;
       }
 
+      // Không tự hiện toast ở đây — onSave/onSendReview bên dưới gọi ngược lên onUpdateQuestion
+      // (useAppState.handleUpdateQuestion) và ĐÃ hiện toast "Cập nhật thành công" rồi, tự thêm nữa
+      // ở đây sẽ ra 2 toast chồng nhau cho cùng 1 lần lưu.
       if (status === 'draft') {
         onSave(savedQuestion);
-        toast.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
       } else {
         onSendReview(savedQuestion);
-        toast.success('Đã gửi câu hỏi đi thẩm định!');
       }
       handleClose();
     } catch (error: any) {

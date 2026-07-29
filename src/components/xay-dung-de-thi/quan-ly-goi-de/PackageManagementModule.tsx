@@ -267,8 +267,8 @@ export default function PackageManagementModule({ initialTab }: PackageManagemen
 
   const handleDeletePackage = (id: string, name: string) => {
     Modal.confirm({
-      title: `Xác nhận giải tán gói đề: "${name}"?`,
-      okText: 'Giải tán',
+      title: `Xác nhận xóa gói đề: "${name}"?`,
+      okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
       centered: true,

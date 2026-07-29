@@ -131,7 +131,7 @@ async def delete_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
     name = package.name
     await db.delete(package)
     await db.commit()
-    return {"success": True, "message": f'Đã giải tán thành công gói đề: "{name}"'}
+    return {"success": True, "message": f'Đã xóa thành công gói đề: "{name}"'}
 
 
 @router.post("/{pkg_id}/publish")
