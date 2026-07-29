@@ -385,7 +385,7 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     // Dùng chung logic tách công thức với luồng dán (paste): nếu người dùng gõ/dán nguyên cả câu
     // lẫn công thức (vd: "Đặt $Q(x)=P(x)-a.$ Suy ra") thay vì chỉ riêng mã LaTeX, tự tách đúng phần
     // nào là chữ thường, phần nào là công thức — thay vì nhồi cả câu vào làm 1 công thức rồi lỗi.
-    const { html } = buildPastedHtml(latex);
+    const { html, hasFormula } = buildPastedHtml(latex);
 
     const editingEl = editingFormulaElRef.current;
     if (editingEl) {
@@ -394,7 +394,16 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     } else {
       focusEditor();
       restoreSelection();
-      document.execCommand('insertHTML', false, `${html}&nbsp;`);
+      if (hasFormula) {
+        document.execCommand('insertHTML', false, `${html}&nbsp;`);
+      } else {
+        // Nội dung gõ vào ô công thức không thực sự được nhận diện là LaTeX (không có lệnh/dấu
+        // phân cách) — dùng insertText thay vì insertHTML để giữ đúng định dạng đang bật (nghiêng/
+        // đậm...), giống hệt gõ tay hoặc dán văn bản thường. insertHTML luôn bỏ qua trạng thái định
+        // dạng đang bật của trình duyệt, kể cả khi nội dung chèn vào chỉ là chữ thường không phải
+        // công thức — đây là lý do "chèn qua thanh công cụ" trước đây không nghiêng được như dán.
+        document.execCommand('insertText', false, `${latex} `);
+      }
     }
     emitChange();
     closeFormulaPicker();
