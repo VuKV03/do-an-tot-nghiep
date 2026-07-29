@@ -182,6 +182,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         approved_note="",
         statements=_as_json(body.statements),
         created_by=body.creator,
+        created_at=_now(),
     )
 
     db.add(question)

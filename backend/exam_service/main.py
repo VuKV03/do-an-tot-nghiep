@@ -6,7 +6,7 @@ import json
 import time
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, Request
@@ -506,6 +506,28 @@ async def lifespan(app: FastAPI):
                 print("[Exam Service] ✅ 'matrix_id' column already exists in exams table.")
     except Exception as e:
         print(f"[Exam Service] Error checking/adding matrix_id column: {e}")
+
+    # Migration: add 'created_at' column to questions table if not exists — trước đây bảng
+    # không có cột này nên API luôn trả về _now() (giờ hiện tại) thay vì ngày tạo thật, làm
+    # "Ngày tạo" hiển thị tự nhảy theo ngày hôm nay. Câu hỏi cũ (đã tồn tại trước migration
+    # này) không có ngày tạo thật để khôi phục — backfill bằng thời điểm chạy migration, coi
+    # như "ngày phát hiện/vá lỗi" thay vì để NULL; từ nay các câu hỏi mới sẽ có đúng ngày tạo.
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM questions LIKE 'created_at'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE questions ADD COLUMN created_at VARCHAR(50) NULL;"
+                ))
+                now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                await conn.execute(text(
+                    f"UPDATE questions SET created_at = '{now_iso}' WHERE created_at IS NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'created_at' column to questions table (backfilled existing rows).")
+            else:
+                print("[Exam Service] ✅ 'created_at' column already exists in questions table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding created_at column: {e}")
 
     # Migration: add 'created_by' column to questions table if not exists — the
     # Question model gained this field (mục "thêm người soạn câu hỏi") but create_all
