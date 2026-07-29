@@ -114,7 +114,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
 
   // Độ rộng từng cột bảng "Kết quả tìm kiếm" — co giãn được bằng cách kéo cạnh phải tiêu đề cột.
-  // Thứ tự: checkbox, STT, Mã đề, Tên đề thi, Môn thi, Ma trận đề, Tổng điểm, Số câu hỏi,
+  // Thứ tự: checkbox, STT, Mã đề, Tên đề thi, Môn học, Ma trận đề, Tổng điểm, Số câu hỏi,
   // Thời gian làm bài, Ngày tạo, Trạng thái, Thao tác.
   const { colGroup: examTableColGroup, startResize: startExamColResize, totalWidth: examTableTotalWidth } = useResizableColumns(
     [40, 56, 110, 260, 110, 120, 90, 90, 130, 100, 190, 160]
@@ -318,7 +318,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
     { header: 'Mã đề', accessor: row => row.code, width: 16 },
     { header: 'Tên đề thi', accessor: row => row.name, width: 32 },
-    { header: 'Môn thi', accessor: row => row.subject, width: 14 },
+    { header: 'Môn học', accessor: row => row.subject, width: 14 },
     { header: 'Ma trận đề', accessor: row => row.matrixName || 'Ma trận đề 01', width: 16 },
     { header: 'Tổng điểm', accessor: row => row.totalScore || '10.00', width: 10, align: 'center' },
     { header: 'Số câu hỏi', accessor: row => row.totalQuestions || 0, width: 10, align: 'center' },
@@ -504,7 +504,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         onClick: () => handleOpenSync(exam)
       });
     }
-    
+
     if (hasActionPermission(currentUser, 'exams.manage')) {
       if (items.length > 0) items.push({ type: 'divider' as const });
       items.push({
@@ -578,7 +578,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 />
               </div>
               <div>
-                <label className="block text-[14px] font-medium text-slate-700 mb-1">Môn thi</label>
+                <label className="block text-[14px] font-medium text-slate-700 mb-1">Môn học</label>
                 <Select
                   value={examSubject}
                   onChange={setExamSubject}
@@ -753,7 +753,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   <th className="relative py-3 px-3 text-center font-bold">STT<ColResizeHandle onMouseDown={startExamColResize(1)} /></th>
                   <th className="relative py-3 px-3 text-left font-bold">Mã đề<ColResizeHandle onMouseDown={startExamColResize(2)} /></th>
                   <th className="relative py-3 px-3 text-left font-bold">Tên đề thi<ColResizeHandle onMouseDown={startExamColResize(3)} /></th>
-                  <th className="relative py-3 px-3 text-center font-bold">Môn thi<ColResizeHandle onMouseDown={startExamColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center font-bold">Môn học<ColResizeHandle onMouseDown={startExamColResize(4)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Ma trận đề<ColResizeHandle onMouseDown={startExamColResize(5)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Tổng điểm<ColResizeHandle onMouseDown={startExamColResize(6)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Số câu hỏi<ColResizeHandle onMouseDown={startExamColResize(7)} /></th>

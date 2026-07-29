@@ -400,7 +400,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     { header: 'Mã gói đề', accessor: row => row.code, width: 16 },
     { header: 'Tên gói đề', accessor: row => row.name, width: 30 },
     { header: 'Đợt thi', accessor: row => row.exam_period_id ? (examPeriodNameById.get(row.exam_period_id) || '—') : '—', width: 20 },
-    { header: 'Môn thi', accessor: row => row.subject, width: 14, align: 'center' },
+    { header: 'Môn học', accessor: row => row.subject, width: 14, align: 'center' },
     { header: 'Tổng số đề', accessor: row => row.examsCount || 0, width: 12, align: 'center' },
     { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
@@ -482,7 +482,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                 />
               </div> */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
                 <Select
                   value={pkgSubject}
                   onChange={setPkgSubject}
@@ -581,7 +581,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                   <th className="relative py-3 px-3 text-left font-semibold">Mã gói đề<ColResizeHandle onMouseDown={startPkgColResize(2)} /></th>
                   <th className="relative py-3 px-3 text-left font-semibold">Tên gói đề<ColResizeHandle onMouseDown={startPkgColResize(3)} /></th>
                   <th className="relative py-3 px-3 text-center font-semibold">Đợt thi<ColResizeHandle onMouseDown={startPkgColResize(4)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Môn thi<ColResizeHandle onMouseDown={startPkgColResize(5)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Môn học<ColResizeHandle onMouseDown={startPkgColResize(5)} /></th>
                   <th className="relative py-3 px-3 text-center font-semibold">Tổng số đề<ColResizeHandle onMouseDown={startPkgColResize(6)} /></th>
                   <th className="relative py-3 px-3 text-center font-semibold">Số câu hỏi trong đề<ColResizeHandle onMouseDown={startPkgColResize(7)} /></th>
                   <th className="relative py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startPkgColResize(8)} /></th>
@@ -698,17 +698,17 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                           {hasActionPermission(currentUser, 'exams.manage') && (
                             <Popconfirm
                               title={`Xóa gói đề "${row.name}"?`}
-                            okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
-                            onConfirm={() => handleDeletePackage(row.id, row.name)}
-                          >
-                            <Tooltip title="Xóa">
-                              <Button
-                                size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
-                                loading={actioning?.id === row.id && actioning.kind === 'delete'}
-                                disabled={actioning !== null && actioning.id !== row.id}
-                              />
-                            </Tooltip>
-                          </Popconfirm>
+                              okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
+                              onConfirm={() => handleDeletePackage(row.id, row.name)}
+                            >
+                              <Tooltip title="Xóa">
+                                <Button
+                                  size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                  loading={actioning?.id === row.id && actioning.kind === 'delete'}
+                                  disabled={actioning !== null && actioning.id !== row.id}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
                           )}
                         </Space>
                       </td>
