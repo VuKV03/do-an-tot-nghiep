@@ -57,7 +57,7 @@ export default function QuestionBankModule({
   currentUser
 }: QuestionBankModuleProps) {
   const creatorName = currentUser?.fullName || currentUser?.username || 'Hội đồng Chuyên môn';
-  
+
   const canManageOrSubmit = checkUserPermission(currentUser, 'tab-ngan-hang-cau-hoi');
   const canApprove = checkUserPermission(currentUser, 'tab-tham-dinh-cau-hoi');
   const defaultTab = canManageOrSubmit ? 'bank' : (canApprove ? 'review' : 'bank');
@@ -180,7 +180,7 @@ export default function QuestionBankModule({
       setIsSubjectRestricted(isRestricted);
       const subjectOptions = filteredSubjects.map((s: any) => ({ value: s.name, label: s.name }));
       const gradeOptions = grRes.data.map((g: any) => ({ value: g.name, label: g.name }));
-      
+
       setApiSubjects(subjectOptions);
       setApiGrades(gradeOptions);
       setAllTopicsRaw(topRes.data);
@@ -500,6 +500,7 @@ export default function QuestionBankModule({
         onDeleteQuestion?.(pendingDeleteQuestion.id);
         toast.success(`Đã xóa câu hỏi ${pendingDeleteQuestion.code} khỏi ngân hàng.`);
         fetchQuestions(); // refresh from API
+        setSelectedRowKeys((prev) => prev.filter((k) => k !== pendingDeleteQuestion.id));
         setPendingDeleteQuestion(null);
         setIsDeleteOpen(false);
       } catch (err: any) {
@@ -1041,7 +1042,11 @@ export default function QuestionBankModule({
                         toast.warning('Vui lòng chọn các câu hỏi cần xóa!');
                         return;
                       }
-                      setPendingDeleteQuestion(null);
+                      setPendingDeleteQuestion(
+                        selectedRowKeys.length === 1
+                          ? dbQuestions.find((q) => q.id === selectedRowKeys[0]) || null
+                          : null
+                      );
                       setIsDeleteOpen(true);
                     }}
                     style={{ cursor: 'pointer' }}
