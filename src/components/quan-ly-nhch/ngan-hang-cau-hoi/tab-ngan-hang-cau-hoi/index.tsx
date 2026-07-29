@@ -555,7 +555,7 @@ export default function QuestionBankModule({
   const handleSendReviewConfirm = async () => {
     if (pendingSendReviewQuestion) {
       try {
-        await bankQuestionApi.submit(pendingSendReviewQuestion.id);
+        await bankQuestionApi.submit(pendingSendReviewQuestion.id, creatorName);
         const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
         onUpdateQuestion?.(updated);
         toast.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
@@ -569,7 +569,7 @@ export default function QuestionBankModule({
         for (const key of selectedRowKeys) {
           const quest = dbQuestions.find((q) => q.id === key);
           if (quest && (quest.status === 'draft' || quest.status === 'rejected')) {
-            await bankQuestionApi.submit(quest.id);
+            await bankQuestionApi.submit(quest.id, creatorName);
             onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
           }
         }
@@ -594,7 +594,7 @@ export default function QuestionBankModule({
 
   const handleApproveQuestion = async (id: string, feedback: string) => {
     try {
-      await bankQuestionApi.approve(id, feedback);
+      await bankQuestionApi.approve(id, feedback, creatorName);
       fetchQuestions();
     } catch (e: any) {
       toast.error(e.message || 'Lỗi khi phê duyệt câu hỏi');
@@ -603,7 +603,7 @@ export default function QuestionBankModule({
 
   const handleRejectQuestion = async (id: string, feedback: string) => {
     try {
-      await bankQuestionApi.reject(id, feedback);
+      await bankQuestionApi.reject(id, feedback, creatorName);
       fetchQuestions();
     } catch (e: any) {
       toast.error(e.message || 'Lỗi khi từ chối câu hỏi');
@@ -612,7 +612,7 @@ export default function QuestionBankModule({
 
   const handleBulkReviewQuestions = async (ids: string[], verdict: 'approve' | 'reject', comment: string) => {
     try {
-      await bankQuestionApi.bulkReview(ids, verdict, comment);
+      await bankQuestionApi.bulkReview(ids, verdict, comment, creatorName);
       fetchQuestions();
     } catch (e: any) {
       toast.error(e.message || 'Lỗi khi thẩm định câu hỏi');

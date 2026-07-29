@@ -518,6 +518,7 @@ export default function UpdateQuestionModal({
       const apiPayload = {
         ...payload,
         competencyComponentId: q.nangLucId,
+        actor: resolvedCreator,
       };
 
       let savedQuestion = { ...q };

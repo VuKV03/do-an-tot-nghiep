@@ -7,6 +7,15 @@ import sys
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # Trên Windows, khi stdout/stderr không gắn với console hỗ trợ UTF-8 (hoặc console dùng
+    # codepage cp1252/"charmap" mặc định), bất kỳ print() nào có dấu tiếng Việt (rất nhiều nơi
+    # trong toàn bộ backend, xem init_tables() bên dưới) sẽ ném UnicodeEncodeError không bắt được,
+    # làm crash toàn bộ app ngay giữa lifespan startup — từng bị hiểu nhầm là lỗi kết nối DB vì
+    # traceback cắt ngang đúng lúc DB vừa thao tác xong. Ép UTF-8 ngay từ đầu để tránh việc này ở
+    # MỌI service dùng chung module này (Exam/Analytics/Auth).
+    for _stream in (sys.stdout, sys.stderr):
+        if hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
 
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker

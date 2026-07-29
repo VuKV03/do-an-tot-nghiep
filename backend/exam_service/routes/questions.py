@@ -4,7 +4,8 @@ POST /questions/
 """
 import json
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,15 +14,19 @@ from sqlalchemy import select
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent
+from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory
 from backend.exam_service.schemas import QuestionManualCreate, QuestionResponse
 from backend.shared.database import get_db
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
+_DEFAULT_ACTOR = "Hội đồng Chuyên môn"
+
 
 def _now() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    # Cùng định dạng (không mili-giây) với bank_questions.py::_now() — 2 route này cùng ghi vào
+    # bảng question_histories, khác định dạng sẽ làm lệch thứ tự sắp xếp theo timestamp (string sort).
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _as_json(value):
@@ -180,6 +185,17 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
     )
 
     db.add(question)
+
+    history_obj = QuestionHistory(
+        id=str(uuid.uuid4()),
+        question_id=question.id,
+        actor=body.creator or _DEFAULT_ACTOR,
+        action="Thêm mới",
+        timestamp=_now(),
+        note=f"Thêm mới câu hỏi mã {question.code}",
+    )
+    db.add(history_obj)
+
     await db.commit()
     await db.refresh(question)
 
