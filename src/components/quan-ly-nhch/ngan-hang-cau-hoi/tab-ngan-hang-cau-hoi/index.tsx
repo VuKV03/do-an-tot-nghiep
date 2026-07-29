@@ -41,7 +41,7 @@ import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
-  onUpdateQuestion?: (q: Question) => void;
+  onUpdateQuestion?: (q: Question, options?: { silent?: boolean }) => void;
   onDeleteQuestion?: (id: string) => void;
   onOpenReview?: (q: Question) => void;
   initialTab?: 'bank' | 'review';
@@ -557,7 +557,7 @@ export default function QuestionBankModule({
       try {
         await bankQuestionApi.submit(pendingSendReviewQuestion.id, creatorName);
         const updated = { ...pendingSendReviewQuestion, status: 'pending' as QuestionStatus };
-        onUpdateQuestion?.(updated);
+        onUpdateQuestion?.(updated, { silent: true });
         toast.success(`Đã gửi câu hỏi ${pendingSendReviewQuestion.code} đi thẩm định!`);
         fetchQuestions();
       } catch (err: any) {
@@ -570,7 +570,7 @@ export default function QuestionBankModule({
           const quest = dbQuestions.find((q) => q.id === key);
           if (quest && (quest.status === 'draft' || quest.status === 'rejected')) {
             await bankQuestionApi.submit(quest.id, creatorName);
-            onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus });
+            onUpdateQuestion?.({ ...quest, status: 'pending' as QuestionStatus }, { silent: true });
           }
         }
         toast.success(`Đã gửi ${selectedRowKeys.length} câu hỏi đi thẩm định!`);
