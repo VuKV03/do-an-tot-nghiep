@@ -236,7 +236,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "options": opts,
             "correctAnswer": correct_ans,
             "creator": q.created_by or "Hội đồng Chuyên môn",
-            "createdAt": _now(),
+            "createdAt": q.created_at or _now(),
             "examId": q.exam_id,
             "feedback": q.approved_note or "",
             "statements": stmts,
@@ -434,6 +434,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         line_number=1,
         statements=statements_str,
         created_by=body.creator,
+        created_at=_now(),
     )
 
     db.add(question)

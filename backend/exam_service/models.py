@@ -65,6 +65,10 @@ class Question(Base):
     approved_note = Column(Text, default="")
     statements = Column(LONGTEXT, nullable=True)  # câu hỏi Đúng/Sai — mỗi ý cũng có thể chứa ảnh base64
     created_by = Column(String(255), nullable=True)  # Tên người soạn/tạo câu hỏi
+    # Ngày tạo THẬT của câu hỏi (ISO 8601 string) — trước đây cột này không tồn tại nên API luôn trả
+    # về thời điểm request hiện tại (_now()) thay vì ngày tạo thật, khiến "Ngày tạo" tự nhảy theo
+    # ngày hôm nay mỗi khi xem lại. Ghi 1 lần lúc tạo câu hỏi, không đổi sau đó.
+    created_at = Column(String(50), nullable=True)
 
     # Relationship
     exam = relationship("Exam", back_populates="questions")

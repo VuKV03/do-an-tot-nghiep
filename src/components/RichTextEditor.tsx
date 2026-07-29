@@ -385,7 +385,7 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     // Dùng chung logic tách công thức với luồng dán (paste): nếu người dùng gõ/dán nguyên cả câu
     // lẫn công thức (vd: "Đặt $Q(x)=P(x)-a.$ Suy ra") thay vì chỉ riêng mã LaTeX, tự tách đúng phần
     // nào là chữ thường, phần nào là công thức — thay vì nhồi cả câu vào làm 1 công thức rồi lỗi.
-    const { html } = buildPastedHtml(latex);
+    const { html, hasFormula } = buildPastedHtml(latex);
 
     const editingEl = editingFormulaElRef.current;
     if (editingEl) {
@@ -394,7 +394,16 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
     } else {
       focusEditor();
       restoreSelection();
-      document.execCommand('insertHTML', false, `${html}&nbsp;`);
+      if (hasFormula) {
+        document.execCommand('insertHTML', false, `${html}&nbsp;`);
+      } else {
+        // Nội dung gõ vào ô công thức không thực sự được nhận diện là LaTeX (không có lệnh/dấu
+        // phân cách) — dùng insertText thay vì insertHTML để giữ đúng định dạng đang bật (nghiêng/
+        // đậm...), giống hệt gõ tay hoặc dán văn bản thường. insertHTML luôn bỏ qua trạng thái định
+        // dạng đang bật của trình duyệt, kể cả khi nội dung chèn vào chỉ là chữ thường không phải
+        // công thức — đây là lý do "chèn qua thanh công cụ" trước đây không nghiêng được như dán.
+        document.execCommand('insertText', false, `${latex} `);
+      }
     }
     emitChange();
     closeFormulaPicker();
@@ -637,40 +646,45 @@ export function RichTextToolbarUI({ core }: { core: RichTextCore }) {
             𝑓(x)
           </button>
           {core.showFormulaPicker && (
-            <div className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-[360px]">
-              <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
-                {core.editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
+            <div className="absolute z-30 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg w-[360px] max-h-[min(480px,80vh)] flex flex-col">
+              {/* Vùng nội dung tự cuộn riêng — công thức dài (ma trận, phân số lồng nhau...) khiến
+                  khung xem trước cao vượt màn hình sẽ cuộn ở ĐÂY, không đẩy 2 nút Hủy/Chèn ra khỏi
+                  vùng nhìn thấy (2 nút đặt ở footer cố định bên ngoài, không nằm trong vùng cuộn). */}
+              <div className="p-3 overflow-y-auto flex-1 min-h-0">
+                <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
+                  {core.editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
+                </div>
+                <textarea
+                  autoFocus
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-[13px] font-mono outline-none focus:border-blue-500"
+                  placeholder="Ví dụ: \frac{a}{b} + \sqrt{x}"
+                  value={core.formulaLatex}
+                  onChange={(e) => core.setFormulaLatex(e.target.value)}
+                />
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {FORMULA_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.label}
+                      type="button"
+                      className="px-1.5 py-0.5 text-[11px] rounded border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300"
+                      style={{ cursor: 'pointer' }}
+                      title={tpl.latex}
+                      onClick={() => core.setFormulaLatex((prev) => (prev ? `${prev} ${tpl.latex}` : tpl.latex))}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 border border-slate-200 rounded-md px-2 py-2 min-h-[42px] max-h-[160px] bg-slate-50 flex items-center overflow-auto">
+                  {core.formulaPreviewHtml ? (
+                    <span dangerouslySetInnerHTML={{ __html: core.formulaPreviewHtml }} />
+                  ) : (
+                    <span className="text-[12px] text-slate-400">Xem trước công thức tại đây</span>
+                  )}
+                </div>
               </div>
-              <textarea
-                autoFocus
-                rows={3}
-                className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-[13px] font-mono outline-none focus:border-blue-500"
-                placeholder="Ví dụ: \frac{a}{b} + \sqrt{x}"
-                value={core.formulaLatex}
-                onChange={(e) => core.setFormulaLatex(e.target.value)}
-              />
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {FORMULA_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.label}
-                    type="button"
-                    className="px-1.5 py-0.5 text-[11px] rounded border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300"
-                    style={{ cursor: 'pointer' }}
-                    title={tpl.latex}
-                    onClick={() => core.setFormulaLatex((prev) => (prev ? `${prev} ${tpl.latex}` : tpl.latex))}
-                  >
-                    {tpl.label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 border border-slate-200 rounded-md px-2 py-2 min-h-[42px] bg-slate-50 flex items-center overflow-x-auto">
-                {core.formulaPreviewHtml ? (
-                  <span dangerouslySetInnerHTML={{ __html: core.formulaPreviewHtml }} />
-                ) : (
-                  <span className="text-[12px] text-slate-400">Xem trước công thức tại đây</span>
-                )}
-              </div>
-              <div className="mt-2 flex justify-end gap-2">
+              <div className="p-3 pt-2 border-t border-slate-100 flex justify-end gap-2 flex-shrink-0">
                 <button
                   type="button"
                   className="px-3 py-1 text-[12px] rounded border border-slate-300 text-slate-600 hover:bg-slate-100"

@@ -129,9 +129,14 @@ export const useAppState = () => {
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
-  const handleUpdateQuestion = (q: Question) => {
+  // `silent` — dùng khi nơi gọi đã tự hiện 1 toast cụ thể hơn cho đúng hành động vừa làm (vd "Đã
+  // gửi câu hỏi X đi thẩm định!") — tránh bắn thêm toast "Cập nhật thành công" chung chung chồng
+  // lên, ra 2 toast cho cùng 1 lần thao tác.
+  const handleUpdateQuestion = (q: Question, options?: { silent?: boolean }) => {
     setQuestions(prev => prev.map(item => item.id === q.id ? q : item));
-    toast.success(`Cập nhật thành công câu hỏi ${q.code}!`);
+    if (!options?.silent) {
+      toast.success(`Cập nhật thành công câu hỏi ${q.code}!`);
+    }
   };
 
   const handleDeleteQuestion = (id: string) => {
