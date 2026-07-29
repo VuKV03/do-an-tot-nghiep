@@ -20,13 +20,6 @@ from backend.exam_service.models import (
     SubjectCategory, CognitiveLevel, QuestionType, GradeLevel, ExamPeriod,
 )
 
-# Nguồn duy nhất cho map code môn học cũ -> tên hiển thị (dùng chung với routes/matrix_configs.py).
-SUBJECT_MAP = {
-    "mh-toan": "Toán học",
-    "mh-ly": "Vật lí",
-    "mh-anh": "Tiếng Anh",
-}
-
 
 async def _count(db: AsyncSession, column, value: str) -> int:
     result = await db.execute(select(func.count()).where(column == value))
@@ -67,12 +60,7 @@ async def assert_subject_deletable(db: AsyncSession, subject: SubjectCategory) -
     if n:
         reasons.append(f"{n} cấu hình môn học")
 
-    subj_names = {subject.code, subject.name}
-    mapped_name = SUBJECT_MAP.get(subject.code)
-    if mapped_name:
-        subj_names.add(mapped_name)
-    result = await db.execute(select(func.count()).where(MatrixConfig.subject.in_(subj_names)))
-    n = result.scalar() or 0
+    n = await _count(db, MatrixConfig.subject_id, subject.id)
     if n:
         reasons.append(f"{n} ma trận đề")
 

@@ -100,7 +100,11 @@ class MatrixConfig(Base):
     id = Column(String(255), primary_key=True)
     code = Column(String(100), unique=True, nullable=False)
     name = Column(String(255), nullable=False)
-    subject = Column(String(100), nullable=False)
+    # Trước đây là cột "subject" String(100) lưu trực tiếp mã/tên môn học dạng chuỗi tự do (tuỳ lịch
+    # sử, không nhất quán — xem SUBJECT_MAP cũ), không có ràng buộc khóa ngoại nên không thể JOIN
+    # đúng và dễ lệch dữ liệu nếu môn học đổi tên/mã. Thay bằng FK thật trỏ vào subject_categories;
+    # tên môn học hiển thị lấy qua JOIN ở tầng route (routes/matrix_configs.py), không lưu trùng lặp.
+    subject_id = Column(String(36), ForeignKey("subject_categories.id", ondelete="SET NULL"), nullable=True)
     totalScore = Column(Float, default=0.0)
     totalQuestions = Column(Integer, default=0)
     duration = Column(Integer, default=45)

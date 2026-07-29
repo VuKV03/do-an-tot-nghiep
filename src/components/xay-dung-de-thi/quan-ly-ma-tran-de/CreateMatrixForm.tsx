@@ -259,7 +259,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
     let chuDe: ChuDeNode[] = [];
     let subjectCfg: SubjectConfigAPI | null = null;
     try {
-      const selectedSubj = fullSubjects.find(s => s.code === value);
+      const selectedSubj = fullSubjects.find(s => s.id === value);
       if (selectedSubj) {
         const result = await fetchSubjectMatrixConfig(selectedSubj);
         cd = result.cd;
@@ -284,7 +284,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
       try {
         const res = await apiGetMatrixConfigDetail(editingId);
         if (res.success && res.data) {
-          const mId = res.data.mon_hoc_id;
+          const mId = res.data.subject_id;
 
           // Load subject data
           setIsChangingSubject(true);
@@ -293,7 +293,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
           let cd: CaiDatMaTran = { ds_dm_muc_do: [], ds_dm_thanh_phan_nang_luc: [], ds_loai_cau_hoi: [] };
           let chuDe: ChuDeNode[] = [];
           try {
-            const selectedSubj = subjectsList.find(s => s.code === mId);
+            const selectedSubj = subjectsList.find(s => s.id === mId);
             if (selectedSubj) {
               const result = await fetchSubjectMatrixConfig(selectedSubj);
               cd = result.cd;
@@ -344,8 +344,11 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
       const { filteredSubjects, defaultSubjectId, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
       
       setFullSubjects(rawList);
+      // Dùng đúng id thật của môn học (subject_categories.id) làm giá trị dropdown — trước đây
+      // dùng "code" ở đây, khiến giá trị gửi lên backend (mon_hoc_id) thực chất là 1 chuỗi code,
+      // không phải khóa ngoại thật, nên matrix_configs.subject phải lưu chuỗi tự do thay vì FK.
       const list = filteredSubjects.map((item: any) => ({
-        id: item.code,
+        id: item.id,
         ten: item.name
       }));
       setMonHocList(list);
@@ -554,9 +557,9 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
     setSaving(true);
     let res;
     if (editingId) {
-      res = await apiUpdateMaTran(editingId, { mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+      res = await apiUpdateMaTran(editingId, { subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
     } else {
-      res = await apiSaveMaTran({ mon_hoc_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+      res = await apiSaveMaTran({ subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
     }
     setSaving(false);
     if (res.success) {

@@ -17,18 +17,27 @@ from sqlalchemy import select, delete, or_, and_, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import MatrixConfig
-from backend.exam_service.reference_guard import SUBJECT_MAP
+from backend.exam_service.models import MatrixConfig, SubjectCategory
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
 
 
 # ─── Pydantic Schemas ───────────────────────────────────────────────
 class MatrixConfigCreate(BaseModel):
-    mon_hoc_id: str
+    subject_id: str
     ma: Optional[str] = None
     ten: str
     ds_cau_truc: List[dict]
+
+
+async def _get_subject_or_400(db: AsyncSession, subject_id: str) -> SubjectCategory:
+    """Tra đúng 1 môn học thật theo id — chặn tạo/sửa ma trận với subject_id không tồn tại thay vì
+    âm thầm lưu giá trị rác (trước đây SUBJECT_MAP.get(x, x) luôn cho qua bất kỳ chuỗi nào)."""
+    result = await db.execute(select(SubjectCategory).where(SubjectCategory.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=400, detail=f"Không tìm thấy môn học với id '{subject_id}'.")
+    return subject
 
 
 class BatchDeleteRequest(BaseModel):
@@ -42,13 +51,16 @@ async def list_matrix_configs(
     page: int = 1,
     pageSize: int = 10,
     search: Optional[str] = None,
-    subject: Optional[str] = None,
+    subject_id: Optional[str] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Lấy danh sách ma trận đề thi có phân trang và tìm kiếm."""
-    # Build query
-    query = select(MatrixConfig)
+    # Build query — JOIN subject_categories để lấy tên môn học hiển thị, thay vì đọc thẳng 1 cột
+    # chuỗi tự do lưu trùng lặp trong matrix_configs như trước đây.
+    query = select(MatrixConfig, SubjectCategory.name.label("subject_name")).outerjoin(
+        SubjectCategory, MatrixConfig.subject_id == SubjectCategory.id
+    )
     conditions = []
 
     if search and search.strip():
@@ -60,10 +72,8 @@ async def list_matrix_configs(
             )
         )
 
-    if subject and subject != "all":
-        # Resolve to subject name if it's an ID
-        subj_name = SUBJECT_MAP.get(subject, subject)
-        conditions.append(MatrixConfig.subject == subj_name)
+    if subject_id and subject_id != "all":
+        conditions.append(MatrixConfig.subject_id == subject_id)
 
     if status and status != "all":
         conditions.append(MatrixConfig.status == status)
@@ -81,15 +91,16 @@ async def list_matrix_configs(
     query = query.offset((page - 1) * pageSize).limit(pageSize)
 
     result = await db.execute(query)
-    configs = result.scalars().all()
+    rows = result.all()
 
     data = []
-    for c in configs:
+    for c, subject_name in rows:
         data.append({
             "id": c.id,
             "code": c.code,
             "name": c.name,
-            "subject": c.subject,
+            "subjectId": c.subject_id,
+            "subject": subject_name or "",
             "totalScore": c.totalScore,
             "totalQuestions": c.totalQuestions,
             "duration": c.duration,
@@ -123,11 +134,13 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
             total_questions += so_cau
             total_score += so_cau * diem
 
+    subject = await _get_subject_or_400(db, body.subject_id)
+
     matrix_id = f"mtr-{int(time.time() * 1000)}"
-    
-    # Generate code if empty
-    subj_code = body.mon_hoc_id.split("-")[-1].upper()
-    matrix_code = body.ma.strip() if (body.ma and body.ma.strip()) else f"MTR-{subj_code}-{int(time.time())}"
+
+    # Generate code if empty — dùng đúng code thật của môn học thay vì tách chuỗi id kiểu cũ
+    # ("mh-toan".split("-")[-1] chỉ đúng do trùng hợp, không còn ý nghĩa gì với id thật dạng UUID).
+    matrix_code = body.ma.strip() if (body.ma and body.ma.strip()) else f"MTR-{subject.code.upper()}-{int(time.time())}"
 
     # Check unique code
     existing_result = await db.execute(select(MatrixConfig).where(MatrixConfig.code == matrix_code))
@@ -135,13 +148,12 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
         matrix_code = f"{matrix_code}-{str(int(time.time()))[-4:]}"
 
     now = datetime.utcnow().isoformat() + "Z"
-    subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
 
     new_config = MatrixConfig(
         id=matrix_id,
         code=matrix_code,
         name=body.ten,
-        subject=subject_name,
+        subject_id=subject.id,
         totalScore=total_score,
         totalQuestions=total_questions,
         duration=90, # Default duration in minutes
@@ -160,7 +172,8 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
             "id": new_config.id,
             "code": new_config.code,
             "name": new_config.name,
-            "subject": new_config.subject,
+            "subjectId": new_config.subject_id,
+            "subject": subject.name,
             "totalScore": new_config.totalScore,
             "totalQuestions": new_config.totalQuestions,
             "createdAt": new_config.createdAt
@@ -203,13 +216,15 @@ async def batch_delete_matrix_configs(body: BatchDeleteRequest, db: AsyncSession
 @router.get("/{config_id}")
 async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
     """Lấy chi tiết một ma trận đề thi."""
-    result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == config_id))
-    config = result.scalar_one_or_none()
-    if not config:
+    result = await db.execute(
+        select(MatrixConfig, SubjectCategory.name.label("subject_name"))
+        .outerjoin(SubjectCategory, MatrixConfig.subject_id == SubjectCategory.id)
+        .where(MatrixConfig.id == config_id)
+    )
+    row = result.first()
+    if not row:
         raise HTTPException(status_code=404, detail="Không tìm thấy ma trận đề thi.")
-
-    inv_map = {v: k for k, v in SUBJECT_MAP.items()}
-    mon_hoc_id = inv_map.get(config.subject, "mh-toan")
+    config, subject_name = row
 
     try:
         ds_cau_truc = json.loads(config.structure) if config.structure else []
@@ -222,8 +237,8 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
             "id": config.id,
             "code": config.code,
             "name": config.name,
-            "mon_hoc_id": mon_hoc_id,
-            "subject": config.subject,
+            "subject_id": config.subject_id,
+            "subject": subject_name or "",
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions,
             "status": config.status,
@@ -280,13 +295,13 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             total_questions += so_cau
             total_score += so_cau * diem
 
-    subject_name = SUBJECT_MAP.get(body.mon_hoc_id, body.mon_hoc_id)
+    subject = await _get_subject_or_400(db, body.subject_id)
 
     # Update fields
     config.name = body.ten
     if body.ma and body.ma.strip():
         config.code = body.ma.strip()
-    config.subject = subject_name
+    config.subject_id = subject.id
     config.totalScore = total_score
     config.totalQuestions = total_questions
     config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
@@ -300,7 +315,8 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             "id": config.id,
             "code": config.code,
             "name": config.name,
-            "subject": config.subject,
+            "subjectId": config.subject_id,
+            "subject": subject.name,
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions
         }

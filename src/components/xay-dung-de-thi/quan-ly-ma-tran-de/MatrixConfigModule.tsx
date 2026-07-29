@@ -165,7 +165,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('page', String(page));
       params.set('pageSize', String(size));
       if (searchText.trim()) params.set('search', searchText.trim());
-      if (filterSubject !== 'all') params.set('subject', filterSubject);
+      if (filterSubject !== 'all') params.set('subject_id', filterSubject);
       if (filterStatus !== 'all') params.set('status', filterStatus);
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
@@ -190,7 +190,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('page', String(page));
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
-      if (evalFilterSubject !== 'all') params.set('subject', evalFilterSubject);
+      if (evalFilterSubject !== 'all') params.set('subject_id', evalFilterSubject);
       params.set('status', 'pending');
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
@@ -570,7 +570,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       className="w-full text-xs"
                       options={[
                         { value: 'all', label: 'Tất cả' },
-                        ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
+                        ...allowedSubjects.map(s => ({ value: s.id, label: s.name }))
                       ]}
                     />
                   </div>
@@ -853,7 +853,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       className="w-full text-xs"
                       options={[
                         { value: 'all', label: 'Tất cả' },
-                        ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
+                        ...allowedSubjects.map(s => ({ value: s.id, label: s.name }))
                       ]}
                     />
                   </div>

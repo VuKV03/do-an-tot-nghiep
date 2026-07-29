@@ -507,6 +507,77 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error checking/adding matrix_id column: {e}")
 
+    # Migration: replace matrix_configs.subject (chuỗi tự do lưu code/tên môn học tuỳ lịch sử,
+    # không ràng buộc khóa ngoại) bằng subject_id FK thật trỏ vào subject_categories.id — tên môn
+    # học hiển thị từ nay lấy qua JOIN ở tầng route (routes/matrix_configs.py), không lưu trùng lặp.
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'subject_id'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE matrix_configs ADD COLUMN subject_id VARCHAR(36) NULL;"
+                ))
+                # Backfill: cột "subject" cũ có thể đang chứa code hoặc tên hiển thị của môn học tuỳ
+                # thời điểm bản ghi được tạo — khớp cả 2 khả năng vào subject_categories thật.
+                old_col_exists = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'subject'"))
+                if old_col_exists.fetchone():
+                    await conn.execute(text(
+                        """
+                        UPDATE matrix_configs mc
+                        JOIN subject_categories sc ON (sc.code = mc.subject OR sc.name = mc.subject)
+                        SET mc.subject_id = sc.id
+                        WHERE mc.subject_id IS NULL
+                        """
+                    ))
+                print("[Exam Service] ✅ Added 'subject_id' FK column to matrix_configs (backfilled from old 'subject' text).")
+            else:
+                print("[Exam Service] ✅ 'subject_id' column already exists in matrix_configs table.")
+
+            # Xoá cột 'subject' cũ sau khi đã backfill — chạy độc lập với nhánh trên nên vẫn dọn
+            # được cột thừa kể cả khi subject_id đã tồn tại từ một lần chạy migration trước đó.
+            old_col_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'subject'"))
+            if old_col_check.fetchone():
+                await conn.execute(text("ALTER TABLE matrix_configs DROP COLUMN subject;"))
+                print("[Exam Service] ✅ Dropped legacy 'subject' text column from matrix_configs.")
+
+            # ⚠️ Bước trên chỉ thêm CỘT — model khai báo ForeignKey() nhưng SQLAlchemy chỉ tự tạo
+            # ràng buộc khóa ngoại thật lúc `create_all()` dựng bảng mới hoàn toàn, KHÔNG áp dụng khi
+            # bảng đã tồn tại từ trước (đúng lý do các migration ALTER TABLE khác trong file này cũng
+            # chỉ thêm cột trơn). Thiếu bước này thì cột subject_id chỉ là 1 cột VARCHAR bình thường,
+            # không có ràng buộc gì ở tầng DB dù model/route đã coi nó như FK — phải tự thêm constraint
+            # bằng tay ở đây thì mới thực sự là khóa ngoại (đối chiếu: DESCRIBE/information_schema).
+            fk_check = await conn.execute(text(
+                """
+                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'matrix_configs'
+                  AND COLUMN_NAME = 'subject_id' AND REFERENCED_TABLE_NAME = 'subject_categories'
+                """
+            ))
+            if not fk_check.fetchone():
+                orphan_check = await conn.execute(text(
+                    """
+                    SELECT COUNT(*) FROM matrix_configs mc
+                    WHERE mc.subject_id IS NOT NULL
+                      AND NOT EXISTS (SELECT 1 FROM subject_categories sc WHERE sc.id = mc.subject_id)
+                    """
+                ))
+                orphan_count = (orphan_check.fetchone() or [0])[0]
+                if orphan_count:
+                    print(f"[Exam Service] ⚠️ {orphan_count} matrix_configs.subject_id không khớp môn học nào — bỏ qua thêm ràng buộc khóa ngoại, cần dọn dữ liệu trước.")
+                else:
+                    await conn.execute(text(
+                        """
+                        ALTER TABLE matrix_configs
+                        ADD CONSTRAINT fk_matrix_configs_subject
+                        FOREIGN KEY (subject_id) REFERENCES subject_categories(id) ON DELETE SET NULL
+                        """
+                    ))
+                    print("[Exam Service] ✅ Added real FOREIGN KEY constraint on matrix_configs.subject_id -> subject_categories.id.")
+            else:
+                print("[Exam Service] ✅ FOREIGN KEY constraint on matrix_configs.subject_id already exists.")
+    except Exception as e:
+        print(f"[Exam Service] Error migrating matrix_configs.subject -> subject_id: {e}")
+
     # Migration: add 'created_at' column to questions table if not exists — trước đây bảng
     # không có cột này nên API luôn trả về _now() (giờ hiện tại) thay vì ngày tạo thật, làm
     # "Ngày tạo" hiển thị tự nhảy theo ngày hôm nay. Câu hỏi cũ (đã tồn tại trước migration
