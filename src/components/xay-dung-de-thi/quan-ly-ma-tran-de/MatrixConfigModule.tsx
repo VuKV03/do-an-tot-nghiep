@@ -664,7 +664,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 {tableLoading ? (
                   <tr>
                     <td colSpan={10} className="py-12 text-center">
-                      <Spin size="default" />
+                      <Spin size="medium" />
                     </td>
                   </tr>
                 ) : tableData.length === 0 ? (
@@ -933,7 +933,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 {evalTableLoading ? (
                   <tr>
                     <td colSpan={10} className="py-12 text-center">
-                      <Spin size="default" />
+                      <Spin size="medium" />
                     </td>
                   </tr>
                 ) : sortedEvalData.length === 0 ? (

@@ -11,11 +11,7 @@ export interface MonHocOption {
   ten: string;
 }
 
-export const MOCK_MON_HOC: MonHocOption[] = [
-  { id: 'mh-toan', ten: 'Toán học' },
-  { id: 'mh-ly', ten: 'Vật lí' },
-  { id: 'mh-anh', ten: 'Tiếng Anh' },
-];
+// API calls will now dynamically fetch this data.
 
 // ------------------------------------------
 // 2.2 GET /api/cau-hoi/ma-tran/cai-dat-ma-tran/{mon_hoc_id}
@@ -67,224 +63,7 @@ export interface ChuDeNode {
   children: ChuDeNode[];
 }
 
-const MOCK_CHU_DE_TOAN: ChuDeNode[] = [
-  {
-    id: 'cd-t1', ma: 'CD01', ten: 'Khảo sát & Vẽ đồ thị hàm số', so_tiet: 12, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-t1-1', ma: 'CD01.1', ten: 'Tính đơn điệu của hàm số', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 8 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 5 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 3 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-1', so_luong: 4 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-2', so_luong: 2 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t1-2', ma: 'CD01.2', ten: 'Cực trị và giá trị lớn nhất, nhỏ nhất', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 6 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 5 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 2 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-1', so_luong: 3 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t1-3', ma: 'CD01.3', ten: 'Tiệm cận đứng/ngang', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 5 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 3 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-1', so_luong: 2 },
-        ],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 'cd-t2', ma: 'CD02', ten: 'Nguyên hàm, Tích phân & Ứng dụng', so_tiet: 15, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-t2-1', ma: 'CD02.1', ten: 'Định nghĩa và tính chất nguyên hàm', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 7 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 5 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tln', nang_luc_id: 'nl-1', so_luong: 3 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tln', nang_luc_id: 'nl-2', so_luong: 2 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t2-2', ma: 'CD02.2', ten: 'Đổi biến số & tích phân từng phần', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 6 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 3 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-1', so_luong: 2 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t2-3', ma: 'CD02.3', ten: 'Diện tích hình phẳng & thể tích vật tròn xoay', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 5 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-2', so_luong: 2 },
-        ],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 'cd-t3', ma: 'CD03', ten: 'Phương pháp tọa độ trong không gian Oxyz', so_tiet: 18, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-t3-1', ma: 'CD03.1', ten: 'Hệ tọa độ Descartes, tích vô hướng', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 6 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 4 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-1', so_luong: 3 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t3-2', ma: 'CD03.2', ten: 'Phương trình tổng quát mặt phẳng', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 5 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 5 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 3 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-2', so_luong: 1 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-t3-3', ma: 'CD03.3', ten: 'Phương trình đường thẳng & mặt cầu', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-1', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 6 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-2', so_luong: 3 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-2', so_luong: 2 },
-        ],
-        children: [],
-      },
-    ],
-  },
-];
-
-const MOCK_CHU_DE_VAN: ChuDeNode[] = [
-  {
-    id: 'cd-v1', ma: 'CDV01', ten: 'Nghị luận văn học hiện đại', so_tiet: 20, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-v1-1', ma: 'CDV01.1', ten: 'Vợ chồng A Phủ (Tô Hoài)', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v1', so_luong: 5 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v2', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tl', nang_luc_id: 'nl-v2', so_luong: 2 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-v1-2', ma: 'CDV01.2', ten: 'Chiếc thuyền ngoài xa (NMC)', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v1', so_luong: 4 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v2', so_luong: 3 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-tl', nang_luc_id: 'nl-v2', so_luong: 1 },
-        ],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 'cd-v2', ma: 'CDV02', ten: 'Đọc hiểu văn bản xã hội & Thơ', so_tiet: 14, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-v2-1', ma: 'CDV02.1', ten: 'Phân tích kết cấu văn bản nhật dụng', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v1', so_luong: 6 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v1', so_luong: 3 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-v2-2', ma: 'CDV02.2', ten: 'Biện pháp tu từ & Phong cách ngôn ngữ', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-v1', so_luong: 5 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tl', nang_luc_id: 'nl-v2', so_luong: 2 },
-        ],
-        children: [],
-      },
-    ],
-  },
-];
-
-const MOCK_CHU_DE_VAT_LY: ChuDeNode[] = [
-  {
-    id: 'cd-l1', ma: 'CDL01', ten: 'Vật lí nhiệt', so_tiet: 10, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-l1-1', ma: 'CDL01.1', ten: 'Thuyết động học phân tử chất khí', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-vl1', so_luong: 6 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-vl1', so_luong: 4 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-vl2', so_luong: 2 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-vl1', so_luong: 4 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tln', nang_luc_id: 'nl-vl2', so_luong: 2 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-l1-2', ma: 'CDL01.2', ten: 'Định luật Boyle và định luật Charles', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-vl1', so_luong: 5 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-tn', nang_luc_id: 'nl-vl2', so_luong: 4 },
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-vl1', so_luong: 3 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-ds', nang_luc_id: 'nl-vl2', so_luong: 2 },
-        ],
-        children: [],
-      }
-    ]
-  }
-];
-
-const MOCK_CHU_DE_TIENG_ANH: ChuDeNode[] = [
-  {
-    id: 'cd-a1', ma: 'CDA01', ten: 'Vocabulary & Grammar', so_tiet: 12, is_dung_sai: false,
-    children: [
-      {
-        id: 'cd-a1-1', ma: 'CDA01.1', ten: 'Tenses and Agreement', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-1', loai_cau_hoi_id: 'lch-dien-tu-ngan', nang_luc_id: 'nl-ta1', so_luong: 10 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-dien-tu-ngan', nang_luc_id: 'nl-ta1', so_luong: 8 },
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-sap-xep', nang_luc_id: 'nl-ta1', so_luong: 5 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-dien-tu-dai', nang_luc_id: 'nl-ta2', so_luong: 4 },
-        ],
-        children: [],
-      },
-      {
-        id: 'cd-a1-2', ma: 'CDA01.2', ten: 'Reading Comprehension - General Topics', ten_khoi_lop: 'Khối 12',
-        ds_cau_hoi: [
-          { muc_do_id: 'md-2', loai_cau_hoi_id: 'lch-doc-hieu', nang_luc_id: 'nl-ta2', so_luong: 12 },
-          { muc_do_id: 'md-3', loai_cau_hoi_id: 'lch-doc-hieu', nang_luc_id: 'nl-ta2', so_luong: 10 },
-          { muc_do_id: 'md-4', loai_cau_hoi_id: 'lch-doc-hieu', nang_luc_id: 'nl-ta2', so_luong: 5 },
-        ],
-        children: [],
-      }
-    ]
-  }
-];
-
-export const MOCK_CHU_DE_MAP: Record<string, ChuDeNode[]> = {
-  'mh-toan': MOCK_CHU_DE_TOAN,
-  'mh-van': MOCK_CHU_DE_VAN,
-  'mh-anh': MOCK_CHU_DE_TIENG_ANH,
-  'mh-ly': MOCK_CHU_DE_VAT_LY,
-  'mh-hoa': MOCK_CHU_DE_TOAN,
-  'mh-sinh': MOCK_CHU_DE_TOAN,
-};
+// Hard-coded mock data has been removed.
 
 // ------------------------------------------
 // Interfaces matching spec section 3
@@ -314,11 +93,8 @@ export interface MaTranData {
 }
 
 // ------------------------------------------
-// Helper: simulate API delay
+// Real API calls
 // ------------------------------------------
-export function fakeDelay(ms = 400): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 // ------------------------------------------
 // Simulated API functions
@@ -326,14 +102,63 @@ export function fakeDelay(ms = 400): Promise<void> {
 
 /** 2.1 Lấy danh sách Môn học */
 export async function apiGetMonHoc(): Promise<MonHocOption[]> {
-  await fakeDelay(300);
-  return MOCK_MON_HOC;
+  try {
+    const res = await fetch('/api/exams/subject-categories');
+    const json = await res.json();
+    if (json.success && json.data) {
+      return json.data.map((item: any) => ({
+        id: item.id,
+        ten: item.name
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.error('Failed to fetch subjects', err);
+    return [];
+  }
 }
 
 /** 2.3 Lấy Chủ đề theo Môn (cây cha-con) */
 export async function apiGetChuDe(monHocId: string): Promise<ChuDeNode[]> {
-  await fakeDelay(600);
-  return MOCK_CHU_DE_MAP[monHocId] || MOCK_CHU_DE_MAP['mh-toan'];
+  try {
+    const res = await fetch('/api/exams/topics');
+    const json = await res.json();
+    if (json.success && json.data) {
+      // Filter by monHocId
+      const topics = json.data.filter((t: any) => t.subject_id === monHocId);
+      
+      // Build tree
+      const topicMap = new Map<string, ChuDeNode>();
+      const roots: ChuDeNode[] = [];
+      
+      // First pass: create nodes
+      for (const t of topics) {
+        topicMap.set(t.id, {
+          id: t.id,
+          ma: t.code,
+          ten: t.name,
+          ten_khoi_lop: t.grade_name,
+          children: [],
+          ds_cau_hoi: [],
+        });
+      }
+      
+      // Second pass: build tree structure
+      for (const t of topics) {
+        const node = topicMap.get(t.id)!;
+        if (t.parent_id && topicMap.has(t.parent_id)) {
+          topicMap.get(t.parent_id)!.children.push(node);
+        } else {
+          roots.push(node);
+        }
+      }
+      return roots;
+    }
+    return [];
+  } catch (err) {
+    console.error('Failed to fetch topics', err);
+    return [];
+  }
 }
 
 /** 2.5 Lưu ma trận */
@@ -346,8 +171,14 @@ export async function apiSaveMaTran(payload: any): Promise<{ success: boolean; m
       },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const json = await res.json();
+    if (!res.ok) {
+      // Backend returns {"detail": "..."} on error
+      return { success: false, message: json.detail || json.message || `Lỗi server (${res.status})` };
+    }
+    return json;
   } catch (err) {
+    console.error('apiSaveMaTran error:', err);
     return { success: false, message: 'Lỗi kết nối API khi lưu ma trận.' };
   }
 }
@@ -372,8 +203,13 @@ export async function apiUpdateMaTran(id: string, payload: any): Promise<{ succe
       },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const json = await res.json();
+    if (!res.ok) {
+      return { success: false, message: json.detail || json.message || `Lỗi server (${res.status})` };
+    }
+    return json;
   } catch (err) {
+    console.error('apiUpdateMaTran error:', err);
     return { success: false, message: 'Lỗi kết nối API khi cập nhật ma trận.' };
   }
 }

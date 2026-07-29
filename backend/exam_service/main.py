@@ -254,6 +254,40 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error migrating subject_configs scoring columns: {e}")
 
+    # Migration: alter matrix_configs.structure from TEXT to LONGTEXT — ds_cau_truc JSON can
+    # easily exceed 64KB (MySQL TEXT limit) for complex matrix configurations, causing silent
+    # data truncation or insert failure (500). Model already declares LONGTEXT but create_all
+    # does NOT alter existing columns.
+    try:
+        async with engine.begin() as conn:
+            col_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'structure'"))
+            row = col_check.fetchone()
+            if row:
+                col_type = str(row[1]).upper()  # e.g. 'text', 'longtext'
+                if 'LONGTEXT' not in col_type:
+                    await conn.execute(text("ALTER TABLE matrix_configs MODIFY COLUMN structure LONGTEXT;"))
+                    print("[Exam Service] ✅ Migrated matrix_configs.structure from TEXT to LONGTEXT.")
+                else:
+                    print("[Exam Service] ✅ matrix_configs.structure is already LONGTEXT.")
+            else:
+                print("[Exam Service] ⚠️ matrix_configs.structure column not found (table may be new).")
+    except Exception as e:
+        print(f"[Exam Service] Error migrating matrix_configs.structure: {e}")
+
+    # Migration: ensure matrix_configs has 'subject_id' column (older schema may only have 'subject')
+    try:
+        async with engine.begin() as conn:
+            col_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'subject_id'"))
+            if not col_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE matrix_configs ADD COLUMN subject_id VARCHAR(36) NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'subject_id' column to matrix_configs table.")
+            else:
+                print("[Exam Service] ✅ 'subject_id' column already exists in matrix_configs table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding subject_id column: {e}")
+
     # DEBUG: Describe columns of questions and exams tables
     try:
         async with engine.begin() as conn:

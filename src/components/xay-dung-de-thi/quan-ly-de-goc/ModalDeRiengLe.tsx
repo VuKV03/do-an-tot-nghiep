@@ -263,7 +263,7 @@ export default function ModalDeRiengLe({
       ]}
       centered
       width={1000}
-      bodyStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
       destroyOnHidden
     >
       <div className="flex" style={{ minHeight: 500 }}>
