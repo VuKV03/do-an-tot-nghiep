@@ -307,22 +307,6 @@ export const gradeLevelApi = {
     }),
 };
 
-// ─── ExamPeriod — exam_periods ──────────────────────────────────────────────
-export interface ExamPeriodAPI {
-  id: string;
-  code: string;
-  name: string;
-  start_date: string;
-  end_date: string;
-  status: 'HOAT_DONG' | 'KHONG_HOAT_DONG';
-  is_active: boolean;
-  note: string;
-  created_by?: string | null;
-  updated_by?: string | null;
-  created_at: string;
-  updated_at?: string | null;
-}
-
 // ─── Topic — topics ────────────────────────────────────────────────────────
 export interface TopicAPI {
   id: string;
@@ -343,31 +327,6 @@ export interface TopicAPI {
   subject_name?: string;
   grade_name?: string;
 }
-
-// ─── ExamPeriod API ─────────────────────────────────────────────────────────
-export const examPeriodApi = {
-  list: () =>
-    apiFetch<{ success: boolean; count: number; data: ExamPeriodAPI[] }>(
-      '/exam-periods/',
-    ),
-  create: (body: Omit<ExamPeriodAPI, 'id' | 'created_at' | 'updated_at'>) =>
-    apiFetch<{ success: boolean; message: string; data: ExamPeriodAPI }>(
-      '/exam-periods/',
-      { method: 'POST', body: JSON.stringify(body) },
-    ),
-  update: (
-    id: string,
-    body: Partial<Omit<ExamPeriodAPI, 'id' | 'created_at' | 'updated_at'>>,
-  ) =>
-    apiFetch<{ success: boolean; message: string; data: ExamPeriodAPI }>(
-      `/exam-periods/${id}`,
-      { method: 'PUT', body: JSON.stringify(body) },
-    ),
-  delete: (id: string) =>
-    apiFetch<{ success: boolean; message: string }>(`/exam-periods/${id}`, {
-      method: 'DELETE',
-    }),
-};
 
 // ─── Topics API ─────────────────────────────────────────────────────────────
 export const topicsApi = {

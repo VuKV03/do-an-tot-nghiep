@@ -143,7 +143,6 @@ class PackageCreate(BaseModel):
     description: Optional[str] = ""
     # Chỉ dùng để gắn nhãn/lọc gói đề (không ảnh hưởng logic sinh đề hoán vị)
     matrix_id: Optional[str] = None
-    exam_period_id: Optional[str] = None
 
 
 class PackageUpdate(BaseModel):
@@ -157,7 +156,6 @@ class PackageUpdate(BaseModel):
     accessType: Optional[str] = None
     description: Optional[str] = None
     matrix_id: Optional[str] = None
-    exam_period_id: Optional[str] = None
 
 
 class PackageResponse(BaseModel):
@@ -174,7 +172,6 @@ class PackageResponse(BaseModel):
     createdAt: str
     description: str
     matrix_id: Optional[str] = None
-    exam_period_id: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -363,49 +360,6 @@ class GradeLevelListResponse(BaseModel):
     count: int
     data: List[GradeLevelResponse]
 
-
-# ─── Exam Period (ExamPeriod) Schemas ──────────────────────────────────────────
-class ExamPeriodCreate(BaseModel):
-    code: str
-    name: str
-    start_date: str
-    end_date: str
-    status: Optional[str] = "HOAT_DONG"
-    is_active: bool = True
-    note: Optional[str] = ""
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-
-class ExamPeriodUpdate(BaseModel):
-    code: Optional[str] = None
-    name: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    status: Optional[str] = None
-    is_active: Optional[bool] = None
-    note: Optional[str] = None
-    updated_by: Optional[str] = None
-
-class ExamPeriodResponse(BaseModel):
-    id: str
-    code: str
-    name: str
-    start_date: str
-    end_date: str
-    status: str
-    is_active: bool
-    note: str
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created_at: str
-    updated_at: Optional[str] = None
-
-    model_config = {"from_attributes": True}
-
-class ExamPeriodListResponse(BaseModel):
-    success: bool = True
-    count: int
-    data: List[ExamPeriodResponse]
 
 
 # ─── Topic (chu_de) Schemas ──────────────────────────────────────────────────
