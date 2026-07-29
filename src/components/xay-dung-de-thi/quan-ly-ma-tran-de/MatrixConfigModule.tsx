@@ -50,7 +50,7 @@ import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 const NAME_MAX_LENGTH = 255;
 
 export default function MatrixConfigModule({ initialTab, currentUser }: { initialTab?: 'list' | 'evaluation', currentUser?: any }) {
-  // Real Môn thi list fetched from database API
+  // Real Môn học list fetched from database API
   const [dbSubjects, setDbSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
   const [allowedSubjects, setAllowedSubjects] = useState<{ id: string; code: string; name: string }[]>([]);
   const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
@@ -63,14 +63,15 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         if (res && res.data) {
           const activeSubjects = res.data.filter((item: any) => item.is_active);
           setDbSubjects(activeSubjects);
-          
+
           const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
           setAllowedSubjects(filteredSubjects as any[]);
           setIsSubjectRestricted(isRestricted);
-          
+
           if (isRestricted && filteredSubjects.length > 0) {
-            setFilterSubject(filteredSubjects[0].name);
-            setEvalFilterSubject(filteredSubjects[0].name);
+            // Không gán cứng môn học đầu tiên nữa để hiển thị "Tất cả" các môn được phân công
+            // setFilterSubject(filteredSubjects[0].name);
+            // setEvalFilterSubject(filteredSubjects[0].name);
           }
         }
       } catch (err) {
@@ -497,8 +498,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           <button
             onClick={() => { setActiveTab('list'); setSelectedRowIds([]); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-                ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
               }`}
             style={{
               borderBottomColor: activeTab === 'list' ? '#eff6ff' : undefined
@@ -511,8 +512,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           <button
             onClick={() => { setActiveTab('evaluation'); setEvalSelectedRowIds([]); }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'evaluation'
-                ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
+              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
               }`}
             style={{
               borderBottomColor: activeTab === 'evaluation' ? '#eff6ff' : undefined
@@ -560,15 +561,15 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                     )}
                   </div>
 
-                  {/* Môn thi */}
+                  {/* Môn học */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
                     <Select
                       value={filterSubject}
                       onChange={setFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />
@@ -843,15 +844,15 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                     )}
                   </div>
 
-                  {/* Môn thi */}
+                  {/* Môn học */}
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
                     <Select
                       value={evalFilterSubject}
                       onChange={setEvalFilterSubject}
                       className="w-full text-xs"
                       options={[
-                        ...(!isSubjectRestricted ? [{ value: 'all', label: 'Tất cả' }] : []),
+                        { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.name, label: s.name }))
                       ]}
                     />

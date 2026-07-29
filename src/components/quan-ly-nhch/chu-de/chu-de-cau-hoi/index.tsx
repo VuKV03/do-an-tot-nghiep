@@ -163,9 +163,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
       setIsSubjectRestricted(isRestricted);
       setKhoiLops(mappedKhoiLop);
 
-      if (isRestricted && defaultSubjectId) {
-        setFilterMonHoc(defaultSubjectId);
-      } else if (mappedMonHoc.length > 0) {
+      if (mappedMonHoc.length > 0) {
         setFilterMonHoc('');
       }
     } catch (e: any) {

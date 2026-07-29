@@ -40,7 +40,8 @@ import {
 } from '@ant-design/icons';
 import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
 import { Question } from '../../../types';
-import { bankQuestionApi } from '../../../services/danhMucApi';
+import { bankQuestionApi, subjectCategoryApi } from '../../../services/danhMucApi';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { toast } from '../../../utils/toast';
@@ -67,6 +68,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Core Data States
   const [exams, setExams] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Filters for Exams
@@ -114,7 +117,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
 
   // Độ rộng từng cột bảng "Kết quả tìm kiếm" — co giãn được bằng cách kéo cạnh phải tiêu đề cột.
-  // Thứ tự: checkbox, STT, Mã đề, Tên đề thi, Môn thi, Ma trận đề, Tổng điểm, Số câu hỏi,
+  // Thứ tự: checkbox, STT, Mã đề, Tên đề thi, Môn học, Ma trận đề, Tổng điểm, Số câu hỏi,
   // Thời gian làm bài, Ngày tạo, Trạng thái, Thao tác.
   const { colGroup: examTableColGroup, startResize: startExamColResize, totalWidth: examTableTotalWidth } = useResizableColumns(
     [40, 56, 110, 260, 110, 120, 90, 90, 130, 100, 190, 160]
@@ -124,16 +127,22 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const fetchData = async () => {
     setLoading(true);
     try {
-      const resExams = await fetch('/api/exams');
-      const dataExams = await resExams.json();
-      if (dataExams.success) {
-        setExams(dataExams.data || []);
-      }
+      const [resExams, resPkgs, resSubjects] = await Promise.all([
+        fetch('/api/exams').then(r => r.json()),
+        fetch('/api/exams/packages').then(r => r.json()),
+        subjectCategoryApi.list()
+      ]);
 
-      const resPkgs = await fetch('/api/exams/packages');
-      const dataPkgs = await resPkgs.json();
-      if (dataPkgs.success) {
-        setPackages(dataPkgs.data || []);
+      if (resExams.success) setExams(resExams.data || []);
+      if (resPkgs.success) setPackages(resPkgs.data || []);
+      
+      const activeSubjects = (resSubjects?.data || []).filter((s: any) => s.is_active);
+      const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
+      setSubjects(filteredSubjects);
+      setIsSubjectRestricted(isRestricted);
+      if (isRestricted && filteredSubjects.length > 0) {
+        // Không gán cứng môn học đầu tiên nữa để hiển thị "Tất cả" các môn được phân công
+        // setExamSubject(filteredSubjects[0].name);
       }
     } catch {
       toast.error('Lỗi cổng kết nối khi tải danh sách.');
@@ -153,7 +162,9 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
       const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' || e.subject === examSubject;
+      const matchesSubject = examSubject === 'all' 
+        ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
+        : e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isVariant && matchesSearch && matchesSubject && matchesGrade && matchesStatus;
@@ -165,15 +176,21 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     return exams.filter(e => {
       const isRoot = e.source !== 'ai';
       const matchesSearch = (e.name || '').toLowerCase().includes(kw) || (e.code || '').toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' || e.subject === examSubject;
+      const matchesSubject = examSubject === 'all' 
+        ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
+        : e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isRoot && matchesSearch && matchesSubject && matchesStatus;
     });
   }, [exams, examSearch, examSubject, examStatus]);
 
   const filteredExamReview = useMemo(() => {
-    return exams.filter(e => e.status === 'pending' || e.status === '2');
-  }, [exams]);
+    return exams.filter(e => {
+      const isPending = e.status === 'pending' || e.status === '2';
+      const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === e.subject);
+      return isPending && isAllowedSubject;
+    });
+  }, [exams, isSubjectRestricted, subjects]);
 
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
@@ -318,7 +335,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
     { header: 'Mã đề', accessor: row => row.code, width: 16 },
     { header: 'Tên đề thi', accessor: row => row.name, width: 32 },
-    { header: 'Môn thi', accessor: row => row.subject, width: 14 },
+    { header: 'Môn học', accessor: row => row.subject, width: 14 },
     { header: 'Ma trận đề', accessor: row => row.matrixName || 'Ma trận đề 01', width: 16 },
     { header: 'Tổng điểm', accessor: row => row.totalScore || '10.00', width: 10, align: 'center' },
     { header: 'Số câu hỏi', accessor: row => row.totalQuestions || 0, width: 10, align: 'center' },
@@ -504,7 +521,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         onClick: () => handleOpenSync(exam)
       });
     }
-    
+
     if (hasActionPermission(currentUser, 'exams.manage')) {
       if (items.length > 0) items.push({ type: 'divider' as const });
       items.push({
@@ -578,12 +595,15 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 />
               </div>
               <div>
-                <label className="block text-[14px] font-medium text-slate-700 mb-1">Môn thi</label>
+                <label className="block text-[14px] font-medium text-slate-700 mb-1">Môn học</label>
                 <Select
                   value={examSubject}
                   onChange={setExamSubject}
                   className="w-full text-[14px]"
-                  options={[{ value: 'all', label: 'Tất cả' }, ...SUBJECTS]}
+                  options={[
+                    { value: 'all', label: 'Tất cả' },
+                    ...subjects.map(s => ({ value: s.name, label: s.name }))
+                  ]}
                 />
               </div>
               <div>
@@ -753,7 +773,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   <th className="relative py-3 px-3 text-center font-bold">STT<ColResizeHandle onMouseDown={startExamColResize(1)} /></th>
                   <th className="relative py-3 px-3 text-left font-bold">Mã đề<ColResizeHandle onMouseDown={startExamColResize(2)} /></th>
                   <th className="relative py-3 px-3 text-left font-bold">Tên đề thi<ColResizeHandle onMouseDown={startExamColResize(3)} /></th>
-                  <th className="relative py-3 px-3 text-center font-bold">Môn thi<ColResizeHandle onMouseDown={startExamColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center font-bold">Môn học<ColResizeHandle onMouseDown={startExamColResize(4)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Ma trận đề<ColResizeHandle onMouseDown={startExamColResize(5)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Tổng điểm<ColResizeHandle onMouseDown={startExamColResize(6)} /></th>
                   <th className="relative py-3 px-3 text-center font-bold">Số câu hỏi<ColResizeHandle onMouseDown={startExamColResize(7)} /></th>
