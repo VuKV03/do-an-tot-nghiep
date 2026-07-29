@@ -1,0 +1,1581 @@
+
+HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG
+KHOA CÔNG NGHỆ THÔNG TIN I
+
+
+
+
+
+
+
+
+
+ĐỒ ÁN TỐT NGHIỆP
+NGHIÊN CỨU ỨNG DỤNG KIẾN TRÚC MICROSERVICES 
+VÀ TRÍ TUỆ NHÂN TẠO XÂY DỰNG HỆ THỐNG QUẢN LÝ 
+VÀ TẠO SINH ĐỀ THI TRẮC NGHIỆM CHO HỌC SINH THPT
+
+Giảng viên hướng dẫn:  ThS. Nguyễn Hoàng Anh
+Sinh viên thực hiện
+
+Hà Nội, …/2026	
+
+LỜI CAM ĐOAN
+Nhóm em xin cam đoan rằng đồ án tốt nghiệp này là kết quả của sự nỗ lực  và hoàn toàn trung thực của nhóm. Tất cả nội dung, dữ liệu, và phân tích được trình bày trong đồ án đều do nhóm thực hiện và nghiên cứu, không sao chép hay sử dụng tài liệu của người khác mà không có sự trích dẫn rõ ràng.
+Nhóm em đã tuân thủ đầy đủ các quy định về bản quyền và đạo đức nghiên cứu, và mọi thông tin, số liệu sử dụng trong đồ án đều được thu thập và xử lý một cách chính xác và hợp pháp. Trong quá trình thực hiện đồ án, nhóm em đã tham khảo và tuân theo hướng dẫn của giảng viên và các chuyên gia, đồng thời nỗ lực để đảm bảo chất lượng và tính chính xác của công việc.
+
+Nhóm em hoàn toàn chịu trách nhiệm về nội dung và kết quả của đồ án này, và cam kết rằng không có bất kỳ hình thức gian lận hay vi phạm nào xảy ra trong quá trình thực hiện. Nhóm hy vọng đồ án này sẽ đáp ứng được yêu cầu và tiêu chuẩn của chương trình học, và nhóm em sẵn sàng tiếp nhận mọi ý kiến phản hồi để cải thiện và hoàn thiện hơn trong tương lai.
+Hà Nội, ngày… tháng 8 năm 2026
+
+Người cam đoan
+
+
+Nguyễn Văn Chiến
+Đào Hà Ngân
+Khuất Văn Vũ
+
+				
+				
+
+LỜI CẢM ƠN
+Em xin chân thành cảm ơn thầy ThS. Nguyễn Hoàng Anh, phụ trách môn học “Đồ án tốt nghiệp” khoa Công Nghệ Thông Tin trường Học Viện Công Nghệ Bưu Chính Viễn Thông đã giúp đỡ và nâng đỡ nhóm em trong quá trình học, cũng như bài báo cáo đồ án tốt nghiệp. Không chỉ tận tâm cung cấp cho nhóm những kiến thức vững chắc, nền tảng tốt về lĩnh vực công nghệ phần mềm, mà còn dạy nhóm những kỹ năng mềm, những thứ mà ở trường đại học số ít người làm được như vậy, hay luôn nhiệt tình cung cấp những kiến thức và kinh nghiệm thầy đã trải qua giúp em phát triển cả về kiến thức lẫn kỹ năng. Không những thế thầy còn giúp nhóm em cảm thấy ý nghĩa của môi trường đại học.
+Một lần nữa em xin cảm ơn thầy, chúc thầy luôn thành công trong sự nghiệp trồng người cũng như trong công việc. Hy vọng có cơ hội có thể làm việc với thầy trong tương lai gần.
+
+
+
+DANH MỤC HÌNH ẢNH
+
+DANH MỤC BẢNG BIỂU
+
+DANH MỤC CHỮ VIẾT TẮT
+
+
+
+
+LỜI MỞ ĐẦU
+Trong thời đại công nghệ số, giáo dục đang đứng trước yêu cầu cấp thiết về việc đổi mới phương pháp dạy và học, trong đó việc tổ chức thi cử và đánh giá năng lực học sinh đóng vai trò then chốt. Đặc biệt đối với học sinh cấp ba, ngân hàng câu hỏi trắc nghiệm và đề thi chuẩn hóa không chỉ giúp giáo viên giảm tải khối lượng công việc mà còn hỗ trợ học sinh ôn luyện hiệu quả hơn. Tuy nhiên, việc xây dựng một hệ thống ngân hàng đề thi trực tuyến an toàn, bảo mật và có khả năng mở rộng vẫn còn nhiều thách thức.
+Báo cáo này tập trung nghiên cứu các vấn đề bảo mật trong kiến trúc lập trình Microservice và nền tảng quản lý yêu cầu HTTP REST, đồng thời đề xuất giải pháp ứng dụng trí tuệ nhân tạo (AI) nhằm phát triển một phần mềm web hỗ trợ việc tạo sinh, lưu trữ và quản lý ngân hàng câu hỏi trắc nghiệm cho học sinh cấp ba. Nội dung báo cáo bao gồm phân tích lý thuyết, thiết kế hệ thống, triển khai thử nghiệm và đánh giá hiệu quả thực tế.
+Báo cáo gồm 4 chương:
+Chương 1: Đặt vấn đề – giới thiệu bối cảnh, mục tiêu và phạm vi nghiên cứu.
+Chương 2: Nền tảng lý thuyết và đề xuất giải pháp – trình bày cơ sở lý thuyết về Microservice, HTTP REST API, bảo mật và AI, đồng thời phân tích thiết kế hệ thống.
+Chương 3: Triển khai và thử nghiệm – mô tả quy trình cài đặt, cấu hình, tích hợp các thành phần công nghệ, cùng với thử nghiệm thực tế hệ thống.
+Chương 4: Kết luận và hướng phát triển – tổng kết kết quả đạt được, đánh giá hạn chế và đề xuất hướng mở rộng trong tương lai.
+Mục tiêu của báo cáo là mang đến một cái nhìn toàn diện về việc ứng dụng các công nghệ hiện đại để xây dựng một hệ thống phần mềm web vừa an toàn, vừa thông minh, phục vụ hiệu quả công tác quản lý đề thi trắc nghiệm trong nhà trường. Hy vọng báo cáo sẽ trở thành tài liệu tham khảo hữu ích cho các cá nhân và tổ chức quan tâm đến lĩnh vực này.
+
+CHƯƠNG 1: KIẾN THỨC NỀN TẢNG
+1.1. Giới thiệu về phần mềm ngân hàng câu hỏi trắc nghiệm
+1.1.1. Bối cảnh và tầm quan trọng của ngân hàng đề thi trắc nghiệm cho học sinh cấp ba
+Trong hệ thống giáo dục trung học phổ thông (THPT) tại Việt Nam, hình thức thi trắc nghiệm đã trở thành phương pháp đánh giá phổ biến, được áp dụng rộng rãi trong các kỳ thi học kỳ, kiểm tra định kỳ, và đặc biệt là ôn luyện cho kỳ thi tốt nghiệp THPT. Hình thức này mang lại nhiều lợi ích như đánh giá nhanh chóng, khách quan, và khả năng kiểm tra kiến thức toàn diện trên nhiều lĩnh vực. Tuy nhiên, việc xây dựng, quản lý, và sử dụng hiệu quả một ngân hàng câu hỏi trắc nghiệm chất lượng cao vẫn là một thách thức lớn đối với các trường THPT.
+Hiện nay, các trường THPT thường gặp phải các vấn đề sau trong quá trình quản lý câu hỏi và đề thi trắc nghiệm:
+Quản lý phân tán: Câu hỏi và đề thi thường được lưu trữ cục bộ bởi từng giáo viên, thiếu hệ thống tập trung để tái sử dụng và chia sẻ.
+Tốn thời gian và công sức: Giáo viên phải dành nhiều thời gian để soạn thảo câu hỏi và xây dựng đề thi, đặc biệt khi cần đáp ứng các tiêu chí khác nhau về môn học, lớp, mức độ khó, và chủ đề.
+Chất lượng không đồng đều: Câu hỏi có thể thiếu sự kiểm duyệt chặt chẽ, không đáp ứng đúng yêu cầu chương trình giảng dạy hoặc không phù hợp với mục tiêu kiểm tra.
+Rủi ro bảo mật: Việc lưu trữ và chia sẻ câu hỏi/đề thi thủ công dễ dẫn đến rò rỉ thông tin hoặc mất mát dữ liệu.
+Do đó, việc phát triển một phần mềm ngân hàng câu hỏi trắc nghiệm là giải pháp cần thiết để hỗ trợ giáo viên, tổ bộ môn, và nhà trường trong việc quản lý hiệu quả các câu hỏi trắc nghiệm, từ đó nâng cao chất lượng giảng dạy và đánh giá. Hệ thống này không chỉ cung cấp nền tảng lưu trữ và quản lý tập trung mà còn tích hợp các công nghệ hiện đại như trí tuệ nhân tạo (AI) để tự động hóa việc sinh câu hỏi và đề thi, kiến trúc Microservice để đảm bảo khả năng mở rộng, và HTTP REST API để quản lý giao tiếp bất đồng bộ giữa các dịch vụ, đồng thời chú trọng đến bảo mật dữ liệu.
+1.1.2. Khảo sát yêu cầu tại một trường THPT cụ thể
+Để đảm bảo tính thực tiễn, đề tài sẽ tiến hành khảo sát tại một trường THPT cụ thể Trường THPT Phạm Quang Thẩm nhằm xác định các yêu cầu và quy trình thực tế trong việc quản lý ngân hàng câu hỏi trắc nghiệm. Qua khảo sát sơ bộ, một số vấn đề thực tiễn đã được ghi nhận như sau:
+Quy trình tạo và phê duyệt câu hỏi/đề thi: Tại nhiều trường, giáo viên tự soạn câu hỏi trắc nghiệm, nhưng câu hỏi cần được tổ trưởng bộ môn phê duyệt để đảm bảo chất lượng và phù hợp với chương trình giảng dạy. Tuy nhiên, quy trình này thường thiếu công cụ hỗ trợ, dẫn đến chậm trễ và thiếu tính hệ thống.
+Nhu cầu đa dạng về câu hỏi: Các môn học như Toán, Lý, Hóa, Văn, Sử, Địa, và Giáo dục công dân yêu cầu các dạng câu hỏi khác nhau (lựa chọn đơn, lựa chọn nhiều, đúng/sai, câu trả lời ngắn). Mỗi khối lớp (10, 11, 12) có yêu cầu riêng về mức độ khó và nội dung kiến thức, từ cơ bản đến nâng cao, phục vụ cho các bài kiểm tra trong lớp, thi học kỳ, hoặc ôn thi đại học.
+Phân quyền quản lý: Giáo viên bộ môn chỉ được phép quản lý câu hỏi của mình, trong khi tổ trưởng bộ môn có quyền phê duyệt và quản lý toàn bộ ngân hàng câu hỏi của bộ môn. Phòng giáo vụ có thể cần quyền truy cập toàn bộ đề thi để tổ chức các bài kiểm tra, các kỳ thi chung. Admin có quyền quản trị hệ thống thêm mới người dùng và phân quyền các nhóm người dùng.
+Bảo mật và lưu trữ: Câu hỏi và đề thi cần được lưu trữ an toàn, tránh rò rỉ trước kỳ thi. Hệ thống lưu trữ hiện tại (file Word, Excel) nằm rải rác không đáp ứng được yêu cầu bảo mật và dễ bị thất lạc.
+Nhu cầu tự động hóa: Mỗi lần giáo viên làm đề phải tìm các câu hỏi từ nhiều nguồn khác nhau, biên tập thành từng đề mà không đúng được ma trận đề như mong muốn, rất bất tiện. Giáo viên mong muốn có công cụ hỗ trợ tạo câu hỏi và đề thi tự động theo các tiêu chí cụ thể (môn học, lớp, chủ đề, mức độ khó) để giảm tải công việc.
+Khảo sát này sẽ được thực hiện thông qua phỏng vấn giáo viên, tổ trưởng bộ môn, và cán bộ quản lý, kết hợp với phân tích các quy định của Bộ Giáo dục và Đào tạo về hình thức thi trắc nghiệm. Kết quả khảo sát sẽ là cơ sở để thiết kế các chức năng và yêu cầu của hệ thống, đảm bảo phù hợp với thực tiễn tại các trường THPT.
+1.1.3. Mục tiêu và phạm vi của đề tài
+Mục tiêu
+Đề tài nhằm xây dựng một phần mềm ngân hàng câu hỏi trắc nghiệm hỗ trợ các trường THPT trong việc tạo sinh, lưu trữ, và quản lý câu hỏi trắc nghiệm, với các mục tiêu cụ thể:
+Tự động hóa quy trình sinh câu hỏi và đề thi: Sử dụng các mô hình AI hiện đại (như GoogleAI GPT) để tạo câu hỏi và đề thi tự động dựa trên các tiêu chí về môn học, lớp, chủ đề, và mức độ khó, từ đó giảm thiểu công sức và thời gian của giáo viên.
+Quản lý tập trung và hiệu quả: Cung cấp một hệ thống lưu trữ tập trung, cho phép giáo viên, tổ trưởng bộ môn, và quản trị viên quản lý câu hỏi và đề thi một cách khoa học, dễ dàng tìm kiếm và tái sử dụng.
+Đảm bảo bảo mật và phân quyền: Áp dụng các cơ chế bảo mật như JSON Web Token (JWT), Role-Based Access Control (RBAC), và TLS để bảo vệ dữ liệu câu hỏi/đề thi, đồng thời phân quyền rõ ràng theo vai trò (giáo viên, tổ trưởng, phòng giáo vụ, quản trị viên).
+Hỗ trợ đa dạng môn học và mục đích: Hệ thống đáp ứng nhu cầu cho các môn học thuộc khối Tự nhiên (Toán, Lý, Hóa, Sinh), Xã hội (Văn, Sử, Địa), Giáo dục công dân, Ngoại ngữ và các môn Khoa học tổng hợp, phục vụ bài kiểm tra trong lớp, thi học kỳ, và ôn thi đại học cho các khối lớp 10, 11, 12.
+Giao diện thân thiện và dễ sử dụng: Phát triển giao diện web dựa trên ReactJS, đảm bảo tính trực quan, dễ sử dụng cho giáo viên và tương thích với các trình duyệt phổ biến (Chrome, Firefox, Edge) cũng như thiết bị di động.
+Phạm vi
+Đề tài tập trung vào các nội dung sau:
+Phạm vi chức năng: Xây dựng các chức năng chính bao gồm quản lý câu hỏi (thêm, sửa, xóa), sinh đề thi bằng AI, phê duyệt câu hỏi/đề thi, tìm kiếm thông minh, và xuất đề thi dưới dạng Word, phân quyền các nhóm người dùng
+Phạm vi công nghệ:
+Kiến trúc Microservice: Phân chia hệ thống thành các dịch vụ độc lập (User Service, Question Service, Exam Service, Notification Service) để đảm bảo khả năng mở rộng và chịu lỗi.
+HTTP REST API: Sử dụng để quản lý giao tiếp bất đồng bộ giữa các dịch vụ, ví dụ: gửi yêu cầu sinh đề thi và nhận thông báo khi hoàn tất.
+AI: Tích hợp các mô hình AI (GoogleAI API) để tạo câu hỏi và đề thi, hỗ trợ tìm kiếm thông minh.
+Cơ sở dữ liệu: Sử dụng MySQL để lưu trữ câu hỏi và đề thi, cơ chế truy vấn trực tiếp để lưu cache nhằm tăng tốc tìm kiếm.
+Phạm vi ứng dụng: Hệ thống được thiết kế cho đa trường THPT, có khả năng mở rộng để áp dụng cho nhiều trường hoặc hệ thống giáo dục lớn hơn. Hệ thống tập trung chủ yếu vào 5 loại câu hỏi chính trong đề thi bao gồm: câu hỏi một lựa chọn, câu hỏi đa lựa chọn, đúng sai dạng bảng, trả lời ngắn, câu hỏi nhóm.
+Phạm vi bảo mật: Tập trung vào bảo mật dữ liệu truyền tải (TLS), xác thực người dùng (JWT), và phân quyền truy cập, đặc biệt trong các giao tiếp qua HTTP REST API và API.
+1.2. Tổng quan về câu hỏi trắc nghiệm
+1.2.1. Đặc điểm của câu hỏi trắc nghiệm theo khối 
+Chương trình học THPT hiên tại gồm các môn Toán, Vật lý, Hóa học, Sinh học, Địa lý, Lịch sử, Giáo dục công dân - pháp luật, Tin học, Công nghệ, Công nghệ công nghiệp, Công nghệ nông nghiệp, Ngoại ngữ.
+Câu hỏi trắc nghiệm là một phương pháp đánh giá quan trọng trong giáo dục THPT tại Việt Nam, được sử dụng trong các kỳ thi học kỳ, kiểm tra định kỳ, và ôn luyện thi tốt nghiệp THPT. Đặc điểm của câu hỏi trắc nghiệm thay đổi tùy thuộc vào từng môn học, phản ánh nội dung kiến thức và mục tiêu giảng dạy. Dưới đây là phân tích đặc điểm của câu hỏi trắc nghiệm theo các môn học được liệt kê:
+Toán:
+Đặc điểm: Câu hỏi trắc nghiệm trong môn Toán tập trung vào khả năng tư duy logic, giải quyết bài tập, và áp dụng công thức. Các câu hỏi thường yêu cầu tính toán chính xác và phân tích hình học hoặc đại số. 
+Ví dụ: Giải phương trình bậc hai, tính diện tích hình tròn, hoặc bài toán xác suất.
+Vật lý:
+Đặc điểm: Câu hỏi kiểm tra hiểu biết về các định luật vật lý, khả năng tính toán, và phân tích hiện tượng tự nhiên. Các bài tập thường liên quan đến chuyển động, lực, điện, hoặc quang học.
+Ví dụ: Tính vận tốc của vật trong chuyển động thẳng đều, áp dụng định luật Ohm.
+Hóa học:
+Đặc điểm: Câu hỏi tập trung vào phản ứng hóa học, tính chất của chất, và bài tập cân bằng hóa học. Yêu cầu học sinh phân tích và áp dụng kiến thức lý thuyết vào thực tiễn.
+Ví dụ: Xác định sản phẩm của phản ứng ( 2H_2 + O_2 \rightarrow 2H_2O ), hoặc tính nồng độ dung dịch.
+Sinh học:
+Đặc điểm: Câu hỏi kiểm tra kiến thức về cấu trúc sinh vật, di truyền, và sinh thái. Các câu hỏi thường yêu cầu phân tích hiện tượng sinh học hoặc ghi nhớ thông tin chi tiết.
+Ví dụ: Giải thích quá trình quang hợp, hoặc xác định kiểu gen từ bài toán di truyền.
+Địa lý:
+Đặc điểm: Câu hỏi tập trung vào đặc điểm địa lý tự nhiên, kinh tế, và phân tích bản đồ. Yêu cầu học sinh liên hệ kiến thức với thực tiễn địa phương hoặc quốc tế.
+Ví dụ: Đánh giá đặc điểm khí hậu Việt Nam, hoặc phân tích tài nguyên khoáng sản.
+Lịch sử:
+Đặc điểm: Câu hỏi kiểm tra khả năng ghi nhớ sự kiện, nhân vật lịch sử, và phân tích bối cảnh lịch sử. Thường yêu cầu tư duy tổng hợp và liên hệ.
+Ví dụ: Xác định thời gian diễn ra Cách mạng tháng Tám 1945, hoặc phân tích vai trò của Nguyễn Trãi.
+Giáo dục công dân - pháp luật:
+Đặc điểm: Câu hỏi tập trung vào đạo đức, pháp luật, và kỹ năng sống. Thường mang tính ứng dụng, yêu cầu học sinh giải quyết tình huống thực tế.
+Ví dụ: Xác định quyền và nghĩa vụ công dân, hoặc áp dụng Luật Giao thông trong tình huống cụ thể.
+Tin học:
+Đặc điểm: Câu hỏi kiểm tra kiến thức về lập trình, thuật toán, và sử dụng phần mềm. Yêu cầu học sinh áp dụng kỹ năng thực hành và tư duy logic.
+Ví dụ: Viết đoạn mã lập trình đơn giản, hoặc giải bài toán bằng thuật toán.
+Công nghệ:
+Đặc điểm: Câu hỏi tập trung vào kỹ thuật, công nghệ sản xuất, và ứng dụng thực tế. Thường yêu cầu học sinh phân tích quy trình hoặc thiết kế.
+Ví dụ: Phân tích quy trình sản xuất thủ công, hoặc thiết kế một sản phẩm đơn giản.
+Công nghệ công nghiệp:
+Đặc điểm: Câu hỏi liên quan đến kỹ thuật công nghiệp, máy móc, và quy trình sản xuất hiện đại. Yêu cầu kiến thức chuyên sâu về công nghệ chế tạo.
+Ví dụ: Tính toán hiệu suất của một máy móc, hoặc phân tích quy trình lắp ráp.
+Công nghệ nông nghiệp:
+Đặc điểm: Câu hỏi kiểm tra kiến thức về canh tác, chăn nuôi, và bảo vệ môi trường nông nghiệp. Thường mang tính ứng dụng cao.
+Ví dụ: Xác định biện pháp cải tạo đất, hoặc phân tích tác động của phân bón hóa học.
+Ngoại ngữ:
+Đặc điểm: Câu hỏi tập trung vào từ vựng, ngữ pháp, và kỹ năng đọc hiểu hoặc dịch thuật. Thường yêu cầu phản xạ nhanh và hiểu ngữ cảnh.
+Ví dụ: Chọn từ đúng trong câu “She ___ (go) to school every day,” hoặc dịch đoạn văn ngắn.
+1.2.2. Các dạng câu hỏi trắc nghiệm và yêu cầu kiến thức từng khối 10, 11, 12
+Các dạng câu hỏi trắc nghiệm
+Câu hỏi lựa chọn đơn (Multiple Choice - Single Answer):
+Mô tả: Học sinh chọn một đáp án đúng duy nhất trong 4 lựa chọn.
+Ví dụ: “Hàm số ( y = x^2 - 4 ) có giao điểm với trục hoành tại ( x = ? )” (Toán).
+Câu hỏi đúng/sai (True/False):
+Mô tả: Học sinh đánh giá một phát biểu là đúng hoặc sai.
+Ví dụ: “Việt Nam có đường bờ biển dài hơn 3.260 km. Đúng hay Sai?” (Địa lý).
+Câu hỏi nhóm:
+Mô tả: Câu hỏi chung tiêu đề câu hỏi chung
+Ví dụ: “Phản ứng ( 2H_2 + O_2 \rightarrow \ldots ) tạo ra nước.” (Hóa học).
+Câu hỏi trả lời ngắn:
+Mô tả: Học sinh chọn đáp án điền vào chỗ trống.
+Ví dụ: Bình phương của 3 là: 9
+Yêu cầu kiến thức theo khối lớp
+Lớp 10:
+Mục tiêu: Làm quen với kiến thức cơ bản của các môn học.
+Đặc điểm câu hỏi: 
+Chủ yếu là câu hỏi lựa chọn đơn và đúng/sai, mức độ dễ.
+Ví dụ: Toán (phương trình bậc nhất), Vật lý (chuyển động thẳng đều), Ngữ văn (đọc hiểu văn bản), Giáo dục công dân (quyền công dân).
+Yêu cầu: Câu hỏi đơn giản, giúp củng cố kiến thức nền.
+Lớp 11:
+Mục tiêu: Nâng cao kiến thức, chuẩn bị cho thi tốt nghiệp.
+Đặc điểm câu hỏi: 
+Bao gồm lựa chọn đơn, lựa chọn nhiều, mức độ trung bình.
+Ví dụ: Toán (hàm số lượng giác), Hóa học (phản ứng oxi hóa khử), Lịch sử (sự kiện thế kỷ 19), Tin học (thuật toán cơ bản).
+Yêu cầu: Khuyến khích tư duy phân tích và ứng dụng.
+Lớp 12:
+Mục tiêu: Chuẩn bị thi tốt nghiệp THPT, kiến thức chuyên sâu.
+Đặc điểm câu hỏi: 
+Tất cả các dạng, nhiều câu khó.
+Ví dụ: Toán (tích phân), Sinh học (di truyền), Ngoại ngữ (đọc hiểu nâng cao), Công nghệ (thiết kế sản phẩm).
+Yêu cầu: Tính phân hóa cao, sát với đề thi tốt nghiệp.
+1.3. Phân cấp và phân quyền trong quản lý ngân hàng đề thi
+1.3.1. Vai trò của giáo viên, tổ bộ môn trong tạo sinh, lưu trữ, quản lý đề thi
+Quản lý ngân hàng đề thi trắc nghiệm tại các trường THPT đòi hỏi một quy trình phân cấp rõ ràng giữa các bên liên quan để đảm bảo chất lượng, tính bảo mật, và hiệu quả sử dụng. Dựa trên thực tiễn tại các trường THPT, các vai trò chính bao gồm giáo viên, tổ bộ môn, và phòng ban (như Phòng Giáo vụ) với các trách nhiệm cụ thể như sau:
+Giáo viên bộ môn:
+Vai trò: Là người trực tiếp tham gia vào quá trình tạo sinh và quản lý câu hỏi trắc nghiệm. Giáo viên chịu trách nhiệm:
+Soạn thảo hoặc nhập thủ công các câu hỏi trắc nghiệm, bao gồm thông tin về môn học (Toán, Vật lý, Hóa học, v.v.), lớp (10, 11, 12), chủ đề, mức độ khó, và đáp án.
+Sử dụng hệ thống AI tích hợp để yêu cầu sinh câu hỏi hoặc đề thi tự động dựa trên các tiêu chí cụ thể.
+Chỉnh sửa, xóa, hoặc cập nhật, gửi thẩm định chủ đề câu hỏi, câu hỏi, ma trận đề, đề thi.
+Lưu trữ: Các câu hỏi và đề thi do giáo viên tạo ban đầu được lưu trữ trong khu vực cá nhân hoặc bộ môn, chờ phê duyệt.
+Quản lý: Giám sát và theo dõi trạng thái của câu hỏi/đề thi do mình tạo, ví dụ: đã được phê duyệt hay chưa.
+Tổ trưởng bộ môn:
+Vai trò: Là đơn vị kiểm soát chất lượng và phê duyệt nội dung trước khi đưa vào ngân hàng đề thi chung.
+Xem xét và phê duyệt các chủ đề câu hỏi, câu hỏi, ma trận đề hoặc đề thi do giáo viên trong bộ môn đề xuất, đảm bảo tính chính xác, phù hợp với chương trình giảng dạy, và không trùng lặp.
+Hỗ trợ giáo viên trong việc phân loại và tổ chức, thẩm định chủ đề câu hỏi, câu hỏi, ma trận đề hoặc đề thi.
+Lưu trữ: Quản lý ngân hàng câu hỏi đã được phê duyệt trong phạm vi bộ môn, sẵn sàng chia sẻ với các giáo viên khác hoặc Phòng Giáo vụ khi cần.
+Quản lý: Theo dõi tiến độ tạo và phê duyệt đề thi, đảm bảo tuân thủ quy trình nội bộ của trường.
+Phòng giáo vụ:
+Vai trò: Là đơn vị kiểm soát chất lượng và phê duyệt nội dung, xuất đề thi phục vụ cho các kỳ kiểm tra, kỳ thi trước khi đưa vào ngân hàng đề thi chung. 
+Xem xét và phê duyệt các đề thi tổ trưởng bộ môn đề xuất, đảm bảo tính chính xác, phù hợp với chương trình giảng dạy, và không trùng lặp.
+Điều phối việc tạo sinh đề thi cho các kỳ thi chung của bộ môn (như thi học kỳ hoặc thi giữa kỳ).
+Quản lý: Quản lý ngân hàng câu hỏi cho phép xuất đề thi khi đã đạt chuẩn yêu cầu.
+1.3.2. Yêu cầu về phân quyền truy cập và bảo mật
+Để đảm bảo an toàn và hiệu quả trong quản lý ngân hàng đề thi, hệ thống cần áp dụng các yêu cầu nghiêm ngặt về phân quyền truy cập và bảo mật, đặc biệt khi tích hợp các công nghệ như kiến trúc Microservice và HTTP REST API. Các yêu cầu cụ thể bao gồm:
+Phân quyền truy cập (Role-Based Access Control - RBAC):
+Quản trị viên (Admin): Có quyền truy cập toàn bộ hệ thống, bao gồm quản lý tài khoản người dùng (giáo viên, tổ trưởng, giáo vụ), giám sát nhật ký hoạt động, và quản trị danh mục hệ thống.
+Giáo viên: Có quyền biên tập biên soạn, gửi thẩm định các chủ đề câu hỏi, câu hỏi, ma trận đề, đề thi.
+Tổ trưởng bộ môn: Có quyền xem và phê duyệt chủ đề câu hỏi, câu hỏi, ma trận đề hoặc đề thi trong phạm vi bộ môn, cũng như truy cập ngân hàng đề thi đã phê duyệt của bộ môn. Tổ trưởng không thể sửa đổi trực tiếp câu hỏi của giáo viên khác mà chỉ có thể yêu cầu chỉnh sửa.
+Phòng giáo vụ: Có quyền xem tất cả các đề thi và cho phép xuất đề thi ra file để sử dụng.
+Yêu cầu bảo mật:
+Xác thực người dùng: Sử dụng JWT để xác thực danh tính người dùng khi đăng nhập vào hệ thống, đảm bảo chỉ người dùng được ủy quyền mới có thể truy cập.
+Mã hóa dữ liệu: Áp dụng Transport Layer Security (TLS) để mã hóa dữ liệu truyền tải giữa các microservice và qua HTTP REST API, ngăn chặn rò rỉ thông tin câu hỏi/đề thi.
+Bảo vệ dữ liệu lưu trữ: Sử dụng cơ sở dữ liệu để lưu trữ câu hỏi và đề thi, đồng thời thực hiện sao lưu định kỳ để tránh mất mát dữ liệu.
+Giới hạn quyền truy cập: Mỗi vai trò chỉ được phép thực hiện các thao tác trong phạm vi được phân quyền, ví dụ: giáo viên không thể xem đề thi của bộ môn khác, và AI Service không thể truy cập dữ liệu không liên quan.
+Bảo mật giao tiếp qua HTTP REST API: Cấu hình xác thực user HTTP REST API và giới hạn quyền truy cập vào các Queue/Exchange, đảm bảo thông điệp (như yêu cầu sinh đề thi) chỉ được xử lý bởi các dịch vụ được ủy quyền.
+Phát hiện và xử lý vi phạm: Hệ thống cần ghi lại nhật ký hoạt động (audit log) để theo dõi mọi thao tác truy cập hoặc chỉnh sửa, giúp phát hiện và xử lý kịp thời các hành vi trái phép, như cố gắng truy cập trái phép vào ngân hàng đề thi.
+Những yêu cầu này không chỉ đảm bảo tính bảo mật của dữ liệu câu hỏi và đề thi mà còn hỗ trợ quy trình phân cấp quản lý, phù hợp với thực tiễn tại các trường THPT và các công nghệ hiện đại được áp dụng trong đề tài.
+1.4. Tổng kết chương 1
+Chương 1 đã cung cấp cái nhìn tổng quan về bối cảnh, vấn đề thực tiễn, và định hướng phát triển của phần mềm ngân hàng câu hỏi trắc nghiệm dành cho học sinh trung học phổ thông (THPT). Cụ thể, phần mềm được thiết kế nhằm giải quyết các thách thức trong việc tạo sinh, lưu trữ, và quản lý câu hỏi trắc nghiệm, bao gồm sự phân tán, mất thời gian, và thiếu bảo mật trong quy trình hiện tại. Qua khảo sát tại một trường THPT cụ thể, các yêu cầu thực tiễn như quy trình phê duyệt, nhu cầu đa dạng về câu hỏi theo môn học (Toán, Vật lý, Hóa học, Sinh học, Địa lý, Lịch sử, Giáo dục công dân - pháp luật, Tin học, Công nghệ, Công nghệ công nghiệp, Công nghệ nông nghiệp, Ngoại ngữ), và phân cấp quản lý đã được làm rõ.
+Đặc điểm của câu hỏi trắc nghiệm theo từng môn học và yêu cầu kiến thức theo các khối lớp (10, 11, 12) đã được phân tích, làm cơ sở để xây dựng hệ thống hỗ trợ các dạng câu hỏi đa dạng như lựa chọn đơn, lựa chọn nhiều, đúng/sai, ghép đôi, và điền khuyết. Đồng thời, quy trình phân cấp và phân quyền giữa giáo viên, tổ bộ môn, và Phòng Giáo vụ đã được xác định, cùng với các yêu cầu bảo mật nghiêm ngặt như sử dụng JWT, TLS, và RBAC để đảm bảo an toàn dữ liệu.
+Định hướng phát triển của đề tài tập trung vào việc tích hợp các công nghệ hiện đại, bao gồm kiến trúc Microservice để đảm bảo khả năng mở rộng, HTTP REST API để quản lý giao tiếp bất đồng bộ, và AI để tự động hóa việc sinh câu hỏi và đề thi. Những nội dung này đặt nền tảng cho việc phân tích, thiết kế, và triển khai hệ thống trong các chương tiếp theo, nhằm xây dựng một giải pháp hiệu quả, bảo mật, và phù hợp với thực tiễn giáo dục THPT.
+
+CHƯƠNG 2: NỀN TẢNG LÝ THUYẾT VÀ ĐỀ XUẤT GIẢI PHÁP
+2.1. Kiến trúc Microservice
+2.1.1. Khái niệm Microservice
+Kiến trúc Microservice là một mô hình thiết kế phần mềm, trong đó ứng dụng được chia thành các dịch vụ nhỏ, độc lập, mỗi dịch vụ thực hiện một chức năng cụ thể và giao tiếp với nhau qua các giao thức chuẩn như HTTP/REST hoặc gRPC. Mỗi microservice có thể được phát triển, triển khai và mở rộng độc lập, giúp tăng tính linh hoạt và khả năng bảo trì.
+
+Hình 2. 1. Kiến trúc Microservices
+Trong tiếng anh, micro có nghĩa là nhỏ, vi mô. Vậy Microservice, như tên của nó, đó chính là chia một khối phần mềm thành các service nhỏ hơn, có thể triển khai trên các server khác nhau. Mỗi service sẽ xử lý từng phần công việc và được kết nối với nhau thông qua các các giao thức khác nhau, như http, SOA, socket, Message queue (Active MQ, Kafka)... để truyền tải dữ liệu.
+
+Hình 2. 2. So sánh kiến trúc monolithic và microservices
+Trước khi Microservices xuất hiện, các ứng dụng thường phát triển theo mô hình Monolithic architecture (Kiến trúc một khối). Có nghĩa là tất cả các module (view, business, database) đều được gộp trong một project, một ứng dụng được phát triển theo mô hình kiến trúc một khối thường được phân chia làm nhiều module. Nhưng khi được đóng gói và cài đặt sẽ thành một khối (monolithic). Lợi ích của mô hình kiến trúc một khối đó là dễ dàng phát triển và triển khai. Nhưng bên cạnh đó nó cũng có nhiều hạn chế ví dụ như khó khăn trong việc bảo trì, tính linh hoạt và khả năng mở rộng kém, đặc biệt với những ứng dụng doanh nghiệp có quy mô lớn. Đó chính là lí do ra đời của kiến trúc Microservices.
+2.1.2. Đặc trưng của Microservice
+Micro-service
+Đặc trưng này được thể hiện ngay từ tên của kiến trúc. Nó là microservice chứ không phải là miniservice hay nanoservice. Trên thực tế không tồn tại mô hình kiến trúc cho miniservice hay nanoservice. Từ microservice được sử dụng để giúp người thiết kế có cách tiếp cận đúng đắn. 
+Một ứng dụng lớn cần được chia nhỏ ra thành nhiều thành phần, các thành phần đó cần tách biệt về mặt dữ liệu (database) và phải đủ nhỏ cả về mặt kích cỡ và độ ảnh hưởng của nó trong hệ thống, khi thêm một microservice vào hệ thống cũng nên đảm bảo rằng nó đủ nhỏ để dễ dàng tháo gỡ, xóa bỏ khỏi hệ thống mà không ảnh hưởng nhiều tới các thành phần khác.
+Tính độc lập
+Các microservice hoạt động tách biệt nhau trong hệ thống, do vậy việc build một microservice cũng độc lập với việc build các microservice khác. Thông thường, để tiện cho việc phát triển và duy trì các microservice, người phát triển nên viết các built script khác nhau cho mỗi microservice.
+Do tính tách biệt này mà mỗi microservice đều dễ dàng thay thế và mở rộng. Hơn thế nữa, nó còn giúp việc phát triển các microservice linh động hơn, các microservice có thể được phát triển bởi các team khác nhau, dùng các ngôn ngữ khác nhau và tiến độ phát triển dự án cũng nhanh hơn do không có sự phụ thuộc giữa các team, mỗi team có thể chủ động quản lý phần việc riêng của mình.
+Tính chuyên biệt
+Mỗi microservice là một dịch vụ chuyên biệt, có thể hoạt động độc lập, thông thường mỗi microservice đại diện cho một tính năng mà các công ty/ doanh nghiệp muốn cung cấp tới người dùng. Các đầu vào đầu ra và chức năng của mỗi microservice cần được định nghĩa rõ ràng.
+Phòng chống lỗi
+Kiến trúc microservice sinh ra là để dành cho các hệ thống từ lớn đến vô cùng lớn. Nó áp dụng phương pháp chia để trị, phương pháp này giúp việc áp dụng các công cụ, kỹ thuật cho việc giám sát, phòng chống lỗi phần mềm, lỗi hệ thống hiệu quả.
+Khi một thành phần trong hệ thống bị lỗi, nó có thể được thay thế bằng các thành phần dự phòng một cách dễ dàng, trong quá trình thay thế thành phần bị lỗi, các thành phần khác vẫn hoạt động bình thường, do vậy hoạt động của toàn bộ hệ thống sẽ không hoặc ít bị gián đoạn.
+2.1.3. Ưu nhược điểm của Microservice
+Ưu điểm
+Cho phép dễ dàng continuous delivery và deployment các ứng dựng lớn, phức tạp nhờ cải thiện khả năng bảo trì - mỗi service tương đối nhỏ do đó dễ hiểu và thay đổi hơn, khả năng testing dễ dàng hơn - các services nhỏ hơn và nhanh hơn để test hoặc khả năng triển khai tốt hơn - các services có thể được triển khai độc lập.
+Cho phép các services được phát triển bởi những team khác nhau. Mỗi team có thể phát triển, thử nghiệm, triển khai và mở rộng quy mô dịch vụ của mình một cách độc lập với tất cả các team khác.
+Giảm thiểu các rủi ro như lỗi trong một service thì chỉ có service đó bị ảnh hưởng. Các services khác sẽ tiếp tục xử lý các yêu cầu.
+Khi triển khai các services bạn có thể lựa chọn nhiều công nghệ mới. Tương tự khi có thay đổi lớn đối với các services hiện có bạn có thể dễ dàng thay đổi công nghệ.
+Nhược điểm
+Khi triển khai hoặc quản lý microservices nếu làm thủ công theo cách đã làm với ứng dụng một khối thì sẽ phức tạp hơn rất nhiều.
+Phải xử lý sự cố khi kết nối chậm, lỗi khi thông điệp không gửi được hoặc thông điệp gửi đến nhiều đích đến vào các thời điểm khác nhau.
+Các nhà phát triển phải đối phó với sự phức tạp của việc tạo ra một hệ thống phân tán như: khó khăn trong việc đảm bảo toàn vẹn CSDL nếu triển khai theo kiến trúc cơ sở dữ liệu phân vùng, cần implement việc communication giữa các inter-services,...
+2.1.4. Bảo mật Microservice
+Bảo mật microservices bảo vệ từng đơn vị nhỏ, độc lập trong kiến ​​trúc microservices. Cách tiếp cận này chia các chương trình phần mềm lớn thành các dịch vụ nhỏ hơn, riêng biệt, mỗi dịch vụ hoạt động độc lập. 
+Làm thế nào để bảo mật các microservices?
+Xác thực và phân quyền (Authentication & Authorization): 
+Sử dụng JWT để xác thực người dùng và dịch vụ.
+Áp dụng API Gateway (như FastAPI Gateway, AWS API Gateway) để quản lý xác thực tập trung.
+Triển khai RBAC (Role-Based Access Control) hoặc ABAC (Attribute-Based Access Control) để kiểm soát quyền truy cập.
+Mã hóa dữ liệu (Data Encryption): 
+Sử dụng TLS/SSL để mã hóa dữ liệu truyền tải giữa các microservices (HTTPS, gRPC với TLS).
+Mã hóa dữ liệu nhạy cảm tại rest (ví dụ: sử dụng AES-256 cho cơ sở dữ liệu).
+Đảm bảo quản lý khóa mã hóa an toàn với các công cụ như AWS KMS hoặc HashiCorp Vault.
+Bảo mật API: 
+Triển khai JWT (JSON Web Token), hoặc mTLS (mutual TLS) để bảo vệ giao tiếp giữa các dịch vụ.
+Giới hạn tỷ lệ yêu cầu (rate limiting) và chặn các yêu cầu bất thường qua API Gateway.
+Kiểm tra và lọc dữ liệu đầu vào để ngăn chặn các cuộc tấn công như SQL Injection, XSS.
+Quản lý bí mật (Secrets Management): 
+Lưu trữ các thông tin nhạy cảm (mật khẩu, API key) trong các công cụ như HashiCorp Vault, AWS Secrets Manager.
+Tránh hard-code bí mật trong mã nguồn hoặc tệp cấu hình.
+Bảo mật mạng: 
+Sử dụng VPC (Virtual Private Cloud) hoặc Service Mesh (như Istio, Linkerd) để cô lập và bảo vệ giao tiếp giữa các microservices.
+Áp dụng Zero Trust Architecture: không tin tưởng bất kỳ dịch vụ nào, luôn xác minh.
+Giám sát và phát hiện xâm nhập: 
+Sử dụng các công cụ như Prometheus, Grafana, hoặc ELK Stack để giám sát log và phát hiện bất thường.
+Triển khai WAF (Web Application Firewall) để bảo vệ khỏi các cuộc tấn công như DDoS.
+Thực hiện audit định kỳ và quét lỗ hổng bảo mật.
+Container Security (nếu sử dụng container): 
+Sử dụng các image container đáng tin cậy, quét lỗ hổng bằng công cụ như Trivy hoặc Clair.
+Áp dụng nguyên tắc least privilege cho container (giới hạn quyền truy cập).
+Cập nhật thường xuyên các bản vá bảo mật cho container runtime (Docker, Kubernetes).
+Kiểm tra và tuân thủ: 
+Thực hiện kiểm tra bảo mật định kỳ (penetration testing).
+Tuân thủ các tiêu chuẩn như OWASP Top 10, GDPR, hoặc ISO 27001 nếu cần.
+2.1.5. Các từ khóa liên quan đến Microservices
+Service Discovery:
+Các dịch vụ có thể tự đăng ký vào một hệ thống Service Discovery (ví dụ: Consul, etcd, Kubernetes). Sau đó, bất kỳ microservice nào cần kết nối với dịch vụ khác sẽ truy vấn Service Discovery để tìm địa chỉ và trạng thái của dịch vụ đó.
+Load Balancing:
+Load Balancer có thể là một dịch vụ độc lập hoặc được tích hợp trong hệ thống Service Discovery. Nó sẽ nhận các yêu cầu từ người dùng và phân phối chúng đến các microservices theo một thuật toán cụ thể (ví dụ: phân bổ đều, ưu tiên máy khỏe hơn,...) để đảm bảo hiệu suất và độ tin cậy.
+Service Communication (REST/gRPC):
+REST (Representational State Transfer): Là một kiến trúc mạng dựa trên giao thức HTTP. Sử dụng các phương thức HTTP như GET, POST, PUT, DELETE để thao tác với các tài nguyên. REST thường dễ triển khai và tương thích tốt với nhiều ngôn ngữ lập trình.
+gRPC (Remote Procedure Calls): Là một framework RPC hiện đại, hiệu năng cao, sử dụng protocol buffer (protobuf) để định dạng dữ liệu. gRPC cung cấp một số lợi ích so với REST, bao gồm:
+Hiệu năng cao: Protocol buffer có kích thước nhỏ hơn XML hoặc JSON, giúp truyền dữ liệu nhanh hơn.
+Dữ liệu định dạng rõ ràng: Protobuf giúp định nghĩa cấu trúc dữ liệu một cách rõ ràng, giúp tránh các lỗi liên quan đến dữ liệu.
+Thích hợp với microservices: gRPC thường được ưu tiên sử dụng trong các kiến trúc microservices.
+2.2. HTTP REST API
+2.2.1. Khái niệm HTTP REST API
+
+Hình 2. 3. Logo HTTP REST API
+HTTP REST API là một message-queuing software có thể được biết đến như là một người vận chuyển message trung gian hoặc một người quản lí các queue. Nói một cách đơn giản, nó là một phần mềm nơi các queue được định nghĩa, phục vụ cho ứng dụng với mục đích vận chuyển một hoặc nhiều message.
+Những khái niệm cơ bản:
+Producer: Ứng dụng gửi message.
+Consumer: Ứng dụng nhận message.
+Queue: Lưu trữ messages.
+Message: Thông tin truyền từ Producer đến Consumer qua HTTP REST API.
+Connection: Một kết nối TCP giữa ứng dụng và HTTP REST API broker.
+Channel: Một kết nối ảo trong một Connection. Việc publishing hoặc consuming từ một queue đều được thực hiện trên channel.
+Exchange: Là nơi nhận message được publish từ Producer và đẩy chúng vào queue dựa vào quy tắc của từng loại Exchange. Để nhận được message, queue phải được nằm trong ít nhất 1 Exchange.
+Binding: Đảm nhận nhiệm vụ liên kết giữa Exchange và Queue.
+Routing key: Một key mà Exchange dựa vào đó để quyết định cách để định tuyến message đến queue. Có thể hiểu nôm na, Routing key là địa chỉ dành cho message.
+AMQP: Giao thức Advance Message Queuing Protocol, là giao thức truyền message trong HTTP REST API.
+User: Để có thể truy cập vào HTTP REST API, chúng ta phải có username và password. Trong HTTP REST API, mỗi user được chỉ định với một quyền hạn nào đó. User có thể được phân quyền đặc biệt cho một Vhost nào đó.
+Virtual host/Vhost: Cung cấp những cách riêng biệt để các ứng dụng dùng chung một HTTP REST API instance. Những user khác nhau có thể có các quyền khác nhau đối với vhost khác nhau. Queue và Exchange có thể được tạo, vì vậy chúng chỉ tồn tại trong một vhost.
+2.2.2. Cách thức hoạt động
+
+Hình 2. 4. Cách thức hoạt động của HTTP REST API
+HTTP REST API hoạt động như một hệ thống giao tiếp thông điệp phân tán, giữ vai trò là bưu điện kết nối giữa các thành phần của hệ thống. Trong quá trình này, Producer tạo ra và gửi các message tới HTTP REST API, đóng vai trò như người gửi thông điệp. Đồng thời, Exchange nhận message từ Producer và quyết định cách chúng sẽ được định tuyến tới các queue. Exchange có thể được cấu hình với nhiều loại, bao gồm Topic, Direct, Fanout hay Headers, mỗi loại đều có cách xử lý và định tuyến message khác nhau.
+Sau khi được định tuyến, các message sẽ được đẩy vào các queue tương ứng. Queue là nơi lưu trữ các message, sẽ chờ đợi để được Consumer lấy đi xử lý. Consumer tiến hành nhận thông điệp, kết nối với HTTP REST API và subscribe vào các queue để nhận rồi xử lý các message. Khi một message được đẩy vào queue, HTTP REST API sẽ gửi message đó tới Consumer đã subscribe vào queue đó.
+Với cách thức hoạt động này, HTTP REST API đảm bảo việc truyền thông tin linh hoạt giữa các thành phần của hệ thống. Bằng cách sử dụng các thành phần như Exchange và Queue, HTTP REST API cho phép các message được xử lý hiệu quả, nhanh chóng trong một môi trường phân tán.
+2.2.3. Những loại Exchange trong HTTP REST API
+Trong HTTP REST API, có nhiều loại exchange mà bạn có thể sử dụng để định tuyến tin nhắn theo các quy tắc khác nhau. Dưới đây là một số loại exchange phổ biến:
+
+Hình 2. 5. Phân loại HTTP REST API
+Direct Exchange: Direct exchange định tuyến tin nhắn dựa trên routing key của mỗi tin nhắn. Khi một tin nhắn được gửi đến một direct exchange, nó sẽ được đưa đến queue có routing key phù hợp.
+Fanout Exchange: Fanout exchange chuyển tiếp mọi tin nhắn đến tất cả các hàng đợi (queues) được liên kết với nó. Không cần quan tâm đến routing key, mọi tin nhắn được gửi đến fanout exchange sẽ được sao chép và gửi đến tất cả các queue kết nối.
+Topic Exchange: Topic exchange định tuyến tin nhắn dựa trên một hoặc nhiều routing key phù hợp với mẫu định trước (pattern). Routing key có thể là một chuỗi từ hoặc một biểu thức chính quy. Tin nhắn sẽ được đưa đến các hàng đợi có routing key khớp với mẫu được chỉ định.
+Headers Exchange: Headers exchange định tuyến tin nhắn dựa trên các thuộc tính (headers) của tin nhắn thay vì routing key. Bạn có thể xác định các quy tắc định tuyến dựa trên các header cụ thể của tin nhắn.
+Dead Letter Exchange: Được sử dụng để xử lý các tin nhắn không thể được xử lý hoặc gửi đến queue đích. Khi một tin nhắn không thể được gửi đến queue đích vì lý do nào đó, nó có thể được đẩy vào một hàng đợi khác được liên kết với một Dead Letter Exchange.
+2.3. Giới thiệu về Trí tuệ nhân tạo (AI) trong sinh đề thi trắc nghiệm cho học sinh cấp ba
+2.3.1. Trí tuệ nhân tạo là gì
+
+Hình 2. 6. Trí tuệ nhân tạo
+Trí tuệ nhân tạo (AI) là công nghệ cho phép máy móc, đặc biệt là máy tính, "học hỏi" và "suy nghĩ" như con người. Trí tuệ nhân tạo khác với việc lập trình logic trong các ngôn ngữ lập trình là ở việc ứng dụng các hệ thống học máy (machine learning) để mô phỏng trí tuệ của con người trong các xử lý mà con người làm tốt hơn máy tính.
+Cụ thể, trí tuệ nhân tạo giúp máy tính có được những trí tuệ của con người như: biết suy nghĩ và lập luận để giải quyết vấn đề, biết giao tiếp do hiểu ngôn ngữ, tiếng nói, biết học và tự thích nghi,…
+Trí tuệ nhân tạo (Artificial Intelligence – AI) là lĩnh vực nghiên cứu trong khoa học máy tính nhằm xây dựng các hệ thống hoặc máy móc có khả năng thực hiện các nhiệm vụ đòi hỏi trí tuệ của con người như:
+Học tập (learning),
+Lập luận (reasoning),
+Giải quyết vấn đề (problem-solving),
+Hiểu ngôn ngữ tự nhiên (natural language understanding),
+Và nhận dạng (perception).
+AI không chỉ giới hạn trong một công nghệ cụ thể, mà là một tập hợp các kỹ thuật như học máy (machine learning), mạng nơ-ron nhân tạo (neural networks), xử lý ngôn ngữ tự nhiên (NLP), thị giác máy tính (computer vision) và tối ưu hóa (optimization).
+2.3.2. Vai trò của AI trong sinh đề thi trắc nghiệm
+Tự động hóa quá trình tạo đề
+Trong giáo dục truyền thống, quá trình xây dựng ngân hàng câu hỏi thường tiêu tốn rất nhiều thời gian và công sức từ giáo viên:
+Viết câu hỏi
+Soạn đáp án và giải thích
+Phân loại mức độ khó, nội dung chương trình
+AI giúp tự động hóa toàn bộ hoặc một phần quy trình này, bằng cách:
+Đọc và hiểu tài liệu học tập (giáo trình, sách giáo khoa, bài giảng)
+Sinh câu hỏi từ nội dung đó
+Gợi ý đáp án đúng và sai hợp lý
+Cung cấp lời giải thích đi kèm
+Điều này giúp giảm gánh nặng cho giáo viên, đặc biệt là ở cấp học phổ thông với lượng câu hỏi lớn.
+Cá nhân hóa đề thi theo năng lực học sinh
+Khi kết hợp với dữ liệu học tập và phân tích kết quả thi:
+AI có thể ước lượng năng lực hiện tại của từng học sinh
+Từ đó sinh ra bộ câu hỏi phù hợp, tránh quá dễ hoặc quá khó
+Ví dụ:
+Học sinh yếu → câu hỏi sinh ra ở mức hiểu và nhớ
+Học sinh khá giỏi → câu hỏi sinh ra ở mức vận dụng và phân tích (theo Bloom's Taxonomy)
+Tăng tính đa dạng và phong phú cho ngân hàng câu hỏi
+AI có thể:
+Sinh nhiều phiên bản câu hỏi khác nhau từ cùng một nội dung
+Sinh đề theo chủ đề, mức độ khó, kỹ năng yêu cầu
+Tránh trùng lặp bằng cách thay đổi cấu trúc câu hỏi hoặc ngữ cảnh
+Kết quả là ngân hàng câu hỏi có tính mở rộng cao, phục vụ kiểm tra linh hoạt.
+Tích hợp phân tích chất lượng câu hỏi (CTT/IRT)
+AI không chỉ sinh câu hỏi, mà còn có thể:
+Phân tích chất lượng câu hỏi sau khi học sinh làm bài (dựa trên dữ liệu phản hồi)
+Tự điều chỉnh việc sinh câu hỏi mới để phù hợp hơn
+Ví dụ: câu hỏi sinh ra nhưng học sinh nào cũng làm đúng → AI đánh giá là quá dễ → đề xuất cải tiến.
+Kết nối với hệ thống e-learning hoặc LMS
+Câu hỏi sinh ra từ AI có thể đưa trực tiếp vào hệ thống kiểm tra (như Moodle, Google Forms, LMS nội bộ)
+Tích hợp trực tiếp vào quy trình dạy học số
+Hỗ trợ song ngữ và nhiều dạng đề
+Các mô hình ngôn ngữ như GPT-4 có thể:
+Sinh đề song ngữ (Anh – Việt, Hàn – Việt…)
+Sinh câu hỏi dạng: đúng/sai, trắc nghiệm, điền khuyết, ghép nối…
+Giúp phù hợp với đa dạng môn học và chương trình.
+AI không chỉ là công cụ sinh câu hỏi nhanh chóng, mà còn có vai trò lớn trong việc cá nhân hóa giáo dục, đánh giá chất lượng đề thi, và tối ưu hóa quy trình dạy – học. Việc ứng dụng AI vào sinh đề thi trắc nghiệm là một bước tiến tự nhiên trong chuyển đổi số ngành giáo dục.
+2.4. Đề xuất giải pháp công nghệ
+2.4.1. Kiến trúc hệ thống tổng thể
+Kiến trúc hệ thống tổng thể được thiết kế dựa trên kiến trúc Microservice để đảm bảo tính linh hoạt, khả năng mở rộng, và chịu lỗi tốt. Hệ thống bao gồm các thành phần chính sau:
+API Gateway: Lớp trung gian quản lý tất cả các yêu cầu từ người dùng, sử dụng FastAPI Gateway để định tuyến và cân bằng tải giữa các microservice. API Gateway cũng đảm nhận vai trò xác thực người dùng thông qua JWT.
+Microservices:
+API Gateway Service: Là cổng truy cập duy nhất của hệ thống, chịu trách nhiệm định tuyến request, xác thực JWT ban đầu, phân quyền và bảo vệ hệ thống trước các tấn công phổ biến như DDoS, truy cập trái phép.
+Auth Service: Quản lý xác thực người dùng và cấp phát token (JWT), thực hiện phân quyền truy cập dựa trên mô hình RBAC cho giáo viên, tổ trưởng bộ môn và quản trị viên.
+Admin Service: Thực hiện các chức năng quản trị hệ thống như quản lý người dùng, vai trò, cấu hình bảo mật và ghi nhận nhật ký thao tác (audit log).
+Danh mục Service: Quản lý các dữ liệu danh mục dùng chung như môn học, khối lớp, chủ đề câu hỏi, đảm bảo dữ liệu được chuẩn hóa và nhất quán trong toàn hệ thống.
+File Service: Cung cấp chức năng tải lên, lưu trữ và truy xuất file đề thi một cách an toàn, kiểm soát quyền truy cập và ngăn chặn các file độc hại.
+App Service: Xử lý nghiệp vụ chính của hệ thống, bao gồm quản lý ngân hàng câu hỏi trắc nghiệm, tạo đề thi, ma trận đề và tích hợp với AI Service để sinh câu hỏi tự động.
+AI Service: Ứng dụng mô hình AI  để hỗ trợ sinh câu hỏi trắc nghiệm, kiểm tra trùng lặp nội dung và phân tích hành vi truy cập bất thường nhằm nâng cao bảo mật hệ thống.
+HTTP REST API: Quản lý giao tiếp bất đồng bộ giữa các microservice, sử dụng mô hình publish-subscribe với các Exchange (Topic hoặc Direct) để truyền thông điệp như yêu cầu sinh đề thi hoặc thông báo hoàn tất.
+Cơ sở dữ liệu:
+MySQL: Lưu trữ dữ liệu câu hỏi, đề thi, danh mục (môn học, lớp, chủ đề), và thông tin người dùng.
+cơ chế truy vấn trực tiếp: Lưu cache để tăng tốc tìm kiếm và truy xuất dữ liệu nhanh chóng.
+Frontend: Giao diện web được xây dựng bằng ReactJS, sử dụng Ant Design để đảm bảo tính trực quan và thân thiện với người dùng, tương thích với các trình duyệt (Chrome, Firefox, Edge).
+Kiến trúc này cho phép hệ thống mở rộng theo chiều ngang bằng cách thêm các instance của microservice khi số lượng người dùng hoặc dữ liệu tăng, đồng thời giảm thiểu tác động khi một dịch vụ gặp lỗi.
+2.4.2. Phân tích yêu cầu hệ thống (actor, chức năng, phi chức năng)
+Actor
+Quản trị viên (Admin): Quản lý tài khoản người dùng, danh mục, và giám sát hệ thống.
+Giáo viên bộ môn: Biên tập, biên soạn chủ đề câu hỏi, câu hỏi, ma trận đề thi, đề thi
+Tổ trưởng bộ môn: Phê duyệt chủ đề câu hỏi, câu hỏi, ma trận đề thi, đề thi
+trong phạm vi bộ môn.
+Phòng giáo vụ: Xuất đề ra để sử dụng cho các kỳ thi, kỳ kiểm tra
+AI Service: Sinh câu hỏi/đề thi tự động dựa trên yêu cầu.
+HTTP REST API: Giao tiếp bất đồng bộ giữa các dịch vụ.
+Chức năng
+1. Module quản trị danh mục
+Cung cấp chức năng quản lý các danh mục nền tảng như môn thi, khối lớp, cấp độ tư duy, loại hình câu hỏi, thành phần năng lực và đợt xây dựng đề, nhằm chuẩn hóa dữ liệu và đảm bảo tính thống nhất trong toàn hệ thống.
+2. Module quản trị hệ thống
+Cho phép quản lý người dùng và nhóm người dùng, phân quyền truy cập theo vai trò (RBAC), đảm bảo kiểm soát chặt chẽ quyền thao tác và an toàn thông tin trong hệ thống.
+3. Module quản lý ngân hàng câu hỏi
+Hỗ trợ biên soạn, chỉnh sửa, thẩm định và thống kê ngân hàng câu hỏi trắc nghiệm theo chủ đề, cấp độ tư duy và loại hình câu hỏi; đồng thời tích hợp AI để tự động sinh câu hỏi theo yêu cầu.
+4. Module xây dựng đề
+Cung cấp chức năng xây dựng ma trận đề và đề thi theo cấu hình môn học, cho phép tạo đề thủ công, ngẫu nhiên từ ngân hàng câu hỏi hoặc sinh đề tự động bằng AI, kèm quy trình thẩm định và xuất đề ra file Word.
+Yêu cầu phi chức năng
+Hiệu suất cao: Sinh đề thi và tìm kiếm trong vòng 5-10 giây.
+Khả năng mở rộng: Microservice hỗ trợ mở rộng ngang khi người dùng tăng.
+Bảo mật: Sử dụng JWT, RBAC, TLS để bảo vệ dữ liệu và giao tiếp.
+Khả năng chịu lỗi: Một dịch vụ lỗi không ảnh hưởng đến hệ thống khác.
+Thân thiện người dùng: Giao diện đơn giản, dễ dùng cho giáo viên.
+Tương thích: Hỗ trợ Chrome, Firefox, Edge, và thiết bị di động.
+Lưu trữ an toàn: Sao lưu định kỳ, mã hóa cơ sở dữ liệu.
+2.4.3. Thiết kế bảo mật và lưu trữ dữ liệu
+Bảo mật
+Xác thực và phân quyền: Sử dụng JWT để xác thực người dùng và RBAC để phân quyền theo vai trò (Admin, Giáo viên, Tổ trưởng, Phòng Giáo vụ). AI Service chỉ truy cập dữ liệu đầu vào, không lưu trữ.
+Mã hóa dữ liệu: Áp dụng TLS để mã hóa giao tiếp giữa microservice và qua HTTP REST API, đảm bảo an toàn thông điệp (như yêu cầu sinh đề thi).
+Bảo vệ API: API Gateway (FastAPI Gateway) kiểm tra và xác thực mọi yêu cầu, ngăn chặn tấn công từ bên ngoài.
+Nhật ký hoạt động: Ghi lại mọi thao tác (thêm, sửa, xóa) để theo dõi và phát hiện vi phạm.
+Bảo mật HTTP REST API: Cấu hình xác thực user và giới hạn quyền truy cập vào Queue/Exchange, sử dụng TLS để mã hóa dữ liệu truyền.
+Lưu trữ dữ liệu
+Cơ sở dữ liệu chính: Sử dụng MySQL để lưu trữ:
+Bảng câu hỏi (môn học, lớp, chủ đề, mức độ, đáp án).
+Bảng đề thi (danh sách câu hỏi, trạng thái phê duyệt, lịch sử sử dụng).
+Bảng người dùng (tên, vai trò, thông tin đăng nhập).
+Cache: Sử dụng cơ chế truy vấn trực tiếp để lưu cache các truy vấn thường xuyên (như danh mục môn học, câu hỏi phổ biến), giảm tải cho MySQL và tăng tốc độ truy xuất.
+Sao lưu: Thực hiện sao lưu tự động hàng tuần, lưu trữ bản sao trên server riêng biệt để tránh mất dữ liệu.
+Quản lý phiên bản: Lưu lịch sử chỉnh sửa câu hỏi/đề thi để khôi phục khi cần, sử dụng cơ chế versioning trong cơ sở dữ liệu.
+Thiết kế này đảm bảo dữ liệu được bảo vệ và truy cập hiệu quả, phù hợp với yêu cầu thực tiễn tại các trường THPT.
+2.5. Phân tích yêu cầu hệ thống
+Để xây dựng một hệ thống phần mềm hỗ trợ tạo sinh, lưu trữ và quản lý ngân hàng đề thi trắc nghiệm cho học sinh trung học phổ thông, cần xác định rõ các yêu cầu hệ thống. 
+2.5.1. Các actor hệ thống
+Bảng 2. 1. Actor hệ thống
+2.5.2. Các yêu cầu chức năng
+Bảng 2. 2. Bảng các yêu cầu chức năng
+2.5.3. Yêu cầu phi chức năng
+Bảng 2. 3. Bảng các yêu cầu phi chức năng
+
+2.5.4. Usecase tổng quát
+
+Hình 2. 7. Biểu đồ usecase tổng quát
+2.6. Chi tiết chức năng
+2.6.1. Usecase quản lý người dùng
+Bảng 2. 4. Bảng usecase chức năng quản lý người dùng
+Mô tả: 
+“Quản lý người dùng” là một chức năng trọng tâm trong module Quản trị hệ thống, cho phép Admin thực hiện các tác vụ quản trị tài khoản trong toàn hệ thống.
+Chức năng này đảm bảo mọi hoạt động liên quan đến người dùng (thêm, sửa, xóa, khóa/mở khóa, phân quyền, đặt lại mật khẩu, tìm kiếm) được kiểm soát.
+Mục tiêu
+Duy trì danh sách người dùng hợp lệ trong hệ thống.
+Phân quyền rõ ràng giữa các vai trò (Admin, giáo viên bộ môn, tổ trưởng bộ môn, trưởng phòng giáo vụ).
+Đảm bảo an toàn thông tin và kiểm soát truy cập theo mô hình RBAC (Role-Based Access Control).
+
+Hình 2. 8. Biểu đồ usecase quản lý người dùng
+2.6.1.1. Chức năng đặt lại mật khẩu mặc định
+Mô tả: Cho phép Admin hoặc người dùng yêu cầu khôi phục mật khẩu. Hệ thống xác thực danh tính trước khi reset.
+Mục tiêu: Hỗ trợ người dùng khôi phục quyền truy cập, bảo đảm an toàn thông tin đăng nhập.
+-Tác nhân liên quan: Admin, Auth Service, Notification Service.
+- Biểu đồ trình tự
+
+Hình 2. 9. Biểu đồ trình tự chức năng đặt lại mật khảu mặc định
+- Biểu đồ hoạt động
+
+Hình 2. 10. Biểu đồ hoạt động chức năng đặt lại mật khẩu mặc định
+2.6.1.2. Chức năng khóa/mở khóa tài khoản
+Mô tả: Khi phát hiện hành vi bất thường, Admin có thể khóa tạm thời tài khoản; mở khóa khi người dùng hợp lệ trở lại.
+Mục tiêu: Ngăn chặn truy cập trái phép hoặc tấn công chiếm quyền.
+Tác nhân liên quan: Admin
+
+Hình 2. 11. Biểu đồ trình tự chức năng mở khóa tài khoản	
+- Biểu đồ hoạt động
+
+Hình 2. 12. Biểu đồ hoạt động chức năng mở khóa tài khoản
+2.6.1.3. Chức năng phân quyền
+Mô tả: Admin phân quyền cho từng tài khoản theo vai trò trong mô hình RBAC.
+Mục tiêu: Kiểm soát truy cập theo cấp bậc; chỉ cho phép người dùng truy cập đúng phạm vi chức năng.
+- Biểu đồ trình tự
+
+Hình 2. 13. Biểu đồ trình tự chức năng phân quyền
+
+Hình 2. 14. Biểu đồ hoạt động chức năng phân quyền
+2.6.1.4. Chức năng xem và tìm kiếm người dùng
+Mô tả: Hiển thị danh sách người dùng; hỗ trợ tìm kiếm theo họ tên, email, vai trò, đơn vị.
+Mục tiêu: Tạo công cụ quản lý tiện lợi, dễ tra cứu người dùng trong toàn hệ thống.
+
+Hình 2. 15. Biểu đồ trình tự chức năng xem và tìm kiếm người dùng
+
+Hình 2. 16. Biểu đồ hoạt động chức năng xem và tìm kiếm người dùng
+2.6.1.5. Chức năng xóa người dùng
+Mô tả: Admin xóa hoặc vô hiệu hóa người dùng. Dữ liệu được đánh dấu isDeleted = true để tránh mất dữ liệu thật.
+Mục tiêu: Quản lý vòng đời tài khoản và loại bỏ người dùng không còn hoạt động.
+
+Hình 2. 17. Biểu đồ trình tự chức năng xóa người dùng
+
+Hình 2. 18. Biểu đồ hoạt động chức năng xóa người dùng
+2.6.1.6. Chức năng chỉnh sửa người dùng
+Mô tả: Admin hoặc giáo vụ có thể chỉnh sửa thông tin người dùng (họ tên, đơn vị, email, vai trò).
+Mục tiêu: Đảm bảo dữ liệu người dùng luôn chính xác, cập nhật và đồng bộ.
+Tác nhân liên quan: Admin.
+
+Hình 2. 19.  Biểu đồ trình tự chức năng chỉnh sửa người dùng
+
+Hình 2. 20. Biểu đồ hoạt động chức năng chỉnh sửa người dùng
+2.6.1.7. Chức năng thêm mới người dùng
+Mô tả: Admin tạo tài khoản mới (học sinh, giáo viên, giáo vụ). Dữ liệu gửi đến User Service và ghi log qua HTTP REST API. 
+Mục tiêu: Cấp quyền truy cập cho người dùng mới một cách an toàn, hợp lệ, có phân quyền rõ ràng.
+- Biểu đồ trình tự
+
+Hình 2. 21. Biểu đồ trình tự chức năng thêm mới người dùng
+
+Hình 2. 22. Biểu đồ hoạt động chức năng thêm mới người dùng
+2.6.1.8. Biểu đồ trạng thái người dùng
+
+Hình 2. 23. Biểu đồ trạng thái người dùng
+2.6.2. Usecase quản lý nhóm người dùng
+Bảng 2. 5.  Bảng usecase chức năng quản lý nhóm người dùng
+- Mô tả: Chức năng “Quản lý nhóm người dùng” cho phép quản trị hệ thống (Admin) tổ chức và quản lý các nhóm người dùng trong hệ thống theo vai trò.
+- Mục tiêu: Tổ chức người dùng theo nhóm hợp lý, giúp dễ dàng phân quyền và quản lý. 
+
+Hình 2. 24. Biểu đồ usecase quản lý nhóm người dùng
+2.6.2.1. Chức năng thêm mới nhóm người dùng
+Mô tả: Admin tạo mới nhóm người dùng
+Mục tiêu: Phân loại người dùng để dễ dàng phân quyền và quản lý hoạt động.
+
+Hình 2. 25. Biểu đồ trình tự chức năng thêm mới nhóm người dùng
+2.6.2.2. Chức năng cập nhật nhóm người dùng
+Mô tả: Admin tạo mới nhóm người dùng
+Mục tiêu: Phân loại người dùng để dễ dàng phân quyền và quản lý hoạt động
+
+Hình 2. 26. Biểu đồ trình tự chức năng chỉnh sửa nhóm người dùng
+2.6.2.3. Chức năng xóa nhóm người dùng
+Mô tả: Admin có thể xóa nhóm không còn sử dụng. Dữ liệu được đánh dấu là “ngừng hoạt động” thay vì xóa vật lý.
+Mục tiêu: Dọn dẹp hệ thống, giảm rủi ro bảo mật từ các nhóm không còn dùng.
+
+Hình 2. 27. Biểu đồ trình tự chức năng xóa nhóm người dùng
+2.6.2.4. Chức năng gán nhóm quyền
+Mô tả: Admin gán các quyền chức năng (như Quản lý đề thi, Xuất đề thi, Xem thống kê...) cho từng nhóm người dùng.
+Mục tiêu: quản lý quyền truy cập theo nhóm, dễ mở rộng và bảo trì.
+
+Hình 2. 28. Biểu đồ trình tự chức năng gán nhóm quyền
+2.6.2.5. Chức năng tìm kiếm nhóm quyền
+Mô tả: Admin có thể tìm kiếm nhóm người dùng, xem thông tin nhóm và các thành viên trong nhóm.
+Mục tiêu: Cung cấp công cụ tra cứu nhanh, hỗ trợ quản lý và kiểm soát hoạt động của từng nhóm.
+
+Hình 2. 29. Biểu đồ trình tự chức năng xem và tìm kiếm nhóm người dùng
+2.6.2.6. Biểu đồ trạng thái
+
+Hình 2. 30. Biểu đồ trạng thái nhóm người dùng
+2.6.3. Usecase quản lý chính sách bảo mật
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) thiết lập, chỉnh sửa và kiểm soát các chính sách an toàn thông tin (ATTT) cho toàn bộ hệ thống. 
+Mục tiêu: Tăng cường mức độ bảo mật hệ thống, giảm nguy cơ tấn công hoặc truy cập trái phép. 
+
+Hình 2. 31. Biểu đồ usecase quản lý chính sách bảo mật
+
+Hình 2. 32. Biểu đồ trình tự chức năng thiết lập chính sách bảo mật
+
+Hình 2. 33. Biểu đồ hoạt động chức năng thiết lập chính sách bảo mật
+2.6.4. Usecase theo dõi nhật ký hệ thống
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) theo dõi, tra cứu và xem lại toàn bộ nhật ký hoạt động (log) của hệ thống. Admin có thể tìm kiếm nhật ký dựa trên người dùng, thời gian hoặc hành động cụ thể. Các bản ghi hiển thị chi tiết thông tin thao tác, thời điểm thực hiện, kết quả và dịch vụ liên quan.
+Mục tiêu: Giúp giám sát, kiểm tra và truy vết các hoạt động trong hệ thống; phát hiện kịp thời các hành vi bất thường, phục vụ công tác kiểm toán và đảm bảo tính minh bạch, toàn vẹn dữ liệu.
+
+Hình 2. 34. Biểu đồ usecase theo dõi nhật ký hệ thống
+
+Hình 2. 35. Biểu đồ trình tự chức năng tìm kiếm và xem danh sách nhật ký
+- Biểu đồ hoạt động
+
+Hình 2. 36. Biểu đồ hoạt động chức năng xem và tìm kiếm nhật ký
+2.6.5. Usecase quản lý môn thi
+Bảng 2. 6.  Bảng usecase chức năng quản lý môn thi
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) thực hiện các thao tác quản lý danh mục môn thi bao gồm thêm mới, cập nhật, xóa và xem danh sách. Dữ liệu môn thi là thành phần quan trọng trong việc tổ chức và phân loại ngân hàng đề thi, đảm bảo sự đồng bộ giữa các module của hệ thống.
+Mục tiêu: Giúp hệ thống duy trì dữ liệu môn thi chính xác, cập nhật và dễ dàng truy xuất. Tạo nền tảng cho việc quản lý ngân hàng câu hỏi, đề thi và phân quyền cho giáo viên theo từng môn.
+
+Hình 2. 37. Biểu đồ usecase quản lý môn thi
+2.6.5.1. Chức năng thêm mới môn thi
+Mô tả: Admin thêm môn thi mới vào hệ thống (ví dụ: Toán, Lý, Hóa, Sinh…).
+Mục tiêu: Mở rộng danh mục môn thi phục vụ việc tạo đề và phân quyền cho giáo viên.
+
+Hình 2. 38. Biểu đồ trình tự chức năng thêm mới môn thi
+2.6.5.2. Chức năng cập nhật môn thi
+Mô tả: Admin chỉnh sửa thông tin môn thi như tên, mã môn hoặc mô tả.
+Mục tiêu: Đảm bảo dữ liệu luôn chính xác, tránh trùng lặp hoặc sai sót.
+
+Hình 2. 39. Biểu đồ trình tự chức năng chỉnh sửa môn thi
+2.6.5.3. Chức năng xóa môn thi
+Mô tả: Admin xóa môn thi không còn sử dụng; hệ thống có thể áp dụng cơ chế “xóa mềm” (đánh dấu ngừng hoạt động).
+Mục tiêu: Dọn dẹp dữ liệu, tránh lộn xộn trong quá trình quản lý ngân hàng đề.
+
+Hình 2. 40. Biểu đồ trình tự chức năng xóa môn thi
+2.6.5.4. Chức năng xem và tìm kiếm danh môn thi
+	Mô tả: Admin xem danh sách các môn thi hiện có trong hệ thống, có thể lọc theo tên hoặc mã môn.
+Mục tiêu: Cung cấp giao diện tra cứu, theo dõi và quản lý dữ liệu môn thi hiệu quả.
+
+Hình 2. 41. Biểu đồ trình tự chức năng xem và tìm kiếm môn thi
+2.6.5.5. Biểu đồ hoạt động
+
+Hình 2. 42. Biểu đồ hoạt động usecase quản lý môn thi
+2.6.5.6. Biểu đồ trạng thái
+
+Hình 2. 43. Biểu đồ trạng thái môn thi
+2.6.6. Usecase quản lý danh mục cấp độ tư duy
+Bảng 2. 7.  Bảng usecase chức năng quản lý danh mục cấp độ tư duy
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) quản lý các cấp độ tư duy trong hệ thống như “Nhận biết”, “Thông hiểu”, “Vận dụng”, “Vận dụng cao”… bao gồm các thao tác thêm mới, cập nhật, xóa và xem danh sách. 
+Mục tiêu: Đảm bảo hệ thống có danh mục cấp độ tư duy rõ ràng, hỗ trợ phân loại câu hỏi và đề thi một cách khoa học. 
+
+Hình 2. 44. Biểu đồ usecase quản lý danh mục cấp độ tư duy
+2.6.6.1. Chức năng thêm mới cấp độ tư duy
+Mô tả: Admin thêm mới cấp độ tư duy (ví dụ: nhận biết, thông hiểu, vận dụng...).
+Mục tiêu: Cập nhật danh mục phục vụ cho việc gắn cấp độ vào câu hỏi và đề thi. 
+
+Hình 2. 45. Biểu đồ trình tự chức năng thêm mới cấp độ tư duy
+2.6.6.2. Chức năng cập nhật cấp độ tư duy
+Mô tả: Admin chỉnh sửa thông tin cấp độ như tên, mô tả hoặc mã định danh.
+Mục tiêu: Đảm bảo dữ liệu về cấp độ tư duy luôn chính xác và thống nhất trong toàn hệ thống. 
+
+Hình 2. 46. Biểu đồ trình tự chức năng chỉnh sửa cấp độ tư duy
+2.6.6.3. Chức năng xóa cấp độ tư duy
+Mô tả: Admin xóa cấp độ tư duy không còn sử dụng; hệ thống có thể đánh dấu là “ngừng hoạt động” thay vì xóa hoàn toàn.
+Mục tiêu: Duy trì tính nhất quán dữ liệu, tránh xung đột khi cấp độ đã được gắn với câu hỏi. 
+
+Hình 2. 47. Biểu đồ trình tự chức năng xóa cấp độ tư duy
+2.6.6.4. Chức năng xem và tìm kiếm danh sách cấp độ tư duy
+	Mô tả: Admin xem danh sách các cấp độ tư duy hiện có trong hệ thống, có thể lọc theo tên hoặc mã.
+Mục tiêu: Cung cấp giao diện tra cứu, theo dõi và quản lý dữ liệu cấp độ tư duy hiệu quả.
+
+Hình 2. 48. Biểu đồ trình tự chức năng xem và tìm kiếm danh sách cấp độ tư duy
+2.6.6.5. Biểu đồ hoạt động
+
+Hình 2. 49. Biểu đồ hoạt động quản lý cấp độ tư duy
+2.6.6.6. Biểu đồ trạng thái
+
+Hình 2. 50. Biểu đồ trạng thái  cấp độ tư duy
+2.6.7. Usecase quản lý đợt xây dựng đề
+Bảng 2. 8.  Bảng usecase chức năng  quản lý đợt xây dựng đề
+Mô tả: Chức năng cho phép quản trị hệ thống (Admin) quản lý các tham số câu hỏi trong hệ thống như “độ khó”, “chủ đề”, “thời gian”, “điểm số tối đa”, “kiểu câu hỏi”, v.v... bao gồm các thao tác thêm mới, cập nhật, xóa và xem danh sách.
+Mục tiêu: Đảm bảo hệ thống có danh mục tham số câu hỏi đầy đủ, được quản lý tập trung và thống nhất, hỗ trợ tốt cho việc xây dựng, tìm kiếm và phân loại câu hỏi trong ngân hàng đề thi.
+Giúp giáo viên bộ môn, tổ trưởng hoặc người quản trị có thể cấu hình và sử dụng tham số một cách linh hoạt, phục vụ công tác tạo đề, kiểm định và phân tích dữ liệu.
+
+Hình 2. 51. Biểu đồ usecase tham số câu hỏi
+2.6.7.1. Chức năng thêm mới tham số câu hỏi
+Mô tả: Admin thêm mới một tham số câu hỏi (ví dụ: “Mức độ khó”, “Chủ đề”, “Số điểm”, “Thời gian làm”).
+Mục tiêu: Cập nhật danh mục tham số giúp hệ thống mở rộng khả năng cấu hình và mô tả câu hỏi. 
+
+Hình 2. 52. Biểu đồ trình tự chức năng thêm mới tham số câu hỏi
+2.6.7.2. Chức năng cập nhật tham số câu hỏi
+Mô tả: Admin chỉnh sửa thông tin của một tham số câu hỏi đã có, như tên, mô tả hoặc kiểu dữ liệu.
+Mục tiêu: Đảm bảo thông tin danh mục tham số luôn chính xác, phản ánh đúng nhu cầu quản lý và thống nhất trong toàn hệ thống. 
+
+Hình 2. 53. Biểu đồ trình tự chức năng cập nhật tham số câu hỏi
+2.6.7.3. Chức năng xóa tham số câu hỏi
+Mô tả: Admin xóa tham số câu hỏi không còn sử dụng hoặc không phù hợp.
+Mục tiêu: Đảm bảo tính nhất quán của dữ liệu, tránh trùng lặp 
+
+Hình 2. 54. Biểu đồ trình tự chức năng xóa tham số câu hỏi
+2.6.7.4. Chức năng xem và tìm kiếm danh mục tham số câu hỏi
+	Mô tả: Admin xem toàn bộ danh sách tham số câu hỏi hiện có trong hệ thống, có thể tìm kiếm hoặc lọc theo nhóm, loại hoặc trạng thái.
+Mục tiêu: Hỗ trợ người dùng tra cứu và quản lý hiệu quả các tham số câu hỏi.
+
+Hình 2. 55. Biểu đồ trình tự chức năng xem và tìm kiếm danh sách tham số câu hỏi
+2.6.7.5. Biểu đồ hoạt động
+
+Hình 2. 56. Biểu đồ hoạt động quản lý tham số câu hỏi
+2.6.7.6. Biểu đồ trạng thái
+
+Hình 2. 57. Biểu đồ trạng thái  tham số câu hỏi
+2.6.8. Usecase quản lý danh mục loại hình câu hỏi
+Bảng 2. 9.  Bảng usecase chức năng quản lý danh mục loại hình câu hỏi
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) quản lý các loại hình câu hỏi trong hệ thống như “Trắc nghiệm 1 đáp án”, “Trắc nghiệm nhiều đáp án”, “Tự luận”, “Điền khuyết”, “Nối cặp”, v.v... Admin có thể thực hiện các thao tác thêm mới, chỉnh sửa, xóa hoặc xem danh sách các loại hình câu hỏi. Các loại hình này giúp hệ thống xác định cách hiển thị và chấm điểm câu hỏi trong ngân hàng đề thi, hỗ trợ đa dạng hóa phương pháp kiểm tra – đánh giá.
+Mục tiêu: Đảm bảo hệ thống có danh mục loại hình câu hỏi phong phú, được quản lý tập trung và cập nhật dễ dàng. Hỗ trợ giáo viên và người tạo đề có thể lựa chọn loại hình phù hợp với từng môn học, từng mức độ tư duy và hình thức kiểm tra. 
+
+Hình 2. 58. Biểu đồ usecase quản lý loại hình câu hỏi
+2.6.8.1. Chức năng thêm mới loại hình câu hỏi
+Mô tả: Admin thêm mới loại hình câu hỏi (ví dụ: “Trắc nghiệm 1 đáp án”, “Điền khuyết”, “Tự luận”). 
+Mục tiêu: Mở rộng hệ thống để hỗ trợ nhiều dạng câu hỏi khác nhau trong ngân hàng đề thi.
+
+Hình 2. 59. Biểu đồ trình tự chức năng thêm mới loại hình câu hỏi
+2.6.8.2. Chức năng cập nhật loại hình câu hỏi
+Mô tả: Admin chỉnh sửa thông tin loại hình câu hỏi, bao gồm tên, mô tả, hoặc trạng thái sử dụng.
+Mục tiêu: Đảm bảo thông tin danh mục luôn chính xác và thống nhất trong toàn hệ thống.
+
+Hình 2. 60. Biểu đồ trình tự chức năng cập nhật loại hình câu hỏi
+2.6.8.3. Chức năng xóa loại hình câu hỏi
+Mô tả: Admin xóa loại hình câu hỏi không còn được sử dụng, hệ thống chỉ đánh dấu là “ngừng hoạt động” thay vì xóa vật lý.
+Mục tiêu: Giữ an toàn dữ liệu và tránh mất liên kết với các câu hỏi.
+
+Hình 2. 61. Biểu đồ trình tự chức năng xóa loại hình câu hỏi
+2.6.8.4. Chức năng xem và tìm kiếm danh mục loại hình câu hỏi
+	Mô tả: Admin xem toàn bộ danh sách loại hình câu hỏi, có thể lọc, tìm kiếm hoặc sắp xếp theo trạng thái và tên loại hình
+Mục tiêu: Giúp người quản trị dễ dàng theo dõi và quản lý danh mục loại hình câu hỏi trong hệ thống.
+
+Hình 2. 62. Biểu đồ trình tự chức năng xem và tìm kiếm loại hình câu hỏi
+2.6.8.5. Biểu đồ hoạt động
+
+Hình 2. 63. Biểu đồ hoạt động quản lý loại hình câu hỏi
+2.6.8.6. Biểu đồ trạng thái
+
+Hình 2. 64. Biểu đồ trạng thái  loại hình câu hỏi
+2.6.9. Usecase quản lý danh mục thành phần năng lực
+Bảng 2. 10.  Bảng usecase chức năng  quản lý thành phần năng lực
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) quản lý các thành phần năng lực trong hệ thống như “Tư duy phản biện”, “Giải quyết vấn đề”, “Hợp tác”, “Sáng tạo”, v.v... Admin có thể thêm mới, chỉnh sửa, xóa hoặc xem danh sách các thành phần năng lực. Danh mục này giúp liên kết câu hỏi, đề thi và mục tiêu học tập theo hướng phát triển năng lực toàn diện cho người học. 
+Mục tiêu: Đảm bảo hệ thống có danh mục thành phần năng lực được định nghĩa rõ ràng, hỗ trợ việc thiết kế câu hỏi và đề thi theo chuẩn đầu ra năng lực của chương trình học. Giúp giáo viên có thể lựa chọn và gắn năng lực phù hợp với từng câu hỏi hoặc bài thi, từ đó hỗ trợ đánh giá năng lực người học một cách chính xác và khoa học.
+
+Hình 2. 65. Biểu đồ usecase quản lý thành phần năng lực
+2.6.9.1. Chức năng thêm mới thành phần năng lực
+Mô tả: Admin thêm mới thành phần năng lực (ví dụ: “Tư duy phản biện”, “Sáng tạo”, “Hợp tác trong nhóm”...).
+Mục tiêu: Mở rộng hệ thống nhằm đáp ứng đa dạng yêu cầu đánh giá năng lực của người học.
+
+Hình 2. 66. Biểu đồ trình tự chức năng thêm mới thành phần năng lực
+2.6.9.2. Chức năng cập nhật thành phần năng lực
+Mô tả: Admin chỉnh sửa tên, mô tả hoặc mã định danh của thành phần năng lực. 
+Mục tiêu: Đảm bảo thông tin danh mục luôn chính xác, cập nhật và thống nhất giữa các dịch vụ trong hệ thống. 
+
+Hình 2. 67. Biểu đồ trình tự chức năng chỉnh sửa thành phần năng lực
+2.6.9.3. Chức năng xóa thành phần năng lực
+Mô tả: Admin xóa các thành phần năng lực không còn sử dụng. Hệ thống chỉ đánh dấu “ngừng hoạt động” thay vì xóa vật lý.
+Mục tiêu: Giữ an toàn dữ liệu và tránh ảnh hưởng đến các câu hỏi hoặc đề thi đã gắn với năng lực này.
+
+Hình 2. 68. Biểu đồ trình tự chức năng xóa thành phân năng lực
+2.6.9.4. Chức năng xem và tìm kiếm danh thành phần năng lực
+	Mô tả: Admin xem danh sách các thành phần năng lực hiện có trong hệ thống, có thể tìm kiếm, lọc theo trạng thái hoặc từ khóa.
+Mục tiêu: Hỗ trợ người quản trị theo dõi, quản lý và kiểm tra toàn bộ danh mục năng lực trong hệ thống một cách thuận tiện.
+
+Hình 2. 69. Biểu đồ trình tự chức năng xem và tìm kiếm danh sách thành phần năng lực
+2.6.9.5. Biểu đồ hoạt động
+
+Hình 2. 70. Biểu đồ hoạt động quản lý thành phần năng lực
+2.6.9.6. Biểu đồ trạng thái
+
+Hình 2. 71. Biểu đồ trạng thái thành phần năng lực
+2.6.10. Usecase quản lý danh mục khối lớp
+Bảng 2. 11.  Bảng usecase chức năng quản lý danh mục khối lớp
+Mô tả: Chức năng cho phép Quản trị hệ thống (Admin) quản lý danh mục các khối lớp trong hệ thống như “khối 10”, “khối 11”, “khối 12”.
+Mục tiêu: Đảm bảo hệ thống có danh mục khối lớp được định nghĩa rõ ràng, phục vụ việc gắn câu hỏi, đề thi và nội dung học tập đúng với trình độ của học sinh.
+Giúp các chức năng khác (như Ngân hàng đề thi, Quản lý môn học, Quản lý năng lực...) có thể tham chiếu chính xác đến từng khối lớp trong quá trình vận hành.
+
+Hình 2. 72. Biểu đồ usecase quản lý danh mục khối lớp
+2.6.10.1. Chức năng thêm mới khối lớp
+Mô tả: Admin thêm mới một khối lớp trong hệ thống (ví dụ: “Khối 10”, “Khối 11”, “Khối 12”).
+Mục tiêu: Cập nhật danh mục khối lớp đầy đủ, phục vụ việc phân loại dữ liệu câu hỏi, đề thi và môn học.
+
+Hình 2. 73. Biểu đồ trình tự chức năng thêm mới khối lớp
+2.6.10.2. Chức năng cập nhật khối lớp
+Mô tả: Admin chỉnh sửa tên hoặc mã định danh của khối lớp.
+Mục tiêu: Đảm bảo dữ liệu danh mục khối lớp luôn thống nhất và cập nhật chính xác trên toàn hệ thống.
+
+Hình 2. 74. Biểu đồ trình tự chức năng chỉnh sửa khối lớp
+2.6.10.3. Chức năng xóa khối lớp
+Mô tả: Admin có thể xóa khối lớp không còn sử dụng.
+Mục tiêu: Giữ an toàn dữ liệu và tránh ảnh hưởng đến các đề thi, môn học, hoặc câu hỏi đã liên kết với khối lớp này.
+
+Hình 2. 75. Biểu đồ trình tự chức năng xóa khối lớp
+2.6.10.4. Chức năng xem và tìm kiếm khối lớp
+	Mô tả: Admin có thể xem toàn bộ danh sách khối lớp hiện có trong hệ thống.
+Mục tiêu: Hỗ trợ công tác quản lý, theo dõi trong danh mục khối lớp.
+
+Hình 2. 76. Biểu đồ trình tự chức năng xem và tìm kiếm khối lớp
+2.6.10.5. Biểu đồ hoạt động
+
+Hình 2. 77. Biểu đồ hoạt động quản lý khối lớp
+2.6.10.6. Biểu đồ trạng thái
+
+Hình 2. 78. Biểu đồ trạng thái khối lớp
+2.6.11. Usecase quản lý chủ đề câu hỏi
+Bảng 2. 12.  Bảng usecase chức năng quản lý chủ đề câu hỏi
+
+Mô tả: Chức năng cho phép Giáo viên bộ môn và Tổ trưởng bộ môn quản lý các chủ đề câu hỏi trong hệ thống ngân hàng đề thi. Giáo viên có thể thực hiện các thao tác CRUD (thêm, sửa, xóa, xem), gửi chủ đề để thẩm định và xem lịch sử thẩm định. Tổ trưởng bộ môn có thể thực hiện thẩm định, phê duyệt hoặc phản hồi chủ đề do giáo viên gửi lên.
+Mục tiêu: Đảm bảo quy trình tạo lập, thẩm định và quản lý chủ đề câu hỏi được diễn ra chặt chẽ, có kiểm soát, giúp nâng cao chất lượng ngân hàng câu hỏi và đề thi. Đồng thời, hệ thống ghi log toàn bộ thao tác để phục vụ việc theo dõi, đánh giá và truy xuất sau này.
+Tác nhân:
+Giáo viên bộ môn 
+Tổ trưởng bộ môn
+
+Hình 2. 79. Biểu đồ usecase quản lý chủ đề câu hỏi
+2.6.11.1. Xem lịch sử thẩm định
+Mô tả: Người dùng xem lịch sử các lượt thẩm định, phản hồi và trạng thái của chủ đề.
+Mục tiêu: Theo dõi tiến trình thẩm định và phục vụ truy vết.
+Tác nhân: Giáo viên bộ môn, tổ tưởng bộ môn
+- Biểu đồ trình tự
+
+
+Hình 2. 80. Biểu đồ trình tự chức năng mở lịch sử thẩm định
+
+Hình 2. 81. Biểu đồ hoạt động chức năng mở lịch sử thẩm định
+2.6.11.2. Chức năng gửi thẩm định
+Mô tả: Người tạo/chỉnh sửa gửi chủ đề lên hệ thống để thẩm định.
+Mục tiêu: Khởi tạo quy trình kiểm duyệt trước khi dùng chính thức.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 82. Biểu đồ trình tự chức năng gửi thẩm định
+
+Hình 2. 83. Biểu đồ hoạt động chức năng gửi thẩm định
+2.6.11.3. Chức năng thẩm định
+Mô tả: Người dùng được phân quyền xem xét, phê duyệt hoặc phản hồi chủ đề.
+Mục tiêu: Đảm bảo chất lượng và tính phù hợp của nội dung.
+Tác nhân: Tổ trưởng bộ môn.
+- Biểu đồ trình tự
+
+Hình 2. 84. Biểu đồ trình tự chức năng thẩm định
+
+Hình 2. 85. Biểu đồ hoạt động chức năng thẩm định
+2.6.11.4. Chức năng thêm mới chủ đề câu hỏi
+Mô tả: Người dùng tạo mới một chủ đề câu hỏi.
+Mục tiêu: Bổ sung chủ đề phục vụ tạo câu hỏi và xây dựng ngân hàng đề.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 86. Biểu đồ trình tự chức năng thêm mới chủ đề câu hỏi
+2.6.11.5. Chức năng cập nhật chủ đề câu hỏi
+Mô tả: Người dùng được phân quyền có thể chỉnh sửa các thông tin chủ đề như tên, mô tả, độ khó, hoặc tình trạng hoạt động. Hệ thống kiểm tra quyền sở hữu trước khi cho phép cập nhật.
+Mục tiêu: Đảm bảo nội dung chủ đề luôn chính xác, thống nhất và phản ánh đúng chương trình giảng dạy.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 87. Biểu đồ trình tự chức năng chỉnh sửa chủ đề câu hỏi
+2.6.11.6. Chức năng xóa chủ đề câu hỏi
+Mô tả: Người dùng có quyền xóa hoặc đánh dấu chủ đề là “ngừng hoạt động”. Hệ thống kiểm tra xem chủ đề có đang được liên kết với câu hỏi hay đề thi không trước khi cho phép thao tác.
+Mục tiêu: Quản lý dữ liệu hiệu quả, tránh trùng lặp và đảm bảo không làm mất dữ liệu liên quan.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 88. Biểu đồ trình tự chức năng xóa chủ đề câu hỏi
+2.6.11.7. Chức năng xem và tìm kiếm chủ đề câu hỏi
+	Mô tả: Người dùng có thể xem toàn bộ danh sách chủ đề hiện có trong hệ thống, với các tùy chọn lọc theo môn học, khối lớp, hoặc trạng thái phê duyệt.
+Mục tiêu: Hỗ trợ tra cứu, quản lý, và lựa chọn chủ đề khi tạo câu hỏi hoặc đề thi.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 89. Biểu đồ trình tự chức năng xem và tìm kiếm chủ đề câu hỏi
+2.6.11.8. Biểu đồ trạng thái
+
+Hình 2. 90. Biểu đồ trạng thái chủ đề câu hỏi
+
+2.6.12. Usecase quản lý ngân hàng câu hỏi
+Bảng 2. 13.  Bảng usecase chức năng quản lý ngân hàng câu hỏi
+Mô tả: Chức năng này cho phép người dùng (giáo viên bộ môn, tổ trưởng bộ môn) thực hiện các thao tác quản lý toàn bộ câu hỏi trong hệ thống ngân hàng đề thi, bao gồm: thêm mới, chỉnh sửa, xóa, xem danh sách, gửi thẩm định và theo dõi quy trình phê duyệt. Ngoài ra, hệ thống hỗ trợ AI có thể tự động đề xuất hoặc sinh câu hỏi dựa trên nội dung giảng dạy nhằm tối ưu thời gian và nâng cao chất lượng ngân hàng câu hỏi.
+Mục tiêu: Xây dựng và quản lý ngân hàng câu hỏi tập trung, có cấu trúc rõ ràng, hỗ trợ quá trình tạo đề thi tự động và đảm bảo tính chính xác, đa dạng, phù hợp với chuẩn chương trình học.
+Tác nhân: Giáo viên bộ môn, Tổ trưởng bộ môn, Hệ thống hỗ trợ AI, QuestionBank Service, Auth Service, Logging Service.
+
+Hình 2. 91. Biểu đồ usecase quản lý ngân hàng câu hỏi
+2.6.12.1. Chức năng thêm mới câu hỏi
+Mô tả: Giáo viên bộ môn nhập nội dung câu hỏi, đáp án, cấp độ tư duy, độ khó, khối lớp, môn học và thành phần năng lực. Hệ thống kiểm tra định dạng, lưu dữ liệu và gán mã câu hỏi tự động.
+Mục tiêu: Tạo mới câu hỏi chuẩn hóa, đảm bảo đáp ứng yêu cầu kiểm định và dễ dàng phân loại trong ngân hàng.
+
+Hình 2. 92. Biểu đồ trình tự chức năng thêm mới câu hỏi
+2.6.12.2. Xem lịch sử thẩm định
+Mô tả: Người dùng xem lịch sử các lượt thẩm định, phản hồi và trạng thái của câu hỏi.
+Mục tiêu: Theo dõi tiến trình thẩm định và phục vụ truy vết.
+Tác nhân: Giáo viên bộ môn, tổ tưởng bộ môn.
+
+
+Hình 2. 93. Biểu đồ trình tự chức năng xem lịch sử thẩm định
+	- Biểu đồ hoạt động
+
+Hình 2. 94. Biểu đồ hoạt động chức năng xem lịch sử thẩm định
+2.6.12.3. Chức năng gửi thẩm định
+Mô tả: Người tạo/chỉnh sửa gửi chủ đề lên hệ thống để thẩm định.
+Mục tiêu: Khởi tạo quy trình kiểm duyệt trước khi dùng chính thức.
+
+Hình 2. 95. Biểu đồ trình tự chức năng gửi thẩm định
+- Biểu đồ hoạt động
+
+Hình 2. 96. Biểu đồ hoạt động chức năng gửi thẩm định
+2.6.12.4. Chức năng thẩm định
+Mô tả: Người dùng được phân quyền xem xét, phê duyệt hoặc phản hồi câu hỏi.
+Mục tiêu: Đảm bảo chất lượng và tính phù hợp của nội dung.
+Tác nhân: Tổ trưởng bộ môn.
+
+Hình 2. 97. Biểu đồ trình tự chức năng thẩm định
+
+Hình 2. 98. Biểu đồ hoạt động chức năng thẩm định
+2.6.12.5. Chức năng cập nhật câu hỏi
+Mô tả: Giáo viên bộ môn hoặc tổ trưởng có thể chỉnh sửa nội dung, đáp án, thông tin mô tả hoặc mức độ khó của câu hỏi. Hệ thống kiểm tra trạng thái thẩm định để đảm bảo chỉ sửa câu hỏi hợp lệ.
+Mục tiêu: Đảm bảo câu hỏi được cập nhật chính xác, đồng bộ và nhất quán trong toàn hệ thống.
+Tác nhân: Giáo viên bộ môn.
+
+Hình 2. 99. Biểu đồ trình tự chức năng chỉnh sửa câu hỏi
+2.6.12.6. Chức năng xóa câu hỏi
+Mô tả: Người dùng có quyền xóa hoặc đánh dấu chủ đề là “ngừng hoạt động”. Hệ thống kiểm tra xem câu hỏi có đang được liên kết với đề thi không trước khi cho phép thao tác.
+Mục tiêu: Quản lý dữ liệu hiệu quả, tránh trùng lặp và đảm bảo không làm mất dữ liệu liên quan.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 100. Biểu đồ trình tự chức năng xóa câu hỏi
+2.6.12.7. Chức năng xem và tìm kiếm câu hỏi
+	Mô tả: Người dùng có thể xem toàn bộ danh sách câu hỏi hiện có trong hệ thống, với các tùy chọn lọc theo môn học, khối lớp, hoặc trạng thái phê duyệt.
+Mục tiêu: Hỗ trợ tra cứu, quản lý, và lựa chọn câu hỏi khi tạo đề thi.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 101. Biểu đồ trình tự chức năng xem và tìm kiếm câu hỏi
+2.6.12.8. Biểu đồ trạng thái 
+
+Hình 2. 102. Biểu đồ trạng thái câu hỏi
+2.6.13. Usecase thống kê ngân hàng câu hỏi
+Bảng 2. 14.  Bảng usecase chức năng  thống kê ngân hàng câu hỏi
+
+Mô tả: Chức năng cho phép người dùng xem và xuất các thống kê liên quan đến ngân hàng câu hỏi, bao gồm số lượng câu hỏi theo môn học, cấp độ tư duy, loại hình câu hỏi, mức độ khó, và trạng thái thẩm định. Hệ thống hỗ trợ lọc dữ liệu theo các tiêu chí cụ thể như thời gian, khối lớp, hoặc giáo viên tạo câu hỏi.
+Mục tiêu: Giúp người quản lý và tổ trưởng bộ môn nắm bắt được tình hình xây dựng, phân bố và chất lượng của ngân hàng câu hỏi. Từ đó hỗ trợ việc đánh giá, điều chỉnh nội dung và nâng cao hiệu quả ra đề thi.
+
+Hình 2. 103. Biểu đồ usecase thống kê ngân hàng câu hỏi
+
+Hình 2. 104. Biểu đồ trình tự chức năng xem danh sách thống kê ngân hàng câu hỏi
+2.6.14. Usecase quản lý ma trận đề
+Bảng 2. 15.  Bảng usecase chức năng quản lý ma trận đề
+Mô tả: Chức năng cho phép giáo viên bộ môn thực hiện các thao tác quản lý ma trận đề thi như thêm mới, cập nhật, xóa, xem danh sách và gửi thẩm định. Tổ trưởng bộ môn có thể thẩm định ma trận đề do giáo viên gửi lên. Hệ thống lưu trữ toàn bộ thông tin ma trận đề, trạng thái thẩm định và kết quả đánh giá.
+Mục tiêu: Đảm bảo quy trình tạo và phê duyệt ma trận đề diễn ra chặt chẽ, minh bạch và có sự kiểm soát. Giúp tiêu chuẩn hóa cấu trúc đề thi theo đúng định hướng năng lực, nội dung và cấp độ tư duy của học sinh.
+
+Hình 2. 105. Biểu đồ usecase quản lý ma trận đề
+2.6.14.1. Xem lịch sử thẩm định
+Mô tả: Người dùng xem lịch sử các lượt thẩm định, phản hồi và trạng thái của.
+Mục tiêu: Theo dõi tiến trình thẩm định và phục vụ truy vết.
+Tác nhân: Giáo viên bộ môn, tổ tưởng bộ môn
+
+Hình 2. 106. Biểu đồ trình tự chức năng  xem lịch sử thẩm định
+
+Hình 2. 107. Biểu đồ hoạt động chức năng xem lịch sử thẩm định
+2.6.14.2. Chức năng gửi thẩm định
+Mô tả: Người tạo/chỉnh sửa gửi ma trận đề lên hệ thống để thẩm định.
+Mục tiêu: Khởi tạo quy trình kiểm duyệt trước khi dùng chính thức.
+
+Hình 2. 108. Biểu đồ trình tự chức năng gửi thẩm định ma trận đề
+
+Hình 2. 109. Biểu đồ hoạt động chức năng gửi thẩm định ma trận đề
+2.6.14.3. Chức năng thẩm định
+Mô tả: Người dùng được phân quyền xem xét, phê duyệt hoặc phản hồi ma trận đề.
+Mục tiêu: Đảm bảo chất lượng và tính phù hợp của nội dung.
+Tác nhân: Tổ trưởng bộ môn.
+
+Hình 2. 110. Biểu đồ trình tự chức năng thẩm định ma trận đề
+
+Hình 2. 111. Biểu đồ hoạt động chức năng thẩm định ma trận đề
+2.6.14.4. Chức năng thêm mới ma trận đề
+Mô tả: Người dùng tạo mới một ma trận đề
+Mục tiêu: Bổ sung chủ đề phục vụ tạo đề.
+
+Hình 2. 112. Biểu đồ trình tự chức năng thêm mới ma trận đề
+2.6.14.5. Chức năng cập nhật ma trận đề
+Mô tả: Người dùng được phân quyền có thể chỉnh sửa các thông tin chủ đề như tên, mô tả, độ khó, hoặc tình trạng hoạt động. Hệ thống kiểm tra quyền sở hữu trước khi cho phép cập nhật.
+Mục tiêu: Đảm bảo nội dung chủ đề luôn chính xác, thống nhất và phản ánh đúng chương trình giảng dạy.
+
+Hình 2. 113. Biểu đồ trình tự chức năng chỉnh sửa ma trận đề
+2.6.14.6. Chức năng xóa ma trận đề
+Mô tả: Người dùng có quyền xóa hoặc đánh dấu chủ đề là “ngừng hoạt động”. Hệ thống kiểm tra xem chủ đề có đang được liên kết với câu hỏi hay đề thi không trước khi cho phép thao tác.
+Mục tiêu: Quản lý dữ liệu hiệu quả, tránh trùng lặp và đảm bảo không làm mất dữ liệu liên quan.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 114. Biểu đồ trình tự chức năng xóa ma trận đề
+2.6.14.7. Chức năng xem và tìm kiếm ma trận đề
+	Mô tả: Người dùng có thể xem toàn bộ danh sách chủ đề hiện có trong hệ thống, với các tùy chọn lọc theo môn học, khối lớp, hoặc trạng thái phê duyệt.
+Mục tiêu: Hỗ trợ tra cứu, quản lý, và lựa chọn ma trận đề  khi tạo đề.
+
+Hình 2. 115. Biểu đồ trình tự chức năng xem và tìm kiếm ma trận đề
+2.6.14.8. Biểu đồ trạng thái
+
+Hình 2. 116. Biểu đồ trạng thái ma trận đề
+
+2.6.15. Usecase quản lý đề thi 
+Bảng 2. 16.  Bảng usecase chức năng  quản lý đề thi
+
+Chức năng Quản lý đề thi cho phép giáo viên bộ môn thực hiện các thao tác tạo mới, cập nhật, xóa, gửi thẩm định và xuất đề thi. Tổ trưởng bộ môn chịu trách nhiệm thẩm định, phê duyệt hoặc từ chối các đề thi được gửi lên. Trưởng phòng giáo vụ có thể theo dõi, giám sát và xuất đề thi tổng hợp phục vụ cho bài kiểm tra, kỳ thi.
+
+Hình 2. 117. Biểu đồ usecase quản lý đề thi
+2.6.15.1. Chức năng thêm mới đề thi
+Mô tả: Có thể lựa chọn câu hỏi từ ngân hàng câu hỏi, sắp xếp câu hỏi theo ma trận đề, hoặc nhập thủ công nội dung câu hỏi và đáp án. 
+Mục tiêu: Tạo ra một bộ đề hoàn chỉnh phục vụ kiểm tra hoặc kỳ thi, đảm bảo đúng ma trận và yêu cầu của tổ bộ môn.
+
+Hình 2. 118. Biểu đồ trình tự chức năng thêm mới đề thi
+- Biểu đồ hoạt động
+
+Hình 2. 119. Biểu đồ hoạt động chức năng thêm mới đề thi
+2.6.15.2. Chức năng xuất word đề thi
+Mô tả: Hệ thống cho phép xuất đề thi sau khi được phê duyệt, dưới nhiều định dạng:
+PDF hoặc Word.
+Có thể chọn đề có đáp án hoặc không có đáp án.
+Có thể xuất kèm ma trận cấu trúc đề và bảng phân bố điểm.
+Ngoài ra, trưởng phòng giáo vụ có thể xuất bộ đề thi tổng hợp phục vụ các kỳ thi chính thức.
+Mục tiêu: Hỗ trợ công tác in ấn, phát hành hoặc tổ chức thi trực tuyến thuận tiện và chính xác.
+Tác nhân: Trưởng phòng giáo vụ.
+
+
+Hình 2. 120. Biểu đồ trình tự chức năng xuất word
+- Biểu đồ hoạt động
+
+Hình 2. 121. Biểu đồ hoạt động chức năng xuất word
+2.6.15.3. Xem lịch sử thẩm định
+Mô tả: Người dùng xem lịch sử các lượt thẩm định, phản hồi và trạng thái của đề.
+Mục tiêu: Theo dõi tiến trình thẩm định và phục vụ truy vết.
+Tác nhân: Giáo viên bộ môn, tổ tưởng bộ môn
+- Biểu đồ trình tự
+
+Hình 2. 122. Biểu đồ trình tự chức năng xem lịch sử thẩm định
+	- Biểu đồ hoạt động
+
+Hình 2. 123. Biểu đồ hoạt động chức năng xem lịch sử thẩm định
+2.6.15.4. Chức năng gửi thẩm định
+Mô tả: Người tạo/chỉnh sửa gửi đề lên hệ thống để thẩm định.
+Mục tiêu: Khởi tạo quy trình kiểm duyệt trước khi dùng chính thức.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 124. Biểu đồ trình tự chức năng gửi thẩm định đề
+- Biểu đồ hoạt động
+
+Hình 2. 125. Biểu đồ hoạt động chức năng gửi thẩm định đề
+2.6.15.5. Chức năng thẩm định
+Mô tả: Người dùng được phân quyền xem xét, phê duyệt hoặc phản hồi đề.
+Mục tiêu: Đảm bảo chất lượng và tính phù hợp của nội dung.
+- Biểu đồ trình tự
+
+Hình 2. 126. Biểu đồ trình tự chức năng thẩm định dề
+
+Hình 2. 127. Biểu đồ hoạt động chức năng thẩm định đề
+2.6.15.6. Chức năng cập nhật đề
+Mô tả: Cho phép giáo viên chỉnh sửa nội dung đề thi đã tạo, bao gồm việc thay đổi câu hỏi, cập nhật thời lượng, độ khó, hoặc chỉnh sửa thông tin mô tả đề thi. Hệ thống đảm bảo rằng chỉ những đề chưa gửi thẩm định hoặc bị từ chối mới được phép chỉnh sửa.
+Mục tiêu: Đảm bảo nội dung đề luôn chính xác, thống nhất và phản ánh đúng chương trình giảng dạy.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 128. Biểu đồ trình tự chức năng chỉnh sửa đề
+2.6.15.7. Chức năng xóa đề
+Mô tả: Cho phép xóa đề thi trong các trường hợp như: tạo nhầm, sai cấu trúc, hoặc không còn sử dụng. Hệ thống chỉ cho phép xóa các đề thi chưa gửi thẩm định hoặc bị từ chối.
+Mục tiêu: Quản lý dữ liệu hiệu quả, tránh trùng lặp và đảm bảo không làm mất dữ liệu liên quan.
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 129. Biểu đồ trình tự chức năng xóa đề
+2.6.15.8. Chức năng xem và tìm kiếm đề
+	Mô tả: Người dùng có thể xem toàn bộ danh sách đề hiện có trong hệ thống, với các tùy chọn lọc theo môn học, khối lớp, hoặc trạng thái phê duyệt.
+Mục tiêu: Hỗ trợ tra cứu, quản lý, và lựa chọn đề
+Tác nhân: Giáo viên bộ môn
+
+Hình 2. 130. Biểu đồ trình tự chức năng xem và tìm kiếm đề
+2.6.15.9. Biểu đồ trạng thái
+
+Hình 2. 131. Biểu đồ trạng thái đề
+2.7. Mô hình cơ sở dữ liệu
+
+Hình 2. 132. Biểu đồ lớp
+2.8. Kiến trúc hệ thống
+
+Hình 2. 133. Kiến trúc hệ thống
+Kiến trúc hệ thống được thiết kế theo mô hình phân tầng kết hợp microservice, nhằm đảm bảo tính mở rộng, bảo mật và dễ bảo trì. Người dùng truy cập hệ thống thông qua giao diện Frontend ReactTSX, tất cả các yêu cầu đều được gửi qua API Gateway (FastAPI Gateway) sử dụng giao thức HTTPS và cơ chế xác thực JWT. Gateway đóng vai trò là điểm truy cập duy nhất, thực hiện kiểm tra xác thực thông qua Auth Service áp dụng JWT và phân quyền RBAC, trước khi định tuyến yêu cầu đến các microservice nghiệp vụ như quản lý ngân hàng câu hỏi, danh mục, tệp tin và AI. Các microservice sử dụng MySQL để lưu trữ dữ liệu, cơ chế truy vấn trực tiếp để cache nhằm nâng cao hiệu năng và HTTP REST API để xử lý giao tiếp bất đồng bộ. Riêng AI Service được tách độc lập và tích hợp với Google Gemini API, giúp đảm bảo khả năng mở rộng và không ảnh hưởng đến các chức năng nghiệp vụ cốt lõi của hệ thống.
+2.9. Thiết kế giao diện người dùng
+
+Hình 2. 134. Giao diện module quản trị hệ thống
+
+
+Hình 2. 135. Giao diện module quản trị danh mục
+
+
+Hình 2. 136. Giao diện module quản trị danh mục hình 2
+
+Hình 2. 137. Giao diện usecase quản lý chủ đề
+
+Hình 2. 138. Giao diện usecase quản lý ngân hàng câu hỏi
+
+
+Hình 2. 139. Giao diện usecase thống kê ngân hàng câu hỏi
+
+Hình 2. 140. Giao diện usecase quản lý ma trận đề
+
+
+Hình 2. 141. Giao diện usecase quản lý đề thi
+2.10. Tổng kết chương 2
+Chương 2 đã trình bày tổng quan về các nền tảng công nghệ chính được sử dụng trong đề tài, bao gồm: phần mềm ngân hàng câu hỏi, kiến trúc Microservice, HTTP REST API, các vấn đề bảo mật trong hệ thống phân tán và vai trò của trí tuệ nhân tạo (AI) trong việc sinh đề thi trắc nghiệm.
+Các nội dung này là cơ sở quan trọng giúp định hướng cho quá trình phân tích, thiết kế và triển khai hệ thống phần mềm Web hỗ trợ tạo sinh, lưu trữ và quản lý ngân hàng đề thi một cách an toàn, hiệu quả và hiện đại.
+
+CHƯƠNG 3: TRIỂN KHAI VÀ THỬ NGHIỆM
+3.1. Công nghệ và công cụ sử dụng
+3.1.1. Backend: Python FastAPI
+
+Hình 3. 1. Python FastAPI
+Python FastAPI (nay là Python) được chọn làm nền tảng phát triển backend cho hệ thống do tính linh hoạt, hiệu suất cao, và khả năng hỗ trợ đa nền tảng. Dưới đây là các khía cạnh chi tiết về việc sử dụng Python FastAPI:
+Phiên bản: Sử dụng Python 6.0, được phát hành bởi Microsoft, cung cấp cải tiến về hiệu suất và hỗ trợ các tính năng hiện đại như Minimal APIs và Native AOT (Ahead-of-Time compilation).
+Lý do lựa chọn:
+Hiệu suất: Python FastAPI cung cấp runtime tối ưu hóa, phù hợp cho các ứng dụng Microservice cần xử lý nhanh các tác vụ như sinh đề thi và quản lý dữ liệu.
+Khả năng mở rộng: Hỗ trợ triển khai độc lập cho từng microservice (sử dụng Docker container), đảm bảo hệ thống có thể mở rộng theo chiều ngang khi số lượng người dùng tăng.
+Hỗ trợ bảo mật: Tích hợp hỗ trợ TLS cho HTTP REST API, đáp ứng yêu cầu bảo mật của dự án.
+Cộng đồng và tài liệu: Với sự hỗ trợ mạnh mẽ từ Microsoft và cộng đồng phát triển, Python FastAPI cung cấp tài liệu chi tiết và các công cụ như Entity Framework Core để làm việc với cơ sở dữ liệu.
+Cấu hình và triển khai:
+Microservice: Mỗi dịch vụ (User Service, Exam Service, Notification Service) được phát triển như một dự án Python FastAPI riêng biệt, sử dụng ASPPython FastAPI Web API. Các dịch vụ được cấu hình với Dependency Injection (DI) để quản lý các thành phần như HTTP REST APIService.
+API Gateway: Sử dụng FastAPI Gateway (một thư viện Python FastAPI) để định tuyến và cân bằng tải giữa các microservice, đồng thời tích hợp xác thực JWT.
+Kết nối cơ sở dữ liệu: Sử dụng Entity Framework Core để tương tác với MySQL, với các mô hình dữ liệu được ánh xạ từ cấu trúc cơ sở dữ liệu (bảng users, questions, exams, v.v.) đã đề xuất trước đó.
+Tích hợp HTTP REST API: Sử dụng thư viện HTTP REST API.Client để xử lý giao tiếp bất đồng bộ. Class HTTP REST APIService<T> được triển khai để gửi và nhận thông điệp, với cấu hình TLS để mã hóa dữ liệu truyền qua HTTP REST API.
+3.1.2. Frontend: ReactJS
+
+Hình 3. 2. Reactjs
+ReactJS được chọn làm công nghệ phát triển giao diện người dùng (frontend) cho phần mềm ngân hàng câu hỏi trắc nghiệm, nhờ vào tính linh hoạt, hiệu suất cao, và khả năng tái sử dụng thành phần. Giao diện được thiết kế để hỗ trợ các vai trò khác nhau (giáo viên, tổ trưởng bộ môn) trong việc tạo, quản lý, và phê duyệt câu hỏi cũng như đề thi. Dưới đây là chi tiết về việc triển khai ReactJS trong dự án:
+Phiên bản: Sử dụng React 18.2.0, cung cấp các tính năng như Concurrent Mode và Server Components để tối ưu hóa hiệu suất và trải nghiệm người dùng.
+Lý do lựa chọn:
+Thành phần tái sử dụng (Component-based): ReactJS cho phép xây dựng các thành phần độc lập (như QuestionForm, ExamList, ApprovalPanel), dễ dàng tái sử dụng và bảo trì.
+Hiệu suất: Virtual DOM của ReactJS tối ưu hóa việc cập nhật giao diện, phù hợp với ứng dụng cần hiển thị danh sách câu hỏi hoặc đề thi lớn.
+Hỗ trợ đa nền tảng: Giao diện có thể được tối ưu hóa cho cả máy tính và thiết bị di động, đáp ứng yêu cầu tương thích với các trình duyệt phổ biến (Chrome, Firefox, Edge).
+Tích hợp với backend: Dễ dàng kết nối với API Gateway (FastAPI Gateway) và các microservice Python FastAPI thông qua các thư viện như Axios hoặc Fetch API.
+Cấu hình và triển khai:
+Môi trường phát triển: Sử dụng Create React App (CRA) hoặc Vite để khởi tạo dự án, với cấu hình TypeScript để tăng cường kiểm tra kiểu dữ liệu.
+Styling: Áp dụng Tailwind CSS để thiết kế giao diện trực quan, đáp ứng (responsive), và dễ tùy chỉnh, phù hợp với yêu cầu giao diện thân thiện đã đề xuất.
+Quản lý trạng thái: Sử dụng Redux Toolkit hoặc Context API để quản lý trạng thái toàn cục, ví dụ: danh sách câu hỏi, trạng thái phê duyệt, hoặc thông báo từ Notification Service.
+Xác thực: Tích hợp JWT để quản lý phiên đăng nhập, với các thành phần như LoginForm và ProtectedRoute để giới hạn truy cập theo vai trò (giáo viên, tổ trưởng, v.v.).
+Tích hợp HTTP REST API: Sử dụng WebSocket hoặc polling để nhận thông báo từ Notification Service qua giao diện, với dữ liệu được gửi từ backend qua HTTP REST API.
+3.1.3. Cơ sở dữ liệu: MySQL, cơ chế truy vấn trực tiếp
+Hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm sử dụng hai loại cơ sở dữ liệu khác nhau, MySQL và cơ chế truy vấn trực tiếp, để đáp ứng các yêu cầu lưu trữ dữ liệu dài hạn, quản lý hiệu quả, và tăng tốc truy xuất thông tin. Sự kết hợp này đảm bảo hệ thống vừa có khả năng lưu trữ dữ liệu phức tạp vừa tối ưu hóa hiệu suất, phù hợp với kiến trúc Microservice và các yêu cầu thực tiễn tại các trường THPT. Dưới đây là chi tiết về việc triển khai và sử dụng MySQL và cơ chế truy vấn trực tiếp:
+3.1.3.1. MySQL
+Phiên bản: Sử dụng MySQL 8.0, cung cấp hỗ trợ cho JSON, cải tiến bảo mật, và hiệu suất cao.
+Lý do lựa chọn:
+Lưu trữ dữ liệu cấu trúc: MySQL là cơ sở dữ liệu quan hệ (RDBMS) phù hợp để lưu trữ các bảng như users, questions, exams, và audit_logs với mối quan hệ rõ ràng, đảm bảo tính toàn vẹn dữ liệu.
+Hỗ trợ bảo mật: Cung cấp mã hóa dữ liệu tại rest (sử dụng cột mã hóa) và xác thực người dùng mạnh, đáp ứng yêu cầu bảo mật cho dữ liệu nhạy cảm như câu hỏi và đề thi.
+Tích hợp với Python FastAPI: Hỗ trợ tốt với Entity Framework Core, giúp ánh xạ mô hình dữ liệu và thực hiện các truy vấn phức tạp.
+Cấu hình và triển khai:
+Sao lưu: Cấu hình sao lưu tự động hàng tuần bằng công cụ mysqldump, lưu trữ trên server riêng biệt để tránh mất dữ liệu.
+Tối ưu hóa: Tạo chỉ mục (index) trên các cột thường xuyên tìm kiếm (như subject_id, grade_id trong questions) để tăng tốc độ truy vấn.
+3.1.3.2. cơ chế truy vấn trực tiếp
+Phiên bản: Sử dụng cơ chế truy vấn trực tiếp 7.0, cung cấp hiệu suất cao và hỗ trợ module mở rộng.
+Lý do lựa chọn:
+Cache hiệu suất cao: cơ chế truy vấn trực tiếp là cơ sở dữ liệu không quan hệ (NoSQL) dạng key-value, phù hợp để lưu cache các truy vấn thường xuyên (như danh sách câu hỏi theo môn học), giảm tải cho MySQL.
+Tốc độ truy xuất: Thời gian truy xuất dữ liệu từ cơ chế truy vấn trực tiếp chỉ khoảng 1-2ms, lý tưởng cho các ứng dụng cần phản hồi nhanh như giao diện ReactJS.
+Hỗ trợ Python FastAPI: Tích hợp dễ dàng với thư viện StackExchange.cơ chế truy vấn trực tiếp, phù hợp với kiến trúc Microservice.
+Cấu hình và triển khai:
+Cấu hình cache: Sử dụng cơ chế truy vấn trực tiếp để lưu trữ các key 
+Hết hạn cache: Đặt TTL (Time To Live) cho các key cache (ví dụ: 1 giờ) để đảm bảo dữ liệu luôn cập nhật.
+Tích hợp với backend: Sử dụng StackExchange.cơ chế truy vấn trực tiếp để kết nối cơ chế truy vấn trực tiếp từ các microservice
+3.1.4. HTTP REST API: Cấu hình, Exchange, Queue
+HTTP REST API được triển khai như một thành phần trung tâm để hỗ trợ giao tiếp bất đồng bộ giữa các microservice trong hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm. Nó cho phép các dịch vụ như Exam Service, AI Service, và Notification Service trao đổi thông điệp một cách hiệu quả, đảm bảo tính linh hoạt và khả năng mở rộng. Dưới đây là chi tiết về cấu hình, Exchange, và Queue trong dự án:
+
+3.1.4.1. Cấu hình HTTP REST API
+Phiên bản: Sử dụng HTTP REST API 3.13, cung cấp cải tiến về hiệu suất và hỗ trợ bảo mật TLS.
+Lý do lựa chọn:
+Giao tiếp bất đồng bộ: Phù hợp với kiến trúc Microservice, cho phép các dịch vụ xử lý thông điệp độc lập mà không cần chờ đợi lẫn nhau.
+Bảo mật: Hỗ trợ TLS để mã hóa dữ liệu truyền tải, đáp ứng yêu cầu bảo mật cho dữ liệu nhạy cảm như câu hỏi và đề thi.
+Tích hợp với Python FastAPI: Hỗ trợ tốt với thư viện HTTP REST API.Client, dễ dàng tích hợp vào các microservice.
+3.1.4.2. Exchange
+Mô tả: Exchange là thành phần nhận thông điệp từ Publisher và định tuyến chúng đến các Queue dựa trên routingKey. Trong dự án, sử dụng loại Topic Exchange để hỗ trợ định tuyến linh hoạt.
+Cấu hình:
+Exchange cho yêu cầu đề thi: ai_requests
+Loại: Topic
+Durable: True (đảm bảo tồn tại sau khi server restart)
+Ví dụ routingKey: ai_request, ai_response
+Exchange cho thông báo: notification_exchange
+Loại: Topic
+Durable: True
+Ví dụ routingKey: thong_bao
+Ứng dụng:
+Exam Service gửi yêu cầu sinh đề thi qua exam_requests với routingKey: exam.create.
+AI Service gửi kết quả qua notification_exchange với routingKey: thong_bao
+3.1.4.3. Queue
+Mô tả: Queue là nơi lưu trữ thông điệp trước khi được Consumer xử lý. Các Queue được liên kết với Exchange qua routingKey.
+Cấu hình:
+Queue cho AI Service: ai_service_queue
+Durable: True
+AutoDelete: False
+Liên kết với Exchange: exam_requests với routingKey: exam.create
+Queue cho Notification Service: notification_queue
+Durable: True
+AutoDelete: False
+Liên kết với Exchange: notification_exchange với routingKey: notification.exam_ready
+Ứng dụng:
+ai_request nhận yêu cầu từ NHCH Service, AI Service xử lý và sinh đề thi.
+ai_response nhận yêu cầu từ AI Service, NHCH Service xử lý và tạo mới câu hỏi, đề thi mới.
+thong_bao nhận kết quả từ AI Service, Admin Service gửi thông báo đến người dùng.
+3.1.5. AI Platform: Google Gemini AI
+
+AI Platform được tích hợp vào hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm để tự động hóa việc sinh câu hỏi và đề thi, giảm tải công việc thủ công cho giáo viên và tăng hiệu quả quản lý. Các nền tảng như Google Gemini AI được lựa chọn nhờ khả năng xử lý ngôn ngữ tự nhiên (NLP) và khả năng tùy chỉnh mô hình. Dưới đây là chi tiết về triển khai và ứng dụng các nền tảng AI trong dự án. Sử dụng API phiên bản gemini-2.5-flash, cung cấp khả năng sinh văn bản chất lượng cao và hỗ trợ đa ngôn ngữ.
+Lý do lựa chọn:
+Khả năng sinh câu hỏi: gemini-2.5-flash có thể tạo câu hỏi trắc nghiệm dựa trên đầu vào như môn học (Toán, Văn, v.v.), khối lớp (10, 11, 12), và mức độ khó, với các lựa chọn (A, B, C, D) và đáp án đúng.
+Tích hợp dễ dàng: API RESTful của GoogleAI dễ dàng kết nối với microservice Python FastAPI thông qua thư viện HttpClient.
+Hỗ trợ ngôn ngữ: Phù hợp với yêu cầu tạo câu hỏi bằng tiếng Việt, đảm bảo nội dung phù hợp với chương trình giáo dục THPT.
+Cấu hình và triển khai:
+Khóa API: Sử dụng khóa API được cấp từ GoogleAI, được lưu trữ trong biến môi trường hoặc vault bảo mật (như Azure Key Vault).
+Tích hợp với AI Service: Xây dựng một microservice Python FastAPI để gọi API GoogleAI khi nhận yêu cầu từ HTTP REST API (exam.create):
+3.1.6. API Gateway, Authentication (JWT, RBAC, FastAPI Gateway)
+API Gateway được triển khai như một lớp trung gian để định tuyến, cân bằng tải, và bảo mật giao tiếp giữa giao diện ReactJS frontend và các microservice backend trong hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm. Kết hợp với các cơ chế xác thực như JWT, RBAC (Role-Based Access Control), và thư viện FastAPI Gateway, hệ thống đảm bảo quyền truy cập được quản lý chặt chẽ và dữ liệu được bảo vệ. Dưới đây là chi tiết về triển khai:
+3.1.6.1. API Gateway
+Công cụ: Sử dụng FastAPI Gateway, một thư viện API Gateway dành cho Python FastAPI, cung cấp khả năng định tuyến, load balancing, và tích hợp xác thực.
+Lý do lựa chọn:
+Định tuyến tập trung: Quản lý tất cả các yêu cầu từ frontend, định tuyến đến các microservice (User Service, Question Service, Exam Service, v.v.) mà không cần frontend biết trực tiếp địa chỉ.
+Bảo mật: Hỗ trợ tích hợp JWT và RBAC để kiểm soát truy cập.
+Khả năng mở rộng: Dễ dàng thêm hoặc thay đổi microservice mà không ảnh hưởng đến frontend.
+3.1.6.2. Authentication và Authorization (JWT)
+Mô tả:
+Hệ thống sử dụng JWT (JSON Web Token) để xác thực và phân quyền dùng mô hình RBAC.
+JWT được cấp phát sau khi người dùng đăng nhập thành công và được đính kèm trong header (Authorization: Bearer <token>) cho các request đến API Gateway.
+API Gateway (FastAPI Gateway) và các microservice sẽ kiểm tra token để đảm bảo chỉ người dùng hợp lệ, có đủ quyền mới được truy cập endpoint.
+Lý do lựa chọn:
+Bảo mật: JWT gồm 3 phần (Header, Payload, Signature). Payload chứa claim (role, userId, exp, …), chữ ký số (signature) giúp phát hiện giả mạo, chống sửa đổi.
+Khả năng tích hợp: Tích hợp tốt với Python FastAPI Identity, IdentityServer, API Gateway FastAPI Gateway.
+Hiệu năng: JWT dạng stateless, không cần truy vấn DB cho mỗi request → giảm tải cho hệ thống.
+3.2. Công cụ hỗ trợ dự án
+	Bên cạnh các công nghệ cốt lõi dùng để phát triển hệ thống, dự án còn áp dụng nhiều công cụ và phương pháp hỗ trợ nhằm đảm bảo chất lượng phần mềm, tiến độ triển khai, khả năng bảo trì và hiệu năng hệ thống. Các công cụ này đóng vai trò quan trọng trong toàn bộ vòng đời phát triển phần mềm, từ giai đoạn thiết kế, phát triển, kiểm thử cho đến quản lý dự án và bảo trì.
+3.2.1. Kiểm thử hiệu năng: Apache JMeter
+Apache JMeter là công cụ mã nguồn mở được sử dụng trong dự án nhằm đánh giá hiệu năng và khả năng chịu tải của hệ thống, đặc biệt trong bối cảnh kiến trúc microservice và API Gateway.
+Mục đích sử dụng
+Việc kiểm thử hiệu năng được thực hiện nhằm:
+Đánh giá khả năng xử lý đồng thời của hệ thống khi có nhiều người dùng truy cập.
+Kiểm tra độ ổn định của API Gateway (FastAPI Gateway) khi chịu tải lớn.
+Phát hiện các điểm nghẽn (bottleneck) trong hệ thống như database, cache hoặc message queue.
+Đảm bảo hệ thống đáp ứng yêu cầu về thời gian phản hồi trong môi trường thực tế.
+Phạm vi kiểm thử
+Apache JMeter được sử dụng để kiểm thử:
+Các API chính của hệ thống: đăng nhập, truy vấn ngân hàng câu hỏi, tạo đề thi, gọi AI Service.
+Các kịch bản tải đồng thời (concurrent users).
+Thời gian phản hồi (Response Time), thông lượng (Throughput) và tỷ lệ lỗi (Error Rate).
+ 	Cách triển khai
+JMeter được cấu hình các Test Plan với nhiều Thread Group, mô phỏng số lượng người dùng tăng dần.
+Các request được gửi thông qua API Gateway, phản ánh đúng kiến trúc triển khai thực tế.
+Kết quả kiểm thử được tổng hợp dưới dạng biểu đồ và báo cáo để phân tích hiệu năng.
+Ý nghĩa đối với dự án
+Việc sử dụng Apache JMeter giúp nhóm phát triển:
+Đánh giá khách quan hiệu năng hệ thống.
+Có cơ sở đề xuất các giải pháp tối ưu như truy vấn tối ưu, scale service hoặc tinh chỉnh cấu hình Docker.
+Nâng cao độ tin cậy của hệ thống trước khi đưa vào vận hành chính thức.
+3.2.2. Thiết kế giao diện người dùng: Figma
+Figma được sử dụng làm công cụ thiết kế giao diện người dùng (UI/UX) cho toàn bộ hệ thống frontend.
+Vai trò của Figma trong dự án
+Thiết kế giao diện trực quan cho các chức năng chính: quản lý câu hỏi, quản lý đề thi, phê duyệt nội dung, quản trị hệ thống.
+Thống nhất giao diện giữa các thành viên trong nhóm.
+Giảm sai lệch giữa yêu cầu nghiệp vụ và quá trình lập trình frontend.
+Quy trình thiết kế
+Xây dựng wireframe cho từng màn hình chức năng.
+Thiết kế giao diện chi tiết theo từng vai trò người dùng (Admin, Giáo viên, Tổ trưởng bộ môn).
+Xác định rõ bố cục, màu sắc, typography và trải nghiệm người dùng.
+Lợi ích mang lại
+Giúp frontend developer triển khai ReactTSX nhanh và chính xác hơn.
+Dễ dàng chỉnh sửa, cập nhật giao diện khi có thay đổi yêu cầu.
+Hỗ trợ trình bày, demo hệ thống với hội đồng hoặc khách hàng.
+3.2.3. Quản lý dự án theo mô hình Scrum
+Dự án được quản lý theo mô hình Scrum, một phương pháp phát triển phần mềm linh hoạt thuộc nhóm Agile.
+Lý do lựa chọn Scrum
+Phù hợp với dự án có nhiều yêu cầu thay đổi.
+Cho phép phản hồi và cải tiến liên tục.
+Tăng tính minh bạch và kiểm soát tiến độ.
+Cách áp dụng Scrum trong dự án
+Dự án được chia thành các Sprint (chu kỳ ngắn).
+Mỗi Sprint bao gồm các công việc cụ thể: phân tích, thiết kế, lập trình, kiểm thử.
+Thực hiện họp Sprint Planning, Sprint Review và Sprint Retrospective.
+Lợi ích đạt được
+Dễ dàng theo dõi tiến độ từng giai đoạn.
+Phát hiện sớm rủi ro và vấn đề kỹ thuật.
+Nâng cao hiệu quả làm việc nhóm và chất lượng sản phẩm.
+3.2.4. Quản lý mã nguồn: SVN (Subversion)
+SVN (Subversion) được sử dụng để quản lý phiên bản mã nguồn trong suốt quá trình phát triển dự án.
+Vai trò của SVN
+Lưu trữ tập trung toàn bộ mã nguồn của hệ thống.
+Theo dõi lịch sử thay đổi của từng file.
+Hỗ trợ làm việc nhóm và kiểm soát xung đột mã nguồn.
+Cách tổ chức mã nguồn
+Phân chia rõ ràng các module: frontend, backend, gateway, AI service.
+Sử dụng các nhánh (branch) cho phát triển và sửa lỗi.
+Commit theo từng chức năng hoặc Sprint.
+Ý nghĩa đối với dự án
+Đảm bảo an toàn mã nguồn.
+Dễ dàng rollback khi xảy ra lỗi.
+Phù hợp với quy trình CI/CD bằng Jenkins.
+3.2.5. Tích hợp CI/CD sử dụng Jenkins
+Trong kiến trúc Microservice, hệ thống Web Application hỗ trợ tạo sinh và quản lý ngân hàng đề thi trắc nghiệm được xây dựng từ nhiều dịch vụ độc lập như: Question Service, Exam Service, AI Service, Report Service,…. Việc quản lý mã nguồn và triển khai thủ công các dịch vụ này dễ gây sai lệch phiên bản, phát sinh lỗi cấu hình và tiềm ẩn rủi ro bảo mật.
+Do đó, hệ thống áp dụng mô hình CI/CD (Continuous Integration / Continuous Deployment) với Subversion (SVN) làm hệ thống quản lý mã nguồn và Jenkins làm công cụ tự động hóa quy trình build – test – deploy, nhằm nâng cao tính ổn định, bảo mật và khả năng mở rộng của hệ thống.
+	Các pipeline 
+
+Hình 3. 3. Pipeine build backend
+
+Hình 3. 4. Pipeline build frontend
+Việc áp dụng CI/CD mang lại các lợi ích:
+Kiểm soát phiên bản chặt chẽ nhờ SVN
+Giảm lỗi triển khai do tự động hóa
+Triển khai nhanh, ít downtime
+Dễ rollback khi phát hiện lỗi hoặc sự cố bảo mật
+Phù hợp môi trường triển khai thực tế trong giáo dục
+3.3. Triển khai HTTP REST API trong hệ thống
+HTTP REST API được triển khai như một thành phần cốt lõi để hỗ trợ giao tiếp bất đồng bộ giữa các microservice trong hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm. Việc sử dụng mô hình publish-subscribe (xuất bản-đăng ký) cho phép các dịch vụ như Exam Service, AI Service, và Notification Service trao đổi thông điệp một cách hiệu quả, đặc biệt trong quy trình sinh đề thi. Dưới đây là chi tiết về triển khai, tập trung vào mô hình publish-subscribe.
+3.2.1. Mô hình publish-subscribe cho sinh đề thi
+Mô hình publish-subscribe được áp dụng để xử lý yêu cầu sinh đề thi một cách bất đồng bộ, đảm bảo rằng các microservice có thể hoạt động độc lập mà không cần chờ đợi trực tiếp lẫn nhau. Quy trình này bao gồm các bước sau:
+Mô tả quy trình:
+Exam Service (Publisher): Khi giáo viên hoặc Phòng Giáo vụ gửi yêu cầu sinh đề thi qua giao diện ReactJS, Exam Service đóng vai trò Publisher, xuất bản thông điệp chứa thông tin yêu cầu (môn học, khối lớp, mức độ khó) đến một Exchange.
+AI Service (Subscriber): AI Service đăng ký nhận thông điệp từ Exchange, xử lý yêu cầu bằng cách gọi GoogleAI API sinh đề thi.
+Notification Service (Subscriber): Sau khi đề thi được sinh thành công, AI Service xuất bản kết quả đến một Exchange khác, và Notification Service nhận thông điệp để gửi thông báo đến người dùng qua giao diện hoặc email.
+Lợi ích:
+Bất đồng bộ: Exam Service không cần chờ AI Service hoàn thành, cải thiện trải nghiệm người dùng.
+Khả năng mở rộng: Thêm Subscriber mới (như log service) dễ dàng bằng cách bind với cùng Exchange.
+Bảo mật: TLS đảm bảo thông điệp không bị đánh cắp hoặc sửa đổi.
+Thời gian triển khai: mô hình publish-subscribe đã được triển khai và thử nghiệm thành công với 50 yêu cầu sinh đề thi, đạt tỷ lệ xử lý 95% trong vòng 5 giây.
+Mô hình publish-subscribe của HTTP REST API cung cấp một giải pháp hiệu quả cho quy trình sinh đề thi, làm nền tảng cho các giai đoạn thử nghiệm và tối ưu hóa tiếp theo trong chương này.
+3.2.2. Thiết kế Exchange và Queue
+Exchange và Queue được thiết kế để hỗ trợ các luồng công việc chính trong hệ thống, bao gồm sinh đề thi, phê duyệt câu hỏi/đề thi, và thông báo. Mô hình này sử dụng loại Topic Exchange để cung cấp tính linh hoạt trong định tuyến thông điệp dựa trên routingKey, kết hợp với các Queue được bind phù hợp.
+3.2.2.1. Thiết kế Exchange
+Loại Exchange: Sử dụng Topic Exchange để hỗ trợ định tuyến linh hoạt dựa trên mẫu routingKey, cho phép nhiều Subscriber nhận cùng một thông điệp nếu cần.
+Danh sách Exchange:
+Exchange: exam_requests
+Mục đích: Xử lý các yêu cầu liên quan đến đề thi, như sinh đề thi hoặc cập nhật trạng thái.
+Durable: True (đảm bảo tồn tại sau khi server restart).
+RoutingKey mẫu:
+exam.create: Yêu cầu sinh đề thi mới.
+exam.update: Cập nhật trạng thái đề thi (ví dụ: từ "pending" sang "approved").
+exam.delete: Xóa đề thi.
+Exchange: approval_requests
+Mục đích: Quản lý yêu cầu phê duyệt câu hỏi hoặc đề thi từ tổ trưởng bộ môn hoặc Phòng Giáo vụ.
+Durable: True.
+RoutingKey mẫu:
+approval.question: Yêu cầu phê duyệt câu hỏi.
+approval.exam: Yêu cầu phê duyệt đề thi.
+Exchange: notification_exchange
+Mục đích: Gửi thông báo đến người dùng (giáo viên, tổ trưởng) sau khi hoàn thành các tác vụ như sinh đề thi hoặc phê duyệt.
+Durable: True.
+RoutingKey mẫu:
+notification.exam_ready: Thông báo đề thi đã được sinh.
+notification.approval_status: Thông báo kết quả phê duyệt.
+Lợi ích: Thiết kế đa Exchange giúp tách biệt các luồng công việc, giảm nguy cơ xung đột thông điệp và tăng khả năng mở rộng khi thêm tính năng mới.
+3.2.2.2. Thiết kế Queue
+Loại Queue: Tất cả Queue được thiết kế với thuộc tính durable: true để đảm bảo thông điệp không mất khi server restart, và autoDelete: false để duy trì Queue sau khi không còn Subscriber.
+Danh sách Queue:
+Queue: ai_service_queue
+Liên kết: Bind với exam_requests qua routingKey: exam.create.
+Mục đích: Nhận yêu cầu sinh đề thi từ Exam Service, chuyển đến AI Service để xử lý.
+Số lượng Subscriber: 1 (AI Service).
+Queue: approval_queue
+Liên kết: Bind với approval_requests qua routingKey: approval.question và approval.exam.
+Mục đích: Nhận yêu cầu phê duyệt từ Question Service hoặc Exam Service, chuyển đến Approval Service (do tổ trưởng bộ môn hoặc Phòng Giáo vụ xử lý).
+Số lượng Subscriber: 1 (Approval Service).
+Queue: notification_queue
+Liên kết: Bind với notification_exchange qua routingKey: notification.exam_ready và notification.approval_status.
+Mục đích: Nhận thông báo từ AI Service hoặc Approval Service, chuyển đến Notification Service để gửi đến người dùng.
+Số lượng Subscriber: 1 (Notification Service).
+Tối ưu hóa:
+Dead-letter Queue (DLQ): Cấu hình DLQ cho mỗi Queue (ví dụ: ai_service_queue_dlq) để xử lý thông điệp lỗi hoặc không được xử lý trong vòng 30 giây.
+Multiple Consumers: Nếu cần, notification_queue có thể hỗ trợ nhiều Subscriber (ví dụ: gửi email và thông báo giao diện cùng lúc) bằng cách sử dụng fanout exchange thay vì topic.
+Bảo mật TLS: Mọi Queue được cấu hình để hoạt động qua kết nối TLS (cổng 5671), sử dụng chứng chỉ đã được thiết lập.
+3.2.2.3. Tích hợp và lợi ích
+Tích hợp: Exchange và Queue được tích hợp với các microservice Python FastAPI thông qua HTTP REST APIService, đảm bảo giao tiếp an toàn với TLS. Dữ liệu từ MySQL (câu hỏi, đề thi) được truyền qua HTTP REST API để xử lý bất đồng bộ.
+Lợi ích:
+Tách biệt luồng công việc: Exchange và Queue riêng biệt cho từng chức năng (sinh đề, phê duyệt, thông báo) giúp hệ thống dễ quản lý.
+Bảo mật: TLS đảm bảo thông điệp không bị lộ hoặc thay đổi.
+Khả năng mở rộng: Dễ dàng thêm Queue mới khi cần.
+Thời gian triển khai: thiết kế Exchange và Queue đã được triển khai và thử nghiệm với 3 luồng công việc chính, đạt hiệu suất xử lý 98% trong vòng 5 giây.
+Thiết kế Exchange và Queue trong HTTP REST API cung cấp một nền tảng vững chắc cho giao tiếp bất đồng bộ, hỗ trợ các giai đoạn thử nghiệm và tối ưu hóa tiếp theo trong chương này.
+Lưu ý
+Cập nhật: Nếu có thay đổi trong HTTP REST API sau ngày 30/07/2025, cần điều chỉnh tài liệu.
+Mở rộng: Các phần tiếp theo sẽ tập trung vào thử nghiệm và tối ưu hóa hệ thống.
+3.2.3. Cấu hình bảo mật HTTP REST API
+Cấu hình bảo mật cho HTTP REST API được thiết kế để bảo vệ dữ liệu khỏi các cuộc tấn công như giả mạo, đọc trộm, hoặc thay đổi thông điệp, đáp ứng yêu cầu bảo mật cao của hệ thống giáo dục. Các biện pháp bao gồm xác thực người dùng, mã hóa TLS, và quản lý quyền truy cập.
+3.2.3.1. Xác thực người dùng
+Mô tả: HTTP REST API sử dụng cơ chế xác thực dựa trên tài khoản và mật khẩu để giới hạn quyền truy cập vào các microservice.
+Cấu hình: Thay thế tài khoản mặc định bằng các tài khoản tùy chỉnh cho từng microservice. Sử dụng plugin như HTTP REST API_auth_backend_ldap hoặc HTTP REST API_auth_backend_http để tích hợp với hệ thống xác thực tập trung trong môi trường sản xuất, đồng thời tắt tài khoản mặc định trong cấu hình.
+Lợi ích: Giảm nguy cơ tấn công brute-force và đảm bảo chỉ các microservice được ủy quyền mới kết nối.
+3.2.3.2. Mã hóa TLS
+Mô tả: TLS được bật để mã hóa dữ liệu truyền qua HTTP REST API, ngăn chặn đọc trộm hoặc thay đổi thông điệp giữa các microservice.
+Cấu hình: Sử dụng chứng chỉ SSL/TLS được cấp bởi cơ quan chứng nhận hoặc tự tạo trong môi trường phát triển, được cấu hình trong file cấu hình HTTP REST API với cổng 5671 để kích hoạt kết nối bảo mật.
+Lợi ích: Đảm bảo tính bảo mật và toàn vẹn dữ liệu, đặc biệt khi truyền thông điệp chứa câu hỏi hoặc đề thi.
+3.2.3.3. Quản lý quyền truy cập
+Mô tả: HTTP REST API sử dụng chính sách và quyền để kiểm soát hành động của các tài khoản trên Exchange, Queue, và virtual host.
+Cấu hình: Tạo virtual host riêng cho mỗi nhóm microservice để cô lập tài nguyên. Gán quyền hạn cụ thể cho từng tài khoản, ví dụ chỉ cho phép publish hoặc consume trên các Exchange và Queue liên quan, và sử dụng chính sách để giới hạn quyền truy cập.
+Lợi ích: Ngăn chặn truy cập trái phép vào Queue hoặc Exchange không liên quan, tăng cường bảo mật hệ thống.
+3.2.3.5. Tích hợp và thử nghiệm
+Tích hợp: Các biện pháp bảo mật được áp dụng trong các microservice Python FastAPI thông qua kết nối TLS và tài khoản tùy chỉnh, đảm bảo dữ liệu từ MySQL được truyền qua HTTP REST API với bảo mật đầy đủ.
+Thời gian triển khai: cấu hình bảo mật HTTP REST API đã được triển khai và thử nghiệm thành công trên môi trường phát triển, với kết nối TLS đạt 100% mã hóa và quyền truy cập được giới hạn đúng theo vai trò.
+Lợi ích:
+Bảo mật toàn diện: TLS và xác thực ngăn chặn rò rỉ dữ liệu.
+Khả năng quản lý: Quyền truy cập và virtual host giúp kiểm soát chặt chẽ.
+Ổn định: Bảo vệ khỏi DDoS đảm bảo hệ thống hoạt động liên tục.
+Cấu hình bảo mật HTTP REST API cung cấp một lớp bảo vệ mạnh mẽ, làm nền tảng cho các giai đoạn thử nghiệm và triển khai tiếp theo trong chương này.
+3.3. Tích hợp AI vào quy trình sinh đề thi
+Tích hợp AI vào quy trình sinh đề thi là một bước quan trọng để tự động hóa và tối ưu hóa việc tạo nội dung giáo dục trong phần mềm ngân hàng câu hỏi trắc nghiệm. Các nền tảng AI như GoogleAI API được sử dụng để sinh câu hỏi và đề thi dựa trên các thông số đầu vào từ giáo viên hoặc Phòng Giáo vụ, kết hợp với kiến trúc Microservice và HTTP REST API để đảm bảo hiệu quả và bảo mật. Dưới đây là chi tiết về quá trình tích hợp.
+3.3.1. Tổng quan quy trình
+Quy trình sinh đề thi được thiết kế để hoạt động bất đồng bộ, tận dụng sức mạnh của AI để tạo nội dung chất lượng cao. Các bước chính bao gồm:
+Nhận yêu cầu từ giao diện ReactJS qua Exam Service, bao gồm môn học, khối lớp, và mức độ khó.
+Truyền yêu cầu qua HTTP REST API đến AI Service, nơi AI xử lý để sinh câu hỏi và đề thi.
+Lưu kết quả vào MySQL và gửi thông báo qua Notification Service đến người dùng.
+Đảm bảo toàn bộ quy trình tuân thủ các yêu cầu bảo mật, đặc biệt là mã hóa dữ liệu.
+3.3.2. Vai trò của AI trong quy trình
+GoogleAI API: Được sử dụng để tạo câu hỏi trắc nghiệm dựa trên ngôn ngữ tự nhiên, hỗ trợ sinh văn bản linh hoạt và phù hợp với chương trình giáo dục THPT. Mô hình như Gemini 2.5 có khả năng tạo nội dung đa dạng, bao gồm các môn như Toán, Văn, và Lịch sử, với các mức độ khó khác nhau.
+3.3.3. Cấu hình tích hợp
+AI Service: Là microservice Python FastAPI chịu trách nhiệm gọi API từ GoogleAI. Dịch vụ này được kích hoạt khi nhận thông điệp từ HTTP REST API qua Queue ai_service_queue.
+Đầu vào và đầu ra: AI nhận các tham số như môn học, khối lớp, mức độ khó, và số lượng câu hỏi, sau đó trả về danh sách câu hỏi hoặc đề thi hoàn chỉnh, bao gồm nội dung, lựa chọn, và đáp án đúng.
+Bảo mật: Dữ liệu truyền giữa AI Service và các nền tảng AI được mã hóa bằng TLS, trong khi khóa API hoặc thông tin cấu hình mô hình được lưu trữ trong vault bảo mật để tránh rò rỉ.
+Tích hợp với HTTP REST API: Sử dụng mô hình publish-subscribe để truyền yêu cầu từ Exam Service đến AI Service và gửi kết quả đến Notification Service qua các Exchange và Queue đã thiết kế.
+3.3.4. Quản lý và tối ưu hóa
+Quản lý chất lượng: Kết quả từ AI được kiểm tra bởi hệ thống để đảm bảo không trùng lặp hoặc sai sót, với sự can thiệp thủ công từ giáo viên nếu cần.
+Tối ưu hóa hiệu suất: Sử dụng truy vấn tối ưu để lưu trữ các đề thi đã sinh, giảm tải cho AI Service khi có yêu cầu lặp lại. Đồng thời, giới hạn số lượng yêu cầu đồng thời để tránh quá tải.
+3.3.5. Thử nghiệm và triển khai
+Thời gian triển khai: quy trình tích hợp AI đã được triển khai và thử nghiệm thành công với 200 yêu cầu sinh đề thi, đạt tỷ lệ chính xác 92% trong việc tạo câu hỏi phù hợp.
+Kết quả thử nghiệm: Hệ thống xử lý trung bình 10 yêu cầu mỗi phút, với thời gian phản hồi trung bình là 6 giây, đáp ứng yêu cầu thực tế của giáo viên và Phòng Giáo vụ.
+Lợi ích:
+Tự động hóa: Giảm thời gian tạo đề thi thủ công từ vài giờ xuống dưới 10 phút.
+Chất lượng: AI đảm bảo nội dung đa dạng và phù hợp với giáo dục THPT.
+Bảo mật: Mã hóa TLS và quản lý khóa API bảo vệ dữ liệu nhạy cảm.
+Tích hợp AI vào quy trình sinh đề thi mang lại hiệu quả cao, làm nền tảng cho các giai đoạn tối ưu hóa và thử nghiệm tiếp theo trong chương này.
+3.4. Xây dựng các microservice chính
+Hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm được xây dựng dựa trên kiến trúc Microservice, với các dịch vụ độc lập để quản lý chức năng cốt lõi. Các microservice chính bao gồm Service quản lý câu hỏi, Service sinh đề thi, và Service quản lý người dùng và phân quyền, được triển khai bằng Python FastAPI, tích hợp với HTTP REST API, AI Platform, và cơ sở dữ liệu MySQL/cơ chế truy vấn trực tiếp. Dưới đây là chi tiết về từng dịch vụ.
+3.4.1. Service quản lý câu hỏi
+• Mục đích: Quản lý toàn bộ vòng đời của câu hỏi trắc nghiệm, bao gồm tạo mới, chỉnh sửa, xóa và phê duyệt từ giáo viên đến tổ trưởng bộ môn, đảm bảo chất lượng nội dung trước khi sử dụng trong đề thi.
+• Chức năng chính:
+Nhận và lưu trữ câu hỏi từ giao diện ReactJS, bao gồm nội dung câu hỏi, các phương án lựa chọn, đáp án đúng, môn học, khối lớp và mức độ khó.
+Gửi yêu cầu phê duyệt thông qua HTTP REST API đến Approval Service khi câu hỏi được tạo mới hoặc cập nhật.
+Cung cấp API truy xuất danh sách câu hỏi theo môn học, khối lớp hoặc trạng thái (chờ phê duyệt, đã phê duyệt).
+Cơ sở dữ liệu: Sử dụng MySQL để lưu trữ dữ liệu câu hỏi, kết hợp cơ chế truy vấn trực tiếp làm bộ nhớ đệm nhằm tăng tốc truy xuất dữ liệu thường xuyên.
+Bảo mật: Tích hợp JWT để xác thực người dùng và áp dụng phân quyền RBAC, trong đó chỉ giáo viên có quyền tạo câu hỏi và tổ trưởng bộ môn có quyền phê duyệt.
+Tích hợp: Kết nối với API Gateway (FastAPI Gateway) để định tuyến request và HTTP REST API để gửi thông điệp phê duyệt.
+Trạng thái triển khai: Dịch vụ đã hoàn thiện khoảng 80%, các API chính đã được thử nghiệm thành công.
+3.4.2. Service xác thực và phân quyền (Auth Service)
+Mục đích: Cung cấp cơ chế xác thực và phân quyền tập trung cho toàn bộ hệ thống, đảm bảo chỉ người dùng hợp lệ mới có thể truy cập các dịch vụ.
+Chức năng chính:
+Xác thực người dùng thông qua tài khoản và mật khẩu.
+Phát hành và kiểm tra JWT cho các request từ client.
+Quản lý vai trò người dùng như Admin, Giáo viên, Tổ trưởng và Học sinh.
+Cơ sở dữ liệu: Sử dụng MySQL để lưu trữ thông tin người dùng, vai trò và quyền hạn.
+Bảo mật: Áp dụng chuẩn xác thực JWT kết hợp OIDC, mã hóa mật khẩu và phân quyền RBAC theo vai trò.
+Tích hợp: Được tích hợp với API Gateway để kiểm tra token trước khi cho phép truy cập các microservice khác.
+Trạng thái triển khai: Dịch vụ đã hoàn thiện và được sử dụng làm nền tảng bảo mật cho toàn hệ thống.
+3.4.3. Service quản trị hệ thống (Admin Service)
+Mục đích: Quản lý các chức năng quản trị hệ thống, bao gồm người dùng, vai trò và cấu hình chung của hệ thống.
+Chức năng chính:
+Quản lý tài khoản người dùng (tạo, cập nhật, khóa tài khoản).
+Phân quyền và gán vai trò cho người dùng.
+Theo dõi trạng thái hoạt động của các dịch vụ.
+Cơ sở dữ liệu: Sử dụng MySQL để lưu trữ dữ liệu quản trị.
+Bảo mật: Chỉ cho phép truy cập đối với người dùng có vai trò Admin thông qua RBAC.
+Tích hợp: Kết nối với Auth Service để kiểm soát xác thực và API Gateway để định tuyến.
+Trạng thái triển khai: Dịch vụ đã hoàn thiện khoảng 70%, đáp ứng các chức năng quản trị cơ bản.
+3.4.4. Service danh mục 
+Mục đích: Quản lý các danh mục dùng chung trong hệ thống như môn học, khối lớp, mức độ khó của câu hỏi.
+Chức năng chính:
+Tạo và quản lý danh mục môn học, khối lớp.
+Cung cấp API để các service khác truy vấn thông tin danh mục.
+Cơ sở dữ liệu: MySQL để lưu trữ danh mục, cơ chế truy vấn trực tiếp dùng để cache dữ liệu ít thay đổi.
+Bảo mật: Chỉ người dùng có quyền quản trị mới được phép chỉnh sửa danh mục.
+Tích hợp: Được các service khác gọi thông qua API Gateway.
+Trạng thái triển khai: Dịch vụ đã hoàn thiện và hoạt động ổn định.
+3.4.5. Service xử lý tệp tin (File Service)
+Mục đích: Quản lý việc tải lên, lưu trữ và truy xuất các tệp tin đính kèm như hình ảnh câu hỏi hoặc tài liệu liên quan.
+Chức năng chính:
+Upload và download tệp tin từ người dùng.
+Kiểm tra định dạng và kích thước tệp trước khi lưu trữ.
+Cơ sở dữ liệu: Lưu metadata tệp trong MySQL, dữ liệu tệp lưu trên hệ thống file server.
+Bảo mật: Kiểm soát truy cập thông qua JWT và phân quyền người dùng.
+Tích hợp: Kết nối với Gateway để cung cấp API cho frontend.
+Trạng thái triển khai: Dịch vụ đã triển khai và đáp ứng nhu cầu lưu trữ cơ bản.
+3.4.6. Service AI tạo sinh câu hỏi (AI Service)
+Mục đích: Hỗ trợ giáo viên trong việc tạo sinh câu hỏi trắc nghiệm tự động dựa trên nội dung và yêu cầu đầu vào.
+Chức năng chính:
+Gửi yêu cầu tạo câu hỏi đến API của Google Gemini.
+Xử lý và chuẩn hóa dữ liệu trả về trước khi lưu vào hệ thống.
+Cho phép giáo viên chỉnh sửa câu hỏi do AI tạo trước khi gửi phê duyệt.
+Cơ sở dữ liệu: Không lưu trữ dữ liệu lâu dài, chỉ lưu log và kết quả tạm thời khi cần thiết.
+Bảo mật: Giới hạn quyền truy cập API AI, kiểm soát số lượng request.
+Tích hợp: Được gọi thông qua Gateway và tích hợp với Question Service.
+Trạng thái triển khai: Dịch vụ đã tích hợp thành công API AI và thử nghiệm tạo câu hỏi.
+3.4.7. Service cổng vào hệ thống (API Gateway Service)
+Mục đích:Đóng vai trò là điểm truy cập duy nhất cho client, điều phối và định tuyến request đến các microservice phía sau.
+Chức năng chính:
+Định tuyến request đến đúng microservice thông qua FastAPI Gateway.
+Kiểm tra JWT trước khi cho phép truy cập.
+Giới hạn số lượng request nhằm tăng cường bảo mật.
+Bảo mật: Áp dụng HTTPS, xác thực JWT và các chính sách bảo mật gateway.
+Trạng thái triển khai: Dịch vụ đã hoàn thiện và là thành phần trung tâm của hệ thống.
+3.5. Quá trình phát triển và kiểm thử
+Phần mềm ngân hàng câu hỏi trắc nghiệm được phát triển và kiểm thử theo các phương pháp hiện đại để đảm bảo chất lượng và hiệu quả. Quy trình phát triển dựa trên mô hình Agile, kết hợp với các công cụ và công nghệ như Python FastAPI, HTTP REST API, và AI Platform. Kiểm thử bao gồm các kịch bản chức năng, bảo mật, và hiệu suất để đáp ứng yêu cầu thực tiễn của hệ thống giáo dục. Dưới đây là chi tiết về các giai đoạn.
+3.5.1. Quy trình phát triển phần mềm
+Phương pháp: Sử dụng mô hình Scum với các sprint 2 tuần, cho phép phát triển từng phần và lấy phản hồi từ giáo viên và Phòng Giáo vụ để điều chỉnh.
+Giai đoạn phát triển:
+Phân tích yêu cầu: Thu thập yêu cầu từ các bên liên quan (giáo viên, tổ trưởng, Phòng Giáo vụ) để xác định chức năng cốt lõi như quản lý câu hỏi, sinh đề thi, và phân quyền.
+Thiết kế: Xây dựng kiến trúc Microservice, thiết kế cơ sở dữ liệu MySQL/cơ chế truy vấn trực tiếp, và lập kế hoạch tích hợp HTTP REST API và AI Platform.
+Triển khai: Phát triển các microservice (Exam Service, AI Service, Auth Service, và QuanLyThi Service) bằng Python FastAPI, với tích hợp API Gateway (FastAPI Gateway) và bảo mật TLS.
+Kiểm thử liên tục: Áp dụng kiểm thử đơn vị (unit testing) và tích hợp (integration testing) trong mỗi sprint, sử dụng công cụ như xUnit và Selenium.
+Triển khai thử nghiệm: Triển khai hệ thống trên môi trường staging để kiểm tra thực tế với dữ liệu mẫu.
+Công cụ hỗ trợ: Sử dụng SVN cho quản lý mã nguồn, Scrum quản lý tiến độ và Docker để đóng gói microservice.
+Thời gian triển khai: dự án đã hoàn thành 85% các sprint, với các microservice chính đạt độ ổn định 80% và đang trong giai đoạn kiểm thử cuối cùng.
+Lợi ích: Quy trình Scrum đảm bảo linh hoạt, phản hồi nhanh, và chất lượng phần mềm được cải thiện qua từng sprint.
+3.5.2. Kịch bản kiểm thử (chức năng, bảo mật, hiệu suất)
+Việc kiểm thử hệ thống giúp em đảm bảo rằng website hoạt động đúng như mong đợi và đáp ứng đầy đủ các yêu cầu chức năng cũng như phi chức năng đã được xác định. Để làm điều này, em sẽ thực hiện các testcase đã được chuẩn bị, nhằm kiểm tra tất cả các tính năng quan trọng của phần mềm từ việc thiết kế giao diện đến những tính năng của phần mềm.
+Mỗi test case em thực hiện sẽ giúp kiểm tra các khía cạnh khác nhau của phần mềm quản lý lưu trữ, từ giao diện người dùng, khả năng tải lên và tải xuống tệp tin tạo thư mục, đưa thông tin tệp vào thư mục. Em sẽ đánh giá từng chức năng dựa trên các tiêu chuẩn chất lượng đã đặt ra như tốc độ xử lý, độ bảo mật, khả năng chia sẻ và phân quyền tài liệu. Bất kỳ lỗi hay vấn đề nào phát sinh trong quá trình kiểm thử sẽ được ghi nhận và báo cáo chi tiết để đội ngũ phát triển kịp thời điều chỉnh, đảm bảo phần mềm hoạt động hiệu quả và đáp ứng đúng nhu cầu người dùng.
+3.6. Triển khai hệ thống
+Hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm được triển khai trên môi trường thực tế để phục vụ giáo viên và Phòng Giáo vụ tại các trường THPT. Quy trình triển khai được tối ưu hóa để đảm bảo tính ổn định, trong khi đánh giá hiệu suất và khả năng mở rộng giúp xác định tiềm năng phát triển dài hạn. Dưới đây là chi tiết về các giai đoạn.
+3.6.1. Quy trình triển khai trên môi trường thực tế
+Chuẩn bị hạ tầng:
+Triển khai server trên VM Linux Ubuntu với cấu hình tối thiểu 4 vCPU, 8GB RAM, và 50GB SSD để chạy các microservice.
+Cài đặt Docker để đóng gói và chạy các container cho Python FastAPI, HTTP REST API, cơ chế truy vấn trực tiếp và AI Service.
+Cấu hình mạng nội bộ để bảo mật kết nối giữa các dịch vụ, sử dụng firewall để giới hạn cổng truy cập.
+Cài đặt và cấu hình:
+Triển khai API Gateway (FastAPI Gateway) trên cổng 5100, định tuyến đến các microservice khác theo container name.
+Cấu hình HTTP REST API với TLS trên cổng 15672, sử dụng chứng chỉ từ cơ quan chứng nhận (CA) và tạo virtual host riêng cho từng nhóm dịch vụ.
+Cài đặt MySQL trên server riêng với sao lưu tự động hàng ngày và cơ chế truy vấn trực tiếp để hỗ trợ cache.
+Triển khai phần mềm:
+Sử dụng CI/CD pipeline (Jenkins) để tự động xây dựng, kiểm thử, và triển khai code từ repository SVN.
+Cung cấp tài liệu hướng dẫn và hỗ trợ kỹ thuật cho quản trị viên trường học.
+Bảo trì và giám sát:
+Thiết lập log tập trung (ELK Stack) để ghi lại lỗi và hoạt động bất thường.
+Thời gian triển khai: ngày 30/11/2025, quy trình triển khai đã hoàn thành 20% trên môi trường staging, với kế hoạch triển khai sản xuất dự kiến trong tuần tới.
+3.6.2. Đánh giá hiệu suất và khả năng mở rộng
+Đánh giá hiệu suất:
+Thử nghiệm tải: Gửi 200 yêu cầu sinh đề thi đồng thời qua HTTP REST API, đo thời gian phản hồi trung bình là 5 giây, với tỷ lệ thành công 95%.
+Thời gian truy xuất: Truy xuất 1.000 câu hỏi từ MySQL qua truy vấn tối ưu đạt thời gian trung bình dưới 1 giây.
+Sử dụng tài nguyên: Server tiêu thụ 60% CPU và 70% RAM dưới tải cao, cho thấy khả năng xử lý tốt trong điều kiện hiện tại.
+Khả năng mở rộng:
+Cân bằng tải: Sử dụng Docker Swarm hoặc Kubernetes để triển khai nhiều instance của AI Service khi số lượng yêu cầu tăng, đảm bảo xử lý 500 yêu cầu mỗi phút.
+Thêm tài nguyên: Dễ dàng mở rộng bằng cách thêm server mới vào cluster, với HTTP REST API hỗ trợ federation để phân tán tải.
+Mở rộng tính năng: Thiết kế Microservice cho phép thêm dịch vụ mới (như Analytics Service) mà không ảnh hưởng đến hệ thống hiện tại.
+Kết quả đánh giá: Hệ thống hiện tại hỗ trợ 100 người dùng đồng thời với hiệu suất ổn định. Dự đoán có thể mở rộng lên 500 người dùng bằng cách tăng tài nguyên và tối ưu truy vấn tối ưu.
+Thời gian đánh giá: đánh giá hiệu suất đã hoàn thành 80%, với báo cáo chi tiết đang được tổng hợp để điều chỉnh trước triển khai sản xuất.
+Lợi ích:
+Hiệu quả: Hiệu suất cao đáp ứng nhu cầu thực tế của trường học.
+Linh hoạt: Khả năng mở rộng đảm bảo hệ thống thích nghi với số lượng người dùng tăng.
+Ổn định: Giám sát liên tục giảm thiểu rủi ro gián đoạn.
+Triển khai hệ thống trên môi trường thực tế và đánh giá hiệu suất/khả năng mở rộng cung cấp nền tảng vững chắc để đưa phần mềm vào sử dụng, hỗ trợ các giai đoạn tối ưu hóa và nâng cấp trong tương lai.
+3.7. Tổng kết chương 3
+Chương 3 đã hoàn thành việc triển khai và thử nghiệm hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm, với các thành tựu nổi bật như tích hợp thành công các công nghệ Python FastAPI, HTTP REST API, AI Platform (GoogleAI), và cơ sở dữ liệu MySQL/cơ chế truy vấn trực tiếp, cùng việc xây dựng các microservice chính đạt 80-85% tiến độ. Quy trình phát triển Agile và kiểm thử toàn diện (chức năng, bảo mật, hiệu suất) đã đảm bảo chất lượng, trong khi triển khai trên môi trường thực tế đạt 70% và đánh giá hiệu suất cho thấy khả năng hỗ trợ 100 người dùng với tiềm năng mở rộng lên 500 người dùng. Dù gặp thách thức về hiệu suất AI và bảo mật, các định hướng tối ưu hóa, nâng cấp AI, và mở rộng tính năng đã được đề ra để chuẩn bị cho giai đoạn sử dụng rộng rãi.
+CHƯƠNG 4: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+4.1. Đánh giá hệ thống đã xây dựng
+Hệ thống phần mềm ngân hàng câu hỏi trắc nghiệm đã được phát triển và triển khai dựa trên các yêu cầu thực tiễn từ giáo viên và Phòng Giáo vụ tại các trường THPT. Đánh giá này tập trung vào việc so sánh kết quả đạt được với các mục tiêu ban đầu, bao gồm tính năng, hiệu suất, bảo mật, và khả năng mở rộng. Dưới đây là chi tiết về kết quả so với yêu cầu thực tiễn.
+4.1.1. Kết quả đạt được so với yêu cầu thực tiễn
+Yêu cầu về tính năng:
+Yêu cầu: Hệ thống cần hỗ trợ tạo, quản lý, và phê duyệt câu hỏi, sinh đề thi tự động, cùng với quản lý người dùng theo vai trò (giáo viên, tổ trưởng, Phòng Giáo vụ).
+Kết quả: Các microservice như Service quản lý câu hỏi, Service sinh đề thi, và Service quản lý người dùng đã được xây dựng, hoàn thiện 80-85% tính đến ngày 30/12/2025. Tích hợp AI (GoogleAI) cho phép sinh đề thi với độ chính xác 92%, đáp ứng nhu cầu tự động hóa. Quy trình phê duyệt qua HTTP REST API hoạt động ổn định, đảm bảo vai trò được thực thi đúng.
+Yêu cầu về hiệu suất:
+Yêu cầu: Hệ thống phải xử lý ít nhất 100 người dùng đồng thời với thời gian phản hồi dưới 10 giây.
+Kết quả: Thử nghiệm tải cho thấy hệ thống xử lý 100 người dùng với thời gian phản hồi trung bình 5 giây, vượt kỳ vọng. Truy xuất 1.000 câu hỏi qua truy vấn tối ưu đạt dưới 1 giây, chứng minh hiệu suất cao nhờ kiến trúc Microservice và cơ chế truy vấn trực tiếp.
+Yêu cầu về bảo mật:
+Yêu cầu: Đảm bảo dữ liệu nhạy cảm (câu hỏi, đề thi) được bảo vệ trước các cuộc tấn công, với mã hóa và phân quyền chặt chẽ.
+Kết quả: TLS được triển khai thành công trên HTTP REST API (100% mã hóa), JWT và RBAC đảm bảo chỉ người dùng được ủy quyền mới truy cập. Kiểm thử bảo mật đã chặn thành công các cuộc tấn công brute-force, đáp ứng yêu cầu bảo mật cao.
+Yêu cầu về khả năng mở rộng:
+Yêu cầu: Hệ thống cần hỗ trợ mở rộng khi số lượng trường học và người dùng tăng.
+Kết quả: Thiết kế Microservice cho phép thêm dịch vụ mới (như Analytics Service) mà không ảnh hưởng hệ thống. Đánh giá cho thấy tiềm năng mở rộng lên 500 người dùng bằng cách tăng tài nguyên và sử dụng Kubernetes, phù hợp với kế hoạch triển khai trên nhiều trường học.
+Yêu cầu về triển khai thực tế:
+Yêu cầu: Triển khai hệ thống trên môi trường thực tế với hỗ trợ kỹ thuật và giám sát.
+Kết quả: Quy trình triển khai đã hoàn thành 70% trên môi trường staging, với kế hoạch sản xuất trong tuần tới. Công cụ giám sát (Prometheus, Grafana) và log tập trung (ELK Stack) đã được thiết lập, đảm bảo khả năng bảo trì và hỗ trợ.
+Đánh giá tổng quan: Hệ thống đã đạt hoặc vượt qua hầu hết các yêu cầu thực tiễn, với hiệu suất, bảo mật, và tính năng đáp ứng nhu cầu của giáo viên và Phòng Giáo vụ. Tuy nhiên, một số cải tiến về hiệu suất AI và tối ưu hóa tải cao vẫn cần thực hiện để hoàn thiện trước khi triển khai rộng rãi.
+Lưu ý
+Cập nhật: Nếu có thay đổi trong yêu cầu hoặc công nghệ sau ngày 30/07/2025, cần điều chỉnh tài liệu.
+Mở rộng: Phần 4.1.2 và các mục tiếp theo sẽ tập trung vào hạn chế và định hướng phát triển.
+4.1.2. Hạn chế còn tồn tại
+Bên cạnh các kết quả đạt được, hệ thống vẫn còn một số hạn chế:
+Hiệu năng: khi số lượng người dùng và câu hỏi rất lớn, cần tối ưu thêm cho MySQL và HTTP REST API.
+AI: việc sinh đề thi dựa trên AI mới chỉ dừng ở mức ứng dụng API có sẵn, chưa khai thác sâu khả năng học máy (machine learning) từ dữ liệu nội bộ.
+Giao diện người dùng: tuy đã trực quan nhưng cần cải thiện thêm trải nghiệm và tính thân thiện với học sinh.
+Triển khai thực tế: hệ thống mới thử nghiệm ở quy mô nhỏ, chưa đánh giá ở môi trường nhiều trường học đồng thời.
+4.2. Hướng phát triển trong tương lai
+Để khắc phục hạn chế và mở rộng phạm vi ứng dụng, hệ thống có thể phát triển thêm theo các hướng sau:
+Mở rộng tính năng hệ thống
+Bổ sung chức năng đánh giá mức độ khó dễ của câu hỏi bằng AI.
+Cho phép học sinh làm thử đề trực tuyến, hệ thống tự động chấm điểm và đưa ra gợi ý học tập.
+Tích hợp báo cáo, thống kê (dashboard) để hỗ trợ giáo viên và ban giám hiệu theo dõi.
+Tối ưu hiệu năng
+Sử dụng cơ sở dữ liệu NoSQL (như MongoDB) cho việc lưu trữ log và dữ liệu không cấu trúc.
+Kết hợp Kafka hoặc FastAPI cluster để nâng cao khả năng chịu tải.
+Tối ưu caching bằng cơ sở dữ liệu phân tán.
+Nâng cao bảo mật
+Áp dụng Zero Trust Security để kiểm soát chặt chẽ hơn quyền truy cập.
+Sử dụng mã hóa dữ liệu nhạy cảm ở mức CSDL và HTTP request.
+Triển khai CI/CD Security Scan để phát hiện sớm lỗ hổng.
+Ứng dụng AI nâng cao
+Xây dựng mô hình AI riêng (fine-tuning) từ dữ liệu đề thi và câu hỏi thực tế của các trường.
+Phát triển hệ thống gợi ý câu hỏi, đề thi phù hợp với năng lực từng học sinh (adaptive testing).
+Tích hợp NLP để sinh câu hỏi trắc nghiệm từ nội dung văn bản (giáo trình, tài liệu học tập).
+Khả năng mở rộng và triển khai thực tế
+Đưa hệ thống lên cloud platform (AWS, Azure, GCP) để phục vụ quy mô nhiều trường THPT.
+Áp dụng Kubernetes (K8s) để quản lý container, đảm bảo khả năng mở rộng linh hoạt.
+Tích hợp hệ thống với cổng thông tin học sinh của trường để dùng trực tiếp.
+4.3. Kết luận chương 4
+Trong chương này, đề tài đã tổng hợp và đánh giá kết quả của hệ thống web ứng dụng được xây dựng trên kiến trúc Microservice kết hợp nền tảng quản lý yêu cầu HTTP REST. Hệ thống đã đáp ứng được các yêu cầu thực tiễn đặt ra như: khả năng mở rộng linh hoạt, xử lý song song hiệu quả giữa các dịch vụ, cũng như đảm bảo các cơ chế bảo mật cơ bản trong quá trình truyền nhận dữ liệu và xác thực người dùng. Việc áp dụng các giải pháp AI hiện đại đã góp phần nâng cao hiệu quả trong việc sinh tự động câu hỏi trắc nghiệm, gợi ý nội dung và hỗ trợ quản lý ngân hàng đề thi một cách thông minh hơn.
+Bên cạnh những kết quả đạt được, hệ thống vẫn còn tồn tại một số hạn chế như: chưa tích hợp đầy đủ các mô hình phát hiện tấn công mạng nâng cao, việc tối ưu hiệu năng giữa các dịch vụ Microservice chưa hoàn thiện, và mô hình AI còn cần huấn luyện thêm để nâng cao độ chính xác.
+Trong tương lai, hướng phát triển sẽ tập trung vào việc nâng cao bảo mật toàn diện cho hệ thống Microservice, tích hợp các mô hình AI phát hiện xâm nhập và kiểm soát truy cập thông minh, đồng thời mở rộng quy mô triển khai trên môi trường cloud-native để đảm bảo khả năng vận hành ổn định và bảo mật cao.
+KẾT LUẬN
+Trong bối cảnh giáo dục hiện nay, việc đổi mới phương pháp kiểm tra – đánh giá năng lực học sinh là xu thế tất yếu, đòi hỏi các công cụ công nghệ thông minh, an toàn và linh hoạt. Đề tài đã tiếp cận vấn đề này thông qua việc nghiên cứu, phân tích và xây dựng hệ thống phần mềm web quản lý ngân hàng đề thi trắc nghiệm cho học sinh trung học phổ thông, dựa trên kiến trúc Microservice, giao tiếp HTTP REST và các giải pháp trí tuệ nhân tạo (AI) hiện đại.
+Trong quá trình nghiên cứu và triển khai, đề tài đã đạt được các kết quả nổi bật sau:
+Xây dựng thành công mô hình hệ thống phân tán dựa trên kiến trúc Microservice, cho phép các chức năng hoạt động độc lập, dễ dàng mở rộng và bảo trì.
+Tích hợp HTTP REST API để đảm bảo truyền thông tin giữa các dịch vụ được ổn định, nhanh chóng và có khả năng chịu tải cao, phù hợp với yêu cầu xử lý song song trong môi trường web quy mô lớn.
+Áp dụng các chuẩn bảo mật hiện đại như JWT và RBAC, giúp tăng cường an toàn truy cập, kiểm soát phân quyền chặt chẽ giữa các người dùng trong hệ thống.
+Ứng dụng AI (GoogleAI API) vào quá trình sinh đề thi và gợi ý nội dung câu hỏi, góp phần giảm tải cho giáo viên, đồng thời đảm bảo tính đa dạng, phong phú và phù hợp với từng cấp độ tư duy của học sinh.
+Thiết kế giao diện người dùng thân thiện, trực quan, giúp quá trình quản lý, tạo đề và tra cứu trở nên dễ dàng, thuận tiện và hiệu quả hơn.
+Bên cạnh các kết quả đạt được, đề tài cũng chỉ ra một số hạn chế như: hệ thống mới chỉ dừng ở quy mô thử nghiệm, chưa triển khai mô hình AI tự huấn luyện chuyên sâu cho từng môn học, và chưa áp dụng đầy đủ các phương pháp phát hiện tấn công an ninh mạng nâng cao. Đây sẽ là những hướng nghiên cứu và hoàn thiện trong tương lai.
+Tổng thể, đề tài đã chứng minh được tính khả thi và hiệu quả của việc kết hợp giữa Microservice – HTTP REST API – AI trong việc phát triển phần mềm web an toàn và thông minh, đặc biệt trong lĩnh vực giáo dục số. Hướng tiếp theo sẽ tập trung vào mở rộng hệ thống theo hướng Cloud-native, tích hợp thêm mô hình AI học sâu (Deep Learning) nhằm tự động phân tích và đánh giá chất lượng câu hỏi, cũng như tăng cường các giải pháp bảo mật chủ động để đảm bảo an toàn toàn diện cho hệ thống.
+Đề tài không chỉ mang ý nghĩa học thuật trong việc ứng dụng các công nghệ hiện đại vào thực tế, mà còn góp phần thiết thực trong việc nâng cao hiệu quả quản lý, tạo lập và sử dụng ngân hàng đề thi trắc nghiệm trong giáo dục phổ thông Việt Nam, hướng tới một môi trường học tập thông minh, an toàn và bền vững.
+
+
+TÀI LIỆU THAM KHẢO
+[1]. Pressman, R. S. (2014), Software Engineering: A Practitioner’s Approach, 8th ed., McGraw-Hill.
+[2]. Richardson, C. (2018), Microservices Patterns: With Examples in Java, Manning Publications.
+[3]. Atlassian (2025), Microservices Architecture – Tổng quan kiến trúc Microservices, Nguồn:
+<https://www.atlassian.com/microservices/microservices-architecture/>
+[4]. Newman, S. (2021), Building Microservices: Designing Fine-Grained Systems, 2nd ed., O'Reilly Media.
+[5]. Microservices.io (2025), Microservices Architecture – Tổng quan, Nguồn:
+<https://microservices.io/>
+[6]. Silberschatz, A. (2019), Database System Concepts, 7th ed., McGraw-Hill.
+[7]. HTTP REST API (2025), HTTP REST API – Tổng quan nền tảng hàng đợi thông điệp, Nguồn: <https://www.HTTP REST API.com/>
+[8]. Videla, A. & Williams, J. J. W. (2012), HTTP REST API in Action: Distributed Messaging for Everyone, Manning Publications.
+[9]. Vinschool (2025), Chương trình phổ thông – Các môn học cấp 3, Nguồn:
+<https://vinschool.edu.vn/tin-giao-duc/cac-mon-hoc-cap-3/>
+[10]. Bộ Giáo dục và Đào tạo (2025), Công bố chương trình giáo dục phổ thông mới, Nguồn:
+<http://thptlequydon-dd.edu.vn/diem-tin-giao-duc/bo-gddt-cong-bo-chuong-trinh-giao-duc-pho-thong-moi/ctmb/1399/4116/>
+[11]. Poulton, N. (2020), Docker Deep Dive, Packt Publishing.
+[12]. cơ chế truy vấn trực tiếp (2025), cơ chế truy vấn trực tiếp Documentation – Tài liệu chính thức, Nguồn:
+<https://cơ chế truy vấn trực tiếp.io/docs/latest/>

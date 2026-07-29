@@ -185,9 +185,7 @@ export default function QuestionBankModule({
       setApiGrades(gradeOptions);
       setAllTopicsRaw(topRes.data);
 
-      if (isRestricted && subjectOptions.length > 0) {
-        setSelectedSubject(subjectOptions[0].value);
-      } else if (subjectOptions.length > 0) {
+      if (subjectOptions.length > 0) {
         setSelectedSubject('');
       }
     } catch (e) {
@@ -243,7 +241,7 @@ export default function QuestionBankModule({
   // Subjects dropdown: prefer API data, fallback to static
   const subjectDropdownOptions = useMemo(
     () => [
-      ...(!isSubjectRestricted ? [{ value: '', label: 'Tất cả' }] : []),
+      { value: '', label: 'Tất cả' },
       ...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS))
     ],
     [apiSubjects, isSubjectRestricted]

@@ -31,12 +31,13 @@ import {
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
 import { Question } from '../../../types';
-import { subjectCategoryApi, examPeriodApi, bankQuestionApi, type SubjectCategoryAPI, type ExamPeriodAPI } from '../../../services/danhMucApi';
+import { subjectCategoryApi, bankQuestionApi, type SubjectCategoryAPI } from '../../../services/danhMucApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
-import ExamContentDisplay from '../quan-ly-de-thi/ExamContentDisplay';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
+import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
 
@@ -53,19 +54,18 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     initialTab || (checkUserPermission(currentUser, 'tab-goi-de') ? 'list' : 'review')
   );
   const { colGroup: pkgTableColGroup, startResize: startPkgColResize, totalWidth: pkgTableTotalWidth } = useResizableColumns(
-    [40, 48, 140, 200, 120, 100, 100, 130, 140, 100, 120, 140]
+    [40, 48, 140, 200, 100, 100, 130, 140, 100, 120, 140]
   );
 
   const [packages, setPackages] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
-  const [examPeriods, setExamPeriods] = useState<ExamPeriodAPI[]>([]);
+  const [isSubjectRestricted, setIsSubjectRestricted] = useState(false);
   const [matrices, setMatrices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Filters
   const [pkgSearch, setPkgSearch] = useState('');
-  const [pkgPeriodId, setPkgPeriodId] = useState('all');
   const [pkgSubject, setPkgSubject] = useState('all');
   const [pkgMatrixId, setPkgMatrixId] = useState('all');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
@@ -102,8 +102,12 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
 
   useEffect(() => {
     fetchData();
-    subjectCategoryApi.list().then(res => setSubjects((res.data || []).filter(s => s.is_active))).catch(() => setSubjects([]));
-    examPeriodApi.list().then(res => setExamPeriods((res.data || []).filter(p => p.is_active))).catch(() => setExamPeriods([]));
+    subjectCategoryApi.list().then(res => {
+      const activeSubjects = (res.data || []).filter((s: any) => s.is_active);
+      const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
+      setSubjects(filteredSubjects as SubjectCategoryAPI[]);
+      setIsSubjectRestricted(isRestricted);
+    }).catch(() => setSubjects([]));
     // Không có matrixConfigApi dùng chung trong danhMucApi.ts — mô phỏng đúng cách raw-fetch mà
     // ModalSinhDeHoanVi.tsx đang dùng để lấy danh sách ma trận đề.
     fetch('/api/matrix-configs?page=1&pageSize=200')
@@ -114,19 +118,13 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, pkgSearch, pkgPeriodId, pkgSubject, pkgMatrixId, dateRange]);
+  }, [activeTab, pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
 
   const examsById = useMemo(() => {
     const map = new Map<string, any>();
     exams.forEach(e => map.set(e.id, e));
     return map;
   }, [exams]);
-
-  const examPeriodNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    examPeriods.forEach(p => map.set(p.id, p.name));
-    return map;
-  }, [examPeriods]);
 
   const matrixNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -184,8 +182,9 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     const kw = pkgSearch.trim().toLowerCase();
     return packages.filter(p => {
       const matchesSearch = !kw || (p.name || '').toLowerCase().includes(kw) || (p.code || '').toLowerCase().includes(kw);
-      const matchesPeriod = pkgPeriodId === 'all' || p.exam_period_id === pkgPeriodId;
-      const matchesSubject = pkgSubject === 'all' || p.subject === pkgSubject;
+      const matchesSubject = pkgSubject === 'all'
+        ? (!isSubjectRestricted || subjects.some(s => s.name === p.subject))
+        : p.subject === pkgSubject;
       const matchesMatrix = pkgMatrixId === 'all' || p.matrix_id === pkgMatrixId;
       const matchesDate = !dateRange || !dateRange[0] || !dateRange[1] || (
         // dayjs core (không cần plugin isBetween): tạo >= đầu ngày bắt đầu và <= cuối ngày kết thúc.
@@ -193,13 +192,17 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
         && !dayjs(p.createdAt).isBefore(dateRange[0].startOf('day'))
         && !dayjs(p.createdAt).isAfter(dateRange[1].endOf('day'))
       );
-      return matchesSearch && matchesPeriod && matchesSubject && matchesMatrix && matchesDate;
+      return matchesSearch && matchesSubject && matchesMatrix && matchesDate;
     });
-  }, [packages, pkgSearch, pkgPeriodId, pkgSubject, pkgMatrixId, dateRange]);
+  }, [packages, pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
 
   const filteredReviewPackages = useMemo(() => {
-    return packages.filter(p => p.status === 'pending' || p.status === '2');
-  }, [packages]);
+    return packages.filter(p => {
+      const isPending = p.status === 'pending' || p.status === '2';
+      const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === p.subject);
+      return isPending && isAllowedSubject;
+    });
+  }, [packages, isSubjectRestricted, subjects]);
 
   const currentRows = activeTab === 'list' ? filteredListPackages : filteredReviewPackages;
   const paginatedRows = useMemo(() => {
@@ -399,8 +402,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
     { header: 'Mã gói đề', accessor: row => row.code, width: 16 },
     { header: 'Tên gói đề', accessor: row => row.name, width: 30 },
-    { header: 'Đợt thi', accessor: row => row.exam_period_id ? (examPeriodNameById.get(row.exam_period_id) || '—') : '—', width: 20 },
-    { header: 'Môn thi', accessor: row => row.subject, width: 14, align: 'center' },
+    { header: 'Môn học', accessor: row => row.subject, width: 14, align: 'center' },
     { header: 'Tổng số đề', accessor: row => row.examsCount || 0, width: 12, align: 'center' },
     { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
@@ -472,22 +474,16 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                   allowClear
                 />
               </div>
-              {/* <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Đợt thi</label>
-                <Select
-                  value={pkgPeriodId}
-                  onChange={setPkgPeriodId}
-                  className="w-full text-xs"
-                  options={[{ value: 'all', label: 'Tất cả' }, ...examPeriods.map(p => ({ value: p.id, label: p.name }))]}
-                />
-              </div> */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Môn thi</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Môn học</label>
                 <Select
                   value={pkgSubject}
                   onChange={setPkgSubject}
                   className="w-full text-xs"
-                  options={[{ value: 'all', label: 'Tất cả' }, ...subjects.map(s => ({ value: s.name, label: s.name }))]}
+                  options={[
+                    { value: 'all', label: 'Tất cả' },
+                    ...subjects.map(s => ({ value: s.name, label: s.name }))
+                  ]}
                 />
               </div>
               <div>
@@ -580,14 +576,13 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                   <th className="relative py-3 px-3 text-center font-semibold">STT<ColResizeHandle onMouseDown={startPkgColResize(1)} /></th>
                   <th className="relative py-3 px-3 text-left font-semibold">Mã gói đề<ColResizeHandle onMouseDown={startPkgColResize(2)} /></th>
                   <th className="relative py-3 px-3 text-left font-semibold">Tên gói đề<ColResizeHandle onMouseDown={startPkgColResize(3)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Đợt thi<ColResizeHandle onMouseDown={startPkgColResize(4)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Môn thi<ColResizeHandle onMouseDown={startPkgColResize(5)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Tổng số đề<ColResizeHandle onMouseDown={startPkgColResize(6)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Số câu hỏi trong đề<ColResizeHandle onMouseDown={startPkgColResize(7)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startPkgColResize(8)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Ngày tạo<ColResizeHandle onMouseDown={startPkgColResize(9)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Trạng thái<ColResizeHandle onMouseDown={startPkgColResize(10)} /></th>
-                  <th className="relative py-3 px-3 text-center font-semibold">Thao tác<ColResizeHandle onMouseDown={startPkgColResize(11)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Môn học<ColResizeHandle onMouseDown={startPkgColResize(4)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Tổng số đề<ColResizeHandle onMouseDown={startPkgColResize(5)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Số câu hỏi trong đề<ColResizeHandle onMouseDown={startPkgColResize(6)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startPkgColResize(7)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Ngày tạo<ColResizeHandle onMouseDown={startPkgColResize(8)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Trạng thái<ColResizeHandle onMouseDown={startPkgColResize(9)} /></th>
+                  <th className="relative py-3 px-3 text-center font-semibold">Thao tác<ColResizeHandle onMouseDown={startPkgColResize(10)} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -609,9 +604,6 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                       </td>
                       <td className="py-2.5 px-3">
                         <TruncatedText text={row.name} className="font-semibold text-slate-800 text-[11px]" />
-                      </td>
-                      <td className="py-2.5 px-3 text-center text-[11px] text-slate-500">
-                        {row.exam_period_id ? (examPeriodNameById.get(row.exam_period_id) || '—') : '—'}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <Tag color="blue" className="rounded-md font-bold text-[9px] m-0 border-transparent">{row.subject}</Tag>
@@ -698,17 +690,17 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                           {hasActionPermission(currentUser, 'exams.manage') && (
                             <Popconfirm
                               title={`Xóa gói đề "${row.name}"?`}
-                            okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
-                            onConfirm={() => handleDeletePackage(row.id, row.name)}
-                          >
-                            <Tooltip title="Xóa">
-                              <Button
-                                size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
-                                loading={actioning?.id === row.id && actioning.kind === 'delete'}
-                                disabled={actioning !== null && actioning.id !== row.id}
-                              />
-                            </Tooltip>
-                          </Popconfirm>
+                              okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
+                              onConfirm={() => handleDeletePackage(row.id, row.name)}
+                            >
+                              <Tooltip title="Xóa">
+                                <Button
+                                  size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                  loading={actioning?.id === row.id && actioning.kind === 'delete'}
+                                  disabled={actioning !== null && actioning.id !== row.id}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
                           )}
                         </Space>
                       </td>

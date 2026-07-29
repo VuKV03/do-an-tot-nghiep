@@ -19,7 +19,7 @@ import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
 import ExamPackageModule from './components/ExamPackageModule';
-import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-thi/ExamManagementModule';
+import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-goc/ExamManagementModule';
 import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
 import QuanLyKetQuaThi from './components/quan-ly-thi/QuanLyKetQuaThi';
@@ -75,7 +75,7 @@ export default function App() {
   // Sync state to URL hash (admin portal only)
   useEffect(() => {
     if (isPortalPort) return; // Portal uses its own hash routing
-    
+
     if (!currentUser) {
       if (window.location.hash !== '#login-admin') {
         window.location.hash = 'login-admin';
@@ -94,7 +94,7 @@ export default function App() {
     if (isPortalPort) return;
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      
+
       if (!currentUser) {
         if (hash !== 'login-admin') {
           window.location.hash = 'login-admin';
@@ -265,8 +265,8 @@ export default function App() {
         );
       case 'quan-ly-ma-tran-de':
         return (
-          <MatrixConfigModule 
-            initialTab={targetSubTab as 'list' | 'evaluation'} 
+          <MatrixConfigModule
+            initialTab={targetSubTab as 'list' | 'evaluation'}
             currentUser={currentUser}
           />
         );
@@ -292,8 +292,8 @@ export default function App() {
         );
       case 'quan-ly-goi-de':
         return (
-          <PackageManagementModule 
-            initialTab={targetSubTab as 'list' | 'review'} 
+          <PackageManagementModule
+            initialTab={targetSubTab as 'list' | 'review'}
             currentUser={currentUser}
           />
         );
@@ -394,19 +394,19 @@ export default function App() {
     if (currentUser.role === 'candidate') {
       if (!activeSubject) {
         return (
-          <CandidateDashboard 
-            currentUser={currentUser} 
+          <CandidateDashboard
+            currentUser={currentUser}
             onLogout={() => {
               localStorage.removeItem('user_info');
               localStorage.removeItem('auth_token');
               setCurrentUser(null);
               setActiveSubject(null);
               window.location.hash = 'dang-nhap-thi';
-            }} 
+            }}
             onStartExam={(subject) => {
               setActiveSubject(subject);
               window.location.hash = 'thong-tin-thi-sinh';
-            }} 
+            }}
           />
         );
       }
