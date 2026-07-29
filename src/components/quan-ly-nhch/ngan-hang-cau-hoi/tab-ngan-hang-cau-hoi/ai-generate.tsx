@@ -11,7 +11,7 @@ import {
   type QuestionTypeAPI,
 } from '../../../../services/danhMucApi.ts';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
-import { RichTextView } from '../../../../utils/htmlContent';
+import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
 
 export interface AIGenerateQuestionModalProps {
@@ -383,10 +383,25 @@ export default function AIGenerateQuestionModal({
     }
   };
 
+  // Trắc nghiệm đơn — người dùng có thể sửa nội dung đáp án đúng thành rỗng lúc chỉnh sửa trước khi
+  // lưu (vd xoá trắng nội dung phương án đang được đánh dấu đúng); phải chặn lại chứ không để lưu
+  // xuống DB với correctAnswer rỗng.
+  const validateQuestionAnswer = (q: Question): string | null => {
+    if (q.type === 'single' && !stripHtmlToText(String(q.correctAnswer || '')).trim()) {
+      return `Câu hỏi ${q.code} chưa có đáp án đúng, vui lòng chọn và nhập đáp án trước khi lưu!`;
+    }
+    return null;
+  };
+
   /** Duyệt và lưu 1 câu — xoá riêng câu đó khỏi danh sách đề xuất khi thành công, đóng modal nếu đó là câu cuối cùng */
   const acceptQuestion = async (id: string) => {
     const q = aiSuggestedQuestions.find((item) => item.id === id);
     if (!q) return;
+    const answerError = validateQuestionAnswer(q);
+    if (answerError) {
+      toast.error(answerError);
+      return;
+    }
     const wasLastOne = aiSuggestedQuestions.length <= 1;
     setAcceptingIds((prev) => new Set(prev).add(id));
     try {
@@ -422,6 +437,12 @@ export default function AIGenerateQuestionModal({
     const succeededIds: string[] = [];
     let failCount = 0;
     for (const q of aiSuggestedQuestions) {
+      const answerError = validateQuestionAnswer(q);
+      if (answerError) {
+        failCount += 1;
+        console.error(answerError);
+        continue;
+      }
       try {
         const { id: _localId, ...payload } = q;
         const apiPayload = { ...payload, competencyComponentId: q.nangLucId };
