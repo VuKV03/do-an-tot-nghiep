@@ -374,8 +374,8 @@ export default function ModalDeRiengLe({
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[11px]">
                                 {q.options.map((opt: string, oIdx: number) => (
                                   <div key={oIdx} className="flex gap-1">
-                                    <strong>{String.fromCharCode(65 + oIdx)}.</strong>
-                                    <span>{opt.replace(/^[A-D]\.\s*/, '')}</span>
+                                    <strong className="shrink-0">{String.fromCharCode(65 + oIdx)}.</strong>
+                                    <RichTextView html={opt.replace(/^[A-D]\.\s*/, '')} className="inline" />
                                   </div>
                                 ))}
                               </div>
