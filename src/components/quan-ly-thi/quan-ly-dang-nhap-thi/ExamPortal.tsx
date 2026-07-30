@@ -7,6 +7,11 @@ import { RichTextView } from '../../../utils/htmlContent';
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
 
+const cleanOptionText = (text: string) => {
+  if (!text) return text;
+  // Removes "A. ", "B. ", etc. at the start (ignoring HTML tags if any)
+  return text.replace(/^(<[^>]+>)?\s*[A-Z][\.\)]\s*/, '$1');
+};
 interface ExamPortalProps {
   currentUser: SystemUser;
   subject: string;
@@ -302,7 +307,18 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     );
   }
 
-  const questions = sessionInfo.questions && sessionInfo.questions.length > 0 ? sessionInfo.questions : [];
+  const rawQuestions = sessionInfo.questions && sessionInfo.questions.length > 0 ? sessionInfo.questions : [];
+
+  // Normalize type_code to a group key
+  const getTypeGroupKey = (typeCode: string) => {
+    const tc = (typeCode || '').toLowerCase();
+    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'p2';
+    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'p3';
+    return 'p1';
+  };
+
+  // Giữ nguyên thứ tự của đề hoán vị từ backend (line_number)
+  const questions = rawQuestions;
 
   if (questions.length === 0 && viewMode !== 'waiting') {
     return (
@@ -324,17 +340,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
 
   // Helper: get display name for type_code
   const getTypeDisplayName = (typeCode: string) => {
-    if (typeCode === 'p2') return '2: Chọn Đúng Sai';
-    if (typeCode === 'p3') return '3: Trả lời ngắn';
-    return '1: Trắc nghiệm';
-  };
-
-  // Normalize type_code to a group key
-  const getTypeGroupKey = (typeCode: string) => {
-    const tc = (typeCode || '').toLowerCase();
-    if (tc === 'true_false' || tc === 'đs' || tc === 'ds') return 'p2';
-    if (tc === 'short' || tc.includes('ngan') || tc === 'tln') return 'p3';
-    return 'p1';
+    if (typeCode === 'p2') return 'II: Trắc nghiệm Đúng/Sai';
+    if (typeCode === 'p3') return 'III: Trắc nghiệm trả lời ngắn';
+    return 'I: Trắc nghiệm 1 lựa chọn';
   };
 
   // Group questions by type_code for bottom nav (like student interface)
@@ -489,7 +497,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                               const letter = String.fromCharCode(65 + oIdx);
                               return (
                                 <Radio key={letter} value={letter} className="text-slate-700">
-                                  <span className="font-bold">{letter}. </span> <RichTextView html={opt.substring(3)} className="inline" />
+                                  <span className="font-bold">{letter}. </span> <RichTextView html={cleanOptionText(opt)} className="inline" />
                                 </Radio>
                               );
                             })}
@@ -773,7 +781,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                             className="text-[15px] text-slate-800 font-normal w-full m-0 py-1"
                           >
                             <span className={`font-bold mr-1 ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>{letter}.</span>
-                            <RichTextView html={opt.substring(3)} className="inline" />
+                            <RichTextView html={cleanOptionText(opt)} className="inline" />
                           </Radio>
                         );
                       })}
@@ -893,3 +901,5 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     </Layout>
   );
 }
+
+
