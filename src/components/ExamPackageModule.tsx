@@ -22,6 +22,7 @@ import {
   Tooltip
 } from 'antd';
 import { toast } from '../utils/toast';
+import { convertAiQuestionMath } from '../utils/mathFormula';
 import {
   ProjectOutlined,
   PlusOutlined,
@@ -392,13 +393,18 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
           medium: "thong_hieu",
           hard: "van_dung"
         };
-        const mappedQuestions: MockQuestion[] = data.questions.map((q: any) => ({
-          text: q.text,
-          type: "single",
-          level: levelMap[q.level] || 'thong_hieu',
-          options: q.options || ['A', 'B', 'C', 'D'],
-          correctAnswer: q.correctAnswer || 'A'
-        }));
+        const mappedQuestions: MockQuestion[] = data.questions.map((rawQ: any) => {
+          // AI đôi khi vẫn viết số mũ/chỉ số kiểu văn bản thuần "x^2" dù đã yêu cầu không dùng
+          // LaTeX — chuyển thành công thức KaTeX thật ngay khi nhận (xem convertAiQuestionMath).
+          const q = convertAiQuestionMath(rawQ);
+          return {
+            text: q.text,
+            type: "single",
+            level: levelMap[q.level] || 'thong_hieu',
+            options: q.options || ['A', 'B', 'C', 'D'],
+            correctAnswer: q.correctAnswer || 'A',
+          };
+        });
 
         setTimeout(() => {
           setAiLogLines(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✔ Đã nhận phản hồi thành công từ AI! Hoàn tất đóng gói ${mappedQuestions.length} câu hỏi.`]);

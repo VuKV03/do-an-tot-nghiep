@@ -13,6 +13,7 @@ import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de
 import ExamContentDisplay from './ExamContentDisplay';
 import RichTextEditor from '../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../RichTextEditorGroup';
+import { convertAiQuestionMath } from '../../../utils/mathFormula';
 
 interface ModalTaoDeTuDongProps {
   open: boolean;
@@ -401,9 +402,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           aborted = true;
           break;
         }
-        (data.questions as any[]).forEach((aiQ) => {
-          const atom = group[aiQ.groupIndex];
+        (data.questions as any[]).forEach((rawAiQ) => {
+          const atom = group[rawAiQ.groupIndex];
           if (!atom) return; // groupIndex lạ (AI trả sai) — bỏ qua thay vì gán nhầm cell.
+          // AI đôi khi vẫn viết số mũ/chỉ số kiểu văn bản thuần "x^2" dù đã yêu cầu không dùng LaTeX
+          // — chuyển thành công thức KaTeX thật ngay khi nhận, để không phải hiện "x^2" thô không
+          // đọc được (xem convertAiQuestionMath).
+          const aiQ = convertAiQuestionMath(rawAiQ);
           const level = atom.levelSlug ?? mapAiLevelToCognitive(aiQ.level);
           const q = buildQuestionFromAi(aiQ, {
             aiType: atom.aiType, level, grade: atom.grade,
@@ -584,7 +589,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         toast.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
         return;
       }
-      const aiQ = data.questions[0];
+      const aiQ = convertAiQuestionMath(data.questions[0]);
       const base: Question = { ...current, id: `ai-gen-${Date.now()}-${index}`, text: aiQ.text };
       let replacement: Question;
       if (current.type === 'true_false') {

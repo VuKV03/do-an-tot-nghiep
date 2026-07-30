@@ -164,6 +164,53 @@ export function buildPastedHtml(text: string): { html: string; hasFormula: boole
   return { html, hasFormula: html.includes(FORMULA_CLASS) };
 }
 
+/** Khớp 1 MẢNH ký hiệu mũ/chỉ số kiểu mã nguồn nằm NGAY TRONG câu (vd: "...biểu thức x^2 - 3x...")
+ * — base là 1 chuỗi chữ/số liền nhau hoặc dấu đóng ngoặc/ngoặc nhọn ngay trước, theo sau là ^/_ rồi
+ * số mũ/chỉ số (có thể bọc {..} hoặc không, cho phép dấu - phía trước cho số mũ âm). Khác hẳn
+ * looksLikeRawLatex/processPlainSegment ở trên (xét NGUYÊN 1 dòng, bỏ qua thẳng nếu dòng có dấu
+ * tiếng Việt) — pattern này khớp ĐÚNG PHẦN ký hiệu toán, giữ nguyên chữ tiếng Việt xung quanh, nên
+ * dùng được cho câu hỏi AI sinh (luôn là câu tiếng Việt có lẫn ký hiệu toán ngay trong câu, không
+ * phải toàn bộ dòng là mã LaTeX như trường hợp dán từ ngoài vào). */
+const INLINE_SUPSUB_PATTERN = /([a-zA-Z0-9]+|[)\]}])([\^_])(\{[^{}]*\}|-?[a-zA-Z0-9]+)/g;
+
+/**
+ * Chuyển các ký hiệu mũ/chỉ số kiểu "x^2"/"x_1" còn sót lại trong nội dung do AI sinh (dù backend đã
+ * yêu cầu AI không dùng LaTeX — xem _PLAIN_TEXT_RULES ở ai_service/routes/generate.py, AI vẫn thỉnh
+ * thoảng viết mũ theo lối văn bản thuần "x^2" thay vì Unicode) thành công thức KaTeX thật, hiển thị
+ * đúng dạng số mũ/chỉ số thay vì ký tự "^"/"_" thô không ai đọc được. Chỉ chuyển ĐÚNG phần khớp, giữ
+ * nguyên toàn bộ văn bản tiếng Việt xung quanh.
+ */
+export function convertAiPlainMathNotation(text: string): string {
+  if (!text || !/[\^_]/.test(text)) return text;
+  return text.replace(INLINE_SUPSUB_PATTERN, (_match, base: string, op: string, exp: string) => {
+    const expContent = exp.startsWith('{') ? exp.slice(1, -1) : exp;
+    return buildFormulaHtml(`${base}${op}{${expContent}}`);
+  });
+}
+
+/** Áp dụng convertAiPlainMathNotation cho toàn bộ các trường nội dung của 1 câu hỏi AI trả về (text,
+ * options, correctAnswer, statements[].content) — gọi ngay khi nhận response từ AI, TRƯỚC khi build
+ * thành Question, để câu hỏi đã ở dạng công thức thật ngay từ lúc lưu/hiển thị lần đầu. */
+export function convertAiQuestionMath<T extends {
+  text?: string;
+  options?: string[];
+  correctAnswer?: string;
+  statements?: { content: string }[];
+}>(aiQ: T): T {
+  const converted: any = { ...aiQ };
+  if (typeof converted.text === 'string') converted.text = convertAiPlainMathNotation(converted.text);
+  if (Array.isArray(converted.options)) {
+    converted.options = converted.options.map((o: string) => convertAiPlainMathNotation(o));
+  }
+  if (typeof converted.correctAnswer === 'string') {
+    converted.correctAnswer = convertAiPlainMathNotation(converted.correctAnswer);
+  }
+  if (Array.isArray(converted.statements)) {
+    converted.statements = converted.statements.map((s: any) => ({ ...s, content: convertAiPlainMathNotation(s.content) }));
+  }
+  return converted;
+}
+
 /** Mẫu công thức thường dùng — chèn nhanh vào ô nhập LaTeX cho người chưa quen cú pháp */
 export const FORMULA_TEMPLATES: { label: string; latex: string }[] = [
   { label: 'Phân số', latex: '\\frac{a}{b}' },

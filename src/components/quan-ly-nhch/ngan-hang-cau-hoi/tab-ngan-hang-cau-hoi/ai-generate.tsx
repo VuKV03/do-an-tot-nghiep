@@ -12,6 +12,7 @@ import {
 } from '../../../../services/danhMucApi.ts';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
+import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
 
 export interface AIGenerateQuestionModalProps {
@@ -322,7 +323,10 @@ export default function AIGenerateQuestionModal({
         throw new Error(data.error || data.detail || 'AI không trả về câu hỏi nào.');
       }
 
-      const generatedList: Question[] = data.questions.map((aiQ: any, i: number) => {
+      const generatedList: Question[] = data.questions.map((rawAiQ: any, i: number) => {
+        // AI đôi khi vẫn viết số mũ/chỉ số kiểu văn bản thuần "x^2" dù đã yêu cầu không dùng LaTeX —
+        // chuyển thành công thức KaTeX thật ngay khi nhận (xem convertAiQuestionMath).
+        const aiQ = convertAiQuestionMath(rawAiQ);
         const code = `AI-${String(values.subject).substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000 + 1000)}`;
         const base: Question = {
           id: `q-ai-${Date.now()}-${i}`,
