@@ -318,7 +318,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           correctAnswer: q.correctAnswer,
           creator: q.creator,
           createdAt: q.createdAt,
-        }));
+          lineNumber: q.lineNumber,
+        }))
+        // Giữ đúng thứ tự đã lưu (vd đề hoán vị) — GET /bank-questions/ không đảm bảo trả về
+        // theo đúng thứ tự này (xem ModalSinhDeHoanVi.tsx).
+        .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
     } catch {
       return [];
     }

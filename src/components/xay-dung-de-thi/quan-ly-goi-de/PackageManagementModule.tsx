@@ -345,7 +345,9 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
             subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
-          }));
+            lineNumber: q.lineNumber,
+          }))
+          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
         const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
         zip.file(`${exam.code}.docx`, blob);
       }));
@@ -377,7 +379,9 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
             subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
-          }));
+            lineNumber: q.lineNumber,
+          }))
+          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
       });
       setViewQuestionsByExamId(map);
     } catch {

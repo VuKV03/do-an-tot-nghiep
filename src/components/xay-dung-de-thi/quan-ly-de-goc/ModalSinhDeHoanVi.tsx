@@ -137,7 +137,12 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
             subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
-          }));
+            lineNumber: q.lineNumber,
+          }))
+          // Câu hỏi cũ tạo trước khi có lineNumber (hoặc bị mất do bug trước đây) đều có giá trị
+          // mặc định 1 ở DB — sort ổn định (Array.sort giữ nguyên thứ tự tương đối khi bằng nhau)
+          // nên các câu đó vẫn giữ đúng thứ tự trả về từ API, không bị xáo lộn xộn thêm lần nữa.
+          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
         setSourceQuestions(qs);
       })
       .catch(() => toast.error('Không tải được nội dung đề gốc.'))
@@ -384,7 +389,11 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           // Phải forward đủ topicId/topicName/competencyComponentId/creator từ câu hỏi GỐC — trước
           // đây bị bỏ sót nên mọi đề hoán vị lưu xong đều mất Chủ đề/Thành phần năng lực/Người tạo
           // dù câu hỏi gốc trong Ngân hàng câu hỏi đã có đủ các thông tin này.
-          await Promise.all(variantQuestions.map(q => questionApi.create({
+          // lineNumber = vị trí (1-based) trong mảng đã hoán vị — mỗi câu hỏi chỉ thuộc 1 đề
+          // (exam_id 1-N, không dùng chung giữa nhiều đề) nên lưu thẳng lên chính câu hỏi là đủ,
+          // không cần bảng join riêng. Đọc lại (ModalSinhDeHoanVi/ExamManagementModule/
+          // PackageManagementModule) đều sort theo field này để không bị lẫn lộn theo id ngẫu nhiên.
+          await Promise.all(variantQuestions.map((q, qi) => questionApi.create({
             text: q.text,
             type: q.type,
             level: q.level,
@@ -400,6 +409,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             examId: newExamId,
             creator: q.creator,
             competencyComponentId: q.nangLucId,
+            lineNumber: qi + 1,
             // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
             // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
             source: 'ai_exam',

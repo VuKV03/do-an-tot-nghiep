@@ -243,6 +243,7 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "examId": q.exam_id,
             "feedback": q.approved_note or "",
             "statements": stmts,
+            "lineNumber": q.line_number or 1,
             # Nguồn gốc câu hỏi (manual/ai_bank/ai_exam) — xem comment ở Question.status_ai trong
             # models.py. FE dùng để ẩn câu hỏi "ai_exam" khỏi Ngân hàng câu hỏi/Thẩm định/picker.
             "source": INT_TO_SOURCE.get(q.status_ai or 0, "manual"),

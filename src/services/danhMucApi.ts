@@ -441,6 +441,9 @@ export interface BankQuestionAPI {
   /** Nguồn gốc câu hỏi — 'ai_exam' bị ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi (xem
    * QuestionCreateAPI.source). Dữ liệu tạo trước khi có field này mặc định 'manual'. */
   source?: 'manual' | 'ai_bank' | 'ai_exam';
+  /** Vị trí câu hỏi trong đề (1-based) — dùng để giữ đúng thứ tự đã sắp/hoán vị khi lưu, vì mỗi
+   * câu hỏi chỉ thuộc 1 đề (exam_id 1-N, không dùng chung giữa nhiều đề) nên không cần bảng join. */
+  lineNumber?: number;
 }
 
 export interface BankQuestionCreateAPI {

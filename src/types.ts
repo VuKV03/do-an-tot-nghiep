@@ -39,6 +39,7 @@ export interface Question {
   creator: string;      // Người tạo câu hỏi
   createdAt: string;    // Ngày tạo câu hỏi
   feedback?: string;    // Nhận xét, phản hồi (từ người thẩm định)
+  lineNumber?: number;  // Vị trí câu hỏi trong đề (1-based) — giữ đúng thứ tự đã sắp/hoán vị
 }
 
 // Interface biểu diễn một node trong cây cấu trúc chủ đề/chương bài
