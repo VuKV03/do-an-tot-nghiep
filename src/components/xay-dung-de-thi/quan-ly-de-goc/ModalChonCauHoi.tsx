@@ -206,7 +206,8 @@ export default function ModalChonCauHoi({
       title={<span className="font-bold text-sm text-[#1a3c8b]">{title || defaultTitle}</span>}
       open={open}
       onCancel={onCancel}
-      width={960}
+      width="80vw"
+      styles={{ body: { height: 'calc(80vh - 110px)', overflow: 'hidden' } }}
       centered
       footer={[
         <Button key="close" onClick={onCancel} className="rounded font-semibold text-xs">Đóng</Button>,
@@ -217,9 +218,9 @@ export default function ModalChonCauHoi({
         </Button>
       ]}
     >
-      <div className="flex gap-4 pt-2" style={{ minHeight: 420 }}>
+      <div className="flex gap-4 pt-2" style={{ height: '100%' }}>
         {/* LEFT: Topic tree */}
-        <div className="shrink-0" style={{ width: 200 }}>
+        <div className="shrink-0 flex flex-col h-full" style={{ width: 200 }}>
           <div className="mb-2">
             <label className="block text-[11px] font-medium text-slate-600 mb-1">Môn học</label>
             <Select value={subject} disabled className="w-full text-xs" options={[{ value: subject, label: subject }]} />
@@ -227,7 +228,7 @@ export default function ModalChonCauHoi({
           <div className="text-[11px] font-bold text-slate-700 mb-1">Chọn chủ đề</div>
           <Input size="small" placeholder="Tìm kiếm chủ đề" prefix={<SearchOutlined className="text-slate-400" />}
             className="text-xs mb-2" value={topicSearch} onChange={e => setTopicSearch(e.target.value)} allowClear />
-          <div className="overflow-y-auto border border-slate-200 rounded p-1.5" style={{ maxHeight: 310 }}>
+          <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 rounded p-1.5">
             {topicTree.length > 0 ? (
               <Tree
                 treeData={topicTree as any}
@@ -243,9 +244,9 @@ export default function ModalChonCauHoi({
         </div>
 
         {/* RIGHT: Filters + Results */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col h-full">
           {/* Filters */}
-          <div className="bg-slate-50 border border-slate-200 rounded p-3 mb-3">
+          <div className="shrink-0 bg-slate-50 border border-slate-200 rounded p-3 mb-3">
             <div className="flex items-center gap-1.5 cursor-pointer mb-2" onClick={() => setIsFilterExpanded(!isFilterExpanded)}>
               <span className="text-[#1a3c8b] font-bold text-xs italic">Tìm kiếm thông tin</span>
               {isFilterExpanded ? <UpOutlined className="text-[9px] text-[#1a3c8b]" /> : <DownOutlined className="text-[9px] text-[#1a3c8b]" />}
@@ -285,9 +286,9 @@ export default function ModalChonCauHoi({
           </div>
 
           {/* Results */}
-          <div className="text-[#1a3c8b] font-bold text-xs italic mb-2">Kết quả tìm kiếm</div>
+          <div className="shrink-0 text-[#1a3c8b] font-bold text-xs italic mb-2">Kết quả tìm kiếm</div>
           <ResizableTableStyles />
-          <div className="overflow-auto border border-slate-200 rounded" style={{ maxHeight: 280 }}>
+          <div className="flex-1 min-h-0 overflow-auto border border-slate-200 rounded">
             <table style={{ minWidth: chonCauHoiTotalWidth }} className={`w-full text-[11px] font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
               {chonCauHoiColGroup}
               <thead>
@@ -352,7 +353,7 @@ export default function ModalChonCauHoi({
               </tbody>
             </table>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1.5 font-medium">
+          <div className="shrink-0 text-[10px] text-slate-400 mt-1.5 font-medium">
             {filtered.length} bản ghi
             {selectedIds.length > 0 && <span className="ml-2 text-blue-600 font-bold">• Đã chọn {selectedIds.length}</span>}
           </div>

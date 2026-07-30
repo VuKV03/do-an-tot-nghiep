@@ -262,11 +262,11 @@ export default function ModalDeRiengLe({
         </Button>,
       ]}
       centered
-      width={1000}
-      styles={{ body: { padding: 0 } }}
+      width="80vw"
+      styles={{ body: { padding: 0, height: 'calc(80vh - 110px)', overflow: 'hidden' } }}
       destroyOnHidden
     >
-      <div className="flex" style={{ minHeight: 500 }}>
+      <div className="flex" style={{ height: '100%' }}>
         {/* ======= SIDEBAR TRÁI ======= */}
         <div className="shrink-0 border-r border-slate-200 bg-white p-4 flex flex-col" style={{ width: 230 }}>
           {/* Môn học */}
