@@ -43,47 +43,68 @@ class DatabaseConfig:
 
 class GeminiConfig:
     """
-    Quản lý nhiều GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... và xoay vòng theo
-    khung giờ trong ngày (chia đều 24h cho số lượng key đang cấu hình) để
-    tránh dồn hết lượt gọi/token vào một key duy nhất.
-    Nếu không cấu hình key đánh số nào, dùng lại GEMINI_API_KEY cũ (tương thích ngược).
+    3 key CHÍNH — GEMINI_API_KEY_SINGLE / _TRUEFALSE / _SHORT — mỗi key khoá cố định cho 1 phiên
+    sinh câu AI độc lập ứng với Phần I/II/III của đề thi tốt nghiệp THPT (xem _KEY_INDEX_BY_TYPE ở
+    ai_service/routes/generate.py và _ordered_api_keys ở ai_service/gemini_client.py), để 3 phiên
+    chạy song song không tranh chấp cùng 1 key.
+
+    Cộng thêm bao nhiêu key DỰ PHÒNG cũng được, đánh số GEMINI_API_KEY_SPARE_1, _2, ... — dùng khi
+    1 trong 3 key chính hết quota. Vẫn đọc thêm GEMINI_API_KEY_1, _2, ... (kiểu cũ) như key dự
+    phòng bổ sung nếu ai còn cấu hình theo cách đó. Nếu không cấu hình gì cả, dùng lại GEMINI_API_KEY
+    cũ (tương thích ngược, không phân biệt nhóm).
     """
 
-    def __init__(self) -> None:
-        self._keys: list[str] = self._load_keys()
+    PRIMARY_ENV_NAMES = ("GEMINI_API_KEY_SINGLE", "GEMINI_API_KEY_TRUEFALSE", "GEMINI_API_KEY_SHORT")
 
-    @staticmethod
-    def _load_keys() -> list[str]:
-        keys = []
-        i = 1
-        while True:
-            key = os.getenv(f"GEMINI_API_KEY_{i}")
-            if not key:
-                break
-            keys.append(key)
-            i += 1
-        if not keys:
+    def __init__(self) -> None:
+        self._primary_keys, self._spare_keys = self._load_keys()
+
+    @classmethod
+    def _load_keys(cls) -> tuple[list[str], list[str]]:
+        primary = [k for k in (os.getenv(name) for name in cls.PRIMARY_ENV_NAMES) if k]
+
+        spares: list[str] = []
+        for prefix in ("GEMINI_API_KEY_SPARE_", "GEMINI_API_KEY_"):
+            i = 1
+            while True:
+                key = os.getenv(f"{prefix}{i}")
+                if not key:
+                    break
+                spares.append(key)
+                i += 1
+
+        if not primary and not spares:
             legacy = os.getenv("GEMINI_API_KEY", "")
             if legacy:
-                keys.append(legacy)
-        return keys
+                primary = [legacy]
+
+        return primary, spares
+
+    @property
+    def PRIMARY_KEYS(self) -> list[str]:
+        return list(self._primary_keys)
+
+    @property
+    def SPARE_KEYS(self) -> list[str]:
+        return list(self._spare_keys)
 
     @property
     def ALL_KEYS(self) -> list[str]:
-        return list(self._keys)
+        return [*self._primary_keys, *self._spare_keys]
 
     @property
     def API_KEY(self) -> str:
-        """Key hiện hành theo khung giờ trong ngày."""
-        if not self._keys:
+        """Key hiện hành theo khung giờ trong ngày (dùng khi không chỉ định preferred_key_index)."""
+        keys = self.ALL_KEYS
+        if not keys:
             return ""
-        if len(self._keys) == 1:
-            return self._keys[0]
+        if len(keys) == 1:
+            return keys[0]
         import datetime
         hour = datetime.datetime.now().hour
-        shift_len = 24 / len(self._keys)
-        idx = min(int(hour // shift_len), len(self._keys) - 1)
-        return self._keys[idx]
+        shift_len = 24 / len(keys)
+        idx = min(int(hour // shift_len), len(keys) - 1)
+        return keys[idx]
 
 
 class JWTConfig:

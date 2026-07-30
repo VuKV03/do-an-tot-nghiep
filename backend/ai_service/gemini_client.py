@@ -15,20 +15,38 @@ def get_gemini_client(api_key: str) -> genai.Client:
     return genai.Client(api_key=api_key)
 
 
-def _ordered_api_keys() -> list[str]:
+def _ordered_api_keys(preferred_key_index: int | None = None) -> list[str]:
     """
-    Danh sách key để thử, bắt đầu từ key của khung giờ hiện tại (xoay vòng
-    sáng/chiều/tối theo GEMINI_API_KEY_1, _2, ...), sau đó tới các key còn lại
-    để dự phòng khi key hiện tại hết quota.
+    Danh sách key để thử.
+
+    Nếu preferred_key_index hợp lệ (dùng khi caller đã gán sẵn 1 key cố định
+    cho phiên sinh câu của mình, vd theo loại câu hỏi/Phần I-II-III để 3 phiên
+    chạy song song không tranh chấp cùng 1 key), key đó được thử trước tiên,
+    kế đến là key cuối cùng làm "key dự phòng chung", rồi mới tới các key còn
+    lại — để khi 1 phiên hết quota, nó ưu tiên mượn key dự phòng chung thay vì
+    key đang là primary của phiên khác.
+
+    Nếu không truyền (hoặc không hợp lệ), giữ hành vi cũ: bắt đầu từ key của
+    khung giờ hiện tại (xoay vòng theo GEMINI_API_KEY_1, _2, ...).
     """
-    current = gemini_config.API_KEY
-    if not current:
+    keys = gemini_config.ALL_KEYS
+    if not keys:
         raise ValueError(
-            "Vui lòng cấu hình GEMINI_API_KEY (hoặc GEMINI_API_KEY_1, _2, ...) "
-            "trong .env để sử dụng tính năng AI."
+            "Vui lòng cấu hình GEMINI_API_KEY_SINGLE/_TRUEFALSE/_SHORT (hoặc GEMINI_API_KEY_SPARE_1, "
+            "_2, ...) trong .env để sử dụng tính năng AI."
         )
-    rest = [k for k in gemini_config.ALL_KEYS if k != current]
-    return [current, *rest]
+
+    if preferred_key_index is not None and 0 <= preferred_key_index < len(keys):
+        primary = keys[preferred_key_index]
+    else:
+        primary = gemini_config.API_KEY
+
+    # Ưu tiên các key DỰ PHÒNG chung trước, rồi mới tới key chính của các nhóm khác — để 1 phiên
+    # (vd Phần I) hết quota sẽ mượn key dự phòng trước, hạn chế tranh chấp với Phần II/III đang
+    # chạy song song trên key chính riêng của họ.
+    spares = [k for k in gemini_config.SPARE_KEYS if k != primary]
+    other_primaries = [k for k in gemini_config.PRIMARY_KEYS if k != primary]
+    return [primary, *spares, *other_primaries]
 
 
 async def generate_content_with_retry(
@@ -36,16 +54,20 @@ async def generate_content_with_retry(
     system_instruction: str,
     response_schema: dict | None = None,
     temperature: float = 0.7,
+    preferred_key_index: int | None = None,
 ) -> str:
     """
     Generate content with automatic retry, model fallback, and API key rotation.
-    Tries gemini-2.5-flash first, falls back to gemini-2.0-flash-lite.
+    Tries gemini-flash-latest first, falls back to gemini-flash-lite-latest.
     If a key runs out of quota (429/quota), moves on to the next configured key.
     """
-    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash-lite"]
+    # Các model ghi version cố định (gemini-2.5-flash, gemini-2.0-flash-lite, ...) đã bị Google
+    # ngừng cấp cho project/API key mới ("no longer available to new users", lỗi 404) — chỉ còn
+    # dùng được qua alias "-latest". Đã xác nhận thực tế 2 model dưới đây chạy được với key hiện tại.
+    candidate_models = ["gemini-flash-latest", "gemini-flash-lite-latest"]
     last_error = None
 
-    for key_index, api_key in enumerate(_ordered_api_keys()):
+    for key_index, api_key in enumerate(_ordered_api_keys(preferred_key_index)):
         client = get_gemini_client(api_key)
         key_exhausted = False
 

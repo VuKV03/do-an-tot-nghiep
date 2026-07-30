@@ -147,6 +147,13 @@ async def proxy_generate_questions(request: Request):
     return await proxy_request(request, SERVICE_MAP["ai"])
 
 
+@app.post("/api/generate-questions-batch")
+async def proxy_generate_questions_batch(request: Request):
+    """Forward grouped (multi-cell) question generation to AI Service — see /generate-batch."""
+    request.scope["path"] = "/generate-batch"
+    return await proxy_request(request, SERVICE_MAP["ai"])
+
+
 @app.post("/api/suggest-exam-info")
 async def proxy_suggest_info(request: Request):
     """Forward exam info suggestion to AI Service."""

@@ -7,10 +7,18 @@ import re
 from fastapi import APIRouter, HTTPException
 from backend.ai_service.gemini_client import generate_content_with_retry
 from backend.ai_service.schemas import (
-    SuggestInfoRequest, GenerateQuestionsRequest,
+    SuggestInfoRequest, GenerateQuestionsRequest, GenerateQuestionsBatchRequest,
 )
 
 router = APIRouter(tags=["AI Generation"])
+
+# Gán cố định 1 key/loại câu hỏi (~Phần I/II/III của đề THPT) để nhiều phiên "Theo AI" chạy song
+# song theo loại không dồn hết vào cùng 1 key — xem _ordered_api_keys() trong gemini_client.py.
+_KEY_INDEX_BY_TYPE = {"single": 0, "true_false": 1, "short": 2}
+
+# Giới hạn an toàn tổng số câu/lần gọi gộp nhiều nhóm (/generate-batch) — frontend tự chia nhóm ở
+# ngưỡng thấp hơn (10), đây chỉ là chặn lạm dụng phía server.
+_MAX_BATCH_TOTAL = 20
 
 # Quy tắc trình bày chung để tránh Gemini trả về markdown / LaTeX gây ra ký tự lạ khi hiển thị dạng text thuần
 _PLAIN_TEXT_RULES = (
@@ -161,17 +169,130 @@ async def generate_questions(body: GenerateQuestionsRequest):
     try:
         q_count = max(1, min(body.count or 5, 15))
         system_instruction, prompt = _build_generation_prompt(body, q_count)
+        preferred_key_index = _KEY_INDEX_BY_TYPE.get((body.type or "single").strip())
 
         response_text = await generate_content_with_retry(
             prompt=prompt,
             system_instruction=system_instruction,
             temperature=0.75,
+            preferred_key_index=preferred_key_index,
         )
 
         data = json.loads(response_text.strip())
         questions = _clean_generated_questions(data.get("questions", []))
         return {"success": True, "questions": questions}
 
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi kết nối AI: {str(e)}")
+
+
+def _build_batch_generation_prompt(body: GenerateQuestionsBatchRequest) -> tuple[str, str]:
+    """
+    Gộp nhiều NHÓM (mỗi nhóm = 1 cell ma trận: tiểu mục × mức độ) vào 1 lần gọi AI duy nhất — thay vì
+    1 lần gọi/cell như trước — để giảm số round-trip khi ma trận có nhiều tiểu mục/mức độ. AI phải
+    gắn đúng 'groupIndex' (vị trí trong `items`, bắt đầu từ 0) cho mỗi câu hỏi để FE biết câu đó
+    thuộc cell nào; frontend tự giới hạn tổng số câu/lần gọi ở mức thấp (xem BATCH_CALL_CAP ở
+    ModalTaoDeTuDong.tsx) để hạn chế rủi ro AI đếm sai/gán nhầm nhóm khi phải chia quá nhiều nhóm.
+    """
+    question_type = (body.type or "single").strip()
+    total = sum(max(0, item.count or 0) for item in body.items)
+
+    groups_desc = "\n".join(
+        f"- Nhóm {i} (groupIndex={i}): chủ đề \"{item.topic}\", trình độ \"{item.grade}\", "
+        f"độ khó \"{item.level}\", số câu: {item.count}"
+        for i, item in enumerate(body.items)
+    )
+
+    common_header = (
+        f"Bạn là chuyên gia biên soạn đề kiểm tra chất lượng cao của Bộ Giáo dục và Đào tạo Việt Nam.\n"
+        f"Hãy biên soạn CHÍNH XÁC tổng {total} câu hỏi tiếng Việt cho môn \"{body.subject}\", chia theo "
+        f"đúng các nhóm sau — MỖI câu hỏi PHẢI gắn trường 'groupIndex' bằng đúng số của nhóm nó thuộc "
+        f"về, và số câu mỗi nhóm phải khớp CHÍNH XÁC với 'số câu' yêu cầu, không thiếu không thừa:\n"
+        f"{groups_desc}\n\n"
+        f"'level' của mỗi câu PHẢI đúng bằng độ khó của nhóm đó.\n\n"
+    )
+
+    if question_type == "true_false":
+        system_instruction = common_header + (
+            "Biên soạn dạng câu hỏi Đúng/Sai theo cấu trúc Phần II của đề thi tốt nghiệp THPT "
+            "(Thông tư 22/2024): mỗi câu hỏi có đúng 4 ý nhận định (a, b, c, d), mỗi ý được đánh giá "
+            "độc lập là đúng hoặc sai.\n\n"
+            "Quy tắc:\n"
+            "- 'groupIndex': số nguyên, đúng bằng groupIndex của nhóm câu hỏi này thuộc về.\n"
+            "- 'statements' là mảng đúng 4 phần tử, mỗi phần tử có 'content' (nội dung ý nhận định, "
+            "không chèn nhãn a/b/c/d vào nội dung) và 'isCorrect' (true hoặc false).\n"
+            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'type': luôn là 'true_false'.\n"
+            f"{_PLAIN_TEXT_RULES}"
+            "\nTrả về JSON: {\"questions\": [{groupIndex, text, type, level, statements: [{content, isCorrect}, ...]}]}"
+        )
+    elif question_type == "short":
+        system_instruction = common_header + (
+            "Biên soạn dạng câu hỏi trả lời ngắn theo cấu trúc Phần III của đề thi tốt nghiệp THPT "
+            "(Thông tư 22/2024): câu hỏi yêu cầu tính toán hoặc suy luận ra một đáp số/từ khóa ngắn gọn "
+            "(không phải trắc nghiệm nhiều lựa chọn).\n\n"
+            "Quy tắc:\n"
+            "- 'groupIndex': số nguyên, đúng bằng groupIndex của nhóm câu hỏi này thuộc về.\n"
+            "- 'correctAnswer' là đáp số chính xác, ngắn gọn.\n"
+            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'type': luôn là 'short'.\n"
+            f"{_PLAIN_TEXT_RULES}"
+            "\nTrả về JSON: {\"questions\": [{groupIndex, text, type, level, correctAnswer}]}"
+        )
+    else:
+        system_instruction = common_header + (
+            "Biên soạn dạng câu hỏi trắc nghiệm 4 phương án, chỉ 1 đáp án đúng (Phần I đề thi tốt "
+            "nghiệp THPT - Thông tư 22/2024).\n\n"
+            "Quy tắc:\n"
+            "- 'groupIndex': số nguyên, đúng bằng groupIndex của nhóm câu hỏi này thuộc về.\n"
+            "- 'options' chứa đúng 4 đáp án văn bản. Không chèn nhãn A/B/C/D vào nội dung.\n"
+            "- 'correctAnswer' là chữ cái in hoa: 'A', 'B', 'C', hoặc 'D'.\n"
+            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'type': luôn là 'single'.\n"
+            f"{_PLAIN_TEXT_RULES}"
+            "\nTrả về JSON: {\"questions\": [{groupIndex, text, type, level, options, correctAnswer}]}"
+        )
+
+    prompt = (
+        f"Hãy sinh đúng tổng {total} câu hỏi theo danh sách nhóm đã mô tả ở trên, phân bổ đúng số "
+        f"lượng cho từng nhóm theo groupIndex, không thiếu không thừa câu nào ở bất kỳ nhóm nào."
+    )
+
+    return system_instruction, prompt
+
+
+@router.post("/generate-batch")
+async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
+    """Sinh nhiều nhóm câu hỏi (khác tiểu mục/mức độ) trong 1 lần gọi AI duy nhất — xem
+    _build_batch_generation_prompt để biết lý do và cách gắn groupIndex."""
+    try:
+        total = sum(max(0, item.count or 0) for item in body.items)
+        if not body.items or total <= 0:
+            return {"success": True, "questions": []}
+        if total > _MAX_BATCH_TOTAL:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tổng số câu 1 lần gọi gộp không được vượt quá {_MAX_BATCH_TOTAL} (đang yêu cầu {total}).",
+            )
+
+        system_instruction, prompt = _build_batch_generation_prompt(body)
+        preferred_key_index = _KEY_INDEX_BY_TYPE.get((body.type or "single").strip())
+
+        response_text = await generate_content_with_retry(
+            prompt=prompt,
+            system_instruction=system_instruction,
+            temperature=0.75,
+            preferred_key_index=preferred_key_index,
+        )
+
+        data = json.loads(response_text.strip())
+        questions = _clean_generated_questions(data.get("questions", []))
+        return {"success": True, "questions": questions}
+
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
