@@ -323,11 +323,38 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     }
     setSaving(true);
     try {
+      // Né trùng mã đề TRƯỚC khi tạo: lấy toàn bộ mã đề đang có, rồi gán mỗi đề hoán vị 1 mã còn
+      // trống — tự động nhảy qua mã đã dùng thay vì cứ bám đúng "Mã đề thi bắt đầu từ" rồi để
+      // backend từ chối do trùng UNIQUE constraint (lỗi rất hay gặp khi sinh hoán vị nhiều lần cho
+      // cùng 1 đề gốc mà không đổi lại số bắt đầu giữa các lần, hoặc trùng đề đã tạo từ trước).
+      const existingExamsRes = await fetch('/api/exams').then(r => r.json()).catch(() => null);
+      const takenCodes = new Set<string>(
+        (existingExamsRes?.data || []).map((e: any) => String(e.code || '').toLowerCase())
+      );
+      let nextNumber = startCode || 1;
+      const assignedCodes: string[] = variants.map(() => {
+        let candidate = String(nextNumber);
+        let fullCode = `${exam.code}-${candidate}`.toLowerCase();
+        while (takenCodes.has(fullCode)) {
+          nextNumber += 1;
+          candidate = String(nextNumber);
+          fullCode = `${exam.code}-${candidate}`.toLowerCase();
+        }
+        takenCodes.add(fullCode);
+        nextNumber += 1;
+        return candidate;
+      });
+      if (assignedCodes[0] !== String(startCode || 1)) {
+        toast.warning(
+          `Mã đề bắt đầu từ ${startCode || 1} đã tồn tại — tự động dùng mã ${exam.code}-${assignedCodes[0]} trở đi để tránh trùng.`
+        );
+      }
+
       // Mỗi đề hoán vị (đề + toàn bộ câu hỏi của nó) độc lập với các đề khác, nên chạy song song
       // cả bên ngoài (giữa các đề hoán vị) lẫn bên trong (giữa các câu hỏi của cùng 1 đề) — tránh
       // dồn độ trễ mạng của DB cloud (TiDB) theo kiểu tuần tự từng request một, rất chậm.
       const results = await Promise.all(variants.map(async (variantQuestions, i) => {
-        const code = String((startCode || 1) + i);
+        const code = assignedCodes[i];
         try {
           const examRes = await fetch('/api/exams', {
             method: 'POST',

@@ -12,6 +12,7 @@ import { mapCognitiveLevelRecord } from '../../../utils/cognitiveLevel';
 import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/mockData';
 import ExamContentDisplay from './ExamContentDisplay';
 import RichTextEditor from '../../RichTextEditor';
+import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../RichTextEditorGroup';
 
 interface ModalTaoDeTuDongProps {
   open: boolean;
@@ -952,79 +953,91 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
             {editingDraft.type === 'single' && (
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Các phương án (chọn đáp án đúng)</label>
-                <Radio.Group
-                  value={editingDraft.correctAnswer as string}
-                  onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
-                  className="w-full"
-                >
-                  <div className="space-y-2">
-                    {(editingDraft.options || []).map((opt, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <Radio value={opt} />
-                        <Input
-                          value={opt}
-                          onChange={e => setEditingDraft(prev => {
-                            if (!prev) return prev;
-                            const options = [...(prev.options || [])];
-                            const wasCorrect = prev.correctAnswer === options[idx];
-                            options[idx] = e.target.value;
-                            return { ...prev, options, correctAnswer: wasCorrect ? e.target.value : prev.correctAnswer };
-                          })}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </Radio.Group>
+                <RichTextGroupProvider>
+                  <RichTextGroupToolbar />
+                  <Radio.Group
+                    value={editingDraft.correctAnswer as string}
+                    onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
+                    className="w-full"
+                  >
+                    <div className="space-y-2 mt-2">
+                      {(editingDraft.options || []).map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <Radio value={opt} />
+                          <div className="flex-1 min-w-0">
+                            <RichTextGroupCell
+                              value={opt}
+                              minHeight={36}
+                              onChange={(html) => setEditingDraft(prev => {
+                                if (!prev) return prev;
+                                const options = [...(prev.options || [])];
+                                const wasCorrect = prev.correctAnswer === options[idx];
+                                options[idx] = html;
+                                return { ...prev, options, correctAnswer: wasCorrect ? html : prev.correctAnswer };
+                              })}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Radio.Group>
+                </RichTextGroupProvider>
               </div>
             )}
 
             {editingDraft.type === 'true_false' && (
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Các ý nhận định (a, b, c, d)</label>
-                <div className="space-y-2">
-                  {(editingDraft.statements || []).map((st, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="w-5 text-slate-400 font-bold">{String.fromCharCode(97 + idx)})</span>
-                      <Input
-                        value={st.content}
-                        onChange={e => setEditingDraft(prev => {
-                          if (!prev || !prev.statements) return prev;
-                          const statements = prev.statements.map((s, i) => (i === idx ? { ...s, content: e.target.value } : s));
-                          return {
-                            ...prev,
-                            statements,
-                            options: statements.map(s => s.content),
-                            correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
-                          };
-                        })}
-                      />
-                      <Switch
-                        checked={st.isCorrect}
-                        checkedChildren="Đúng"
-                        unCheckedChildren="Sai"
-                        onChange={checked => setEditingDraft(prev => {
-                          if (!prev || !prev.statements) return prev;
-                          const statements = prev.statements.map((s, i) => (i === idx ? { ...s, isCorrect: checked } : s));
-                          return {
-                            ...prev,
-                            statements,
-                            correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
-                          };
-                        })}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <RichTextGroupProvider>
+                  <RichTextGroupToolbar />
+                  <div className="space-y-2 mt-2">
+                    {(editingDraft.statements || []).map((st, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="w-5 text-slate-400 font-bold">{String.fromCharCode(97 + idx)})</span>
+                        <div className="flex-1 min-w-0">
+                          <RichTextGroupCell
+                            value={st.content}
+                            minHeight={36}
+                            onChange={(html) => setEditingDraft(prev => {
+                              if (!prev || !prev.statements) return prev;
+                              const statements = prev.statements.map((s, i) => (i === idx ? { ...s, content: html } : s));
+                              return {
+                                ...prev,
+                                statements,
+                                options: statements.map(s => s.content),
+                                correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
+                              };
+                            })}
+                          />
+                        </div>
+                        <Switch
+                          checked={st.isCorrect}
+                          checkedChildren="Đúng"
+                          unCheckedChildren="Sai"
+                          onChange={checked => setEditingDraft(prev => {
+                            if (!prev || !prev.statements) return prev;
+                            const statements = prev.statements.map((s, i) => (i === idx ? { ...s, isCorrect: checked } : s));
+                            return {
+                              ...prev,
+                              statements,
+                              correctAnswer: statements.map(s => `${s.id}. ${s.isCorrect ? 'Đúng' : 'Sai'}`).join(', '),
+                            };
+                          })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </RichTextGroupProvider>
               </div>
             )}
 
             {editingDraft.type === 'short' && (
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Đáp án</label>
-                <Input.TextArea
-                  rows={2}
+                <RichTextEditor
+                  minHeight={50}
                   value={editingDraft.correctAnswer as string}
-                  onChange={e => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: e.target.value } : prev))}
+                  onChange={(html) => setEditingDraft(prev => (prev ? { ...prev, correctAnswer: html } : prev))}
                 />
               </div>
             )}

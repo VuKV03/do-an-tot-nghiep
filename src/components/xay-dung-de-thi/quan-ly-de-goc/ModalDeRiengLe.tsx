@@ -157,16 +157,35 @@ export default function ModalDeRiengLe({
       // Chỉnh sửa: phân phối câu hỏi vào các phần
       setExamTitle(exam.name || '');
       setSelectedSubject(exam.subject || 'Toán học');
-      const existingQuestions: Question[] = exam.questions || [];
-      setParts(DEFAULT_PARTS.map(p => ({
-        ...p,
-        questions: existingQuestions.filter((q: any) => {
-          if (p.questionType === 'single') return q.type === 'single' || q.type === 'multiple';
-          return q.type === p.questionType;
-        }),
-        collapsed: false,
-      })));
       setActivePart(null);
+      setParts(DEFAULT_PARTS.map(p => ({ ...p, questions: [], collapsed: false })));
+
+      // `exam.questions` (từ GET /api/exams) chỉ là bản ghi DB thô — `type_id`/`level_id` là UUID
+      // danh mục, KHÔNG phải chuỗi 'single'/'nhan_biet' như FE cần, nên lọc theo q.type luôn ra rỗng
+      // (đề nào cũng vậy, không riêng đề hoán vị). Phải lấy lại câu hỏi THẬT (đã resolve đủ
+      // text/type/level/options) qua Ngân hàng câu hỏi lọc theo examId, giống cách ModalSinhDeHoanVi
+      // đang làm khi đọc "Đề gốc".
+      bankQuestionApi.list()
+        .then(res => {
+          if (!res.success || !res.data) return;
+          const existingQuestions: Question[] = res.data
+            .filter(q => q.examId === exam.id)
+            .map((q): Question => ({
+              id: q.id, code: q.code, text: q.text, type: q.type, level: q.level, status: q.status,
+              subject: q.subject, grade: q.grade, topicId: q.topicId || '', topicName: q.topicName || 'Chưa phân loại',
+              subTopicName: q.subTopicName || '', options: q.options, correctAnswer: q.correctAnswer,
+              statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
+            }));
+          setParts(DEFAULT_PARTS.map(p => ({
+            ...p,
+            questions: existingQuestions.filter((q) => {
+              if (p.questionType === 'single') return q.type === 'single' || q.type === 'multiple';
+              return q.type === p.questionType;
+            }),
+            collapsed: false,
+          })));
+        })
+        .catch(() => toast.error('Không tải được câu hỏi hiện có của đề thi.'));
     }
   }, [open, exam, typeAdd]);
 

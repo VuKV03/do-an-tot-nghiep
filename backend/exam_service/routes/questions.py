@@ -14,7 +14,8 @@ from sqlalchemy import select
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.exam_service.models import Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory
+from sqlalchemy import func
+from backend.exam_service.models import Exam, Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory
 from backend.exam_service.schemas import QuestionManualCreate, QuestionResponse
 from backend.shared.database import get_db
 
@@ -199,6 +200,21 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
 
     await db.commit()
     await db.refresh(question)
+
+    # Đề tạo qua luồng "sinh từng câu một" (AI-config, đề hoán vị — xem ModalTaoDeTuDong.tsx/
+    # ModalSinhDeHoanVi.tsx) không đi qua POST /exams/ với questionIds/questions nên cột
+    # exams.totalQuestions vẫn giữ giá trị 0 lúc tạo đề rỗng ban đầu, không bao giờ tự cập nhật khi
+    # từng câu được thêm sau đó — khiến "Số câu hỏi" hiện sai (0) ở cả tab Quản lý đề gốc lẫn Quản lý
+    # gói đề. Đếm lại số câu THẬT của đề này và ghi đè lại cho đúng mỗi khi thêm 1 câu hỏi.
+    if question.exam_id:
+        exam_result = await db.execute(select(Exam).where(Exam.id == question.exam_id))
+        exam_obj = exam_result.scalar_one_or_none()
+        if exam_obj:
+            count_result = await db.execute(
+                select(func.count()).select_from(Question).where(Question.exam_id == question.exam_id)
+            )
+            exam_obj.totalQuestions = count_result.scalar_one()
+            await db.commit()
 
     return {
         "success": True,
