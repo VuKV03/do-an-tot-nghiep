@@ -234,8 +234,8 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
             </div>
           </div>
           <div className="p-5 flex-1 select-none">
-            <div className="h-[280px] w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[280px] w-full pt-2 min-h-[280px]">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart
                   data={subjectData}
                   margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
@@ -263,8 +263,8 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
             <span className="font-extrabold text-xs uppercase tracking-wider text-[#0f172a]">Cấp độ tư duy</span>
           </div>
           <div className="p-5 flex-1 flex flex-col justify-between select-none">
-            <div className="h-[180px] w-full flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[180px] w-full flex items-center justify-center min-h-[180px]">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <PieChart>
                   <Pie
                     data={levelData}

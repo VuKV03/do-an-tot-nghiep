@@ -42,273 +42,6 @@ async def seed_demo_data():
     """Nạp dữ liệu mẫu nếu database trống."""
     async with async_session() as db:
         
-        # Build dynamic mappings for foreign keys to prevent IntegrityError
-        # Fetch subjects
-        subj_res = await db.execute(select(SubjectCategory))
-        subj_map = {}
-        for s in subj_res.scalars().all():
-            subj_map[s.name.lower()] = s.id
-            subj_map[s.code.lower()] = s.id
-
-        # Fetch grades
-        grade_res = await db.execute(select(GradeLevel))
-        grade_map = {}
-        for g in grade_res.scalars().all():
-            grade_map[g.name.lower()] = g.id
-            grade_map[g.code.lower()] = g.id
-            name_clean = g.name.lower().replace("lớp", "").replace("khối", "").strip()
-            grade_map[name_clean] = g.id
-
-        # Fetch levels
-        level_res = await db.execute(select(CognitiveLevel))
-        level_map = {}
-        for l in level_res.scalars().all():
-            level_map[l.name.lower()] = l.id
-            level_map[l.code.lower()] = l.id
-
-        # Fetch types
-        type_res = await db.execute(select(QuestionType))
-        type_map = {}
-        for t in type_res.scalars().all():
-            type_map[t.name.lower()] = t.id
-            type_map[t.code.lower()] = t.id
-
-        def get_subject_id(subject_name: str) -> str | None:
-            if not subject_name:
-                return None
-            name_lower = subject_name.lower()
-            if "toán" in name_lower:
-                return subj_map.get("toán") or subj_map.get("math") or subj_map.get("to")
-            elif "văn" in name_lower:
-                return subj_map.get("văn") or subj_map.get("ngữ văn") or subj_map.get("lit") or subj_map.get("va")
-            elif "anh" in name_lower:
-                return subj_map.get("tiếng anh") or subj_map.get("english") or subj_map.get("eng") or subj_map.get("n1")
-            return subj_map.get(name_lower)
-
-        def get_grade_id(grade_name: str) -> str | None:
-            if not grade_name:
-                return None
-            name_lower = grade_name.lower().replace("lớp", "").replace("khối", "").strip()
-            return grade_map.get(name_lower) or grade_map.get(grade_name.lower())
-
-        def get_level_id(level_name: str) -> str | None:
-            if not level_name:
-                return None
-            name_lower = level_name.lower()
-            if name_lower in ["easy", "nhận biết", "nhan biet", "l1", "vv"]:
-                return level_map.get("nhận biết") or level_map.get("l1") or level_map.get("vv")
-            elif name_lower in ["medium", "hiểu", "thông hiểu", "thong hieu", "l2", "zz"]:
-                return level_map.get("thông hiểu") or level_map.get("l2") or level_map.get("zz")
-            elif name_lower in ["hard", "vận dụng", "van dung", "l3", "xx"]:
-                return level_map.get("vận dụng") or level_map.get("l3") or level_map.get("xx")
-            return level_map.get(name_lower)
-
-        def get_type_id(type_name: str) -> str | None:
-            if not type_name:
-                return None
-            name_lower = type_name.lower()
-            if name_lower in ["single", "trắc nghiệm một đáp án", "trắc nghiệm", "tn"]:
-                return type_map.get("trắc nghiệm") or type_map.get("single") or type_map.get("tn") or type_map.get("lhch-01")
-            return type_map.get(name_lower)
-
-        result = await db.execute(select(func.count()).select_from(Exam))
-        exam_count = result.scalar()
-
-        if exam_count == 0:
-            print("[Exam Service] Bảng exams trống. Đang nạp đề thi mẫu...")
-            ts = int(time.time() * 1000)
-
-            demo_exams = [
-                {
-                    "id": "exam-1",
-                    "code": "DE-MATH12-001",
-                    "name": "Khảo sát Toán 12 Học kỳ 2 Chuyên sâu",
-                    "subject": "Toán học",
-                    "grade": "Khối 12",
-                    "status": "active",
-                    "attempts": 412,
-                    "totalQuestions": 5,
-                    "duration": 90,
-                    "source": "matrix",
-                    "createdAt": "2026-06-01T14:30:00Z",
-                    "avgScore": 7.2,
-                    "description": "Khảo sát chuyên đề Giải tích Hàm số, Nguyên hàm Tích phân và phương pháp tọa độ Oxyz.",
-                    "questions": [
-                        {"text": "Hàm số y = x^3 - 3x có bao nhiêu điểm cực trị?", "type": "single", "level": "easy", "options": ["0", "1", "2", "3"], "correctAnswer": "C"},
-                        {"text": "Tích phân từ 0 đến 1 của e^x dx bằng?", "type": "single", "level": "easy", "options": ["e", "e - 1", "e + 1", "1"], "correctAnswer": "B"},
-                    ],
-                },
-                {
-                    "id": "exam-2",
-                    "code": "DE-LIT11-GK2",
-                    "name": "Kiểm tra Ngữ văn 11 Giữa kỳ II",
-                    "subject": "Ngữ văn",
-                    "grade": "Khối 11",
-                    "status": "pending",
-                    "attempts": 0,
-                    "totalQuestions": 3,
-                    "duration": 90,
-                    "source": "manual",
-                    "createdAt": "2026-06-10T08:15:00Z",
-                    "avgScore": 0,
-                    "description": "Kiểm tra định kỳ kiến thức thơ mới Việt Nam và lý luận văn học giữa kỳ II khối 11.",
-                    "questions": [
-                        {"text": "Chủ đề bao trùm tác phẩm Vội vàng của Xuân Diệu là gì?", "type": "single", "level": "medium", "options": ["Lòng căm thù giặc sâu sắc", "Lòng yêu cuộc sống trần thế cuồng nhiệt", "Nỗi sầu muộn u uẩn", "Ý chí cách mạng"], "correctAnswer": "B"},
-                    ],
-                },
-                {
-                    "id": "exam-3",
-                    "code": "DE-ENG10-003",
-                    "name": "Thi thử Tiếng Anh Thống nhất Khối 10",
-                    "subject": "Tiếng Anh",
-                    "grade": "Khối 10",
-                    "status": "draft",
-                    "attempts": 0,
-                    "totalQuestions": 4,
-                    "duration": 45,
-                    "source": "ai",
-                    "createdAt": "2026-06-12T10:00:00Z",
-                    "avgScore": 0,
-                    "description": "Đề phát sinh tự động hỗ trợ bồi dưỡng học sinh yếu kém môn Ngoại ngữ.",
-                    "questions": [
-                        {"text": "If I ________ rich, I would buy a high-performance computer.", "type": "single", "level": "easy", "options": ["am", "was", "were", "would be"], "correctAnswer": "C"},
-                    ],
-                },
-            ]
-
-            for exam_data in demo_exams:
-                questions_data = exam_data.pop("questions")
-                exam = Exam(**exam_data)
-                db.add(exam)
-
-                for i, q in enumerate(questions_data):
-                    question = Question(
-                        id=f"q-{ts}-{exam_data['id']}-{i}",
-                        exam_id=exam_data["id"],
-                        code=f"Q-{str(ts)[-6:]}-{exam_data['id'][-1]}-{i}",
-                        content=q["text"],
-                        options=json.dumps(q["options"], ensure_ascii=False),
-                        correct_answer=q["correctAnswer"],
-                        subject_id=get_subject_id(exam_data["subject"]),
-                        grade_id=get_grade_id(exam_data["grade"]),
-                        level_id=get_level_id(q["level"]),
-                        type_id=get_type_id(q["type"]),
-                        line_number=i + 1,
-                        status=2,
-                        status_ai=2 if exam_data.get("source") == "ai" else 0,
-                        approved_note="Seed data",
-                    )
-                    db.add(question)
-
-            await db.commit()
-            print("[Exam Service] ✅ Đã nạp đề thi mẫu và câu hỏi mẫu thành công.")
-
-        # Check and seed questions if empty but exams exist
-        result_q = await db.execute(select(func.count()).select_from(Question))
-        q_count = result_q.scalar()
-        if q_count == 0 and exam_count > 0:
-            print("[Exam Service] Bảng questions trống nhưng exams đã tồn tại. Đang nạp câu hỏi mẫu cho exams...")
-            ts = int(time.time() * 1000)
-            
-            # Seed questions for exam-1
-            exam1_questions = [
-                {"text": "Hàm số y = x^3 - 3x có bao nhiêu điểm cực trị?", "level": "easy", "options": ["0", "1", "2", "3"], "correctAnswer": "C"},
-                {"text": "Tích phân từ 0 đến 1 của e^x dx bằng?", "level": "easy", "options": ["e", "e - 1", "e + 1", "1"], "correctAnswer": "B"},
-            ]
-            for i, q in enumerate(exam1_questions):
-                db.add(Question(
-                    id=f"q-{ts}-exam-1-{i}",
-                    exam_id="exam-1",
-                    code=f"Q-{str(ts)[-6:]}-1-{i}",
-                    content=q["text"],
-                    options=json.dumps(q["options"], ensure_ascii=False),
-                    correct_answer=q["correctAnswer"],
-                    subject_id=get_subject_id("Toán học"),
-                    grade_id=get_grade_id("Khối 12"),
-                    level_id=get_level_id(q["level"]),
-                    type_id=get_type_id("single"),
-                    line_number=i + 1,
-                    status=2,
-                    status_ai=0,
-                    approved_note="Seed data",
-                ))
-
-            # Seed questions for exam-2
-            exam2_questions = [
-                {"text": "Chủ đề bao trùm tác phẩm Vội vàng của Xuân Diệu là gì?", "level": "medium", "options": ["Lòng căm thù giặc sâu sắc", "Lòng yêu cuộc sống trần thế cuồng nhiệt", "Nỗi sầu muộn u uẩn", "Ý chí cách mạng"], "correctAnswer": "B"},
-            ]
-            for i, q in enumerate(exam2_questions):
-                db.add(Question(
-                    id=f"q-{ts}-exam-2-{i}",
-                    exam_id="exam-2",
-                    code=f"Q-{str(ts)[-6:]}-2-{i}",
-                    content=q["text"],
-                    options=json.dumps(q["options"], ensure_ascii=False),
-                    correct_answer=q["correctAnswer"],
-                    subject_id=get_subject_id("Ngữ văn"),
-                    grade_id=get_grade_id("Khối 11"),
-                    level_id=get_level_id(q["level"]),
-                    type_id=get_type_id("single"),
-                    line_number=i + 1,
-                    status=2,
-                    status_ai=0,
-                    approved_note="Seed data",
-                ))
-
-            # Seed questions for exam-3
-            exam3_questions = [
-                {"text": "If I ________ rich, I would buy a high-performance computer.", "level": "easy", "options": ["am", "was", "were", "would be"], "correctAnswer": "C"},
-            ]
-            for i, q in enumerate(exam3_questions):
-                db.add(Question(
-                    id=f"q-{ts}-exam-3-{i}",
-                    exam_id="exam-3",
-                    code=f"Q-{str(ts)[-6:]}-3-{i}",
-                    content=q["text"],
-                    options=json.dumps(q["options"], ensure_ascii=False),
-                    correct_answer=q["correctAnswer"],
-                    subject_id=get_subject_id("Tiếng Anh"),
-                    grade_id=get_grade_id("Khối 10"),
-                    level_id=get_level_id(q["level"]),
-                    type_id=get_type_id("single"),
-                    line_number=i + 1,
-                    status=2,
-                    status_ai=2,
-                    approved_note="Seed data",
-                ))
-            await db.commit()
-            print("[Exam Service] ✅ Đã bổ sung câu hỏi mẫu thành công.")
-
-        # Seed packages
-        result2 = await db.execute(select(func.count()).select_from(Package))
-        pkg_count = result2.scalar()
-
-        if pkg_count == 0:
-            print("[Exam Service] Bảng packages trống. Đang nạp gói đề thi mẫu...")
-            demo_packages = [
-                Package(
-                    id="pkg-1", code="GP-MATH12-01",
-                    name="Bộ 10 Đề luyện thi THPT Quốc gia 2026 Môn Toán",
-                    subject="Toán học", grade="Khối 12", status="active",
-                    examsCount=1, examIds=json.dumps(["exam-1"]),
-                    downloadsCount=1540, accessType="premium",
-                    createdAt="2026-06-05T09:00:00Z",
-                    description="Tổng hợp các mẫu đề thi thử bám sát đề minh họa của Bộ Giáo dục và Đào tạo.",
-                ),
-                Package(
-                    id="pkg-2", code="GP-ENG10-05",
-                    name="Chuyên đề rèn luyện ngữ pháp Tiếng Anh nâng cao",
-                    subject="Tiếng Anh", grade="Khối 10", status="active",
-                    examsCount=1, examIds=json.dumps(["exam-3"]),
-                    downloadsCount=520, accessType="free",
-                    createdAt="2026-06-11T16:00:00Z",
-                    description="Gói tổng hợp các nguồn đề thi thử điều kiện 45 phút học kỳ dành cho lớp 10.",
-                ),
-            ]
-            for pkg in demo_packages:
-                db.add(pkg)
-            await db.commit()
-            print("[Exam Service] \u2705 Đã nạp gói đề thi mẫu thành công.")
 
         # ─── Seed subject_categories (SubjectCategory) ──────────────────────
         result3 = await db.execute(select(func.count()).select_from(SubjectCategory))
@@ -393,49 +126,6 @@ async def seed_demo_data():
                 db.add(g)
             await db.commit()
             print("[Exam Service] \u2705 grade_levels seeded.")
-
-        # ─── Seed exam_periods (ExamPeriod) ──────────────────────────
-
-        # ─── Seed topics (Topic) ─────────────────────────────────────
-        result9 = await db.execute(select(func.count()).select_from(Topic))
-        if result9.scalar() == 0:
-            print("[Exam Service] Seeding topics...")
-            now = datetime.utcnow().isoformat() + "Z"
-            
-            # Fetch first subject and grade IDs dynamically to avoid foreign key errors!
-            subj_res = await db.execute(select(SubjectCategory.id))
-            first_subject_id = subj_res.scalars().first()
-            
-            grade_res = await db.execute(select(GradeLevel.id))
-            first_grade_id = grade_res.scalars().first()
-            
-            # Fallback if somehow they are empty
-            first_subject_id = first_subject_id or "mon-01"
-            first_grade_id = first_grade_id or "kl-12"
-            
-            topics = [
-                Topic(
-                    id="t-1", parent_id=None, code="CD01", name="Biến ngẫu nhiên rời rạc",
-                    subject_id=first_subject_id, grade_id=first_grade_id, status=2,
-                    created_by="user1", created_at=now, submitted_by="user1", submitted_at=now,
-                    approved_by="admin", approved_at=now, approval_note="Đạt yêu cầu", note="Chuyên đề xác suất"
-                ),
-                Topic(
-                    id="t-2", parent_id=None, code="CD02", name="Ứng dụng toán học",
-                    subject_id=first_subject_id, grade_id=first_grade_id, status=1,
-                    created_by="user1", created_at=now, submitted_by="user1", submitted_at=now,
-                    note="Chuyên đề thực tế"
-                ),
-                Topic(
-                    id="t-2-1", parent_id="t-2", code="CD02-1", name="Ứng dụng toán học trong tài chính",
-                    subject_id=first_subject_id, grade_id=first_grade_id, status=0,
-                    created_by="user1", created_at=now, note="Lãi đơn lãi kép"
-                )
-            ]
-            for t in topics:
-                db.add(t)
-            await db.commit()
-            print("[Exam Service] \u2705 topics seeded.")
 
 
 @asynccontextmanager
@@ -634,6 +324,40 @@ async def lifespan(app: FastAPI):
             print("[Exam Service] ✅ subject_configs per-part scoring columns are up to date.")
     except Exception as e:
         print(f"[Exam Service] Error migrating subject_configs scoring columns: {e}")
+
+    # Migration: alter matrix_configs.structure from TEXT to LONGTEXT — ds_cau_truc JSON can
+    # easily exceed 64KB (MySQL TEXT limit) for complex matrix configurations, causing silent
+    # data truncation or insert failure (500). Model already declares LONGTEXT but create_all
+    # does NOT alter existing columns.
+    try:
+        async with engine.begin() as conn:
+            col_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'structure'"))
+            row = col_check.fetchone()
+            if row:
+                col_type = str(row[1]).upper()  # e.g. 'text', 'longtext'
+                if 'LONGTEXT' not in col_type:
+                    await conn.execute(text("ALTER TABLE matrix_configs MODIFY COLUMN structure LONGTEXT;"))
+                    print("[Exam Service] ✅ Migrated matrix_configs.structure from TEXT to LONGTEXT.")
+                else:
+                    print("[Exam Service] ✅ matrix_configs.structure is already LONGTEXT.")
+            else:
+                print("[Exam Service] ⚠️ matrix_configs.structure column not found (table may be new).")
+    except Exception as e:
+        print(f"[Exam Service] Error migrating matrix_configs.structure: {e}")
+
+    # Migration: ensure matrix_configs has 'subject_id' column (older schema may only have 'subject')
+    try:
+        async with engine.begin() as conn:
+            col_check = await conn.execute(text("SHOW COLUMNS FROM matrix_configs LIKE 'subject_id'"))
+            if not col_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE matrix_configs ADD COLUMN subject_id VARCHAR(36) NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'subject_id' column to matrix_configs table.")
+            else:
+                print("[Exam Service] ✅ 'subject_id' column already exists in matrix_configs table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding subject_id column: {e}")
 
     # DEBUG: Describe columns of questions and exams tables
     try:

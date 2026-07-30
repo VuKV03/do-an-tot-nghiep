@@ -8,6 +8,29 @@ export const rawMenuItems = [
     label: 'Bảng tổng quan',
   },
   {
+    key: 'quan-tri-danh-muc',
+    icon: <FolderOutlined />,
+    label: 'Quản trị danh mục',
+    children: [
+      { key: 'danh-muc-mon-hoc', label: 'Danh mục môn học' },
+      { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
+      { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
+      { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
+      { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' }
+      // { key: 'danh-muc-dot-thi', label: 'Danh mục kỳ thi' }
+    ]
+  },
+  {
+    key: 'quan-ly-nhch',
+    icon: <DatabaseOutlined />,
+    label: 'Quản lý ngân hàng câu hỏi',
+    children: [
+      { key: 'chu-de-cau-hoi', label: 'Chủ đề câu hỏi' },
+      { key: 'ngan-hang-cau-hoi', label: 'Ngân hàng câu hỏi' },
+      { key: 'thong-ke-nhch', label: 'Thống kê NHCH' }
+    ]
+  },
+  {
     key: 'xay-dung-de',
     icon: <ProjectOutlined />,
     label: 'Xây dựng đề thi',
@@ -24,29 +47,6 @@ export const rawMenuItems = [
     children: [
       { key: 'quan-ly-thi-sinh', label: 'Quản lý thí sinh' },
       { key: 'quan-ly-ket-qua-thi', label: 'Quản lý kết quả thi' }
-    ]
-  },
-  {
-    key: 'quan-ly-nhch',
-    icon: <DatabaseOutlined />,
-    label: 'Quản lý ngân hàng câu hỏi',
-    children: [
-      { key: 'chu-de-cau-hoi', label: 'Chủ đề câu hỏi' },
-      { key: 'ngan-hang-cau-hoi', label: 'Ngân hàng câu hỏi' },
-      { key: 'thong-ke-nhch', label: 'Thống kê NHCH' }
-    ]
-  },
-  {
-    key: 'quan-tri-danh-muc',
-    icon: <FolderOutlined />,
-    label: 'Quản trị danh mục',
-    children: [
-      { key: 'danh-muc-mon-hoc', label: 'Danh mục môn học' },
-      { key: 'danh-muc-khoi-lop', label: 'Danh mục khối lớp' },
-      { key: 'cap-do-tu-duy', label: 'Cấp độ tư duy' },
-      { key: 'loai-hinh-cau-hoi', label: 'Loại hình câu hỏi' },
-      { key: 'thanh-phan-nang-luc', label: 'Thành phần năng lực' }
-      // { key: 'danh-muc-dot-thi', label: 'Danh mục kỳ thi' }
     ]
   },
   {

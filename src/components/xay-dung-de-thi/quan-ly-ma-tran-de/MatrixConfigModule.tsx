@@ -614,7 +614,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
               <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
               <div className="flex items-center gap-2">
-                {hasActionPermission(currentUser, 'matrix.manage') && (
+                {hasActionPermission(currentUser, 'matrices.manage') && (
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
@@ -627,7 +627,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                     Thêm mới
                   </Button>
                 )}
-                {hasActionPermission(currentUser, 'matrix.manage') && (
+                {hasActionPermission(currentUser, 'matrices.manage') && (
                   <Button
                     danger
                     className="font-semibold text-xs rounded cursor-pointer"
@@ -664,7 +664,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 {tableLoading ? (
                   <tr>
                     <td colSpan={10} className="py-12 text-center">
-                      <Spin size="default" />
+                      <Spin size="medium" />
                     </td>
                   </tr>
                 ) : tableData.length === 0 ? (
@@ -698,7 +698,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
-                            {hasActionPermission(currentUser, 'matrix.manage') && (
+                            {hasActionPermission(currentUser, 'matrices.manage') && (
                               <Tooltip title="Chỉnh sửa">
                                 <Button
                                   size="small"
@@ -712,7 +712,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                 />
                               </Tooltip>
                             )}
-                            {hasActionPermission(currentUser, 'matrix.submit') && (
+                            {hasActionPermission(currentUser, 'matrices.submit') && (
                               <Tooltip title="Gửi thẩm định">
                                 <Button
                                   size="small"
@@ -723,7 +723,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                 />
                               </Tooltip>
                             )}
-                            {hasActionPermission(currentUser, 'matrix.manage') && (
+                            {hasActionPermission(currentUser, 'matrices.manage') && (
                               <Popconfirm
                                 title="Xóa ma trận này?"
                                 onConfirm={() => handleDeleteRow(row.id)}
@@ -885,7 +885,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {hasActionPermission(currentUser, 'matrix.approve') && (
+                {hasActionPermission(currentUser, 'matrices.approve') && (
                   <Button
                     type="primary"
                     icon={<CheckCircleOutlined />}
@@ -896,7 +896,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                     Thẩm định nhiều{evalSelectedRowIds.length > 0 ? ` (${evalSelectedRowIds.length})` : ''}
                   </Button>
                 )}
-                {hasActionPermission(currentUser, 'matrix.export') && (
+                {hasActionPermission(currentUser, 'matrices.export') && (
                   <Button
                     type="primary"
                     icon={<FileExcelOutlined />}
@@ -933,7 +933,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 {evalTableLoading ? (
                   <tr>
                     <td colSpan={10} className="py-12 text-center">
-                      <Spin size="default" />
+                      <Spin size="medium" />
                     </td>
                   </tr>
                 ) : sortedEvalData.length === 0 ? (
@@ -966,7 +966,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{row.duration}</td>
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
-                          {hasActionPermission(currentUser, 'matrix.approve') && (
+                          {hasActionPermission(currentUser, 'matrices.approve') && (
                             <Tooltip title="Thẩm định">
                               <Button
                                 size="small"

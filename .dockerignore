@@ -1,0 +1,38 @@
+# Dependencies & build output
+node_modules/
+dist/
+dev/
+__pycache__/
+*.pyc
+
+# Environment files (use .env.production explicitly)
+.env
+.env.example
+
+# IDE & OS
+.vscode/
+.git/
+*.swp
+*.swo
+Thumbs.db
+
+# Reports & scratch files
+*.docx
+*.db
+scratch/
+scratch_*.py
+check_*.py
+debug_*.py
+test_*.py
+show_*.py
+fetch_*.py
+alter_*.py
+
+# Assets not needed in backend image
+assets/
+src/
+*.html
+*.json
+!requirements.txt
+!package.json
+!tsconfig.json

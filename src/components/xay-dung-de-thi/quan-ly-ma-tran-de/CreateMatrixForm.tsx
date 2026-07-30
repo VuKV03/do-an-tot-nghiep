@@ -636,7 +636,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
 
       {/* Content: Tree + Table */}
       {monHocId && (
-        <Spin spinning={isChangingSubject} tip="Đang tải dữ liệu...">
+        <Spin spinning={isChangingSubject} description="Đang tải dữ liệu...">
           <div className="flex gap-4" style={{ minHeight: 400 }}>
             {/* Left: Cây chủ đề */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-xs" style={{ width: 300, flexShrink: 0 }}>
