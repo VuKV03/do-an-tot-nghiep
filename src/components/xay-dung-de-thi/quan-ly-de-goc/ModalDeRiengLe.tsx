@@ -20,18 +20,49 @@ interface ModalDeRiengLeProps {
 /** Cấu trúc 1 Phần trong đề thi */
 interface ExamPart {
   id: string;
-  label: string;
   questionType: string;
   questions: Question[];
   collapsed: boolean;
 }
 
-/** Phần mặc định theo cấu trúc đề thi THPT Quốc gia */
+/** Phần mặc định theo cấu trúc đề thi THPT Quốc gia (không còn "label" tĩnh — xem getPartLabel,
+ * số câu "từ ... đến ..." phải lấy đúng số câu thực tế đã chọn, không fix cứng 24/4). */
 const DEFAULT_PARTS: Omit<ExamPart, 'questions' | 'collapsed'>[] = [
-  { id: 'phan-1', label: 'Phần I: Thí sinh trả lời từ câu 1 đến câu 24. Mỗi câu hỏi thí sinh chỉ chọn một phương án', questionType: 'single' },
-  { id: 'phan-2', label: 'Phần II: Thí sinh trả lời từ câu 1 đến câu 4. Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai', questionType: 'true_false' },
-  { id: 'phan-3', label: 'Phần III: Trả lời ngắn', questionType: 'short' },
+  { id: 'phan-1', questionType: 'single' },
+  { id: 'phan-2', questionType: 'true_false' },
+  { id: 'phan-3', questionType: 'short' },
 ];
+
+const PART_ROMAN: Record<string, string> = { 'phan-1': 'I', 'phan-2': 'II', 'phan-3': 'III' };
+
+// Mô tả cách làm bài theo từng loại câu hỏi — khớp đúng nội dung ExamPortal.tsx đang hiển thị cho
+// thí sinh lúc thi thật, để đề xem trước ở đây và đề thi thật hiển thị nhất quán.
+const PART_DESC: Record<string, string> = {
+  single: 'Mỗi câu hỏi thí sinh chỉ chọn một phương án.',
+  true_false: 'Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.',
+  short: 'Thí sinh trả lời bằng cách nhập đáp án vào ô trống.',
+};
+
+/** Tiêu đề 1 Phần, tính động theo SỐ CÂU THẬT đã chọn — số thứ tự câu tính liên tục qua các phần
+ * theo đúng thứ tự Phần I → II → III (không lặp lại "câu 1" ở mỗi phần), khớp cách đánh số thật của
+ * đề thi (xem getQuestionGlobalIndex ở ExamPortal.tsx). */
+const getPartLabel = (parts: ExamPart[], partId: string): string => {
+  const part = parts.find(p => p.id === partId);
+  if (!part) return '';
+  const roman = PART_ROMAN[partId] || '';
+  if (part.questions.length === 0) {
+    return `Phần ${roman}: Chưa có câu hỏi nào.`;
+  }
+  let startIdx = 0;
+  for (const p of parts) {
+    if (p.id === partId) break;
+    startIdx += p.questions.length;
+  }
+  const from = startIdx + 1;
+  const to = startIdx + part.questions.length;
+  const desc = PART_DESC[part.questionType] || '';
+  return `Phần ${roman}: Thí sinh trả lời từ câu ${from} đến câu ${to}. ${desc}`;
+};
 
 const getTypeLabel = (t: string) => {
   switch (t) {
@@ -298,7 +329,7 @@ export default function ModalDeRiengLe({
                     ${activePart === part.id ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200/60'}`}
                   onClick={() => { setActivePart(part.id); togglePartCollapse(part.id); }}
                 >
-                  <span className="flex-1 line-clamp-3">{part.label}</span>
+                  <span className="flex-1 line-clamp-3">{getPartLabel(parts, part.id)}</span>
                   <span className="shrink-0 mt-0.5">
                     {part.collapsed ? <DownOutlined className="text-[8px]" /> : <UpOutlined className="text-[8px]" />}
                   </span>
@@ -353,7 +384,7 @@ export default function ModalDeRiengLe({
               <div key={part.id}>
                 {/* Phần header */}
                 <div className="text-xs font-bold text-slate-700 mb-3 leading-relaxed">
-                  {part.label}
+                  {getPartLabel(parts, part.id)}
                 </div>
 
                 {part.questions.length === 0 ? (
