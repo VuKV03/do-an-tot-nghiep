@@ -105,7 +105,11 @@ export default function ModalDeRiengLe({
       try {
         const res = await bankQuestionApi.list();
         if (res.success && res.data) {
-          setQuestionPool(res.data.map((q): Question => ({
+          // Câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI, ModalSinhDeHoanVi.tsx) coi
+          // như riêng tư của đề đó, không cho chọn lại ở đây (picker "Chọn câu hỏi" cho đề thủ công) —
+          // khác câu hỏi sinh bằng AI ngay ở Ngân hàng câu hỏi, vẫn chọn được bình thường.
+          const pickableData = res.data.filter((q) => q.source !== 'ai_exam');
+          setQuestionPool(pickableData.map((q): Question => ({
             id: q.id,
             code: q.code,
             text: q.text,

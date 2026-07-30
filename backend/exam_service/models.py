@@ -61,6 +61,11 @@ class Question(Base):
     
     line_number = Column(Integer, default=1)
     status = Column(Integer, default=0)
+    # Tái sử dụng cột này (trước đây tồn tại nhưng không được đọc/ghi có ý nghĩa gì) làm cờ NGUỒN GỐC
+    # câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn
+    # câu hỏi, KHÁC với câu hỏi sinh bằng AI ngay trong màn Ngân hàng câu hỏi (vẫn hiện bình thường).
+    # Xem SOURCE_TO_INT/INT_TO_SOURCE bên dưới. Dữ liệu cũ (trước khi có cờ này) giữ nguyên giá trị 0
+    # mặc định — không backfill, chỉ áp dụng cho câu hỏi tạo mới.
     status_ai = Column(Integer, default=0)
     approved_note = Column(Text, default="")
     statements = Column(LONGTEXT, nullable=True)  # câu hỏi Đúng/Sai — mỗi ý cũng có thể chứa ảnh base64
@@ -73,6 +78,11 @@ class Question(Base):
     # Relationship
     exam = relationship("Exam", back_populates="questions")
 
+
+# Mapping cho cột status_ai (xem comment ở field status_ai phía trên) — dùng chung giữa
+# routes/questions.py (ghi lúc tạo) và routes/bank_questions.py (đọc ra để FE lọc hiển thị).
+SOURCE_TO_INT = {"manual": 0, "ai_bank": 1, "ai_exam": 2}
+INT_TO_SOURCE = {v: k for k, v in SOURCE_TO_INT.items()}
 
 
 class Package(Base):

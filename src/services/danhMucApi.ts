@@ -399,6 +399,10 @@ export interface QuestionCreateAPI {
   status?: 'draft' | 'pending' | 'approved';
   lineNumber?: number;
   examId?: string | null;
+  /** Nguồn gốc câu hỏi — 'ai_exam' (sinh cả đề bằng AI: ModalTaoDeTuDong "Theo AI", ModalSinhDeHoanVi)
+   * bị ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi, khác 'ai_bank' (sinh bằng AI ngay
+   * trong Ngân hàng câu hỏi, vẫn hiện bình thường). Mặc định 'manual' nếu không truyền. */
+  source?: 'manual' | 'ai_bank' | 'ai_exam';
 }
 
 export const questionApi = {
@@ -434,6 +438,9 @@ export interface BankQuestionAPI {
   examId?: string | null;
   feedback?: string;
   statements?: Question['statements'];
+  /** Nguồn gốc câu hỏi — 'ai_exam' bị ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi (xem
+   * QuestionCreateAPI.source). Dữ liệu tạo trước khi có field này mặc định 'manual'. */
+  source?: 'manual' | 'ai_bank' | 'ai_exam';
 }
 
 export interface BankQuestionCreateAPI {

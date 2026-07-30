@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text, update
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Exam, Question
+from backend.exam_service.models import Exam, Question, SOURCE_TO_INT
 from backend.exam_service.schemas import (
     ExamCreate, ExamUpdate, ExamResponse,
     ExamListResponse, QuestionResponse,
@@ -245,15 +245,26 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
 
 @router.delete("/{exam_id}")
 async def delete_exam(exam_id: str, db: AsyncSession = Depends(get_db)):
-    """Xóa đề thi. Gỡ liên kết câu hỏi (exam_id = NULL) trước khi xoá, KHÔNG xoá câu hỏi khỏi
-    Ngân hàng câu hỏi — vì câu hỏi có thể chỉ đang được gắn (link) từ ngân hàng dùng chung,
-    không phải bản sao riêng của đề thi này."""
+    """Xóa đề thi.
+
+    Câu hỏi nguồn gốc 'ai_exam' (sinh cả đề bằng AI — ModalTaoDeTuDong.tsx > Theo AI,
+    ModalSinhDeHoanVi.tsx > Sinh đề hoán vị) là bản sao RIÊNG của đúng đề này, không có giá trị tái
+    sử dụng ở đề khác — XOÁ HẲN cùng lúc xoá đề, tránh tồn đọng vĩnh viễn trong Ngân hàng câu hỏi
+    (trước đây không phân biệt được nguồn gốc nên luôn giữ lại, gây trùng lặp/rác dữ liệu mỗi lần
+    test "Sinh đề hoán vị"/"Theo AI" rồi xoá đề — xem SOURCE_TO_INT ở models.py).
+
+    Câu hỏi thủ công/'ai_bank' vẫn chỉ GỠ liên kết (exam_id = NULL), KHÔNG xoá — có thể đang dùng
+    chung từ Ngân hàng câu hỏi, không phải bản sao riêng của đề thi này.
+    """
     result = await db.execute(select(Exam).where(Exam.id == exam_id))
     exam = result.scalar_one_or_none()
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi cần xóa.")
 
     name = exam.name
+    await db.execute(
+        delete(Question).where(Question.exam_id == exam_id, Question.status_ai == SOURCE_TO_INT["ai_exam"])
+    )
     await db.execute(update(Question).where(Question.exam_id == exam_id).values(exam_id=None))
     await db.execute(delete(Exam).where(Exam.id == exam_id))
     await db.commit()

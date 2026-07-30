@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import func
-from backend.exam_service.models import Exam, Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory
+from backend.exam_service.models import Exam, Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory, SOURCE_TO_INT
 from backend.exam_service.schemas import QuestionManualCreate, QuestionResponse
 from backend.shared.database import get_db
 
@@ -179,7 +179,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         exam_id=body.examId,
         line_number=body.lineNumber or 1,
         status=_status_to_int(body.status),
-        status_ai=0,
+        status_ai=SOURCE_TO_INT.get(body.source or 'manual', 0),
         approved_note="",
         statements=_as_json(body.statements),
         created_by=body.creator,

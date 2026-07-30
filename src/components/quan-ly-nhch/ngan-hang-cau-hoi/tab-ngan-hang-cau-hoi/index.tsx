@@ -205,8 +205,13 @@ export default function QuestionBankModule({
     try {
       const res = await bankQuestionApi.list();
       if (res.success && res.data) {
+        // Câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI, ModalSinhDeHoanVi.tsx) coi
+        // như riêng tư của đề đó, không hiện ở Ngân hàng câu hỏi lẫn tab Thẩm định (dùng chung
+        // dbQuestions này) — khác câu hỏi sinh bằng AI ngay tại đây (source 'ai_bank'), vẫn hiện
+        // bình thường.
+        const visibleData = res.data.filter((q) => q.source !== 'ai_exam');
         // Map API response to Question type
-        const mapped: Question[] = res.data.map((q) => ({
+        const mapped: Question[] = visibleData.map((q) => ({
           id: q.id,
           code: q.code,
           text: q.text,

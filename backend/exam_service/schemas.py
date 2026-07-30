@@ -53,6 +53,11 @@ class QuestionManualCreate(BaseModel):
     status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'
     lineNumber: Optional[int] = 1
     examId: Optional[str] = None
+    # Nguồn gốc câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI,
+    # ModalSinhDeHoanVi.tsx) khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi, KHÁC với câu hỏi
+    # sinh bằng AI ngay trong màn Ngân hàng câu hỏi (ai-generate.tsx, vẫn hiện bình thường). Lưu vào
+    # cột status_ai đã có sẵn (trước đây không dùng vào việc gì): manual=0, ai_bank=1, ai_exam=2.
+    source: Optional[Literal['manual', 'ai_bank', 'ai_exam']] = 'manual'
 
 
 class QuestionHistoryResponse(BaseModel):

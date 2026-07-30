@@ -410,7 +410,9 @@ export default function AIGenerateQuestionModal({
     setAcceptingIds((prev) => new Set(prev).add(id));
     try {
       const { id: _localId, ...payload } = q;
-      const apiPayload = { ...payload, competencyComponentId: q.nangLucId };
+      // source: 'ai_bank' — sinh bằng AI ngay trong Ngân hàng câu hỏi, KHÁC 'ai_exam' (sinh cả đề
+      // bằng AI) nên vẫn hiện bình thường ở Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi.
+      const apiPayload = { ...payload, competencyComponentId: q.nangLucId, source: 'ai_bank' };
       const response = await questionApi.create(apiPayload as any);
       const savedQuestion = { ...q, id: response.data.id || q.id };
       onSave(savedQuestion);
@@ -449,7 +451,9 @@ export default function AIGenerateQuestionModal({
       }
       try {
         const { id: _localId, ...payload } = q;
-        const apiPayload = { ...payload, competencyComponentId: q.nangLucId };
+        // source: 'ai_bank' — sinh bằng AI ngay trong Ngân hàng câu hỏi, KHÁC 'ai_exam' (sinh cả đề
+      // bằng AI) nên vẫn hiện bình thường ở Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi.
+      const apiPayload = { ...payload, competencyComponentId: q.nangLucId, source: 'ai_bank' };
         const response = await questionApi.create(apiPayload as any);
         const savedQuestion = { ...q, id: response.data.id || q.id };
         onSave(savedQuestion);

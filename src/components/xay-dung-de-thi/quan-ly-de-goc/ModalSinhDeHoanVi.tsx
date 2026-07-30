@@ -381,18 +381,29 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           // EXAM_GRADE_LABEL ở ModalDeRiengLe.tsx/ModalTaoDeTuDong.tsx), không phải khối lớp thật.
           // Backend fuzzy-match grade theo danh mục GradeLevel thật ("Lớp 10/11/12"), "THPT" không
           // khớp bất kỳ khối nào nên trước đây MỌI câu hỏi đều bị 400 khi lưu đề hoán vị.
+          // Phải forward đủ topicId/topicName/competencyComponentId/creator từ câu hỏi GỐC — trước
+          // đây bị bỏ sót nên mọi đề hoán vị lưu xong đều mất Chủ đề/Thành phần năng lực/Người tạo
+          // dù câu hỏi gốc trong Ngân hàng câu hỏi đã có đủ các thông tin này.
           await Promise.all(variantQuestions.map(q => questionApi.create({
             text: q.text,
             type: q.type,
             level: q.level,
             subject: exam.subject,
             grade: q.grade || exam.grade,
+            topicId: q.topicId || undefined,
+            topicName: q.topicName || undefined,
+            subTopicName: q.subTopicName || undefined,
             options: q.options,
             correctAnswer: q.correctAnswer,
             statements: q.statements,
             status: 'approved',
             examId: newExamId,
-          })));
+            creator: q.creator,
+            competencyComponentId: q.nangLucId,
+            // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
+            // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
+            source: 'ai_exam',
+          } as any)));
           return { code, examId: newExamId as string | null };
         } catch {
           return { code, examId: null as string | null };

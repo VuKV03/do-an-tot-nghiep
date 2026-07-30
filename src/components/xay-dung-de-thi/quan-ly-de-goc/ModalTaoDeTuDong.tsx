@@ -332,12 +332,14 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
 
   // Dựng 1 Question từ 1 phần tử AI trả về, dùng chung cho mọi cell/nhóm gộp trong 1 lần gọi batch.
   const buildQuestionFromAi = (aiQ: any, ctx: {
-    aiType: AiBucketType; level: CognitiveLevel; grade: string; donViId: string; donViKienThuc: string; idx: number;
+    aiType: AiBucketType; level: CognitiveLevel; grade: string; donViId: string; donViKienThuc: string;
+    nangLucId?: string | null; idx: number;
   }): Question => {
     const id = `ai-gen-${Date.now()}-${ctx.idx}-${Math.random().toString(36).slice(2, 7)}`;
     const base: Question = {
       id, code: `AI-${ctx.idx + 1}`, text: aiQ.text, type: ctx.aiType, level: ctx.level, status: 'pending',
       subject: selectedSubject!.name, grade: ctx.grade, topicId: ctx.donViId, topicName: ctx.donViKienThuc || '',
+      nangLucId: ctx.nangLucId || undefined,
       creator: 'SmartTest AI Generator', createdAt: new Date().toISOString(),
     };
     if (ctx.aiType === 'true_false') {
@@ -412,7 +414,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           const level = atom.levelSlug ?? mapAiLevelToCognitive(aiQ.level);
           const q = buildQuestionFromAi(aiQ, {
             aiType: atom.aiType, level, grade: atom.grade,
-            donViId: atom.donViId, donViKienThuc: atom.donViKienThuc, idx: generated.length,
+            donViId: atom.donViId, donViKienThuc: atom.donViKienThuc, nangLucId: atom.nangLucId, idx: generated.length,
           });
           generated.push(q);
           foundIdsByKey.get(cellWorkKey(atom))!.push(q.id);
@@ -722,18 +724,29 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       }
       const newExamId = examJson.data.id;
       for (const q of genQuestions) {
+        // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
+        // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
+        // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
         await questionApi.create({
           text: q.text,
           type: q.type,
           level: q.level,
           subject: selectedSubject.name,
           grade: q.grade || EXAM_GRADE_LABEL,
+          topicId: q.topicId || undefined,
+          topicName: q.topicName || undefined,
+          subTopicName: q.subTopicName || undefined,
           options: q.options,
           correctAnswer: q.correctAnswer,
           statements: q.statements,
           status: 'pending',
           examId: newExamId,
-        });
+          creator: q.creator,
+          competencyComponentId: q.nangLucId,
+          // 'ai_exam' — sinh cả đề bằng AI, ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi
+          // (khác 'ai_bank' — sinh bằng AI ngay trong màn Ngân hàng câu hỏi, vẫn hiện bình thường).
+          source: 'ai_exam',
+        } as any);
       }
       toast.success('AI đã sinh và lưu đề thi thành công!');
       onSuccess();
