@@ -171,18 +171,32 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     });
   }, [exams, examSearch, examSubject, examGrade, examStatus]);
 
+  // Đề hoán vị (tạo từ ModalSinhDeHoanVi) CŨNG lưu source='ai' giống hệt đề gốc sinh bằng AI
+  // (ModalTaoDeTuDong > "Theo AI") — 2 trường hợp này không phân biệt được bằng `source`. Cách duy
+  // nhất để nhận diện đúng "đề hoán vị" (không phải đề gốc): nó luôn được thêm vào 1 gói đề với
+  // examIds = [đề_gốc, ...các_đề_hoán_vị] (xem handleSavePackage) — tức nằm ở vị trí > 0 trong
+  // examIds của gói. Đề gốc THẬT (kể cả sinh bằng AI) không bao giờ ở vị trí này.
+  const variantExamIds = useMemo(() => {
+    const set = new Set<string>();
+    packages.forEach((pkg: any) => {
+      const ids: string[] = pkg.examIds || [];
+      ids.slice(1).forEach(id => set.add(id));
+    });
+    return set;
+  }, [packages]);
+
   const filteredExamRoots = useMemo(() => {
     const kw = examSearch.trim().toLowerCase();
     return exams.filter(e => {
-      const isRoot = e.source !== 'ai';
+      const isRoot = !variantExamIds.has(e.id);
       const matchesSearch = (e.name || '').toLowerCase().includes(kw) || (e.code || '').toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' 
+      const matchesSubject = examSubject === 'all'
         ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
         : e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
       return isRoot && matchesSearch && matchesSubject && matchesStatus;
     });
-  }, [exams, examSearch, examSubject, examStatus]);
+  }, [exams, variantExamIds, examSearch, examSubject, examStatus]);
 
   const filteredExamReview = useMemo(() => {
     return exams.filter(e => {
@@ -479,6 +493,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
 
   // Chỉ cho sửa đề khi chưa "Đã thẩm định" (Nháp / Chờ thẩm định / Từ chối) — đề đã thẩm định coi như chốt.
   const canEditExam = (status: string) => !['3', 'approved', 'active'].includes(status);
+
+  // Chỉ cho sinh đề hoán vị khi đề gốc đã "Đã thẩm định" — nội dung câu hỏi lúc đó mới coi như chốt,
+  // hoán vị dựa trên đề chưa thẩm định thì nội dung có thể còn thay đổi.
+  const canGenerateVariant = (status: string) => ['3', 'approved', 'active'].includes(status);
 
   // Dropdown actions generator
   const getActionMenuItems = (exam: any) => {
@@ -848,7 +866,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                               onClick={() => { setSelectedExam(row); setIsDeRiengLeOpen(true); }} className="cursor-pointer" />
                           </Tooltip>
                         )}
-                        {hasActionPermission(currentUser, 'exams.generate_variants') && (
+                        {canGenerateVariant(row.status) && hasActionPermission(currentUser, 'exams.generate_variants') && (
                           <Tooltip title="Sinh đề hoán vị">
                             <Button size="small" type="text" icon={<RetweetOutlined className="text-[#2c3e9e]" />}
                               onClick={() => { setSelectedExam(row); setIsSinhHoanViOpen(true); }} className="cursor-pointer" />

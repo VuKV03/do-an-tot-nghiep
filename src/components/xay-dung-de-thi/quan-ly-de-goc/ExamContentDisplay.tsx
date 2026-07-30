@@ -14,6 +14,15 @@ interface ExamContentDisplayProps {
   regeneratingIndex?: number | null;
 }
 
+// Nhóm câu hỏi theo đúng cấu trúc 3 Phần của đề thi tốt nghiệp THPT (Thông tư 22/2024) thay vì liệt
+// kê lẫn lộn "Câu 1, Câu 2, ..." theo thứ tự sinh/chọn — mỗi Phần đánh số lại từ "Câu 1". Câu hỏi
+// không khớp 3 loại này (vd 'multiple' — câu hỏi nhóm) gộp vào 1 mục phụ ở cuối, không bị bỏ sót.
+const PART_META: { type: string; header: string }[] = [
+  { type: 'single', header: 'Phần I: Trắc nghiệm 1 lựa chọn' },
+  { type: 'true_false', header: 'Phần II: Trắc nghiệm Đúng/Sai' },
+  { type: 'short', header: 'Phần III: Trắc nghiệm trả lời ngắn' },
+];
+
 export default function ExamContentDisplay({
   questions = [],
   onReplaceQuestion,
@@ -40,22 +49,17 @@ export default function ExamContentDisplay({
     }
   };
 
-  return (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2" id="exam-questions-content-display">
-      {questions.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 bg-slate-50 border border-dashed rounded-lg">
-          <FileTextOutlined className="text-3xl mb-2 text-slate-350" />
-          <p className="text-xs">Không có câu hỏi nào trong đề thi này.</p>
-        </div>
-      ) : (
-        questions.map((q, idx) => {
-          const isRegenerating = regeneratingIndex === idx;
-          const isBusyWithAnother = regeneratingIndex !== null && regeneratingIndex !== idx;
+  // idx = vị trí THẬT trong mảng `questions` gốc (bắt buộc giữ nguyên để onEditQuestion/
+  // onReplaceQuestion/regeneratingIndex trỏ đúng phần tử) — displayNumber = số thứ tự "Câu N" hiển
+  // thị, đánh số lại từ 1 trong PHẠM VI của từng Phần, không dùng idx trực tiếp để hiển thị.
+  const renderQuestionCard = (q: any, idx: number, displayNumber: number) => {
+    const isRegenerating = regeneratingIndex === idx;
+    const isBusyWithAnother = regeneratingIndex !== null && regeneratingIndex !== idx;
 
-          // Check if group question GRP (has sub-questions) or regular question
-          const isGroup = q.type === 'GRP' || q.isGroup || Array.isArray(q.subQuestions);
+    // Check if group question GRP (has sub-questions) or regular question
+    const isGroup = q.type === 'GRP' || q.isGroup || Array.isArray(q.subQuestions);
 
-          return (
+    return (
             <Card
               key={q.id || idx}
               size="small"
@@ -63,7 +67,7 @@ export default function ExamContentDisplay({
               title={
                 <div className="flex justify-between items-center w-full py-1">
                   <span className="font-semibold text-slate-800 text-xs uppercase tracking-wide">
-                    Câu {idx + 1} {isGroup && <Tag color="purple" className="rounded ml-1 text-[9px] uppercase border-transparent">CÂU HỎI NHÓM</Tag>}
+                    Câu {displayNumber} {isGroup && <Tag color="purple" className="rounded ml-1 text-[9px] uppercase border-transparent">CÂU HỎI NHÓM</Tag>}
                   </span>
                   <Space size={8}>
                     {getLevelTag(q.level)}
@@ -125,7 +129,7 @@ export default function ExamContentDisplay({
                     {q.subQuestions.map((subQ: any, subIdx: number) => (
                       <div key={subQ.id || subIdx} className="space-y-2">
                         <div className="font-medium text-slate-800 flex gap-1">
-                          <span className="shrink-0">{idx + 1}.{subIdx + 1}:</span>
+                          <span className="shrink-0">{displayNumber}.{subIdx + 1}:</span>
                           <RichTextView html={subQ.text} />
                         </div>
                         {Array.isArray(subQ.options) && subQ.options.length > 0 && (
@@ -194,8 +198,38 @@ export default function ExamContentDisplay({
 
               </div>
             </Card>
-          );
-        })
+    );
+  };
+
+  // Gom theo idx GỐC (giữ nguyên để callback trỏ đúng phần tử), nhóm theo Phần I/II/III; loại nào
+  // không khớp 3 loại AI hỗ trợ (vd 'multiple' — câu hỏi nhóm) dồn vào 1 mục phụ ở cuối, không mất.
+  const withIndex = questions.map((q, idx) => ({ q, idx }));
+  const groups = PART_META.map(part => ({
+    header: part.header,
+    items: withIndex.filter(({ q }) => q.type === part.type),
+  })).filter(g => g.items.length > 0);
+  const knownTypes = new Set(PART_META.map(p => p.type));
+  const otherItems = withIndex.filter(({ q }) => !knownTypes.has(q.type));
+  if (otherItems.length > 0) groups.push({ header: 'Câu hỏi khác', items: otherItems });
+
+  return (
+    <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2" id="exam-questions-content-display">
+      {questions.length === 0 ? (
+        <div className="text-center py-12 text-slate-400 bg-slate-50 border border-dashed rounded-lg">
+          <FileTextOutlined className="text-3xl mb-2 text-slate-350" />
+          <p className="text-xs">Không có câu hỏi nào trong đề thi này.</p>
+        </div>
+      ) : (
+        groups.map(group => (
+          <div key={group.header}>
+            <div className="text-xs font-bold text-[#1a3c8b] uppercase tracking-wide mb-2 pb-1 border-b border-slate-200">
+              {group.header}
+            </div>
+            <div className="space-y-4">
+              {group.items.map(({ q, idx }, localIdx) => renderQuestionCard(q, idx, localIdx + 1))}
+            </div>
+          </div>
+        ))
       )}
     </div>
   );

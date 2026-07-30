@@ -71,6 +71,20 @@ def _clean_generated_questions(questions: list) -> list:
     return cleaned
 
 
+def _is_valid_short_answer(q: dict) -> bool:
+    """
+    Đáp án Phần III (trả lời ngắn) BẮT BUỘC 1-4 ký tự theo đúng khung trả lời của đề thi tốt nghiệp
+    THPT (Thông tư 22/2024 — số nguyên/thập phân, tối đa 4 ký tự kể cả dấu phẩy/dấu trừ). Câu nào
+    đáp án ngoài phạm vi này bị loại khỏi kết quả trả về thay vì lưu nhầm câu hỏi sai định dạng vào
+    đề — FE coi cell đó là "chưa sinh đủ" và có thể bấm "Sinh tiếp"/"Sinh lại" như các trường hợp
+    thiếu câu khác (xem runBucketAI ở ModalTaoDeTuDong.tsx), không cần xử lý gì thêm ở FE.
+    """
+    if q.get("type") != "short":
+        return True
+    ans = str(q.get("correctAnswer") or "").strip()
+    return 1 <= len(ans) <= 4
+
+
 @router.post("/suggest")
 async def suggest_exam_info(body: SuggestInfoRequest):
     """Gợi ý thông số cấu hình đề thi (tiêu đề, thời gian, mô tả)."""
@@ -132,7 +146,11 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
             "(Thông tư 22/2024): câu hỏi yêu cầu tính toán hoặc suy luận ra một đáp số/từ khóa ngắn gọn "
             "(không phải trắc nghiệm nhiều lựa chọn).\n\n"
             "Quy tắc:\n"
-            "- 'correctAnswer' là đáp số chính xác, ngắn gọn.\n"
+            "- 'correctAnswer' BẮT BUỘC là chuỗi từ 1 đến 4 ký tự (kể cả dấu phẩy thập phân hoặc "
+            "dấu trừ nếu có), đúng theo khung trả lời của đề thi tốt nghiệp THPT — ví dụ hợp lệ: "
+            "'5', '-3', '12', '3,5', '0,25'. TUYỆT ĐỐI KHÔNG vượt quá 4 ký tự và KHÔNG để trống; "
+            "nếu đáp số thật dài hơn 4 ký tự, phải chọn số liệu trong đề bài sao cho đáp số rút "
+            "gọn về đúng phạm vi 1-4 ký tự.\n"
             "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
             "- 'type': luôn là 'short'.\n"
             f"{_PLAIN_TEXT_RULES}"
@@ -180,6 +198,7 @@ async def generate_questions(body: GenerateQuestionsRequest):
 
         data = json.loads(response_text.strip())
         questions = _clean_generated_questions(data.get("questions", []))
+        questions = [q for q in questions if _is_valid_short_answer(q)]
         return {"success": True, "questions": questions}
 
     except ValueError as e:
@@ -235,7 +254,11 @@ def _build_batch_generation_prompt(body: GenerateQuestionsBatchRequest) -> tuple
             "(không phải trắc nghiệm nhiều lựa chọn).\n\n"
             "Quy tắc:\n"
             "- 'groupIndex': số nguyên, đúng bằng groupIndex của nhóm câu hỏi này thuộc về.\n"
-            "- 'correctAnswer' là đáp số chính xác, ngắn gọn.\n"
+            "- 'correctAnswer' BẮT BUỘC là chuỗi từ 1 đến 4 ký tự (kể cả dấu phẩy thập phân hoặc "
+            "dấu trừ nếu có), đúng theo khung trả lời của đề thi tốt nghiệp THPT — ví dụ hợp lệ: "
+            "'5', '-3', '12', '3,5', '0,25'. TUYỆT ĐỐI KHÔNG vượt quá 4 ký tự và KHÔNG để trống; "
+            "nếu đáp số thật dài hơn 4 ký tự, phải chọn số liệu trong đề bài sao cho đáp số rút "
+            "gọn về đúng phạm vi 1-4 ký tự.\n"
             "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
             "- 'type': luôn là 'short'.\n"
             f"{_PLAIN_TEXT_RULES}"
@@ -289,6 +312,7 @@ async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
 
         data = json.loads(response_text.strip())
         questions = _clean_generated_questions(data.get("questions", []))
+        questions = [q for q in questions if _is_valid_short_answer(q)]
         return {"success": True, "questions": questions}
 
     except HTTPException:

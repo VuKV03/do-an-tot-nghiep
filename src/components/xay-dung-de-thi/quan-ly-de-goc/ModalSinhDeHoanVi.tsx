@@ -349,12 +349,17 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             return { code, examId: null as string | null };
           }
           const newExamId = examJson.data.id;
+          // grade PHẢI lấy từ chính câu hỏi (q.grade — khối lớp thật, vd "Lớp 12"), KHÔNG dùng
+          // exam.grade — đó chỉ là nhãn "THPT" cố định gắn cho đề (đề trải cả 3 khối 10/11/12, xem
+          // EXAM_GRADE_LABEL ở ModalDeRiengLe.tsx/ModalTaoDeTuDong.tsx), không phải khối lớp thật.
+          // Backend fuzzy-match grade theo danh mục GradeLevel thật ("Lớp 10/11/12"), "THPT" không
+          // khớp bất kỳ khối nào nên trước đây MỌI câu hỏi đều bị 400 khi lưu đề hoán vị.
           await Promise.all(variantQuestions.map(q => questionApi.create({
             text: q.text,
             type: q.type,
             level: q.level,
             subject: exam.subject,
-            grade: exam.grade,
+            grade: q.grade || exam.grade,
             options: q.options,
             correctAnswer: q.correctAnswer,
             statements: q.statements,
