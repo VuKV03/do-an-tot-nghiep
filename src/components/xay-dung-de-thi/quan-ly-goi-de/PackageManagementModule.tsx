@@ -272,25 +272,34 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     }
   };
 
-  const handleDeletePackage = (id: string, name: string) => {
+  const handleDeletePackage = (pkg: any) => {
+    const isActive = pkg.status === 'active';
+
     Modal.confirm({
-      title: `Xác nhận xóa gói đề: "${name}"?`,
+      title: isActive
+        ? `Cảnh báo: Gói đề "${pkg.name}" đang được phát thi!`
+        : `Xác nhận xóa gói đề: "${pkg.name}"?`,
+      content: isActive
+        ? 'Việc xóa gói đề đang phát thi có thể ảnh hưởng nghiêm trọng đến kỳ thi đang diễn ra. Bạn có chắc chắn muốn xóa (làm mất toàn bộ dữ liệu thi của thí sinh đang thi)?'
+        : undefined,
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
       centered: true,
       onOk: async () => {
-        setActioning({ id, kind: 'delete' });
+        setActioning({ id: pkg.id, kind: 'delete' });
         try {
-          const res = await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/exams/packages/${pkg.id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
-            setSelectedPkgIds(prev => prev.filter(x => x !== id));
+            setSelectedPkgIds(prev => prev.filter(x => x !== pkg.id));
             fetchData();
+          } else {
+            toast.error(json.error || 'Không thể xóa gói đề.');
           }
         } catch {
-          toast.error('Không thể xóa gói đề.');
+          toast.error('Lỗi kết nối khi xóa gói đề.');
         } finally {
           setActioning(null);
         }
@@ -300,9 +309,22 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
 
   const handleBatchDelete = () => {
     if (selectedPkgIds.length === 0) return;
+
+    const selectedPackages = packages.filter(p => selectedPkgIds.includes(p.id));
+    const invalidPackages = selectedPackages.filter(p => !['2', 'pending', '3', 'approved', 'inactive', 'active'].includes(p.status));
+
+    if (invalidPackages.length > 0) {
+      toast.error('Chỉ được xóa các gói đề ở trạng thái: Chờ thẩm định, Đã thẩm định, Ngừng phát hoặc Đang phát.');
+      return;
+    }
+
+    const hasActive = selectedPackages.some(p => p.status === 'active');
+
     Modal.confirm({
       title: `Xác nhận xóa ${selectedPkgIds.length} gói đề đã chọn?`,
-      content: 'Hành động này sẽ gỡ bỏ vĩnh viễn các gói đề được chọn.',
+      content: hasActive
+        ? 'Trong danh sách chọn có chứa gói đề ĐANG PHÁT. Việc xóa có thể ảnh hưởng đến kỳ thi. Bạn có chắc chắn muốn xóa?'
+        : 'Hành động này sẽ gỡ bỏ vĩnh viễn các gói đề được chọn.',
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
@@ -691,20 +713,15 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                                 onClick={() => handleDownloadPackage(row)} className="cursor-pointer" />
                             </Tooltip>
                           )}
-                          {hasActionPermission(currentUser, 'exams.manage') && (
-                            <Popconfirm
-                              title={`Xóa gói đề "${row.name}"?`}
-                              okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}
-                              onConfirm={() => handleDeletePackage(row.id, row.name)}
-                            >
-                              <Tooltip title="Xóa">
-                                <Button
-                                  size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
-                                  loading={actioning?.id === row.id && actioning.kind === 'delete'}
-                                  disabled={actioning !== null && actioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
+                          {hasActionPermission(currentUser, 'exams.manage') && ['2', 'pending', '3', 'approved', 'inactive', 'active'].includes(row.status) && (
+                            <Tooltip title="Xóa">
+                              <Button
+                                size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                onClick={() => handleDeletePackage(row)}
+                                loading={actioning?.id === row.id && actioning.kind === 'delete'}
+                                disabled={actioning !== null && actioning.id !== row.id}
+                              />
+                            </Tooltip>
                           )}
                         </Space>
                       </td>

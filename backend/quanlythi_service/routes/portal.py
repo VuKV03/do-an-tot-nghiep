@@ -238,6 +238,7 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
         select(exam_models.Question, exam_models.QuestionType)
         .outerjoin(exam_models.QuestionType, exam_models.Question.type_id == exam_models.QuestionType.id)
         .where(exam_models.Question.exam_id == exam.id)
+        .order_by(exam_models.Question.line_number.asc())
     )
     questions_rows = q_result.all()
     questions_list = []
