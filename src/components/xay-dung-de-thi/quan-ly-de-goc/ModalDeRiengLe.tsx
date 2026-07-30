@@ -262,8 +262,8 @@ export default function ModalDeRiengLe({
         </Button>,
       ]}
       centered
-      width="80vw"
-      styles={{ body: { padding: 0, height: 'calc(80vh - 110px)', overflow: 'hidden' } }}
+      width="95vw"
+      styles={{ body: { padding: 0, height: 'calc(95vh - 110px)', overflow: 'hidden' } }}
       destroyOnHidden
     >
       <div className="flex" style={{ height: '100%' }}>

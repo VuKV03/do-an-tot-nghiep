@@ -206,8 +206,8 @@ export default function ModalChonCauHoi({
       title={<span className="font-bold text-sm text-[#1a3c8b]">{title || defaultTitle}</span>}
       open={open}
       onCancel={onCancel}
-      width="80vw"
-      styles={{ body: { height: 'calc(80vh - 110px)', overflow: 'hidden' } }}
+      width="95vw"
+      styles={{ body: { height: 'calc(95vh - 110px)', overflow: 'hidden' } }}
       centered
       footer={[
         <Button key="close" onClick={onCancel} className="rounded font-semibold text-xs">Đóng</Button>,
