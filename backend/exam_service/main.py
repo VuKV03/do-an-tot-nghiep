@@ -245,6 +245,104 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error migrating matrix_configs.subject -> subject_id: {e}")
 
+    # Migration: chuẩn hoá quan hệ gói đề ⟷ đề thi thành bảng trung gian `package_exams` có khóa
+    # ngoại thật (packages.examIds trước đây chỉ là 1 cột TEXT chứa JSON string, vd '["exam-1",...]'
+    # — không có ràng buộc gì ở tầng DB: không JOIN được, và có thể trỏ tới 1 exam đã bị xóa mà không
+    # ai biết). `package_exams` là bảng MỚI HOÀN TOÀN nên create_all() ở trên đã tự tạo đủ FK +
+    # ON DELETE CASCADE ngay từ đầu (không cần ALTER TABLE ADD CONSTRAINT như case cột thêm sau vào
+    # bảng đã tồn tại) — bước này chỉ cần BACKFILL dữ liệu từ examIds cũ sang rồi xoá cột cũ.
+    try:
+        async with engine.begin() as conn:
+            old_col_check = await conn.execute(text("SHOW COLUMNS FROM packages LIKE 'examIds'"))
+            if old_col_check.fetchone():
+                rows = (await conn.execute(text(
+                    "SELECT id, examIds FROM packages WHERE examIds IS NOT NULL"
+                ))).fetchall()
+                migrated_count = 0
+                skipped_count = 0
+                for pkg_id, exam_ids_json in rows:
+                    try:
+                        exam_ids = json.loads(exam_ids_json) if exam_ids_json else []
+                    except (json.JSONDecodeError, TypeError):
+                        exam_ids = []
+                    for position, exam_id in enumerate(exam_ids):
+                        # exam_id "ma" (đề đã bị xóa từ trước, JSON cũ không hề hay biết) — có FK thật
+                        # thì KHÔNG thể insert dòng này; bỏ qua lặng lẽ còn hơn để migration crash.
+                        exam_exists = await conn.execute(
+                            text("SELECT 1 FROM exams WHERE id = :eid"), {"eid": exam_id}
+                        )
+                        if not exam_exists.fetchone():
+                            skipped_count += 1
+                            continue
+                        await conn.execute(
+                            text(
+                                "INSERT IGNORE INTO package_exams (package_id, exam_id, position) "
+                                "VALUES (:pid, :eid, :pos)"
+                            ),
+                            {"pid": pkg_id, "eid": exam_id, "pos": position},
+                        )
+                        migrated_count += 1
+                print(
+                    f"[Exam Service] ✅ Migrated {migrated_count} package-exam links from "
+                    f"packages.examIds JSON into package_exams"
+                    + (f" ({skipped_count} bỏ qua vì exam_id không còn tồn tại)." if skipped_count else ".")
+                )
+
+                await conn.execute(text("ALTER TABLE packages DROP COLUMN examIds;"))
+                print("[Exam Service] ✅ Dropped legacy 'examIds' JSON column from packages.")
+            else:
+                print("[Exam Service] ✅ 'examIds' column already migrated/removed from packages table.")
+    except Exception as e:
+        print(f"[Exam Service] Error migrating packages.examIds -> package_exams: {e}")
+
+    # Migration: thêm ràng buộc khóa ngoại thật cho packages.matrix_id -> matrix_configs.id — bảng
+    # packages đã tồn tại từ trước nên create_all() không tự thêm được (cùng lý do đã giải thích ở
+    # migration matrix_configs.subject_id phía trên).
+    try:
+        async with engine.begin() as conn:
+            fk_check = await conn.execute(text(
+                """
+                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'packages'
+                  AND COLUMN_NAME = 'matrix_id' AND REFERENCED_TABLE_NAME = 'matrix_configs'
+                """
+            ))
+            if not fk_check.fetchone():
+                # matrix_id chỉ dùng để gắn nhãn/lọc gói đề (không ảnh hưởng logic sinh đề hoán vị —
+                # xem PackageCreate.matrix_id ở schemas.py), nên an toàn để dọn NULL các giá trị mồ
+                # côi (ma trận đã bị xóa) rồi mới thêm ràng buộc, thay vì bỏ qua hẳn như cách xử lý
+                # thận trọng hơn ở migration subject_id (đó là dữ liệu nghiệp vụ chính, không tự dọn).
+                orphan_check = await conn.execute(text(
+                    """
+                    SELECT COUNT(*) FROM packages p
+                    WHERE p.matrix_id IS NOT NULL
+                      AND NOT EXISTS (SELECT 1 FROM matrix_configs mc WHERE mc.id = p.matrix_id)
+                    """
+                ))
+                orphan_count = (orphan_check.fetchone() or [0])[0]
+                if orphan_count:
+                    await conn.execute(text(
+                        """
+                        UPDATE packages p
+                        SET p.matrix_id = NULL
+                        WHERE p.matrix_id IS NOT NULL
+                          AND NOT EXISTS (SELECT 1 FROM matrix_configs mc WHERE mc.id = p.matrix_id)
+                        """
+                    ))
+                    print(f"[Exam Service] ⚠️ Đã dọn {orphan_count} packages.matrix_id mồ côi (ma trận không còn tồn tại) về NULL.")
+                await conn.execute(text(
+                    """
+                    ALTER TABLE packages
+                    ADD CONSTRAINT fk_packages_matrix
+                    FOREIGN KEY (matrix_id) REFERENCES matrix_configs(id) ON DELETE SET NULL
+                    """
+                ))
+                print("[Exam Service] ✅ Added real FOREIGN KEY constraint on packages.matrix_id -> matrix_configs.id.")
+            else:
+                print("[Exam Service] ✅ FOREIGN KEY constraint on packages.matrix_id already exists.")
+    except Exception as e:
+        print(f"[Exam Service] Error adding FK constraint on packages.matrix_id: {e}")
+
     # Migration: add 'created_at' column to questions table if not exists — trước đây bảng
     # không có cột này nên API luôn trả về _now() (giờ hiện tại) thay vì ngày tạo thật, làm
     # "Ngày tạo" hiển thị tự nhảy theo ngày hôm nay. Câu hỏi cũ (đã tồn tại trước migration
