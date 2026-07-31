@@ -340,7 +340,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       id, code: `AI-${ctx.idx + 1}`, text: aiQ.text, type: ctx.aiType, level: ctx.level, status: 'pending',
       subject: selectedSubject!.name, grade: ctx.grade, topicId: ctx.donViId, topicName: ctx.donViKienThuc || '',
       nangLucId: ctx.nangLucId || undefined,
-      creator: 'SmartTest AI Generator', createdAt: new Date().toISOString(),
+      creator: 'AI', createdAt: new Date().toISOString(),
     };
     if (ctx.aiType === 'true_false') {
       const rawStatements: { content: string; isCorrect: boolean }[] = aiQ.statements || [];

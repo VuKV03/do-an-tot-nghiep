@@ -92,7 +92,10 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [searchSubject, setSearchSubject] = useState('');
   const [searchGrade, setSearchGrade] = useState<string[]>([]);
   const [searchParent, setSearchParent] = useState('Tất cả');
-  const [searchStatus, setSearchStatus] = useState('Chờ thẩm định');
+  // Mặc định "Tất cả" — hiện đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ
+  // chối, "Tạo mới"/draft đã bị loại từ base filter ở filteredTree bên dưới), trước đây mặc định
+  // lọc cứng "Chờ thẩm định" khiến chủ đề đã thẩm định xong biến mất khỏi tab này.
+  const [searchStatus, setSearchStatus] = useState('Tất cả');
   const [filterDates, setFilterDates] = useState<any>(null);
 
   const parentTopicsOptions = useMemo(() => {

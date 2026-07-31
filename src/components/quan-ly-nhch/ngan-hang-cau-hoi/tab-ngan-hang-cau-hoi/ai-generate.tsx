@@ -341,7 +341,7 @@ export default function AIGenerateQuestionModal({
           topicName: topicLabel,
           subTopicName: subTopicLabel,
           nangLucId: values.nangLuc,
-          creator: 'SmartTest AI Generator',
+          creator: 'AI',
           createdAt: new Date().toISOString(),
         };
 

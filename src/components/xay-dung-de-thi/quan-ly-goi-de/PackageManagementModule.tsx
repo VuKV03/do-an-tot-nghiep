@@ -203,10 +203,14 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   }, [packages, pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
 
   const filteredReviewPackages = useMemo(() => {
+    // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
+    // lọc "pending", ẩn mất các gói đã thẩm định xong khỏi tab này. "draft"/"1" (Nháp, chưa gửi
+    // thẩm định) vẫn cố tình loại trừ — khớp getStatusTag/getStatusLabel ở trên.
+    const REVIEWABLE_STATUSES = ['pending', '2', 'approved', '3', 'rejected', '4'];
     return packages.filter(p => {
-      const isPending = p.status === 'pending' || p.status === '2';
+      const isReviewable = REVIEWABLE_STATUSES.includes(p.status);
       const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === p.subject);
-      return isPending && isAllowedSubject;
+      return isReviewable && isAllowedSubject;
     });
   }, [packages, isSubjectRestricted, subjects]);
 
