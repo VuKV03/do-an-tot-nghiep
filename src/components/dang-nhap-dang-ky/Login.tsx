@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Tabs, Alert, message, Card, ConfigProvider, theme } from 'antd';
+import { Form, Input, Button, Tabs, Alert, message, ConfigProvider } from 'antd';
 import {
   UserOutlined,
   LockOutlined,
-  MailOutlined,
   GlobalOutlined,
   ArrowRightOutlined,
   KeyOutlined,
   TeamOutlined,
-  SolutionOutlined,
   SafetyCertificateOutlined
 } from '@ant-design/icons';
 import { SystemUser } from '../../types';
@@ -27,8 +25,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   // Test accounts list for quick access
   const demoAccounts = [
     { username: 'admin', display: 'Quản trị viên (admin)', pass: 'admin123', role: 'admin' },
-    { username: 'teacher01', display: 'Giáo viên (dungnv)', pass: 'teacher123', role: 'teacher' },
-    { username: 'trangpt', display: 'Thẩm định viên (trangpt)', pass: 'admin123', role: 'reviewer' },
+    { username: 'ngandh', display: 'Giáo viên (ngandh)', pass: 'DGyYLGNcs!', role: 'teacher' },
+    { username: 'toantt', display: 'Thẩm định viên (toantt)', pass: 'JACDUi2btq', role: 'reviewer' },
   ];
 
   const handleDemoClick = (account: typeof demoAccounts[0]) => {
@@ -274,96 +272,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                             className="w-full h-11 bg-blue-600 hover:bg-blue-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
                           >
                             XÁC NHẬN VÀO HỆ THỐNG <ArrowRightOutlined />
-                          </Button>
-                        </Form.Item>
-                      </Form>
-                    )
-                  },
-                  {
-                    key: 'register',
-                    label: <span className="font-bold text-xs select-none">ĐĂNG KÝ MỚI</span>,
-                    children: (
-                      <Form
-                        form={registerForm}
-                        name="register_form"
-                        layout="vertical"
-                        onFinish={onFinishRegister}
-                        requiredMark={false}
-                        initialValues={{ role: 'teacher' }}
-                        className="pt-4 space-y-4"
-                      >
-                        <Form.Item
-                          name="username"
-                          rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập mong muốn!' }]}
-                        >
-                          <Input
-                            prefix={<UserOutlined className="text-slate-500" />}
-                            placeholder="Tên đăng nhập viết liền không dấu"
-                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                          />
-                        </Form.Item>
-
-                        <Form.Item
-                          name="fullName"
-                          rules={[{ required: true, message: 'Vui lòng nhập họ và tên của bạn!' }]}
-                        >
-                          <Input
-                            prefix={<SolutionOutlined className="text-slate-500" />}
-                            placeholder="Họ và tên đầy đủ"
-                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                          />
-                        </Form.Item>
-
-                        <Form.Item
-                          name="email"
-                          rules={[
-                            { required: true, message: 'Vui lòng nhập email!' },
-                            { type: 'email', message: 'Email không hợp lệ!' }
-                          ]}
-                        >
-                          <Input
-                            prefix={<MailOutlined className="text-slate-500" />}
-                            placeholder="Địa chỉ Email nhận tin"
-                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                          />
-                        </Form.Item>
-
-                        <Form.Item
-                          name="password"
-                          rules={[
-                            { required: true, message: 'Vui lòng nhập mật khẩu đăng ký!' },
-                            { min: 6, message: 'Mật khẩu phải chứa ít nhất 6 ký tự!' }
-                          ]}
-                        >
-                          <Input.Password
-                            prefix={<LockOutlined className="text-slate-500" />}
-                            placeholder="Mật khẩu tối thiểu 6 ký tự"
-                            className="h-11 bg-slate-950/80 border-slate-800 text-white rounded-xl placeholder-slate-500 hover:border-slate-700 focus:border-blue-500 text-xs focus:bg-slate-950"
-                          />
-                        </Form.Item>
-
-                        <Form.Item
-                          name="role"
-                          label={<span className="text-slate-300 text-[10px] font-bold uppercase">Vai trò tác vụ của tài khoản</span>}
-                          rules={[{ required: true }]}
-                        >
-                          <select
-                            className="w-full h-11 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 hover:border-slate-700 focus:border-blue-500 text-xs font-semibold outline-none cursor-pointer"
-                          >
-                            <option value="teacher">Giáo viên bộ môn (Soạn câu hỏi, đề thi)</option>
-                            <option value="reviewer">Chuyên gia giám định (Thẩm định câu hỏi)</option>
-                            <option value="admin">Quản trị viên (Quản trị hệ thống)</option>
-                          </select>
-                        </Form.Item>
-
-                        <Form.Item className="pt-2">
-                          <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={loading}
-                            className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 border-none text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            ĐĂNG KÝ TÀI KHOẢN MỚI <ArrowRightOutlined />
                           </Button>
                         </Form.Item>
                       </Form>
