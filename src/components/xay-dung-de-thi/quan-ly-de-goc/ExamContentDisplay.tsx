@@ -15,7 +15,7 @@ interface ExamContentDisplayProps {
   regeneratingIndex?: number | null;
 }
 
-export default function ExamContentDisplay({
+function ExamContentDisplay({
   questions = [],
   onReplaceQuestion,
   onFindSimilar,
@@ -233,3 +233,17 @@ export default function ExamContentDisplay({
     </div>
   );
 }
+
+// Danh sách câu hỏi có thể khá dài (nhiều câu + công thức toán render qua KaTeX, tốn công render) —
+// component cha thường có thêm state khác không liên quan (vd ô nhập "Tên đề thi" ở ModalTaoDeTuDong.tsx)
+// khiến parent re-render liên tục khi gõ phím. Không memo thì MỖI phím gõ đều render lại TOÀN BỘ danh
+// sách câu hỏi dù nội dung không đổi — đây chính là nguyên nhân gõ vào ô Tên đề thi/Mã đề bị lag/delay.
+// So sánh CHỈ questions/regeneratingIndex/allowEdit (bỏ qua danh tính hàm callback, vốn bị tạo mới mỗi
+// lần render dù logic bên trong không đổi) — an toàn vì bất cứ khi nào dữ liệu callback cần đọc thực sự
+// đổi (câu hỏi, đang sinh lại câu nào,...) thì `questions`/`regeneratingIndex` cũng đổi theo, tự kích
+// render lại với callback mới nhất.
+export default React.memo(ExamContentDisplay, (prev, next) =>
+  prev.questions === next.questions &&
+  prev.regeneratingIndex === next.regeneratingIndex &&
+  prev.allowEdit === next.allowEdit
+);
