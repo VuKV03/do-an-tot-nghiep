@@ -92,7 +92,7 @@ async def list_topics(db: AsyncSession = Depends(get_db)):
 
 @router.post("/", status_code=201)
 async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
-    """Tạo chủ đề mới (trạng thái mặc định: 0 - Tạo mới)."""
+    """Tạo chủ đề mới (trạng thái mặc định: 0 - Lưu nháp)."""
     # Validate trùng mã
     existing = await db.execute(select(Topic).where(Topic.code == body.code))
     if existing.scalars().first():
@@ -105,7 +105,7 @@ async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
         name=body.name,
         subject_id=body.subject_id,
         grade_id=body.grade_id,
-        status=0,  # 0: Tạo mới
+        status=0,  # 0: Lưu nháp
         created_by=body.created_by or _DEFAULT_ACTOR,
         created_at=_now(),
         submitted_by=None,

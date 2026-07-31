@@ -93,7 +93,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [searchGrade, setSearchGrade] = useState<string[]>([]);
   const [searchParent, setSearchParent] = useState('Tất cả');
   // Mặc định "Tất cả" — hiện đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ
-  // chối, "Tạo mới"/draft đã bị loại từ base filter ở filteredTree bên dưới), trước đây mặc định
+  // chối, "Lưu nháp"/draft đã bị loại từ base filter ở filteredTree bên dưới), trước đây mặc định
   // lọc cứng "Chờ thẩm định" khiến chủ đề đã thẩm định xong biến mất khỏi tab này.
   const [searchStatus, setSearchStatus] = useState('Tất cả');
   const [filterDates, setFilterDates] = useState<any>(null);
@@ -233,23 +233,27 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
     checkStrictly: true,
   };
 
+  // Độ rộng cố định (khớp chu-de-cau-hoi/index.tsx::getTrangThaiTag) để viền bao quanh 3 trạng thái
+  // luôn bằng nhau bất kể độ dài chữ, thay vì tự co theo nội dung như trước.
+  const STATUS_BADGE_BASE = "inline-flex items-center justify-center w-[130px] px-3 py-1 rounded border text-sm font-medium";
+
   const getStatusBadge = (status: 'approved' | 'rejected' | 'pending') => {
     switch (status) {
       case 'approved':
         return (
-          <span className="px-3 py-1 rounded border border-emerald-400 text-emerald-600 bg-emerald-50 text-sm font-medium">
+          <span className={`${STATUS_BADGE_BASE} border-emerald-400 text-emerald-600 bg-emerald-50`}>
             Đã thẩm định
           </span>
         );
       case 'rejected':
         return (
-          <span className="px-3 py-1 rounded border border-rose-400 text-rose-500 bg-rose-50 text-sm font-medium">
+          <span className={`${STATUS_BADGE_BASE} border-rose-400 text-rose-500 bg-rose-50`}>
             Từ chối
           </span>
         );
       case 'pending':
         return (
-          <span className="px-3 py-1 rounded border border-red-300 text-red-500 bg-red-50 text-sm font-medium">
+          <span className={`${STATUS_BADGE_BASE} border-amber-400 text-amber-600 bg-amber-50`}>
             Chờ thẩm định
           </span>
         );
@@ -276,8 +280,8 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
     }));
 
     const filteredFlat = mapped.filter((item) => {
-      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Tạo mới) không thuộc phạm vi
-      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Tạo mới" và
+      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Lưu nháp) không thuộc phạm vi
+      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Lưu nháp" và
       // không được hiển thị/gộp vào đây.
       if (item.TrangThai === 'draft') return false;
 
@@ -371,7 +375,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       case 'approved': return 'Đã thẩm định';
       case 'rejected': return 'Từ chối';
       case 'pending': return 'Chờ thẩm định';
-      default: return 'Tạo mới';
+      default: return 'Lưu nháp';
     }
   };
 
