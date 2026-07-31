@@ -548,9 +548,8 @@ export default function ThamDinhCauHoiTab({
       dataIndex: 'text',
       width: 350,
       render: (text: string) => {
-        const plainText = stripHtmlToText(text);
         return (
-          <Tooltip title={plainText}>
+          <Tooltip title={renderQuestionPreview(text)}>
             <div
               className="text-slate-700 font-normal text-xs hover:text-[#002147] cursor-pointer transition-colors"
               style={{

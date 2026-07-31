@@ -570,9 +570,20 @@ export default function QuestionBankModule({
       }
     } else if (selectedRowKeys.length > 0) {
       try {
-        await Promise.all(selectedRowKeys.map((key) => bankQuestionApi.delete(key as string)));
-        selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
-        toast.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
+        // 1 request duy nhất (bulk-delete) thay vì Promise.all N request DELETE riêng lẻ — mỗi
+        // request cũ vẫn tốn round-trip + transaction DB riêng dù chạy song song ở FE, nên xóa
+        // hàng chục/trăm câu cùng lúc rất chậm trước đây.
+        const res = await bankQuestionApi.bulkDelete(selectedRowKeys as string[]);
+        if (res.deletedCount > 0) {
+          selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
+        }
+        if (res.blocked.length > 0) {
+          toast.warning(
+            `Đã xóa ${res.deletedCount} câu hỏi. Bỏ qua ${res.blocked.length} câu đang thuộc đề thi (vd "${res.blocked[0].examName}") — hãy gỡ khỏi đề trước khi xóa.`
+          );
+        } else {
+          toast.success(`Đã xóa ${res.deletedCount} câu hỏi khỏi ngân hàng.`);
+        }
         fetchQuestions(); // refresh from API
         setSelectedRowKeys([]);
         setIsDeleteOpen(false);
@@ -1198,7 +1209,7 @@ export default function QuestionBankModule({
                           </td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px] font-mono">{idx + 1}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.code} className="text-black text-[11px] font-semibold" /></td>
-                          <td className="py-2.5 px-3"><TruncatedText text={renderQuestionPreview(record.text)} tooltipText={stripHtmlToText(record.text)} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={renderQuestionPreview(record.text)} tooltipText={renderQuestionPreview(record.text)} className="text-black text-[11px]" /></td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getQuestionTypeLabelShort(record.type)}</td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getCognitiveLevelLabelShort(record.level)}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.creator || ''} className="text-black text-[11px]" /></td>

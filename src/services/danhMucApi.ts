@@ -524,6 +524,13 @@ export const bankQuestionApi = {
       `/bank-questions/${id}`,
       { method: 'DELETE' },
     ),
+  /** Xóa nhiều câu hỏi trong 1 request — thay cho gọi DELETE từng câu (dù Promise.all song song
+   * ở FE, mỗi request vẫn tốn round-trip + transaction DB riêng, rất chậm khi xóa nhiều bản ghi). */
+  bulkDelete: (ids: string[]) =>
+    apiFetch<{ success: boolean; message: string; deletedCount: number; blocked: { id: string; code: string; examName: string }[]; notFoundIds: string[] }>(
+      '/bank-questions/bulk-delete',
+      { method: 'POST', body: JSON.stringify({ ids }) },
+    ),
   submit: (id: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string }>(
       `/bank-questions/${id}/submit`,
