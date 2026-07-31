@@ -41,10 +41,12 @@ import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
 import ExamContentDisplay from './ExamContentDisplay';
+import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
 const { RangePicker } = DatePicker;
 
@@ -317,9 +319,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           createdAt: q.createdAt,
           lineNumber: q.lineNumber,
         }))
-        // Giữ đúng thứ tự đã lưu (vd đề hoán vị) — GET /bank-questions/ không đảm bảo trả về
-        // theo đúng thứ tự này (xem ModalSinhDeHoanVi.tsx).
-        .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+        // Giữ đúng thứ tự đã lưu (vd đề hoán vị) — GET /bank-questions/ không đảm bảo trả về theo
+        // đúng thứ tự này. Sort theo (Phần, lineNumber trong Phần) — không chỉ lineNumber thô, vì
+        // lineNumber đánh số lại từ 1 ở MỖI Phần (xem ModalSinhDeHoanVi.tsx).
+        .sort(compareByPartAndLineNumber);
     } catch {
       return [];
     }
@@ -337,13 +340,18 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Word export trigger — file .docx thật (OOXML, thư viện `docx`), không còn là RTF đổi đuôi
   // như trước (mở được trên Word desktop nhờ tự nhận diện nội dung, nhưng không phải file Word
   // chuẩn nên có thể lỗi/cảnh báo trên Word Online, LibreOffice, Google Docs...).
-  const handleExportWord = async (exam: any) => {
+  // Bấm "Tải đề thi (.docx)" mở modal hỏi Có/Không đáp án trước — xem exportExamTarget bên dưới.
+  const doExportWord = async (exam: any, includeAnswers: boolean) => {
     toast.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
     const questions = await fetchExamQuestions(exam.id);
-    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions);
+    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions, exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');
     toast.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
+
+  // Đề đang chờ chọn "Có đáp án"/"Không đáp án" trước khi thực sự xuất — null = modal đang đóng.
+  const [exportExamTarget, setExportExamTarget] = useState<any | null>(null);
+  const handleExportWord = (exam: any) => setExportExamTarget(exam);
 
   // Cột xuất Excel — khớp đúng các cột đang hiển thị ở bảng "Kết quả tìm kiếm".
   const examExcelColumns: ExcelColumn<any>[] = [
@@ -1038,6 +1046,17 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           setSelectedExam(null);
           fetchData();
         }}
+      />
+
+      <ExportAnswerChoiceModal
+        open={exportExamTarget !== null}
+        onCancel={() => setExportExamTarget(null)}
+        onConfirm={(includeAnswers) => {
+          const exam = exportExamTarget;
+          setExportExamTarget(null);
+          if (exam) doExportWord(exam, includeAnswers);
+        }}
+        targetLabel={exportExamTarget ? `đề ${exportExamTarget.code}` : undefined}
       />
     </div>
   );

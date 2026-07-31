@@ -9,7 +9,9 @@ import {
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';
+import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
 interface ModalSinhDeHoanViProps {
   open: boolean;
@@ -139,10 +141,12 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          // Câu hỏi cũ tạo trước khi có lineNumber (hoặc bị mất do bug trước đây) đều có giá trị
-          // mặc định 1 ở DB — sort ổn định (Array.sort giữ nguyên thứ tự tương đối khi bằng nhau)
-          // nên các câu đó vẫn giữ đúng thứ tự trả về từ API, không bị xáo lộn xộn thêm lần nữa.
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+          // Sort theo (Phần, lineNumber trong Phần) — không chỉ lineNumber thô, vì lineNumber đánh số
+          // lại từ 1 ở MỖI Phần nên nhiều câu khác Phần có thể trùng số (vd Phần I câu 1 và Phần II
+          // câu 1 đều lineNumber=1). Câu hỏi cũ tạo trước khi có lineNumber (hoặc bị mất do bug trước
+          // đây) đều có giá trị mặc định 1 — sort ổn định (Array.sort giữ nguyên thứ tự tương đối khi
+          // bằng nhau) nên các câu đó vẫn giữ đúng thứ tự trả về từ API trong phạm vi Phần của nó.
+          .sort(compareByPartAndLineNumber);
         setSourceQuestions(qs);
       })
       .catch(() => toast.error('Không tải được nội dung đề gốc.'))
@@ -284,26 +288,33 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     handleCancelEditQuestion();
   };
 
-  const handleDownloadSource = async () => {
+  // Mỗi nút "Tải xuống" mở modal hỏi Có/Không đáp án trước khi thực sự xuất — pendingExport giữ tên
+  // hiện trong modal + hàm thực thi thật (nhận includeAnswers từ lựa chọn của người dùng).
+  const [pendingExport, setPendingExport] = useState<{ label: string; run: (includeAnswers: boolean) => void } | null>(null);
+
+  const doDownloadSource = async (includeAnswers: boolean) => {
     if (!exam) return;
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions);
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}_DeGoc`, 'docx');
   };
+  const handleDownloadSource = () => setPendingExport({ label: 'đề gốc', run: doDownloadSource });
 
-  const handleDownloadVariant = async (index: number) => {
+  const doDownloadVariant = async (index: number, includeAnswers: boolean) => {
     if (!exam) return;
     const code = String((startCode || 1) + index);
-    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index]);
+    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index], exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}-${code}_DeHoanVi${index + 1}`, 'docx');
   };
+  const handleDownloadVariant = (index: number) =>
+    setPendingExport({ label: `đề hoán vị ${index + 1}`, run: (includeAnswers) => doDownloadVariant(index, includeAnswers) });
 
-  const handleDownloadAll = async () => {
+  const doDownloadAll = async (includeAnswers: boolean) => {
     if (!exam || variants.length === 0) return;
     const zip = new JSZip();
-    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions));
+    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers));
     await Promise.all(variants.map(async (qs, idx) => {
       const code = String((startCode || 1) + idx);
-      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs);
+      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
       zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.docx`, variantBlob);
     }));
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -315,6 +326,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     document.body.removeChild(element);
     URL.revokeObjectURL(element.href);
   };
+  const handleDownloadAll = () => setPendingExport({ label: 'tất cả đề (đề gốc + hoán vị)', run: doDownloadAll });
 
   const handleSavePackage = async () => {
     if (!exam) return;
@@ -412,10 +424,21 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           // Phải forward đủ topicId/topicName/competencyComponentId/creator từ câu hỏi GỐC — trước
           // đây bị bỏ sót nên mọi đề hoán vị lưu xong đều mất Chủ đề/Thành phần năng lực/Người tạo
           // dù câu hỏi gốc trong Ngân hàng câu hỏi đã có đủ các thông tin này.
-          // lineNumber = vị trí (1-based) trong mảng đã hoán vị — mỗi câu hỏi chỉ thuộc 1 đề
-          // (exam_id 1-N, không dùng chung giữa nhiều đề) nên lưu thẳng lên chính câu hỏi là đủ,
-          // không cần bảng join riêng. Đọc lại (ModalSinhDeHoanVi/ExamManagementModule/
-          // PackageManagementModule) đều sort theo field này để không bị lẫn lộn theo id ngẫu nhiên.
+          // lineNumber = vị trí (1-based) TRONG PHẠM VI PHẦN của câu hỏi — đánh số lại từ 1 ở MỖI
+          // Phần (đúng cách "Câu N" hiển thị/xuất Word: Phần I câu 1..12, Phần II câu 1..4,... — xem
+          // PART_META ở ExamContentDisplay.tsx), KHÔNG phải 1 chỉ số tăng dần suốt toàn đề (bug cũ:
+          // đề 22 câu lưu thẳng 1..22 bất kể Phần). Mỗi câu hỏi chỉ thuộc 1 đề (exam_id 1-N, không
+          // dùng chung giữa nhiều đề) nên lưu thẳng lên chính câu hỏi là đủ, không cần bảng join
+          // riêng. Đọc lại (ModalSinhDeHoanVi/ExamManagementModule/PackageManagementModule) đều sort
+          // theo (Phần, lineNumber) — xem compareByPartAndLineNumber ở utils/examParts.ts — để không
+          // bị lẫn lộn theo id ngẫu nhiên hay xáo giữa các Phần khi nhiều câu cùng mang số 1, 2,...
+          const partCounters = new Map<string, number>();
+          const lineNumbers = variantQuestions.map((q) => {
+            const key = q.type || 'other';
+            const next = (partCounters.get(key) || 0) + 1;
+            partCounters.set(key, next);
+            return next;
+          });
           await Promise.all(variantQuestions.map((q, qi) => questionApi.create({
             text: q.text,
             type: q.type,
@@ -432,7 +455,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             examId: newExamId,
             creator: q.creator,
             competencyComponentId: q.nangLucId,
-            lineNumber: qi + 1,
+            lineNumber: lineNumbers[qi],
             // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
             // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
             source: 'ai_exam',
@@ -708,6 +731,17 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           </div>
         )}
       </Modal>
+
+      <ExportAnswerChoiceModal
+        open={pendingExport !== null}
+        onCancel={() => setPendingExport(null)}
+        onConfirm={(includeAnswers) => {
+          const action = pendingExport;
+          setPendingExport(null);
+          action?.run(includeAnswers);
+        }}
+        targetLabel={pendingExport?.label}
+      />
     </>
   );
 }

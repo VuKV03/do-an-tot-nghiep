@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, message, Spin, Typography, Modal, Radio, Space, Input } from 'antd';
-import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FlagFilled, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FlagFilled, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
 
@@ -355,6 +355,29 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
 
   const getQuestionGlobalIndex = (questionId: string) => questions.findIndex((q: any) => q.id === questionId);
 
+  const orderedQuestions = ['p1', 'p2', 'p3'].reduce((acc: any[], key: string) => {
+    if (parts[key]) acc = acc.concat(parts[key]);
+    return acc;
+  }, []);
+
+  const currentVisualIdx = orderedQuestions.findIndex((q: any) => q.id === currentQ.id);
+  const canGoBack = currentVisualIdx > 0;
+  const canGoNext = currentVisualIdx < orderedQuestions.length - 1;
+
+  const handleGoBack = () => {
+    if (canGoBack) {
+      const prevQ = orderedQuestions[currentVisualIdx - 1];
+      setCurrentQuestionIdx(getQuestionGlobalIndex(prevQ.id));
+    }
+  };
+
+  const handleGoNext = () => {
+    if (canGoNext) {
+      const nextQ = orderedQuestions[currentVisualIdx + 1];
+      setCurrentQuestionIdx(getQuestionGlobalIndex(nextQ.id));
+    }
+  };
+
   if (viewMode === 'waiting') {
     return (
       <div className="flex flex-col min-h-screen w-full bg-[#f4f6f9] items-center justify-center py-12 px-4 font-sans">
@@ -428,7 +451,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                     const globalIdx = getQuestionGlobalIndex(q.id);
                     return (
                       <div key={q.id} className="border-b pb-6 last:border-0 border-slate-100">
-                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {globalIdx + 1}: </span> <RichTextView html={q.content} className="font-medium" /></div>
+                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {q.line_number || (globalIdx + 1)}: </span> <RichTextView html={q.content} className="font-medium" /></div>
                         {q.type_code === 'true_false' || q.type_code?.toLowerCase() === 'đs' || q.type_code?.toLowerCase() === 'ds' ? (
                           <div className="pl-12 w-full max-w-4xl">
                             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -534,7 +557,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div className="space-y-6">
                 {['p1', 'p2', 'p3'].filter(k => parts[k]).map((partKey) => (
                   <div key={partKey}>
-                    <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => getQuestionGlobalIndex(q.id) + 1).join(', ')}</div>
+                    <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => q.line_number || (getQuestionGlobalIndex(q.id) + 1)).join(', ')}</div>
                     <div className="flex flex-wrap gap-2">
                       {parts[partKey].map((q: any) => {
                         const gIdx = getQuestionGlobalIndex(q.id);
@@ -554,7 +577,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                             }}
                             className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-all ${bgClass} hover:opacity-80`}
                           >
-                            {gIdx + 1}
+                            {q.line_number || (gIdx + 1)}
                           </div>
                         );
                       })}
@@ -629,16 +652,16 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
             <div className="flex gap-2">
               <Button
                 className="text-blue-800 border-blue-800 font-medium px-4 h-8 rounded-sm hover:bg-blue-50 flex items-center gap-1 transition-all text-xs"
-                onClick={() => setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))}
-                disabled={currentQuestionIdx === 0}
+                onClick={handleGoBack}
+                disabled={!canGoBack}
               >
                 <ArrowLeftOutlined className="text-[10px]" /> Quay lại
               </Button>
               <Button
                 type="primary"
                 className="bg-[#244384] font-medium px-4 h-8 flex flex-row-reverse items-center gap-1 rounded-sm shadow-none hover:bg-[#1a365d] transition-all text-xs"
-                onClick={() => setCurrentQuestionIdx(Math.min(totalQuestions - 1, currentQuestionIdx + 1))}
-                disabled={currentQuestionIdx === totalQuestions - 1}
+                onClick={handleGoNext}
+                disabled={!canGoNext}
               >
                 <ArrowRightOutlined className="text-[10px]" /> Tiếp theo
               </Button>
@@ -647,10 +670,6 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <span className="text-slate-700 text-sm">
                 Số câu đã trả lời: <span className="text-green-600 font-bold ml-1">{answeredCount}</span> / {totalQuestions}
               </span>
-              <div className="flex gap-1 ml-2">
-                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<UnorderedListOutlined className="text-[14px]" />} />
-                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<AppstoreOutlined className="text-[14px]" />} />
-              </div>
             </div>
           </div>
         </div>
@@ -662,8 +681,8 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               const currentTypeKey = getTypeGroupKey(currentQ.type_code);
               const partQuestions = parts[currentTypeKey] || [];
               if (partQuestions.length === 0) return null;
-              const startIdx = getQuestionGlobalIndex(partQuestions[0].id) + 1;
-              const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
+              const startIdx = partQuestions[0].line_number || (getQuestionGlobalIndex(partQuestions[0].id) + 1);
+              const endIdx = partQuestions[partQuestions.length - 1].line_number || (getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1);
 
               let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
               if (currentTypeKey === 'p2') {
@@ -684,7 +703,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div className="flex-1">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
-                    Câu {currentQuestionIdx + 1}:
+                    Câu {currentQ.line_number || (currentQuestionIdx + 1)}:
                   </div>
                   <div className="flex-1">
                     <RichTextView html={currentQ.content} className="text-[15px] text-slate-800 font-medium leading-relaxed" />
@@ -822,7 +841,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                         onClick={() => setCurrentQuestionIdx(gIdx)}
                         className={`w-[28px] h-[28px] rounded-full flex items-center justify-center text-[13px] font-bold cursor-pointer transition-all border ${bgClass} hover:opacity-80`}
                       >
-                        {gIdx + 1}
+                        {q.line_number || (gIdx + 1)}
                       </div>
                     );
                   })}
@@ -862,40 +881,170 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
           </div>
         }
         centered
-        width={600}
+        width={1000}
         closeIcon={<span className="text-xl font-light leading-none text-slate-400 hover:text-slate-600">&times;</span>}
       >
-        <div className="py-12 flex flex-col items-center font-sans">
+        <div className="py-6 flex flex-col font-sans max-h-[70vh] overflow-y-auto">
           {isTimeOutSubmit ? (
-            <div className="text-center mb-10">
+            <div className="text-center mb-6">
               <h2 className="text-red-600 font-bold text-[24px] m-0 mb-3 uppercase tracking-wide">HẾT GIỜ!</h2>
               <p className="text-red-600 font-bold text-[15px] m-0">Bài thi của bạn đã được hệ thống nộp tự động.</p>
             </div>
           ) : (
-            <div className="text-center mb-10">
+            <div className="text-center mb-6">
               <h2 className="text-slate-800 font-bold text-[18px] m-0">Bạn đã nộp bài thi thành công!</h2>
             </div>
           )}
 
-          <div className="w-full space-y-5 text-[15px] text-slate-800 mx-auto max-w-[340px]">
+          <div className="w-full space-y-4 text-[15px] text-slate-800 mx-auto max-w-[400px] mb-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
             {examResultData && examResultData.score !== undefined ? (
               <>
-                <div className="grid grid-cols-[180px_auto] gap-2 items-center">
-                  <span className="text-slate-700">Điểm số:</span>
-                  <strong className="text-[#1677ff] font-bold text-[17px]">{examResultData.score} / 10</strong>
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <span className="text-slate-600 font-medium">Điểm số:</span>
+                  <strong className="text-[#1677ff] font-bold text-[20px]">{examResultData.score} / 10</strong>
                 </div>
-                <div className="grid grid-cols-[180px_auto] gap-2 items-center">
-                  <span className="text-slate-700">Số câu đúng:</span>
-                  <strong className="text-[#22c55e] font-bold text-[17px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 font-medium">Số câu đúng:</span>
+                  <strong className="text-[#22c55e] font-bold text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
                 </div>
               </>
             ) : (
-              <div className="grid grid-cols-[180px_auto] gap-2 items-center">
-                <span className="text-slate-700">Số câu đã trả lời:</span>
-                <strong className="text-[#22c55e] font-bold text-[17px]">{answeredCount}/{totalQuestions}</strong>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600 font-medium">Số câu đã trả lời:</span>
+                <strong className="text-[#22c55e] font-bold text-[18px]">{answeredCount}/{totalQuestions}</strong>
               </div>
             )}
           </div>
+
+          {examResultData && examResultData.detailed_results && (
+            <div className="w-full mt-4">
+              <h3 className="font-bold text-slate-700 text-base mb-4 border-b pb-2 uppercase">Chi tiết bài làm</h3>
+
+              <div className="space-y-8">
+                {['p1', 'p2', 'p3'].filter(k => parts[k]).map((partKey) => (
+                  <div key={partKey} className="space-y-6 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="font-bold text-blue-900 uppercase text-lg border-b pb-2">PHẦN {getTypeDisplayName(partKey).toUpperCase()}:</div>
+
+                    {parts[partKey].map((q: any) => {
+                      const globalIdx = getQuestionGlobalIndex(q.id);
+                      const detail = examResultData.detailed_results.find((d: any) => d.question_id === q.id);
+                      const isCorrect = detail?.is_correct;
+
+                      return (
+                        <div key={q.id} className="border-b pb-6 last:border-0 border-slate-100">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="font-bold text-slate-800 flex gap-1"><span className="shrink-0">Câu {q.line_number || (globalIdx + 1)}: </span> <RichTextView html={q.content} className="font-medium" /></div>
+                            {detail ? (
+                              <div className={`shrink-0 ml-4 px-3 py-1 rounded text-sm font-bold border ${isCorrect ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                {isCorrect ? 'ĐÚNG' : 'SAI'}
+                              </div>
+                            ) : (
+                              <div className="shrink-0 ml-4 px-3 py-1 rounded text-sm font-bold border bg-slate-50 text-slate-500 border-slate-200">
+                                CHƯA TRẢ LỜI
+                              </div>
+                            )}
+                          </div>
+
+                          {q.type_code === 'true_false' || q.type_code?.toLowerCase() === 'đs' || q.type_code?.toLowerCase() === 'ds' ? (
+                            <div className="pl-12 w-full max-w-4xl">
+                              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="w-full text-left text-[14px] text-slate-800">
+                                  <thead className="bg-slate-100 border-b border-slate-200">
+                                    <tr>
+                                      <th className="py-2.5 px-4 font-bold text-slate-700 w-12 text-center">Ý</th>
+                                      <th className="py-2.5 px-4 font-bold text-slate-700">Phát biểu</th>
+                                      <th className="py-2.5 px-4 font-bold text-slate-700 w-32 text-center">Thí sinh chọn</th>
+                                      <th className="py-2.5 px-4 font-bold text-slate-700 w-32 text-center">Đáp án đúng</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200">
+                                    {q.options.map((opt: string, oIdx: number) => {
+                                      const letter = String.fromCharCode(97 + oIdx); // a, b, c, d
+
+                                      const userParts = detail?.user_answer ? detail.user_answer.split(', ') : [];
+                                      const correctParts = detail?.correct_answer ? detail.correct_answer.split(', ') : [];
+
+                                      const userSelectedTrue = userParts[oIdx] === `${oIdx + 1}. Đúng`;
+                                      const userSelectedFalse = userParts[oIdx] === `${oIdx + 1}. Sai`;
+                                      const userChoice = userSelectedTrue ? 'Đúng' : (userSelectedFalse ? 'Sai' : '-');
+
+                                      const correctIsTrue = correctParts[oIdx] === `${oIdx + 1}. Đúng`;
+                                      const correctIsFalse = correctParts[oIdx] === `${oIdx + 1}. Sai`;
+                                      const correctChoice = correctIsTrue ? 'Đúng' : (correctIsFalse ? 'Sai' : '-');
+
+                                      const isRowCorrect = userChoice === correctChoice && userChoice !== '-';
+
+                                      return (
+                                        <tr key={letter} className={`bg-white ${isRowCorrect ? 'bg-green-50' : (userChoice !== '-' ? 'bg-red-50' : '')}`}>
+                                          <td className="py-3 px-4 text-center font-bold">{letter})</td>
+                                          <td className="py-3 px-4"><RichTextView html={opt} /></td>
+                                          <td className={`py-3 px-4 text-center border-l border-slate-100 font-bold ${isRowCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                            {userChoice}
+                                          </td>
+                                          <td className="py-3 px-4 text-center border-l border-slate-100 font-bold text-blue-600">
+                                            {correctChoice}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : (!q.options || q.options.length === 0 || q.type_code?.toLowerCase().includes('ngan') || q.type_code === 'TLN') ? (
+                            <div className="pl-12 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500 w-24 shrink-0">Trả lời:</span>
+                                <span className={`font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                  <RichTextView html={detail?.user_answer || '(Trống)'} className="inline" />
+                                </span>
+                              </div>
+                              {!isCorrect && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500 w-24 shrink-0">Đáp án đúng:</span>
+                                  <span className="font-bold text-blue-600">
+                                    <RichTextView html={detail?.correct_answer || ''} className="inline" />
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2 pl-12">
+                              {q.options.map((opt: string, oIdx: number) => {
+                                const letter = String.fromCharCode(65 + oIdx);
+                                const isUserChoice = detail?.user_answer === letter;
+                                const isCorrectChoice = detail?.correct_answer === letter;
+
+                                let optionClass = "text-slate-700";
+                                let icon = <span className="w-6 inline-block" />;
+
+                                if (isCorrectChoice) {
+                                  optionClass = "text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-200 inline-block w-fit pr-4";
+                                  icon = <CheckCircleOutlined className="text-green-600 mr-2" />;
+                                } else if (isUserChoice && !isCorrectChoice) {
+                                  optionClass = "text-red-700 font-bold bg-red-50 px-2 py-1 rounded border border-red-200 inline-block w-fit pr-4";
+                                  icon = <CloseCircleOutlined className="text-red-600 mr-2" />;
+                                } else if (isUserChoice) {
+                                  optionClass = "text-blue-700 font-bold bg-blue-50 px-2 py-1 rounded inline-block w-fit pr-4";
+                                }
+
+                                return (
+                                  <div key={letter} className={`flex items-center ${optionClass}`}>
+                                    {icon}
+                                    <span className="font-bold mr-1">{letter}. </span> <RichTextView html={cleanOptionText(opt)} className="inline" />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </Layout>

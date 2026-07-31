@@ -37,7 +37,9 @@ import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_T
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
+import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
 const { RangePicker } = DatePicker;
 
@@ -83,6 +85,10 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const [viewPkg, setViewPkg] = useState<any | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewQuestionsByExamId, setViewQuestionsByExamId] = useState<Record<string, Question[]>>({});
+
+  // Đang chờ chọn "Có đáp án"/"Không đáp án" trước khi thực sự xuất file — dùng chung cho cả nút
+  // "Tải xuống" cả gói (zip) lẫn "Tải xuống" từng đề riêng trong modal xem chi tiết gói.
+  const [pendingExport, setPendingExport] = useState<{ label: string; run: (includeAnswers: boolean) => void } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -345,8 +351,9 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   };
 
   // Tải toàn bộ đề trong gói dưới dạng .docx thật, nén trong 1 file zip — mô phỏng đúng "Tải
-  // xuống tất cả đề" của ModalSinhDeHoanVi.tsx.
-  const handleDownloadPackage = async (pkg: any) => {
+  // xuống tất cả đề" của ModalSinhDeHoanVi.tsx. Bấm nút mở modal hỏi Có/Không đáp án trước — xem
+  // pendingExport bên dưới.
+  const doDownloadPackage = async (pkg: any, includeAnswers: boolean) => {
     const examIds: string[] = pkg.examIds || [];
     if (examIds.length === 0) {
       toast.error('Gói đề này chưa có đề thi nào.');
@@ -369,8 +376,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
-        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
+          .sort(compareByPartAndLineNumber);
+        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
         zip.file(`${exam.code}.docx`, blob);
       }));
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -380,6 +387,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       toast.error({ content: 'Lỗi khi tải gói đề.', key: 'pkg-dl' });
     }
   };
+  const handleDownloadPackage = (pkg: any) =>
+    setPendingExport({ label: `gói đề ${pkg.code}`, run: (includeAnswers) => doDownloadPackage(pkg, includeAnswers) });
 
   // Xem chi tiết gói đề — tải nội dung câu hỏi thật của TỪNG đề trong gói (đề gốc + các đề hoán
   // vị), UI dạng Tabs giống hệt "Sinh đề hoán vị" (ModalSinhDeHoanVi.tsx): mỗi tab 1 đề, render
@@ -403,7 +412,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+          .sort(compareByPartAndLineNumber);
       });
       setViewQuestionsByExamId(map);
     } catch {
@@ -419,10 +428,12 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     setViewQuestionsByExamId({});
   };
 
-  const handleDownloadSingleExam = async (exam: any, qs: Question[]) => {
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
+  const doDownloadSingleExam = async (exam: any, qs: Question[], includeAnswers: boolean) => {
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, exam.code, 'docx');
   };
+  const handleDownloadSingleExam = (exam: any, qs: Question[]) =>
+    setPendingExport({ label: `đề ${exam.code}`, run: (includeAnswers) => doDownloadSingleExam(exam, qs, includeAnswers) });
 
   const packageExcelColumns: ExcelColumn<any>[] = [
     { header: 'STT', accessor: (_row, i) => i + 1, width: 6, align: 'center' },
@@ -808,6 +819,17 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
           </div>
         )}
       </Modal>
+
+      <ExportAnswerChoiceModal
+        open={pendingExport !== null}
+        onCancel={() => setPendingExport(null)}
+        onConfirm={(includeAnswers) => {
+          const action = pendingExport;
+          setPendingExport(null);
+          action?.run(includeAnswers);
+        }}
+        targetLabel={pendingExport?.label}
+      />
     </div>
   );
 }

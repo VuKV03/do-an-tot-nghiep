@@ -797,7 +797,12 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           </div>
         }
         open={open}
-        onCancel={() => { if (!generating && !saving) onCancel(); }}
+        // Chỉ chặn đóng khi đang LƯU (saving — đang ghi DB, đóng giữa chừng dễ gây dữ liệu dở dang).
+        // Trước đây chặn luôn cả lúc đang sinh câu hỏi (generating) khiến bấm icon X không có tác
+        // dụng gì suốt thời gian AI đang chạy — sinh AI theo ma trận có thể mất khá lâu, cần cho phép
+        // đóng giữa chừng. Request AI đang chạy dở sẽ tự bị bỏ qua kết quả vì modal reset lại state
+        // mỗi khi mở lại (xem effect theo [open]), không cần huỷ request thủ công.
+        onCancel={() => { if (!saving) onCancel(); }}
         footer={footer}
         centered
         width={860}
