@@ -723,31 +723,31 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         return;
       }
       const newExamId = examJson.data.id;
-      for (const q of genQuestions) {
-        // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
-        // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
-        // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
-        await questionApi.create({
-          text: q.text,
-          type: q.type,
-          level: q.level,
-          subject: selectedSubject.name,
-          grade: q.grade || EXAM_GRADE_LABEL,
-          topicId: q.topicId || undefined,
-          topicName: q.topicName || undefined,
-          subTopicName: q.subTopicName || undefined,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          statements: q.statements,
-          status: 'pending',
-          examId: newExamId,
-          creator: q.creator,
-          competencyComponentId: q.nangLucId,
-          // 'ai_exam' — sinh cả đề bằng AI, ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi
-          // (khác 'ai_bank' — sinh bằng AI ngay trong màn Ngân hàng câu hỏi, vẫn hiện bình thường).
-          source: 'ai_exam',
-        } as any);
-      }
+      // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
+      // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
+      // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
+      // 1 request duy nhất cho toàn bộ câu hỏi thay vì lặp `await` tuần tự từng câu (trước đây rất
+      // chậm — mỗi câu 1 round-trip DB cloud riêng) — xem questionApi.createBulk.
+      await questionApi.createBulk(genQuestions.map((q) => ({
+        text: q.text,
+        type: q.type,
+        level: q.level,
+        subject: selectedSubject.name,
+        grade: q.grade || EXAM_GRADE_LABEL,
+        topicId: q.topicId || undefined,
+        topicName: q.topicName || undefined,
+        subTopicName: q.subTopicName || undefined,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        statements: q.statements,
+        status: 'pending',
+        examId: newExamId,
+        creator: q.creator,
+        competencyComponentId: q.nangLucId,
+        // 'ai_exam' — sinh cả đề bằng AI, ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi
+        // (khác 'ai_bank' — sinh bằng AI ngay trong màn Ngân hàng câu hỏi, vẫn hiện bình thường).
+        source: 'ai_exam',
+      } as any)));
       toast.success('AI đã sinh và lưu đề thi thành công!');
       onSuccess();
     } catch {

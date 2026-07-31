@@ -439,7 +439,10 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             partCounters.set(key, next);
             return next;
           });
-          await Promise.all(variantQuestions.map((q, qi) => questionApi.create({
+          // 1 request duy nhất cho toàn bộ câu hỏi của đề này thay vì N request riêng (mỗi request
+          // trước đây tự tra lại subject/grade/level/type/topic bằng SELECT riêng — rất chậm với DB
+          // cloud có độ trễ mạng cao) — xem questionApi.createBulk / routes/questions.py::create_questions_bulk.
+          await questionApi.createBulk(variantQuestions.map((q, qi) => ({
             text: q.text,
             type: q.type,
             level: q.level,
