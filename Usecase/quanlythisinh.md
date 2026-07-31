@@ -4,14 +4,14 @@
 
 *Bảng 2.5. Bảng usecase chức năng quản lý thí sinh*
 
-| Tên Use case | Tác nhân | Giao dịch | Độ phức tạp |
-| :--- | :--- | :--- | :--- |
-| Quản lý thí sinh | Quản trị viên | | Trung bình |
-| | | Quản trị viên có thể thêm mới thí sinh. Hệ thống tạo số báo danh tự động và lưu thông tin thí sinh | |
-| | | Quản trị viên có thể cập nhật thông tin hồ sơ thí sinh. Hệ thống lưu thay đổi thông tin | |
-| | | Quản trị viên có thể xóa hồ sơ thí sinh. Hệ thống xóa thông tin thí sinh khỏi cơ sở dữ liệu | |
-| | | Quản trị viên có thể tìm kiếm, tra cứu danh sách thí sinh. Hệ thống hiển thị kết quả tìm kiếm | |
-| | | Quản trị viên có thể cấp quyền "Thi lại" cho thí sinh. Hệ thống xóa kết quả thi cũ và mở khóa môn thi | |
+| Tên Use case       | Tác nhân       | Giao dịch                                                                                                               | Độ phức tạp |
+| :------------------ | :--------------- | :----------------------------------------------------------------------------------------------------------------------- | :-------------- |
+| Quản lý thí sinh | Quản trị viên |                                                                                                                          | Trung bình     |
+|                     |                  | Quản trị viên có thể thêm mới thí sinh. Hệ thống tạo số báo danh tự động và lưu thông tin thí sinh   |                 |
+|                     |                  | Quản trị viên có thể cập nhật thông tin hồ sơ thí sinh. Hệ thống lưu thay đổi thông tin                 |                 |
+|                     |                  | Quản trị viên có thể xóa hồ sơ thí sinh. Hệ thống xóa thông tin thí sinh khỏi cơ sở dữ liệu           |                 |
+|                     |                  | Quản trị viên có thể tìm kiếm, tra cứu danh sách thí sinh. Hệ thống hiển thị kết quả tìm kiếm          |                 |
+|                     |                  | Quản trị viên có thể cấp quyền "Thi lại" cho thí sinh. Hệ thống xóa kết quả thi cũ và mở khóa môn thi |                 |
 
 ## 2. Biểu đồ Use Case (Use Case Diagram)
 
@@ -90,12 +90,12 @@ alt Tồn tại kết quả cũ
     activate DB
     DB --> Service : Xóa thành công
     deactivate DB
-    
+  
     Service -> DB : Cập nhật trạng thái môn thi của thí sinh = "Chưa thi"
     activate DB
     DB --> Service : Cập nhật thành công
     deactivate DB
-    
+  
     Service --> View : Phản hồi mã 200 OK
 else Không tìm thấy kết quả
     Service --> View : Phản hồi mã lỗi hoặc "Chưa thi"
@@ -108,6 +108,7 @@ View -> View : Tải lại danh sách (fetch data)
 ```
 
 ## 4. Biểu đồ Hoạt động (Activity Diagram)
+
 *Biểu đồ hoạt động mô tả luồng **Thêm mới thí sinh và tạo SBD tự động**.*
 
 ```plantuml
