@@ -10,11 +10,8 @@ import {
   Space,
   Empty,
   DatePicker,
-  Avatar,
-  Checkbox,
   Timeline,
   Dropdown,
-  Progress,
   Popconfirm
 } from 'antd';
 import {
@@ -24,23 +21,20 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   SearchOutlined,
-  SlidersOutlined,
   HistoryOutlined,
   SafetyCertificateOutlined,
-  ShareAltOutlined,
   SyncOutlined,
   FileExcelOutlined,
   DownOutlined,
   UpOutlined,
-  UserOutlined,
   MoreOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   RetweetOutlined
 } from '@ant-design/icons';
-import { SUBJECTS, GRADES, SYSTEM_USERS } from '../../../data';
+import { SUBJECTS, GRADES } from '../../../data';
 import { Question } from '../../../types';
-import { bankQuestionApi, subjectCategoryApi } from '../../../services/danhMucApi';
+import { bankQuestionApi, subjectCategoryApi, type BankQuestionHistoryAPI } from '../../../services/danhMucApi';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
@@ -77,7 +71,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [examSubject, setExamSubject] = useState('all');
   const [examGrade, setExamGrade] = useState('all');
   const [examMatrix, setExamMatrix] = useState('all');
-  const [examCreator, setExamCreator] = useState('all');
   const [examStatus, setExamStatus] = useState('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
@@ -93,6 +86,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Trạng thái đang duyệt/từ chối 1 đề thi cụ thể (per-row) — tránh 1 boolean chung khiến
   // spinner hiện sai hàng khi nhiều dòng bị thao tác liên tiếp.
   const [reviewActioning, setReviewActioning] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
+  const [bulkReviewing, setBulkReviewing] = useState(false);
 
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
@@ -102,10 +96,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [selectedPkg, setSelectedPkg] = useState<any | null>(null);
 
   // Secondary interactive modals state
-  const [isPermissionOpen, setIsPermissionOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isSyncOpen, setIsSyncOpen] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Xem chi tiết đề thi
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -113,8 +105,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [viewLoading, setViewLoading] = useState(false);
 
   // Form states for secondary modals
-  const [permissions, setPermissions] = useState<Record<string, string[]>>({});
-  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<(BankQuestionHistoryAPI & { questionCode?: string })[]>([]);
 
   // Độ rộng từng cột bảng "Kết quả tìm kiếm" — co giãn được bằng cách kéo cạnh phải tiêu đề cột.
   // Thứ tự: checkbox, STT, Mã đề, Tên đề thi, Môn học, Ma trận đề, Tổng điểm, Số câu hỏi,
@@ -205,6 +196,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       return isPending && isAllowedSubject;
     });
   }, [exams, isSubjectRestricted, subjects]);
+
+  // Danh sách đang hiển thị THEO ĐÚNG TAB — trước đây checkbox "chọn tất cả" ở header bảng cứng dùng
+  // filteredExamRoots bất kể đang ở tab nào, nên ở tab "Thẩm định đề gốc" (dùng filteredExamReview)
+  // tick "chọn tất cả" không khớp với các dòng đang hiển thị thật, khiến checkbox từng dòng không
+  // được tick theo dù trạng thái header hiện đã chọn hết.
+  const visibleExamRows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
 
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
@@ -404,51 +401,64 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     }
   };
 
-  const handleOpenPermissions = (exam: any) => {
-    setSelectedExam(exam);
-    // Mock existing permissions
-    setPermissions({
-      read: ['u-1', 'u-2'],
-      edit: ['u-2'],
-      approve: ['u-3']
-    });
-    setIsPermissionOpen(true);
-  };
-
-  const handleSavePermissions = () => {
-    toast.success('Cập nhật phân quyền truy cập đề thi thành công.');
-    setIsPermissionOpen(false);
-  };
-
-  const handleOpenHistory = (exam: any) => {
-    setSelectedExam(exam);
-    setHistoryLogs([
-      { date: '2026-06-24 08:30', user: 'Lê Hoàng Hải', action: 'Chỉnh sửa hoán vị câu hỏi 3' },
-      { date: '2026-06-22 14:15', user: 'Nguyễn Tiến Dũng', action: 'Sinh đề tự động từ Ma trận đặc tả' },
-      { date: '2026-06-22 10:00', user: 'Hệ thống AI', action: 'Khởi tạo đề thi gốc ban đầu' }
-    ]);
-    setIsHistoryOpen(true);
-  };
-
-  const handleOpenSync = (exam: any) => {
-    setSelectedExam(exam);
-    setSyncProgress(0);
-    setIsSyncOpen(true);
-  };
-
-  const handleStartSync = () => {
-    setSyncProgress(10);
-    const interval = setInterval(() => {
-      setSyncProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          toast.success(`Đồng bộ dữ liệu đề ${selectedExam.code} sang hệ thống thi trực tuyến thành công.`);
-          setTimeout(() => setIsSyncOpen(false), 500);
-          return 100;
+  // Duyệt/Từ chối hàng loạt các đề đang chọn (tick) ở tab "Thẩm định đề gốc" — chạy song song bằng
+  // Promise.all thay vì tuần tự từng đề (giống lý do đã tối ưu bulk-delete câu hỏi: mỗi request PUT
+  // vẫn tốn round-trip DB riêng dù backend không có endpoint bulk-review cho exams, nên chạy song song
+  // ở FE là cách nhanh nhất mà không cần đổi API).
+  const handleBulkReviewDecision = async (status: 'approved' | 'rejected') => {
+    if (selectedExamIds.length === 0) return;
+    setBulkReviewing(true);
+    try {
+      const results = await Promise.all(selectedExamIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/exams/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          });
+          const json = await res.json();
+          return !!json.success;
+        } catch {
+          return false;
         }
-        return prev + 25;
-      });
-    }, 400);
+      }));
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
+      const verb = status === 'approved' ? 'duyệt' : 'từ chối';
+      if (successCount > 0) toast.success(`Đã ${verb} ${successCount} đề thi.`);
+      if (failCount > 0) toast.warning(`${failCount} đề thi ${verb} thất bại — vui lòng thử lại.`);
+      setSelectedExamIds([]);
+      fetchData();
+    } finally {
+      setBulkReviewing(false);
+    }
+  };
+
+  // Đề thi không có bảng lịch sử riêng ở backend — ghép lại từ lịch sử thẩm định THẬT của từng câu
+  // hỏi thuộc đề (bảng question_histories, ghi khi duyệt/từ chối/thẩm định hàng loạt — xem
+  // bankQuestionApi.getHistory), thay vì dữ liệu Nhật ký cố định trước đây.
+  const handleOpenHistory = async (exam: any) => {
+    setSelectedExam(exam);
+    setIsHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const questions = await fetchExamQuestions(exam.id);
+      const results = await Promise.all(
+        questions.map(q => bankQuestionApi.getHistory(q.id).catch(() => null))
+      );
+      const logs = results
+        .flatMap((res, idx) => {
+          if (!res || !res.success) return [];
+          const questionCode = questions[idx].code;
+          return res.data.map(entry => ({ ...entry, questionCode }));
+        })
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setHistoryLogs(logs);
+    } catch {
+      setHistoryLogs([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   // Text label tương ứng getStatusTag — dùng cho xuất Excel (không thể ghi JSX vào ô Excel).
@@ -515,12 +525,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     }
     if (hasActionPermission(currentUser, 'exams.manage')) {
       items.push({
-        key: 'permission',
-        label: 'Phân quyền quản lý',
-        icon: <SlidersOutlined />,
-        onClick: () => handleOpenPermissions(exam)
-      });
-      items.push({
         key: 'history',
         label: 'Lịch sử chỉnh sửa',
         icon: <HistoryOutlined />,
@@ -535,15 +539,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         onClick: () => handleExportWord(exam)
       });
     }
-    if (hasActionPermission(currentUser, 'exams.test_run')) {
-      items.push({
-        key: 'sync',
-        label: 'Đồng bộ hệ thống thi',
-        icon: <ShareAltOutlined />,
-        onClick: () => handleOpenSync(exam)
-      });
-    }
-
     if (hasActionPermission(currentUser, 'exams.manage')) {
       if (items.length > 0) items.push({ type: 'divider' as const });
       items.push({
@@ -635,15 +630,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   onChange={setExamMatrix}
                   className="w-full text-[14px]"
                   options={[{ value: 'all', label: 'Tất cả' }, { value: 'ma-tran-01', label: 'Ma trận đề 01' }, { value: 'ma-tran-02', label: 'Ma trận đề 02' }]}
-                />
-              </div>
-              <div>
-                <label className="block text-[14px] font-medium text-slate-700 mb-1">Người tạo</label>
-                <Select
-                  value={examCreator}
-                  onChange={setExamCreator}
-                  className="w-full text-[14px]"
-                  options={[{ value: 'all', label: 'Tất cả' }, ...SYSTEM_USERS.map(u => ({ value: u.id, label: u.fullName }))]}
                 />
               </div>
               <div>
@@ -752,15 +738,62 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 )}
               </>
             )}
-            {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.export') && (
-              <Button
-                type="primary"
-                icon={<FileExcelOutlined />}
-                onClick={handleExportExcel}
-                className="bg-green-600 border-transparent text-white font-semibold text-[14px] rounded hover:bg-green-700 cursor-pointer"
-              >
-                Xuất Excel
-              </Button>
+            {activeTab === 'exam_review' && (
+              <>
+                {hasActionPermission(currentUser, 'exams.approve') && (
+                  <>
+                    <Popconfirm
+                      title={`Duyệt ${selectedExamIds.length} đề thi đã chọn?`}
+                      okText="Duyệt" cancelText="Hủy"
+                      onConfirm={() => handleBulkReviewDecision('approved')}
+                    >
+                      <Button
+                        icon={<CheckCircleOutlined className="text-green-600" />}
+                        disabled={selectedExamIds.length === 0}
+                        loading={bulkReviewing}
+                        className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
+                      >
+                        Duyệt hàng loạt
+                      </Button>
+                    </Popconfirm>
+                    <Popconfirm
+                      title={`Từ chối ${selectedExamIds.length} đề thi đã chọn?`}
+                      okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
+                      onConfirm={() => handleBulkReviewDecision('rejected')}
+                    >
+                      <Button
+                        danger
+                        icon={<CloseCircleOutlined />}
+                        disabled={selectedExamIds.length === 0}
+                        loading={bulkReviewing}
+                        className="font-semibold text-[14px] rounded cursor-pointer"
+                      >
+                        Từ chối hàng loạt
+                      </Button>
+                    </Popconfirm>
+                  </>
+                )}
+                {hasActionPermission(currentUser, 'exams.manage') && (
+                  <Button
+                    danger
+                    onClick={handleBatchDeleteExams}
+                    disabled={selectedExamIds.length === 0}
+                    className="font-semibold text-[14px] rounded cursor-pointer"
+                  >
+                    Xóa
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'exams.export') && (
+                  <Button
+                    type="primary"
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExportExcel}
+                    className="bg-green-600 border-transparent text-white font-semibold text-[14px] rounded hover:bg-green-700 cursor-pointer"
+                  >
+                    Xuất Excel
+                  </Button>
+                )}
+              </>
             )}
           </Space>
         </div>
@@ -772,7 +805,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
               <Spin indicator={<SyncOutlined className="text-[14px]" spin />} />
               <p className="text-[14px] text-slate-400 font-bold mt-2">Đang tải tài liệu...</p>
             </div>
-          ) : (activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).length === 0 ? (
+          ) : visibleExamRows.length === 0 ? (
             <Empty description="Không có đề thi nào." className="py-12" />
           ) : (
             <table style={{ minWidth: examTableTotalWidth }} className={`w-full text-[14px] font-normal text-black border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
@@ -783,11 +816,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     <input
                       type="checkbox"
                       className="cursor-pointer accent-[#2c3e9e]"
-                      checked={filteredExamRoots.length > 0 && filteredExamRoots.every(e => selectedExamIds.includes(e.id))}
+                      checked={visibleExamRows.length > 0 && visibleExamRows.every(e => selectedExamIds.includes(e.id))}
                       onChange={() => {
-                        const allSelected = filteredExamRoots.every(e => selectedExamIds.includes(e.id));
-                        if (allSelected) setSelectedExamIds(prev => prev.filter(id => !filteredExamRoots.map(e => e.id).includes(id)));
-                        else setSelectedExamIds(prev => Array.from(new Set([...prev, ...filteredExamRoots.map(e => e.id)])));
+                        const allSelected = visibleExamRows.every(e => selectedExamIds.includes(e.id));
+                        if (allSelected) setSelectedExamIds(prev => prev.filter(id => !visibleExamRows.map(e => e.id).includes(id)));
+                        else setSelectedExamIds(prev => Array.from(new Set([...prev, ...visibleExamRows.map(e => e.id)])));
                       }}
                     />
                     <ColResizeHandle onMouseDown={startExamColResize(0)} />
@@ -806,7 +839,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).map((row, idx) => (
+                {visibleExamRows.map((row, idx) => (
                   <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${selectedExamIds.includes(row.id) ? 'bg-blue-50/30' : ''}`}>
                     <td className="py-2.5 px-3 text-center">
                       <input type="checkbox" className="cursor-pointer accent-[#2c3e9e]"
@@ -929,80 +962,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         )}
       </Modal>
 
-      {/* Modal B: Phân quyền quản lý */}
-      <Modal
-        title={
-          <span className="font-extrabold uppercase text-[14px] text-slate-800">
-            Phân quyền quản lý truy cập đề thi
-          </span>
-        }
-        open={isPermissionOpen}
-        onCancel={() => setIsPermissionOpen(false)}
-        onOk={handleSavePermissions}
-        okText="Lưu quyền hạn"
-        cancelText="Hủy"
-        centered
-        width={500}
-      >
-        <div className="space-y-4 pt-3 text-[14px]">
-          <div className="bg-slate-50 p-3 border rounded-2xl flex justify-between items-center mb-4">
-            <span className="font-semibold">Đề thi: <strong className="text-slate-800">{selectedExam?.name}</strong></span>
-            <Tag color="blue" className="rounded-md font-mono">{selectedExam?.code}</Tag>
-          </div>
-
-          <div className="space-y-3">
-            {SYSTEM_USERS.map(u => (
-              <div key={u.id} className="flex justify-between items-center border-b pb-2 border-dashed">
-                <Space size={8}>
-                  <Avatar size="small" style={{ backgroundColor: '#0f172a' }} icon={<UserOutlined />} />
-                  <div>
-                    <div className="font-bold text-slate-850">{u.fullName}</div>
-                    <div className="text-[14px] text-slate-400">@{u.username}</div>
-                  </div>
-                </Space>
-
-                <Space size={12}>
-                  <Checkbox
-                    checked={permissions.read?.includes(u.id)}
-                    onChange={e => {
-                      const updated = e.target.checked
-                        ? [...(permissions.read || []), u.id]
-                        : (permissions.read || []).filter(id => id !== u.id);
-                      setPermissions({ ...permissions, read: updated });
-                    }}
-                  >
-                    Xem
-                  </Checkbox>
-                  <Checkbox
-                    checked={permissions.edit?.includes(u.id)}
-                    onChange={e => {
-                      const updated = e.target.checked
-                        ? [...(permissions.edit || []), u.id]
-                        : (permissions.edit || []).filter(id => id !== u.id);
-                      setPermissions({ ...permissions, edit: updated });
-                    }}
-                  >
-                    Sửa
-                  </Checkbox>
-                  <Checkbox
-                    checked={permissions.approve?.includes(u.id)}
-                    onChange={e => {
-                      const updated = e.target.checked
-                        ? [...(permissions.approve || []), u.id]
-                        : (permissions.approve || []).filter(id => id !== u.id);
-                      setPermissions({ ...permissions, approve: updated });
-                    }}
-                  >
-                    Duyệt
-                  </Checkbox>
-                </Space>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal C: Lịch sử chỉnh sửa */}
+      {/* Modal C: Lịch sử chỉnh sửa — ghép từ lịch sử thẩm định thật của từng câu hỏi thuộc đề */}
       <Modal
         title={
           <span className="font-extrabold uppercase text-[14px] text-slate-800">
@@ -1020,66 +980,27 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         width={500}
       >
         <div className="pt-4 max-h-96 overflow-y-auto pr-1">
-          <Timeline
-            className="text-[14px] font-semibold"
-            items={historyLogs.map((log, idx) => ({
-              color: idx === 0 ? 'green' : 'gray',
-              children: (
-                <div className="space-y-1">
-                  <div className="text-[14px] text-slate-400 font-bold">{log.date}</div>
-                  <div className="text-slate-800">{log.action}</div>
-                  <div className="text-[14px] text-slate-500 font-medium">Bởi nhân sự: {log.user}</div>
-                </div>
-              )
-            }))}
-          />
-        </div>
-      </Modal>
-
-      {/* Modal D: Đồng bộ / Chuyển dữ liệu */}
-      <Modal
-        title={
-          <span className="font-extrabold uppercase text-[14px] text-slate-800">
-            Đồng bộ hóa dữ liệu đề thi sang phân hệ Online Testing
-          </span>
-        }
-        open={isSyncOpen}
-        onCancel={() => setIsSyncOpen(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setIsSyncOpen(false)} className="rounded-xl font-bold text-[14px]">
-            Hủy
-          </Button>,
-          <Button
-            key="sync"
-            type="primary"
-            icon={<SyncOutlined />}
-            onClick={handleStartSync}
-            disabled={syncProgress > 0 && syncProgress < 100}
-            className="bg-[#0f172a] border-transparent text-white rounded-xl font-bold text-[14px]"
-          >
-            {syncProgress === 100 ? 'Đồng bộ lại' : 'Bắt đầu đồng bộ'}
-          </Button>
-        ]}
-        centered
-        width={450}
-      >
-        <div className="space-y-4 pt-3 text-[14px] text-center">
-          <div className="bg-slate-50 border p-3.5 rounded-2xl text-left">
-            <span>Tiêu đề đề thi: <strong>{selectedExam?.name}</strong></span>
-            <div className="mt-1">Mã cấu trúc: <strong>{selectedExam?.code}</strong></div>
-          </div>
-
-          <p className="text-slate-500 font-medium text-[14px]">
-            Hệ thống sẽ mã hóa cấu trúc đề thi dạng JSON và đóng gói gửi đến cổng API Gateway của phân hệ thi trực tuyến LMS.
-          </p>
-
-          {syncProgress > 0 && (
-            <div className="space-y-2 animate-in fade-in duration-300">
-              <Progress percent={syncProgress} strokeColor="#0f172a" showInfo={true} size="small" />
-              <span className="text-[14px] text-slate-400 font-bold uppercase tracking-wider block">
-                {syncProgress < 100 ? 'Đang đẩy dữ liệu qua cổng Gateway...' : 'Hoàn tất đẩy dữ liệu!'}
-              </span>
-            </div>
+          {historyLoading ? (
+            <div className="py-8 text-center"><Spin /></div>
+          ) : historyLogs.length === 0 ? (
+            <Empty description="Chưa có lịch sử thẩm định nào cho đề thi này." />
+          ) : (
+            <Timeline
+              className="text-[14px] font-semibold"
+              items={historyLogs.map((log, idx) => ({
+                color: idx === 0 ? 'green' : 'gray',
+                children: (
+                  <div className="space-y-1">
+                    <div className="text-[14px] text-slate-400 font-bold">{log.timestamp}</div>
+                    <div className="text-slate-800">
+                      {log.questionCode ? `Câu ${log.questionCode}: ` : ''}{log.action}
+                      {log.note ? ` — ${log.note}` : ''}
+                    </div>
+                    <div className="text-[14px] text-slate-500 font-medium">Bởi nhân sự: {log.actor || 'Hội đồng Chuyên môn'}</div>
+                  </div>
+                )
+              }))}
+            />
           )}
         </div>
       </Modal>

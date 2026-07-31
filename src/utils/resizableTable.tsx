@@ -140,8 +140,10 @@ export function TruncatedText({
   maxTooltipLength?: number;
   className?: string;
   /** Nội dung tooltip hiển thị khi bị cắt — chỉ định rõ khi `text` không phải string/number (vd:
-   * JSX có chứa công thức toán render sẵn), vì khi đó không thể tự suy ra text thuần từ `text`. */
-  tooltipText?: string;
+   * JSX có chứa công thức toán render sẵn). Nhận cả ReactNode (vd `renderQuestionPreview(...)`) để
+   * tooltip hiện đúng công thức KaTeX đã render thay vì mã LaTeX thô — truyền string thì vẫn cắt
+   * theo `maxTooltipLength` như trước, truyền ReactNode thì hiện nguyên vẹn, không cắt độ dài. */
+  tooltipText?: React.ReactNode;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -156,17 +158,19 @@ export function TruncatedText({
     return () => ro.disconnect();
   }, [text]);
 
-  const plainText = tooltipText ?? (typeof text === 'string' ? text : typeof text === 'number' ? String(text) : '');
-  const tooltipContent = plainText.length > maxTooltipLength
-    ? `${plainText.slice(0, maxTooltipLength)}…`
-    : plainText;
+  const resolvedTooltip: React.ReactNode =
+    tooltipText ?? (typeof text === 'string' ? text : typeof text === 'number' ? String(text) : '');
+  const tooltipContent = typeof resolvedTooltip === 'string'
+    ? (resolvedTooltip.length > maxTooltipLength ? `${resolvedTooltip.slice(0, maxTooltipLength)}…` : resolvedTooltip)
+    : resolvedTooltip;
+  const hasTooltipContent = typeof tooltipContent === 'string' ? !!tooltipContent : tooltipContent != null && tooltipContent !== '';
 
   // Luôn giữ nguyên 1 cấu trúc <Tooltip><span>...</Tooltip> — không rẽ nhánh trả về `<span>` trần
   // tuỳ theo `isTruncated`, vì đổi cấu trúc cây JSX gốc sẽ khiến React unmount/remount lại chính
   // `<span ref>` đó mỗi khi trạng thái đổi, làm mất ResizeObserver đang gắn và "tự reset" isTruncated
   // về false ngay sau lần đo đúng đầu tiên. `title` rỗng thì antd Tooltip tự không hiện popup.
   return (
-    <Tooltip title={isTruncated && plainText ? tooltipContent : ''} placement="topLeft">
+    <Tooltip title={isTruncated && hasTooltipContent ? tooltipContent : ''} placement="topLeft">
       <span ref={ref} className={`block truncate ${className ?? ''}`}>
         {text}
       </span>

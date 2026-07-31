@@ -332,10 +332,33 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       // trống — tự động nhảy qua mã đã dùng thay vì cứ bám đúng "Mã đề thi bắt đầu từ" rồi để
       // backend từ chối do trùng UNIQUE constraint (lỗi rất hay gặp khi sinh hoán vị nhiều lần cho
       // cùng 1 đề gốc mà không đổi lại số bắt đầu giữa các lần, hoặc trùng đề đã tạo từ trước).
-      const existingExamsRes = await fetch('/api/exams').then(r => r.json()).catch(() => null);
+      const [existingExamsRes, existingPackagesRes] = await Promise.all([
+        fetch('/api/exams').then(r => r.json()).catch(() => null),
+        fetch('/api/exams/packages').then(r => r.json()).catch(() => null),
+      ]);
       const takenCodes = new Set<string>(
         (existingExamsRes?.data || []).map((e: any) => String(e.code || '').toLowerCase())
       );
+
+      // Né trùng mã GÓI đề tương tự mã đề — trước đây cứ gửi thẳng packageCode người dùng gõ, nếu
+      // trùng (vd bấm lại "Sinh đề hoán vị" cho cùng đề gốc mà quên đổi mã gói) thì backend trả lỗi,
+      // NHƯNG các đề hoán vị (exam) đã tạo xong ở bước trên vẫn giữ nguyên — không cần tạo lại, đề gốc
+      // càng không đụng tới (đã lưu sẵn từ trước) — nên chỉ cần tự động né trùng ở BƯỚC LƯU GÓI, không
+      // phải yêu cầu người dùng thoát ra gõ lại mã rồi làm lại từ đầu.
+      const takenPkgCodes = new Set<string>(
+        (existingPackagesRes?.data || []).map((p: any) => String(p.code || '').toLowerCase())
+      );
+      let finalPackageCode = packageCode.trim();
+      if (takenPkgCodes.has(finalPackageCode.toLowerCase())) {
+        let suffix = 2;
+        let candidate = `${finalPackageCode}-${suffix}`;
+        while (takenPkgCodes.has(candidate.toLowerCase())) {
+          suffix += 1;
+          candidate = `${finalPackageCode}-${suffix}`;
+        }
+        toast.warning(`Mã gói đề thi "${finalPackageCode}" đã tồn tại — tự động dùng mã "${candidate}" thay thế.`);
+        finalPackageCode = candidate;
+      }
       let nextNumber = startCode || 1;
       const assignedCodes: string[] = variants.map(() => {
         let candidate = String(nextNumber);
@@ -437,7 +460,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: packageName,
-          code: packageCode,
+          code: finalPackageCode,
           subject: exam.subject,
           grade: exam.grade,
           accessType: 'standard',
@@ -449,7 +472,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const pkgJson = await pkgRes.json().catch(() => null);
       if (!pkgRes.ok || !pkgJson?.success) {
         toast.error(
-          `Lỗi khi lưu gói đề thi — Mã gói đề thi "${packageCode}" có thể đã tồn tại, vui lòng đổi mã khác. ` +
+          `Lỗi khi lưu gói đề thi (mã "${finalPackageCode}") — ${pkgJson?.detail || 'vui lòng thử lại'}. ` +
           `${newExamIds.length} đề hoán vị đã được tạo (mã ${exam.code}-${startCode}...) nhưng CHƯA được gắn vào gói nào — vào "Ngân hàng câu hỏi/Danh sách đề" để xử lý thủ công nếu cần.`
         );
         return;
