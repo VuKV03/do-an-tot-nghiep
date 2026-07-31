@@ -7,14 +7,14 @@ POST /topics/{id}/submit, POST /topics/{id}/approve, POST /topics/{id}/reject
 """
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
@@ -39,6 +39,10 @@ class TopicReviewRequest(BaseModel):
 class TopicSubmitRequest(BaseModel):
     # Người gửi thẩm định — trước đây endpoint submit không nhận body nào nên luôn ghi cứng "user1".
     actor: Optional[str] = None
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[str]
 
 
 _DEFAULT_ACTOR = "Hội đồng Chuyên môn"
@@ -92,7 +96,7 @@ async def list_topics(db: AsyncSession = Depends(get_db)):
 
 @router.post("/", status_code=201)
 async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
-    """Tạo chủ đề mới (trạng thái mặc định: 0 - Tạo mới)."""
+    """Tạo chủ đề mới (trạng thái mặc định: 0 - Lưu nháp)."""
     # Validate trùng mã
     existing = await db.execute(select(Topic).where(Topic.code == body.code))
     if existing.scalars().first():
@@ -105,7 +109,7 @@ async def create_topic(body: TopicCreate, db: AsyncSession = Depends(get_db)):
         name=body.name,
         subject_id=body.subject_id,
         grade_id=body.grade_id,
-        status=0,  # 0: Tạo mới
+        status=0,  # 0: Lưu nháp
         created_by=body.created_by or _DEFAULT_ACTOR,
         created_at=_now(),
         submitted_by=None,
@@ -219,6 +223,47 @@ async def delete_topic(item_id: str, db: AsyncSession = Depends(get_db)):
     return {"success": True, "message": f'Đã xóa chủ đề "{name}".'}
 
 
+@router.post("/bulk-delete")
+async def bulk_delete_topics(body: BulkDeleteRequest, db: AsyncSession = Depends(get_db)):
+    """Xóa nhiều chủ đề/tiểu mục trong 1 lượt round-trip DB — trước đây FE gọi DELETE /{id} TUẦN TỰ
+    từng cái (for...await), rất chậm khi chọn nhiều. Mỗi chủ đề vẫn được kiểm tra ràng buộc riêng
+    (câu hỏi/ma trận đang tham chiếu — assert_topic_deletable) — chủ đề nào bị chặn thì báo rõ lý do,
+    không chặn các chủ đề khác đủ điều kiện trong cùng lượt xóa."""
+    if not body.ids:
+        return {"success": True, "message": "Không có chủ đề nào để xóa.", "deletedCount": 0, "blocked": []}
+
+    result = await db.execute(select(Topic).where(Topic.id.in_(body.ids)))
+    topics = {t.id: t for t in result.scalars().all()}
+
+    # parent_id không có ràng buộc khóa ngoại thật (xem models.py::Topic.parent_id) nên không cần
+    # xóa theo thứ tự con-trước-cha như route xóa đơn — gộp toàn bộ id cần xóa (kể cả cây con của
+    # từng chủ đề được chọn) rồi xóa 1 lượt bằng 1 câu DELETE ... WHERE id IN (...).
+    all_delete_ids: set[str] = set()
+    blocked: list[dict] = []
+    for tid in body.ids:
+        topic = topics.get(tid)
+        if not topic:
+            continue
+        if tid in all_delete_ids:
+            continue  # đã nằm trong cây con của 1 chủ đề khác vừa xử lý ở trên, khỏi kiểm tra lại
+        try:
+            subtree_ids = await assert_topic_deletable(db, topic)
+            all_delete_ids.update(subtree_ids)
+        except HTTPException as e:
+            blocked.append({"id": tid, "name": topic.name, "reason": str(e.detail)})
+
+    if all_delete_ids:
+        await db.execute(delete(Topic).where(Topic.id.in_(all_delete_ids)))
+        await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Đã xóa {len(all_delete_ids)} chủ đề/tiểu mục.",
+        "deletedCount": len(all_delete_ids),
+        "blocked": blocked,
+    }
+
+
 @router.post("/{item_id}/submit")
 async def submit_topic(item_id: str, body: TopicSubmitRequest = TopicSubmitRequest(), db: AsyncSession = Depends(get_db)):
     """Gửi thẩm định chủ đề (chuyển trạng thái sang 1 - Chờ thẩm định).
@@ -275,7 +320,8 @@ async def approve_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession
         action="Đồng ý",
         actor=actor,
         timestamp=_now(),
-        note=f"Đồng ý thẩm định chủ đề '{obj.name}'"
+        note=f"Đồng ý thẩm định chủ đề '{obj.name}'",
+        comment=body.comment or None,
     )
     db.add(history_obj)
 
@@ -305,7 +351,8 @@ async def reject_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession 
         action="Từ chối",
         actor=actor,
         timestamp=_now(),
-        note=f"Từ chối thẩm định chủ đề '{obj.name}'"
+        note=f"Từ chối thẩm định chủ đề '{obj.name}'",
+        comment=body.comment or None,
     )
     db.add(history_obj)
 
@@ -331,7 +378,8 @@ async def get_topic_history(item_id: str, db: AsyncSession = Depends(get_db)):
             action=r.action,
             actor=r.actor,
             timestamp=r.timestamp,
-            note=r.note
+            note=r.note,
+            comment=r.comment,
         ) for r in rows
     ]
     return TopicHistoryListResponse(success=True, count=len(data), data=data)

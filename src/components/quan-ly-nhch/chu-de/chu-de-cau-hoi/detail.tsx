@@ -96,7 +96,7 @@ export default function DetailChuDeModal({
 
             {/* Ghi chú / Yêu cầu cần đạt */}
             <div>
-              <p className="text-gray-500 text-[14px] mb-1">Ghi chú/Yêu cầu cần đạt</p>
+              <p className="text-gray-500 text-[14px] mb-1">Ghi chú</p>
               <p className="text-gray-800 text-[15px] whitespace-pre-wrap">
                 {record.GhiChu || '—'}
               </p>

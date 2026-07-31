@@ -201,19 +201,17 @@ export default function CreateChuDeModal({ open, onClose, onSave, allData, monHo
               <Input placeholder="Tên chủ đề/tiểu mục" maxLength={255} className="h-[42px] text-base" />
             </Form.Item>
 
-            {cap === 'Tieumuc' && (
-              <Form.Item
-                name="GhiChu"
-                label={<span className="text-gray-700 font-medium text-[15px]">Ghi chú/Yêu cầu cần đạt</span>}
-                className="col-span-2"
-              >
-                <TextArea
-                  rows={4}
-                  placeholder="Nhập ghi chú phục vụ sinh câu hỏi, đề thi AI, xử lý PTDL năng lực thí sinh..."
-                  className="text-base py-2"
-                />
-              </Form.Item>
-            )}
+            <Form.Item
+              name="GhiChu"
+              label={<span className="text-gray-700 font-medium text-[15px]">Ghi chú</span>}
+              className="col-span-2"
+            >
+              <TextArea
+                rows={4}
+                placeholder="Nhập ghi chú phục vụ sinh câu hỏi, đề thi AI, xử lý PTDL năng lực thí sinh..."
+                className="text-base py-2"
+              />
+            </Form.Item>
           </div>
 
           <div className="flex justify-center gap-4 mt-6 pt-5 border-t border-gray-200">

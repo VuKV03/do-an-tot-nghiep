@@ -835,7 +835,7 @@ export default function UpdateQuestionModal({
                 </div>
 
                 <RichTextGroupProvider>
-                  <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
+                  <div className='border border-slate-300 rounded-xl bg-white shadow-sm'>
                     <RichTextGroupToolbar />
                     <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
                       <span>
@@ -844,7 +844,7 @@ export default function UpdateQuestionModal({
                       </span>
                       <span className='pr-8'>Đáp án đúng</span>
                     </div>
-                    <div className='divide-y divide-slate-100'>
+                    <div className='divide-y divide-slate-100 rounded-b-xl overflow-hidden'>
                       {answers.map((ans, idx) => (
                         <div
                           key={ans.id}
@@ -940,7 +940,7 @@ export default function UpdateQuestionModal({
                 </div>
 
                 <RichTextGroupProvider>
-                  <div className='border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm'>
+                  <div className='border border-slate-300 rounded-xl bg-white shadow-sm'>
                     <RichTextGroupToolbar />
                     <div className='flex items-center justify-between px-3 py-1.5 bg-slate-50 border-y border-slate-200 text-[12px] font-bold text-slate-500 uppercase tracking-wide'>
                       <span>
@@ -949,7 +949,7 @@ export default function UpdateQuestionModal({
                       </span>
                       <span className='pr-8'>Đáp án đúng</span>
                     </div>
-                    <div className='divide-y divide-slate-100'>
+                    <div className='divide-y divide-slate-100 rounded-b-xl overflow-hidden'>
                       {statements.map((st, idx) => (
                         <div
                           key={idx}

@@ -74,6 +74,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [examGrade, setExamGrade] = useState('all');
   const [examMatrix, setExamMatrix] = useState('all');
   const [examStatus, setExamStatus] = useState('all');
+  // Trạng thái lọc RIÊNG cho tab "Thẩm định đề gốc" — tách khỏi `examStatus` (dùng chung filter
+  // panel nhưng KHÔNG reset khi đổi tab) để tránh trường hợp chọn "Nháp" ở tab "Đề gốc" rồi qua tab
+  // Thẩm định vẫn giữ giá trị "draft" — giá trị này không tồn tại trong danh sách option của tab
+  // Thẩm định (không có Nháp), khiến Select hiện sai/trống.
+  const [examReviewStatus, setExamReviewStatus] = useState('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
   // Filters for Packages (Tab 3)
@@ -192,12 +197,18 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   }, [exams, variantExamIds, examSearch, examSubject, examStatus]);
 
   const filteredExamReview = useMemo(() => {
+    // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
+    // lọc "pending", ẩn mất các đề đã thẩm định xong khỏi tab này. "draft"/"1" (chưa gửi thẩm định)
+    // vẫn cố tình loại trừ — khớp getStatusTag/getStatusLabel ở dưới cho quy ước chuỗi lẫn số.
+    // examReviewStatus khác 'all' thì thu hẹp thêm về đúng 1 trạng thái người dùng chọn.
+    const REVIEWABLE_STATUSES = ['pending', '2', 'approved', '3', 'active', 'rejected', '4', 'closed'];
     return exams.filter(e => {
-      const isPending = e.status === 'pending' || e.status === '2';
+      const isReviewable = REVIEWABLE_STATUSES.includes(e.status);
+      const matchesReviewStatus = examReviewStatus === 'all' || e.status === examReviewStatus;
       const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === e.subject);
-      return isPending && isAllowedSubject;
+      return isReviewable && matchesReviewStatus && isAllowedSubject;
     });
-  }, [exams, isSubjectRestricted, subjects]);
+  }, [exams, isSubjectRestricted, subjects, examReviewStatus]);
 
   // Danh sách đang hiển thị THEO ĐÚNG TAB — trước đây checkbox "chọn tất cả" ở header bảng cứng dùng
   // filteredExamRoots bất kể đang ở tab nào, nên ở tab "Thẩm định đề gốc" (dùng filteredExamReview)
@@ -647,12 +658,19 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
               <div>
                 <label className="block text-[14px] font-medium text-slate-700 mb-1">Trạng thái</label>
                 {activeTab === 'exam_review' ? (
-                  // Tab thẩm định chỉ hiển thị đề đang chờ thẩm định — khoá cứng, không cho đổi.
+                  // Tab thẩm định mặc định hiện đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/
+                  // Đã thẩm định/Từ chối) — trước đây khoá cứng "Chờ thẩm định", ẩn mất đề đã thẩm
+                  // định xong. Vẫn cho thu hẹp lại theo 1 trạng thái cụ thể nếu cần.
                   <Select
-                    value="pending"
-                    disabled
+                    value={examReviewStatus}
+                    onChange={setExamReviewStatus}
                     className="w-full text-[14px]"
-                    options={[{ value: 'pending', label: 'Chờ thẩm định' }]}
+                    options={[
+                      { value: 'all', label: 'Tất cả' },
+                      { value: 'approved', label: 'Đã thẩm định' },
+                      { value: 'pending', label: 'Chờ thẩm định' },
+                      { value: 'rejected', label: 'Từ chối' }
+                    ]}
                   />
                 ) : (
                   <Select

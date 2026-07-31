@@ -341,7 +341,7 @@ export default function AIGenerateQuestionModal({
           topicName: topicLabel,
           subTopicName: subTopicLabel,
           nangLucId: values.nangLuc,
-          creator: 'SmartTest AI Generator',
+          creator: 'AI',
           createdAt: new Date().toISOString(),
         };
 
@@ -624,7 +624,7 @@ export default function AIGenerateQuestionModal({
         {aiGenerating && (
           <div className="text-center py-10 space-y-3">
             <Spin indicator={<LoadingOutlined style={{ fontSize: 36, color: '#4f46e5' }} spin />} />
-            <p className="text-xs text-indigo-900 font-bold animate-pulse">SmartTest AI đang kết nối Google Gemini để sinh câu hỏi bám sát phân loại đã chọn...</p>
+            <p className="text-xs text-indigo-900 font-bold animate-pulse">AI để sinh câu hỏi bám sát phân loại đã chọn...</p>
           </div>
         )}
 
@@ -678,9 +678,9 @@ export default function AIGenerateQuestionModal({
                     </div>
 
                     {isEditingPreview && (
-                      <div className="rounded-lg overflow-hidden border border-slate-200">
+                      <div className="rounded-lg border border-slate-200">
                         <RichTextGroupToolbar />
-                        <div className="px-2 py-1 text-[10px] text-slate-400 font-medium bg-white border-t border-slate-100">
+                        <div className="px-2 py-1 text-[10px] text-slate-400 font-medium bg-white border-t border-slate-100 rounded-b-lg">
                           Đặt trỏ chuột/bôi đen vào câu hỏi hoặc đáp án cần định dạng, rồi dùng thanh công cụ trên.
                         </div>
                       </div>
@@ -789,7 +789,7 @@ export default function AIGenerateQuestionModal({
                         />
                       ) : (
                         <div className="p-2.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs font-bold">
-                          Đáp án: {aiSuggestedQuestion.correctAnswer}
+                          Đáp án: <RichTextView html={String(aiSuggestedQuestion.correctAnswer ?? '')} className="inline" />
                         </div>
                       )
                     )}

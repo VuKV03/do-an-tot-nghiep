@@ -191,7 +191,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
       if (evalFilterSubject !== 'all') params.set('subject_id', evalFilterSubject);
-      params.set('status', 'pending');
+      // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
+      // lọc cứng "pending", ẩn mất các ma trận đã thẩm định xong (approved/rejected) khỏi tab này.
+      params.set('status', 'pending,approved,rejected');
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();

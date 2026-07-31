@@ -69,7 +69,7 @@ export default function ReviewModal({ open, onClose, record, onApprove, onReject
           <h3 className="text-[#1e3a8a] font-semibold text-base mb-4">
             Thông tin chủ đề
           </h3>
-          
+
           <div className="flex flex-col gap-4">
             <div>
               <div className="text-gray-500 text-sm mb-1">Tên chủ đề</div>
@@ -80,12 +80,12 @@ export default function ReviewModal({ open, onClose, record, onApprove, onReject
 
             {/* Ghi chú / Yêu cầu cần đạt */}
             <div>
-              <div className="text-gray-500 text-sm mb-1">Ghi chú/Yêu cầu cần đạt</div>
+              <div className="text-gray-500 text-sm mb-1">Ghi chú</div>
               <div className="text-gray-800 text-sm whitespace-pre-wrap">
                 {record?.GhiChu || <span className="text-gray-400 italic">—</span>}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <div className="text-gray-500 text-sm mb-1">Người tạo</div>

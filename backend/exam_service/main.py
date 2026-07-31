@@ -343,6 +343,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error adding FK constraint on packages.matrix_id: {e}")
 
+    # Migration: add 'comment' column to topic_histories table if not exists — nhận xét THẬT của
+    # người thẩm định (Đồng ý/Từ chối) trước đây chỉ ghi đè vào topics.approval_note (mỗi lần thẩm
+    # định lại là mất nhận xét cũ), không lưu riêng theo từng dòng lịch sử nên xem lại lịch sử cũ
+    # không biết nhận xét lúc đó là gì — xem models.py::TopicHistory.comment.
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM topic_histories LIKE 'comment'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE topic_histories ADD COLUMN comment TEXT NULL;"
+                ))
+                print("[Exam Service] ✅ Added 'comment' column to topic_histories table.")
+            else:
+                print("[Exam Service] ✅ 'comment' column already exists in topic_histories table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding comment column to topic_histories: {e}")
+
     # Migration: add 'created_at' column to questions table if not exists — trước đây bảng
     # không có cột này nên API luôn trả về _now() (giờ hiện tại) thay vì ngày tạo thật, làm
     # "Ngày tạo" hiển thị tự nhảy theo ngày hôm nay. Câu hỏi cũ (đã tồn tại trước migration

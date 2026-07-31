@@ -359,6 +359,13 @@ export const topicsApi = {
     apiFetch<{ success: boolean; message: string }>(`/topics/${id}`, {
       method: 'DELETE',
     }),
+  /** Xóa nhiều chủ đề/tiểu mục trong 1 request — thay cho gọi DELETE tuần tự từng cái (rất chậm
+   * khi chọn nhiều). Chủ đề nào bị chặn (còn câu hỏi/ma trận tham chiếu) trả về trong `blocked`. */
+  bulkDelete: (ids: string[]) =>
+    apiFetch<{ success: boolean; message: string; deletedCount: number; blocked: { id: string; name: string; reason: string }[] }>(
+      '/topics/bulk-delete',
+      { method: 'POST', body: JSON.stringify({ ids }) },
+    ),
   submit: (id: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}/submit`,
@@ -412,6 +419,16 @@ export const questionApi = {
       message: string;
       data: { id: string } & Record<string, unknown>;
     }>('/questions/', { method: 'POST', body: JSON.stringify(body) }),
+  /** Tạo nhiều câu hỏi trong 1 request — dùng cho đề hoán vị/đề theo ma trận, nơi trước đây gọi
+   * `create()` lặp lại hàng chục lần (mỗi lần round-trip DB cloud riêng, rất chậm). Xem
+   * backend/exam_service/routes/questions.py::create_questions_bulk. */
+  createBulk: (items: Omit<QuestionCreateAPI, 'createdAt'>[]) =>
+    apiFetch<{
+      success: boolean;
+      message: string;
+      data: string[];
+      errors: { index: number; detail: string }[];
+    }>('/questions/bulk', { method: 'POST', body: JSON.stringify({ items }) }),
 };
 
 // ─── Bank Questions API ───────────────────────────────────────────────────────

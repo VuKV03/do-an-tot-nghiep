@@ -162,7 +162,7 @@ export default function QuestionDetailModal({
       return (
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
           <span className="text-slate-500 font-bold block mb-1">Đáp án Đúng / Sai:</span>
-          <span className="text-slate-800 font-semibold text-sm">{String(correctAnswer)}</span>
+          <RichTextView html={String(correctAnswer)} className="text-slate-800 font-semibold text-sm inline" />
         </div>
       );
     }
@@ -173,7 +173,7 @@ export default function QuestionDetailModal({
           <CheckCircleOutlined className="text-emerald-600 text-lg mt-0.5" />
           <div>
             <span className="text-emerald-800/80 text-xs font-bold uppercase tracking-wider block mb-1">Đáp án trả lời ngắn</span>
-            <span className="text-emerald-950 font-bold text-sm leading-relaxed">{String(correctAnswer || 'Chưa định nghĩa')}</span>
+            <RichTextView html={String(correctAnswer || 'Chưa định nghĩa')} className="text-emerald-950 font-bold text-sm leading-relaxed inline" />
           </div>
         </div>
       );

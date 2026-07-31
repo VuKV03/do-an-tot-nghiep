@@ -366,7 +366,10 @@ export default function ThamDinhCauHoiTab({
   const [filterGrades, setFilterGrades]   = useState<string[]>([]);
   const [filterType, setFilterType]       = useState<QuestionType | 'all'>('all');
   const [filterLevel, setFilterLevel]     = useState<CognitiveLevel | 'all'>('all');
-  const [filterStatus, setFilterStatus]   = useState<QuestionStatus | 'all'>('pending');
+  // Mặc định "Tất cả" — hiện đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ
+  // chối, draft đã bị loại từ base filter ở filteredQuestions bên dưới), trước đây mặc định lọc
+  // cứng "pending" khiến câu đã thẩm định xong biến mất khỏi tab này.
+  const [filterStatus, setFilterStatus]   = useState<QuestionStatus | 'all'>('all');
   const [filterDates, setFilterDates]     = useState<any>(null);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
 
@@ -376,7 +379,7 @@ export default function ThamDinhCauHoiTab({
     grades:  [] as string[],
     type:    'all' as QuestionType | 'all',
     level:   'all' as CognitiveLevel | 'all',
-    status:  'pending' as QuestionStatus | 'all',
+    status:  'all' as QuestionStatus | 'all',
     dates:   null as any
   });
 
@@ -503,8 +506,8 @@ export default function ThamDinhCauHoiTab({
 
   const handleReset = () => {
     setFilterKeyword(''); setFilterGrades([]); setFilterType('all');
-    setFilterLevel('all'); setFilterStatus('pending'); setFilterDates(null);
-    setApplied({ keyword: '', grades: [], type: 'all', level: 'all', status: 'pending', dates: null });
+    setFilterLevel('all'); setFilterStatus('all'); setFilterDates(null);
+    setApplied({ keyword: '', grades: [], type: 'all', level: 'all', status: 'all', dates: null });
   };
 
   const handleBulkReview = () => {

@@ -60,6 +60,12 @@ class QuestionManualCreate(BaseModel):
     source: Optional[Literal['manual', 'ai_bank', 'ai_exam']] = 'manual'
 
 
+class QuestionBulkCreate(BaseModel):
+    # Dùng cho luồng tạo NHIỀU câu hỏi cùng lúc cho 1 đề (đề hoán vị, đề theo ma trận) — gộp lại
+    # thành 1 request thay vì gọi POST /questions/ lặp lại N lần (xem routes/questions.py::create_questions_bulk).
+    items: List[QuestionManualCreate]
+
+
 class QuestionHistoryResponse(BaseModel):
     id: str
     question_id: str
@@ -431,6 +437,7 @@ class TopicHistoryResponse(BaseModel):
     actor: Optional[str] = None
     timestamp: str
     note: str
+    comment: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -25,7 +25,7 @@ export interface ChuDeType {
   Ten: string;
   IdMonHoc: string;
   IdKhoiLop: string;
-  TrangThai: number; // 0: Tạo mới, 1: Chờ thẩm định, 2: Đã thẩm định, 3: Từ chối
+  TrangThai: number; // 0: Lưu nháp, 1: Chờ thẩm định, 2: Đã thẩm định, 3: Từ chối
   IdNguoiTao: string;
   ThoiGianTao: string;
   IdNguoiGui: string | null;
@@ -294,16 +294,22 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
     return ids;
   };
 
+  // Cùng 1 lớp nền tảng cho cả 4 trạng thái — `inline-flex justify-center` + độ rộng cố định để viền
+  // bao quanh luôn bằng nhau bất kể độ dài chữ (trước đây span tự co theo nội dung, "Lưu nháp"/"Từ
+  // chối" ngắn hơn hẳn "Đã thẩm định"/"Chờ thẩm định" nhìn lệch hàng). 130px đủ rộng cho nhãn dài
+  // nhất ("Chờ thẩm định") ở cỡ chữ text-sm mà không bị xuống dòng.
+  const TRANG_THAI_TAG_BASE = "inline-flex items-center justify-center w-[130px] px-3 py-1 rounded border text-sm font-medium";
+
   const getTrangThaiTag = (trangThai: number) => {
     switch (trangThai) {
       case 0:
-        return <span className="px-3 py-1 rounded border border-gray-400 text-gray-600 bg-gray-50 text-sm font-medium">Tạo mới</span>;
+        return <span className={`${TRANG_THAI_TAG_BASE} border-gray-400 text-gray-600 bg-gray-50`}>Lưu nháp</span>;
       case 1:
-        return <span className="px-3 py-1 rounded border border-amber-400 text-amber-600 bg-amber-50 text-sm font-medium">Chờ thẩm định</span>;
+        return <span className={`${TRANG_THAI_TAG_BASE} border-amber-400 text-amber-600 bg-amber-50`}>Chờ thẩm định</span>;
       case 2:
-        return <span className="px-3 py-1 rounded border border-emerald-400 text-emerald-600 bg-emerald-50 text-sm font-medium">Đã thẩm định</span>;
+        return <span className={`${TRANG_THAI_TAG_BASE} border-emerald-400 text-emerald-600 bg-emerald-50`}>Đã thẩm định</span>;
       case 3:
-        return <span className="px-3 py-1 rounded border border-rose-400 text-rose-500 bg-rose-50 text-sm font-medium">Từ chối</span>;
+        return <span className={`${TRANG_THAI_TAG_BASE} border-rose-400 text-rose-500 bg-rose-50`}>Từ chối</span>;
       default:
         return null;
     }
@@ -422,7 +428,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
 
   const getTrangThaiLabel = (trangThai: number) => {
     switch (trangThai) {
-      case 0: return 'Tạo mới';
+      case 0: return 'Lưu nháp';
       case 1: return 'Chờ thẩm định';
       case 2: return 'Đã thẩm định';
       case 3: return 'Từ chối';
@@ -549,7 +555,7 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                     className="h-10 w-full"
                     options={[
                       { value: 'Tất cả', label: 'Tất cả' },
-                      { value: 0, label: 'Tạo mới' },
+                      { value: 0, label: 'Lưu nháp' },
                       { value: 1, label: 'Chờ thẩm định' },
                       { value: 2, label: 'Đã thẩm định' },
                       { value: 3, label: 'Từ chối' },
@@ -603,7 +609,8 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 Gửi thẩm định
               </Button>
               <Button
-                className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
+                danger
+                className="h-10 font-medium px-4"
                 disabled={selectedRowKeys.length === 0}
                 onClick={handleOpenDeleteMultiple}
               >
@@ -673,6 +680,10 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                               title="Xem chi tiết"
                               onClick={() => handleOpenDetail(node)}
                             />
+                            {/* Cho chỉnh sửa khi "Lưu nháp" (chưa từng gửi thẩm định) hoặc "Từ chối"
+                                (cần sửa lại theo góp ý rồi gửi thẩm định lại) — Chờ thẩm định/Đã thẩm
+                                định thì chỉ được xem, tránh sửa nội dung đang/đã được hội đồng xét
+                                duyệt mà không qua lại quy trình gửi thẩm định. */}
                             {(node.TrangThai === 0 || node.TrangThai === 3) && (
                               <Button
                                 type="text"
@@ -818,10 +829,16 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 };
                 const rootKeys = selectedRowKeys.filter(key => !isDescendantOfAnotherSelected(key.toString()));
 
-                for (const key of rootKeys) {
-                  await topicsApi.delete(key.toString());
+                // 1 request duy nhất (bulk-delete) thay vì gọi DELETE tuần tự từng chủ đề — mỗi
+                // request cũ vẫn tốn round-trip + transaction DB riêng dù chạy nối tiếp ở FE.
+                const res = await topicsApi.bulkDelete(rootKeys.map(k => k.toString()));
+                if (res.blocked.length > 0) {
+                  toast.warning(
+                    `Đã xóa ${res.deletedCount} chủ đề. Bỏ qua ${res.blocked.length} chủ đề đang được tham chiếu (vd "${res.blocked[0].name}": ${res.blocked[0].reason}).`
+                  );
+                } else {
+                  toast.success('Đã xóa các chủ đề được chọn!');
                 }
-                toast.success('Đã xóa các chủ đề được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
                 await topicsApi.delete(selectedRecord.Id);

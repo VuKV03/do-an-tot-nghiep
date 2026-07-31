@@ -23,12 +23,18 @@ interface HistoryRecordType {
   actor: string;
   timestamp: string;
   note: string;
+  /** Nhận xét thật của người thẩm định (Đồng ý/Từ chối) — chỉ có ở 2 hành động này, "Thêm mới"/"Sửa"/
+   * "Gửi thẩm định" không có nhận xét nên trường này rỗng/undefined. */
+  comment?: string | null;
 }
 
 export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeModalProps) {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [loading, setLoading] = useState(false);
   const [rawData, setRawData] = useState<HistoryRecordType[]>([]);
+  // Bản ghi lịch sử đang xem chi tiết — nút "Xem chi tiết" trước đây không gắn onClick nên bấm
+  // không có tác dụng gì.
+  const [detailRecord, setDetailRecord] = useState<HistoryRecordType | null>(null);
 
   // Filters
   const [searchNoiDung, setSearchNoiDung] = useState('');
@@ -136,11 +142,13 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
       key: 'action',
       align: 'center',
       width: 100,
-      render: () => (
+      render: (_, row) => (
         <Button
           type="text"
           icon={<Eye size={16} className="text-blue-600" />}
           className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md mx-auto"
+          title="Xem chi tiết"
+          onClick={() => setDetailRecord(row)}
         />
       ),
     },
@@ -270,6 +278,65 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Chi tiết 1 dòng lịch sử */}
+      <Modal
+        title={
+          <span className="text-slate-800 font-bold text-[15px] tracking-wide">
+            Chi tiết lịch sử
+          </span>
+        }
+        open={!!detailRecord}
+        onCancel={() => setDetailRecord(null)}
+        centered
+        width={480}
+        footer={
+          <div className="flex justify-center">
+            <Button
+              onClick={() => setDetailRecord(null)}
+              className="rounded border border-blue-600 text-blue-600 font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-blue-50 transition-colors"
+            >
+              Đóng
+            </Button>
+          </div>
+        }
+      >
+        {detailRecord && (
+          <div className="flex flex-col gap-3 text-sm py-1">
+            {record && (
+              <div>
+                <div className="text-gray-500 text-xs mb-0.5">Chủ đề</div>
+                <div className="font-medium text-slate-800">{record.Ten} <span className="text-gray-400 font-normal">({record.Ma})</span></div>
+              </div>
+            )}
+            <div>
+              <div className="text-gray-500 text-xs mb-0.5">Loại thao tác</div>
+              <div className="font-medium text-slate-800">{detailRecord.action}</div>
+            </div>
+            <div>
+              <div className="text-gray-500 text-xs mb-0.5">Người thực hiện</div>
+              <div className="font-medium text-slate-800">{detailRecord.actor}</div>
+            </div>
+            <div>
+              <div className="text-gray-500 text-xs mb-0.5">Thời gian thực hiện</div>
+              <div className="font-medium text-slate-800">
+                {detailRecord.timestamp ? new Date(detailRecord.timestamp).toLocaleString('vi-VN') : ''}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-500 text-xs mb-0.5">Nội dung thực hiện</div>
+              <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.note}</div>
+            </div>
+            {/* Chỉ có ở hành động Đồng ý/Từ chối — "Thêm mới"/"Sửa"/"Gửi thẩm định" không có nhận xét. */}
+            {detailRecord.comment && (
+              <div>
+                <div className="text-gray-500 text-xs mb-0.5">Nhận xét</div>
+                <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.comment}</div>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </ConfigProvider>
   );

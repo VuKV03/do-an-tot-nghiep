@@ -259,7 +259,11 @@ class TopicHistory(Base):
     action = Column(String(50), nullable=False)                   # action: 'Thêm mới', 'Sửa', 'Gửi thẩm định', 'Đồng ý', 'Từ chối'
     actor = Column(String(255), nullable=True)                    # user who did this (nguoiThucHien)
     timestamp = Column(String(50), nullable=False)                # thoi_gian (ISO 8601 string)
-    note = Column(Text, default="")                               # noi_dung (Details)
+    note = Column(Text, default="")                               # noi_dung (Details) — câu mô tả hành động, KHÔNG phải nhận xét của người thẩm định
+    # Nhận xét THẬT của người thẩm định khi Đồng ý/Từ chối (routes/topics.py::TopicReviewRequest.comment)
+    # — trước đây chỉ ghi vào topics.approval_note (bị GHI ĐÈ mỗi lần thẩm định lại, chỉ giữ bản mới
+    # nhất), không lưu vào từng dòng lịch sử nên xem lại lịch sử cũ không biết nhận xét lúc đó là gì.
+    comment = Column(Text, nullable=True)                         # nhan_xet
 
     # Relationship to Topic (optional but good to have)
     # topic = relationship("Topic", backref="histories")
