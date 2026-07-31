@@ -333,7 +333,7 @@ export default function ModalChonCauHoi({
                       <td className="py-2 px-2 text-center text-slate-400">{idx + 1}</td>
                       <td className="py-2 px-2 font-mono text-[10px]"><TruncatedText text={q.code} /></td>
                       <td className="py-2 px-2">
-                        <TruncatedText text={renderQuestionPreview(q.text)} tooltipText={stripHtmlToText(q.text)} />
+                        <TruncatedText text={renderQuestionPreview(q.text)} tooltipText={renderQuestionPreview(q.text)} />
                       </td>
                       <td className="py-2 px-2 text-center">{getTypeLabel(q.type)}</td>
                       <td className="py-2 px-2 text-center">

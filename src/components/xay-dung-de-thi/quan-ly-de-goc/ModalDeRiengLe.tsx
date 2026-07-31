@@ -201,6 +201,11 @@ export default function ModalDeRiengLe({
   // IDs đã có trong đề
   const existingIds = useMemo(() => parts.flatMap(p => p.questions.map(q => q.id)), [parts]);
 
+  // Đã chọn sẵn 1 Phần ở sidebar trước khi bấm "Chọn câu hỏi" → mở picker lọc sẵn đúng Loại câu hỏi
+  // của Phần đó; chưa chọn Phần nào (activePart null, mặc định lúc mở modal) → picker giữ "Tất cả"
+  // như hiện tại.
+  const activePartType = activePart ? parts.find(p => p.id === activePart)?.questionType : undefined;
+
   // Toggle collapse phần
   const togglePartCollapse = (partId: string) => {
     setParts(prev => prev.map(p => p.id === partId ? { ...p, collapsed: !p.collapsed } : p));
@@ -486,6 +491,7 @@ export default function ModalDeRiengLe({
         onSelect={handleQuestionsSelected}
         mode="multi"
         excludeIds={existingIds}
+        filterType={activePartType}
         questionPool={questionPool}
       />
 

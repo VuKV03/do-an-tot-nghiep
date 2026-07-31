@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select
+# pyrefly: ignore [missing-import]
+from sqlalchemy.exc import IntegrityError
 
 from backend.shared.database import get_db
 from backend.exam_service.models import Package
@@ -83,7 +85,18 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         matrix_id=body.matrix_id,
     )
     db.add(package)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Trùng UNIQUE constraint packages.code — trước đây để lọt nguyên lỗi SQL thô (500,
+        # "Duplicate entry ... for key 'packages.code'") ra ngoài thay vì thông báo dễ hiểu. Rollback
+        # session trước khi raise, nếu không session ở trạng thái lỗi sẽ làm hỏng luôn request kế tiếp
+        # dùng chung session (phổ biến khi gọi liên tiếp qua cùng 1 connection pool).
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mã gói đề thi \"{pkg_code}\" đã tồn tại. Vui lòng đổi mã khác.",
+        )
 
     return {
         "success": True,
@@ -101,6 +114,10 @@ async def update_package(pkg_id: str, body: PackageUpdate, db: AsyncSession = De
         raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi yêu cầu.")
 
     update_data = body.model_dump(exclude_unset=True)
+    # Chụp lại mã gói TRƯỚC khi commit/rollback — sau rollback, đối tượng `package` bị SQLAlchemy
+    # expire (hết hạn cache), đọc lại package.code lúc đó sẽ kích hoạt lazy-load ngầm, không hợp lệ
+    # trên AsyncSession (raise MissingGreenlet) nếu không await đúng cách.
+    target_code = update_data.get("code", package.code)
     for field, value in update_data.items():
         if field == "examIds" and value is not None:
             package.examIds = json.dumps(value, ensure_ascii=False)
@@ -108,7 +125,14 @@ async def update_package(pkg_id: str, body: PackageUpdate, db: AsyncSession = De
         elif hasattr(package, field):
             setattr(package, field, value)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mã gói đề thi \"{target_code}\" đã tồn tại. Vui lòng đổi mã khác.",
+        )
     await db.refresh(package)
 
     return {

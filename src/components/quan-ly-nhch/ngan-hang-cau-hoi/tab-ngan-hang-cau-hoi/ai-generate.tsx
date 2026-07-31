@@ -452,8 +452,8 @@ export default function AIGenerateQuestionModal({
       try {
         const { id: _localId, ...payload } = q;
         // source: 'ai_bank' — sinh bằng AI ngay trong Ngân hàng câu hỏi, KHÁC 'ai_exam' (sinh cả đề
-      // bằng AI) nên vẫn hiện bình thường ở Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi.
-      const apiPayload = { ...payload, competencyComponentId: q.nangLucId, source: 'ai_bank' };
+        // bằng AI) nên vẫn hiện bình thường ở Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi.
+        const apiPayload = { ...payload, competencyComponentId: q.nangLucId, source: 'ai_bank' };
         const response = await questionApi.create(apiPayload as any);
         const savedQuestion = { ...q, id: response.data.id || q.id };
         onSave(savedQuestion);
@@ -485,7 +485,7 @@ export default function AIGenerateQuestionModal({
       title={
         <div className="flex items-center gap-2 pb-2 border-b border-indigo-100">
           <ThunderboltOutlined className="text-indigo-600 font-extrabold animate-pulse" />
-          <span className="font-extrabold uppercase text-slate-800 text-[14px]">Sinh câu hỏi tự động bằng AI (SmartTest Engine)</span>
+          <span className="font-extrabold uppercase text-slate-800 text-[14px]">Sinh câu hỏi tự động bằng AI</span>
         </div>
       }
       open={open}

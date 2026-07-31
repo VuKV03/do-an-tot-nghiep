@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, text, func, or_, and_
+from sqlalchemy import select, delete, text, func, or_, and_
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
@@ -51,6 +51,10 @@ class BulkReviewRequest(BaseModel):
     verdict: str  # "approve" or "reject"
     comment: Optional[str] = ""
     actor: Optional[str] = None
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[str]
 
 
 class BankQuestionSubmitRequest(BaseModel):
@@ -586,6 +590,48 @@ async def delete_bank_question(question_id: str, db: AsyncSession = Depends(get_
     await db.delete(question)
     await db.commit()
     return {"success": True, "message": "Đã xóa câu hỏi thành công!"}
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_bank_questions(body: BulkDeleteRequest, db: AsyncSession = Depends(get_db)):
+    """Xóa nhiều câu hỏi cùng lúc trong 1 lượt round-trip DB — thay cho việc FE trước đây gọi
+    DELETE /{question_id} riêng lẻ cho từng câu (dù đã Promise.all song song ở FE, mỗi request vẫn
+    tốn 2 round-trip DB + 1 transaction/commit riêng, cộng dồn rất chậm khi xóa hàng chục/trăm câu)."""
+    if not body.ids:
+        return {"success": True, "message": "Không có câu hỏi nào để xóa.", "deletedCount": 0, "blocked": []}
+
+    stmt = select(Question).where(Question.id.in_(body.ids))
+    res = await db.execute(stmt)
+    questions = res.scalars().all()
+    found_ids = {q.id for q in questions}
+
+    # Cùng ràng buộc như xóa đơn: câu hỏi đã gắn vào 1 đề thi đã lưu (exam_id) thì chặn xóa để tránh
+    # phá vỡ đề thi đang tham chiếu — 1 query duy nhất tra tên đề cho TOÀN BỘ câu bị chặn, không lặp
+    # từng câu.
+    exam_ids = {q.exam_id for q in questions if q.exam_id}
+    exam_names: dict[str, str] = {}
+    if exam_ids:
+        exam_res = await db.execute(select(Exam.id, Exam.name).where(Exam.id.in_(exam_ids)))
+        exam_names = {row.id: row.name for row in exam_res}
+
+    blocked = [
+        {"id": q.id, "code": q.code, "examName": exam_names.get(q.exam_id, "")}
+        for q in questions if q.exam_id and q.exam_id in exam_names
+    ]
+    blocked_ids = {b["id"] for b in blocked}
+    deletable_ids = [qid for qid in found_ids if qid not in blocked_ids]
+
+    if deletable_ids:
+        await db.execute(delete(Question).where(Question.id.in_(deletable_ids)))
+        await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Đã xóa {len(deletable_ids)} câu hỏi thành công!",
+        "deletedCount": len(deletable_ids),
+        "blocked": blocked,
+        "notFoundIds": [qid for qid in body.ids if qid not in found_ids],
+    }
 
 
 @router.post("/{question_id}/submit")

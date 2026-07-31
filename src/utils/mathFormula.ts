@@ -173,19 +173,58 @@ export function buildPastedHtml(text: string): { html: string; hasFormula: boole
  * phải toàn bộ dòng là mã LaTeX như trường hợp dán từ ngoài vào). */
 const INLINE_SUPSUB_PATTERN = /([a-zA-Z0-9]+|[)\]}])([\^_])(\{[^{}]*\}|-?[a-zA-Z0-9]+)/g;
 
+/** Áp dụng INLINE_SUPSUB_PATTERN nhưng trả về mã LaTeX thuần (không dựng span công thức riêng) — dùng
+ * để chuyển số mũ/chỉ số NẰM BÊN TRONG tử/mẫu của 1 phân số (vd "x^2/2") trước khi gộp cả phân số
+ * thành 1 công thức \frac{}{} duy nhất, thay vì tách thành 2 công thức rời rạc không đúng thứ bậc. */
+function toLatexExpr(segment: string): string {
+  return segment.replace(INLINE_SUPSUB_PATTERN, (_match, base: string, op: string, exp: string) => {
+    const expContent = exp.startsWith('{') ? exp.slice(1, -1) : exp;
+    return `${base}${op}{${expContent}}`;
+  });
+}
+
+/** Khớp 1 phân số kiểu văn bản thuần "a/b" AI viết theo đúng yêu cầu ở _PLAIN_TEXT_RULES (backend
+ * ai_service/routes/generate.py: "phân số viết dạng a/b") — cần chuyển thành \frac{}{} thật để hiện
+ * dạng tử/mẫu xếp trên-dưới, thay vì để nguyên dấu "/" (dễ đọc nhầm thành phép chia thường). Mỗi vế
+ * (tử/mẫu) chỉ khớp 1 trong 2 dạng: bọc ngoặc "(...)" (tín hiệu chắc chắn là biểu thức toán, cho phép
+ * nội dung dài tuỳ ý — khớp đúng trường hợp báo lỗi "(e - 1)/2"), hoặc 1 token đơn giản NGẮN (số/biến,
+ * tối đa 3 ký tự, có thể có dấu trừ đầu) — giới hạn ngắn để tránh khớp nhầm ngày tháng "07/31/2026"
+ * hay các chuỗi số dài khác không phải phân số. */
+const FRACTION_SIDE = '\\([^()]+\\)|-?[a-zA-Zπ0-9]{1,3}';
+// 2 lookahead cuối: (?![a-zA-Z0-9]) bắt buộc vế mẫu phải khớp HẾT chuỗi số/chữ liền sau (không cho
+// engine "lùi" lại khớp ngắn hơn để né lookahead kế tiếp — nếu không "31" trong "31/2026" có thể bị
+// khớp thành "3" rồi bỏ sót "1"); (?!\/\d) mới là điều kiện thật sự chặn ngày tháng "dd/mm/yyyy".
+const FRACTION_PATTERN = new RegExp(`(?<![\\d/])(${FRACTION_SIDE})/(${FRACTION_SIDE})(?![a-zA-Z0-9])(?!/\\d)`, 'g');
+
+function stripParens(side: string): string {
+  return side.startsWith('(') && side.endsWith(')') ? side.slice(1, -1).trim() : side;
+}
+
 /**
- * Chuyển các ký hiệu mũ/chỉ số kiểu "x^2"/"x_1" còn sót lại trong nội dung do AI sinh (dù backend đã
- * yêu cầu AI không dùng LaTeX — xem _PLAIN_TEXT_RULES ở ai_service/routes/generate.py, AI vẫn thỉnh
- * thoảng viết mũ theo lối văn bản thuần "x^2" thay vì Unicode) thành công thức KaTeX thật, hiển thị
- * đúng dạng số mũ/chỉ số thay vì ký tự "^"/"_" thô không ai đọc được. Chỉ chuyển ĐÚNG phần khớp, giữ
- * nguyên toàn bộ văn bản tiếng Việt xung quanh.
+ * Chuyển các ký hiệu toán kiểu văn bản thuần còn sót lại trong nội dung do AI sinh (dù backend đã yêu
+ * cầu AI không dùng LaTeX — xem _PLAIN_TEXT_RULES, AI vẫn viết mũ/chỉ số dạng "x^2"/"x_1" và phân số
+ * dạng "a/b" thay vì công thức thật) thành công thức KaTeX thật. Xử lý phân số TRƯỚC số mũ/chỉ số —
+ * numerator/denominator được gộp thành 1 \frac{}{} duy nhất (qua toLatexExpr) thay vì để lẫn 2 bước
+ * tách rời làm sai thứ bậc hiển thị. Chỉ chuyển ĐÚNG phần khớp, giữ nguyên toàn bộ văn bản tiếng Việt
+ * xung quanh.
  */
 export function convertAiPlainMathNotation(text: string): string {
-  if (!text || !/[\^_]/.test(text)) return text;
-  return text.replace(INLINE_SUPSUB_PATTERN, (_match, base: string, op: string, exp: string) => {
-    const expContent = exp.startsWith('{') ? exp.slice(1, -1) : exp;
-    return buildFormulaHtml(`${base}${op}{${expContent}}`);
-  });
+  if (!text) return text;
+  let result = text;
+  if (result.includes('/')) {
+    result = result.replace(FRACTION_PATTERN, (_match, num: string, den: string) => {
+      const numerator = toLatexExpr(stripParens(num));
+      const denominator = toLatexExpr(stripParens(den));
+      return buildFormulaHtml(`\\frac{${numerator}}{${denominator}}`);
+    });
+  }
+  if (/[\^_]/.test(result)) {
+    result = result.replace(INLINE_SUPSUB_PATTERN, (_match, base: string, op: string, exp: string) => {
+      const expContent = exp.startsWith('{') ? exp.slice(1, -1) : exp;
+      return buildFormulaHtml(`${base}${op}{${expContent}}`);
+    });
+  }
+  return result;
 }
 
 /** Áp dụng convertAiPlainMathNotation cho toàn bộ các trường nội dung của 1 câu hỏi AI trả về (text,

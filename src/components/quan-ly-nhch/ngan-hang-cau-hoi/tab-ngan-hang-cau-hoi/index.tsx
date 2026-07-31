@@ -102,6 +102,28 @@ export default function QuestionBankModule({
     }).catch((err) => console.error('Failed to load question types', err));
   }, []);
 
+  // Người tạo — trước đây fix cứng 3 lựa chọn giả ("Hội đồng Chuyên môn (Tự tạo)", "SmartTest AI
+  // Generator"...) không khớp q.creator thật (luôn là fullName người dùng đang đăng nhập lúc tạo,
+  // xem `creatorName` ở trên) nên lọc theo Người tạo gần như luôn ra rỗng. Lấy đúng danh sách người
+  // dùng thật (Họ và tên) từ màn "Quản lý người dùng", chỉ hiện tài khoản đang hoạt động (status
+  // 'active') — khớp đúng dữ liệu q.creator đang lưu.
+  const [creatorFilterOptions, setCreatorFilterOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const authApiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+    fetch(`${authApiUrl}/auth/users`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (!json.success || !Array.isArray(json.data)) return;
+        const names = (json.data as SystemUser[])
+          .filter((u) => u.status === 'active' && u.fullName)
+          .map((u) => u.fullName);
+        const uniqueSorted = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, 'vi'));
+        setCreatorFilterOptions(uniqueSorted.map((name) => ({ value: name, label: name })));
+      })
+      .catch((err) => console.error('Failed to load users for creator filter', err));
+  }, []);
+
   // Questions from API
   const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -548,9 +570,20 @@ export default function QuestionBankModule({
       }
     } else if (selectedRowKeys.length > 0) {
       try {
-        await Promise.all(selectedRowKeys.map((key) => bankQuestionApi.delete(key as string)));
-        selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
-        toast.success(`Đã xóa ${selectedRowKeys.length} câu hỏi khỏi ngân hàng.`);
+        // 1 request duy nhất (bulk-delete) thay vì Promise.all N request DELETE riêng lẻ — mỗi
+        // request cũ vẫn tốn round-trip + transaction DB riêng dù chạy song song ở FE, nên xóa
+        // hàng chục/trăm câu cùng lúc rất chậm trước đây.
+        const res = await bankQuestionApi.bulkDelete(selectedRowKeys as string[]);
+        if (res.deletedCount > 0) {
+          selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
+        }
+        if (res.blocked.length > 0) {
+          toast.warning(
+            `Đã xóa ${res.deletedCount} câu hỏi. Bỏ qua ${res.blocked.length} câu đang thuộc đề thi (vd "${res.blocked[0].examName}") — hãy gỡ khỏi đề trước khi xóa.`
+          );
+        } else {
+          toast.success(`Đã xóa ${res.deletedCount} câu hỏi khỏi ngân hàng.`);
+        }
         fetchQuestions(); // refresh from API
         setSelectedRowKeys([]);
         setIsDeleteOpen(false);
@@ -991,9 +1024,7 @@ export default function QuestionBankModule({
                         className="w-full text-xs font-medium"
                         options={[
                           { value: 'all', label: 'Tất cả' },
-                          { value: 'Hội đồng Chuyên môn (Tự tạo)', label: 'Hội đồng Chuyên môn' },
-                          { value: 'SmartTest AI Generator', label: 'SmartTest AI' },
-                          { value: 'Nhập tệp Word/Excel', label: 'Nhập tệp Word/Excel' }
+                          ...creatorFilterOptions,
                         ]}
                       />
                     </div>
@@ -1178,7 +1209,7 @@ export default function QuestionBankModule({
                           </td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px] font-mono">{idx + 1}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.code} className="text-black text-[11px] font-semibold" /></td>
-                          <td className="py-2.5 px-3"><TruncatedText text={renderQuestionPreview(record.text)} tooltipText={stripHtmlToText(record.text)} className="text-black text-[11px]" /></td>
+                          <td className="py-2.5 px-3"><TruncatedText text={renderQuestionPreview(record.text)} tooltipText={renderQuestionPreview(record.text)} className="text-black text-[11px]" /></td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getQuestionTypeLabelShort(record.type)}</td>
                           <td className="py-2.5 px-3 text-center text-black text-[11px]">{getCognitiveLevelLabelShort(record.level)}</td>
                           <td className="py-2.5 px-3"><TruncatedText text={record.creator || ''} className="text-black text-[11px]" /></td>
