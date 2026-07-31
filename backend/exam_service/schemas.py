@@ -431,6 +431,7 @@ class TopicHistoryResponse(BaseModel):
     actor: Optional[str] = None
     timestamp: str
     note: str
+    comment: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

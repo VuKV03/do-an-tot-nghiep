@@ -23,6 +23,9 @@ interface HistoryRecordType {
   actor: string;
   timestamp: string;
   note: string;
+  /** Nhận xét thật của người thẩm định (Đồng ý/Từ chối) — chỉ có ở 2 hành động này, "Thêm mới"/"Sửa"/
+   * "Gửi thẩm định" không có nhận xét nên trường này rỗng/undefined. */
+  comment?: string | null;
 }
 
 export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeModalProps) {
@@ -325,6 +328,13 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
               <div className="text-gray-500 text-xs mb-0.5">Nội dung thực hiện</div>
               <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.note}</div>
             </div>
+            {/* Chỉ có ở hành động Đồng ý/Từ chối — "Thêm mới"/"Sửa"/"Gửi thẩm định" không có nhận xét. */}
+            {detailRecord.comment && (
+              <div>
+                <div className="text-gray-500 text-xs mb-0.5">Nhận xét</div>
+                <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.comment}</div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

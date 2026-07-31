@@ -359,6 +359,13 @@ export const topicsApi = {
     apiFetch<{ success: boolean; message: string }>(`/topics/${id}`, {
       method: 'DELETE',
     }),
+  /** Xóa nhiều chủ đề/tiểu mục trong 1 request — thay cho gọi DELETE tuần tự từng cái (rất chậm
+   * khi chọn nhiều). Chủ đề nào bị chặn (còn câu hỏi/ma trận tham chiếu) trả về trong `blocked`. */
+  bulkDelete: (ids: string[]) =>
+    apiFetch<{ success: boolean; message: string; deletedCount: number; blocked: { id: string; name: string; reason: string }[] }>(
+      '/topics/bulk-delete',
+      { method: 'POST', body: JSON.stringify({ ids }) },
+    ),
   submit: (id: string, actor?: string) =>
     apiFetch<{ success: boolean; message: string; data: TopicAPI }>(
       `/topics/${id}/submit`,

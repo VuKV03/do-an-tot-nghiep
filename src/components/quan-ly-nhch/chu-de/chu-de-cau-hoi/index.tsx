@@ -609,7 +609,8 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 Gửi thẩm định
               </Button>
               <Button
-                className="border-red-500 text-red-500 h-10 font-medium px-4 hover:bg-red-50"
+                danger
+                className="h-10 font-medium px-4"
                 disabled={selectedRowKeys.length === 0}
                 onClick={handleOpenDeleteMultiple}
               >
@@ -679,11 +680,11 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                               title="Xem chi tiết"
                               onClick={() => handleOpenDetail(node)}
                             />
-                            {/* Chỉ chủ đề "Lưu nháp" (chưa từng gửi thẩm định) mới cho chỉnh sửa nội dung
-                                — trạng thái Chờ thẩm định/Đã thẩm định/Từ chối chỉ được xem, tránh sửa
-                                nội dung đã/đang được hội đồng xét duyệt mà không qua lại quy trình gửi
-                                thẩm định. */}
-                            {node.TrangThai === 0 && (
+                            {/* Cho chỉnh sửa khi "Lưu nháp" (chưa từng gửi thẩm định) hoặc "Từ chối"
+                                (cần sửa lại theo góp ý rồi gửi thẩm định lại) — Chờ thẩm định/Đã thẩm
+                                định thì chỉ được xem, tránh sửa nội dung đang/đã được hội đồng xét
+                                duyệt mà không qua lại quy trình gửi thẩm định. */}
+                            {(node.TrangThai === 0 || node.TrangThai === 3) && (
                               <Button
                                 type="text"
                                 onClick={() => handleOpenUpdate(node)}
@@ -828,10 +829,16 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 };
                 const rootKeys = selectedRowKeys.filter(key => !isDescendantOfAnotherSelected(key.toString()));
 
-                for (const key of rootKeys) {
-                  await topicsApi.delete(key.toString());
+                // 1 request duy nhất (bulk-delete) thay vì gọi DELETE tuần tự từng chủ đề — mỗi
+                // request cũ vẫn tốn round-trip + transaction DB riêng dù chạy nối tiếp ở FE.
+                const res = await topicsApi.bulkDelete(rootKeys.map(k => k.toString()));
+                if (res.blocked.length > 0) {
+                  toast.warning(
+                    `Đã xóa ${res.deletedCount} chủ đề. Bỏ qua ${res.blocked.length} chủ đề đang được tham chiếu (vd "${res.blocked[0].name}": ${res.blocked[0].reason}).`
+                  );
+                } else {
+                  toast.success('Đã xóa các chủ đề được chọn!');
                 }
-                toast.success('Đã xóa các chủ đề được chọn!');
                 setSelectedRowKeys([]);
               } else if (selectedRecord) {
                 await topicsApi.delete(selectedRecord.Id);
