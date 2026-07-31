@@ -6,6 +6,7 @@ import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
 import { SUBJECTS as INITIAL_SUBJECTS } from '../../../data';
 import { subjectCategoryApi, bankQuestionApi } from '../../../services/danhMucApi';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ModalChonCauHoi from './ModalChonCauHoi';
 
 interface ModalDeRiengLeProps {
@@ -181,7 +182,7 @@ export default function ModalDeRiengLe({
               statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
               lineNumber: q.lineNumber,
             }))
-            .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+            .sort(compareByPartAndLineNumber);
           setParts(DEFAULT_PARTS.map(p => ({
             ...p,
             questions: existingQuestions.filter((q) => {

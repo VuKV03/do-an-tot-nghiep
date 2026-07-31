@@ -37,6 +37,7 @@ import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_T
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
 
 const { RangePicker } = DatePicker;
@@ -369,7 +370,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+          .sort(compareByPartAndLineNumber);
         const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs);
         zip.file(`${exam.code}.docx`, blob);
       }));
@@ -403,7 +404,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+          .sort(compareByPartAndLineNumber);
       });
       setViewQuestionsByExamId(map);
     } catch {

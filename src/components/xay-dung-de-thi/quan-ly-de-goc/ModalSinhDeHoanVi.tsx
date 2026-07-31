@@ -9,6 +9,7 @@ import {
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';
 
 interface ModalSinhDeHoanViProps {
@@ -139,10 +140,12 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             statements: q.statements, creator: q.creator, createdAt: q.createdAt, nangLucId: q.nangLucId,
             lineNumber: q.lineNumber,
           }))
-          // Câu hỏi cũ tạo trước khi có lineNumber (hoặc bị mất do bug trước đây) đều có giá trị
-          // mặc định 1 ở DB — sort ổn định (Array.sort giữ nguyên thứ tự tương đối khi bằng nhau)
-          // nên các câu đó vẫn giữ đúng thứ tự trả về từ API, không bị xáo lộn xộn thêm lần nữa.
-          .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+          // Sort theo (Phần, lineNumber trong Phần) — không chỉ lineNumber thô, vì lineNumber đánh số
+          // lại từ 1 ở MỖI Phần nên nhiều câu khác Phần có thể trùng số (vd Phần I câu 1 và Phần II
+          // câu 1 đều lineNumber=1). Câu hỏi cũ tạo trước khi có lineNumber (hoặc bị mất do bug trước
+          // đây) đều có giá trị mặc định 1 — sort ổn định (Array.sort giữ nguyên thứ tự tương đối khi
+          // bằng nhau) nên các câu đó vẫn giữ đúng thứ tự trả về từ API trong phạm vi Phần của nó.
+          .sort(compareByPartAndLineNumber);
         setSourceQuestions(qs);
       })
       .catch(() => toast.error('Không tải được nội dung đề gốc.'))
@@ -412,10 +415,21 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           // Phải forward đủ topicId/topicName/competencyComponentId/creator từ câu hỏi GỐC — trước
           // đây bị bỏ sót nên mọi đề hoán vị lưu xong đều mất Chủ đề/Thành phần năng lực/Người tạo
           // dù câu hỏi gốc trong Ngân hàng câu hỏi đã có đủ các thông tin này.
-          // lineNumber = vị trí (1-based) trong mảng đã hoán vị — mỗi câu hỏi chỉ thuộc 1 đề
-          // (exam_id 1-N, không dùng chung giữa nhiều đề) nên lưu thẳng lên chính câu hỏi là đủ,
-          // không cần bảng join riêng. Đọc lại (ModalSinhDeHoanVi/ExamManagementModule/
-          // PackageManagementModule) đều sort theo field này để không bị lẫn lộn theo id ngẫu nhiên.
+          // lineNumber = vị trí (1-based) TRONG PHẠM VI PHẦN của câu hỏi — đánh số lại từ 1 ở MỖI
+          // Phần (đúng cách "Câu N" hiển thị/xuất Word: Phần I câu 1..12, Phần II câu 1..4,... — xem
+          // PART_META ở ExamContentDisplay.tsx), KHÔNG phải 1 chỉ số tăng dần suốt toàn đề (bug cũ:
+          // đề 22 câu lưu thẳng 1..22 bất kể Phần). Mỗi câu hỏi chỉ thuộc 1 đề (exam_id 1-N, không
+          // dùng chung giữa nhiều đề) nên lưu thẳng lên chính câu hỏi là đủ, không cần bảng join
+          // riêng. Đọc lại (ModalSinhDeHoanVi/ExamManagementModule/PackageManagementModule) đều sort
+          // theo (Phần, lineNumber) — xem compareByPartAndLineNumber ở utils/examParts.ts — để không
+          // bị lẫn lộn theo id ngẫu nhiên hay xáo giữa các Phần khi nhiều câu cùng mang số 1, 2,...
+          const partCounters = new Map<string, number>();
+          const lineNumbers = variantQuestions.map((q) => {
+            const key = q.type || 'other';
+            const next = (partCounters.get(key) || 0) + 1;
+            partCounters.set(key, next);
+            return next;
+          });
           await Promise.all(variantQuestions.map((q, qi) => questionApi.create({
             text: q.text,
             type: q.type,
@@ -432,7 +446,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             examId: newExamId,
             creator: q.creator,
             competencyComponentId: q.nangLucId,
-            lineNumber: qi + 1,
+            lineNumber: lineNumbers[qi],
             // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
             // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
             source: 'ai_exam',

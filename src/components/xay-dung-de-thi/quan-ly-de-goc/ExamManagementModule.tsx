@@ -41,6 +41,7 @@ import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
+import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -317,9 +318,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           createdAt: q.createdAt,
           lineNumber: q.lineNumber,
         }))
-        // Giữ đúng thứ tự đã lưu (vd đề hoán vị) — GET /bank-questions/ không đảm bảo trả về
-        // theo đúng thứ tự này (xem ModalSinhDeHoanVi.tsx).
-        .sort((a, b) => (a.lineNumber || 1) - (b.lineNumber || 1));
+        // Giữ đúng thứ tự đã lưu (vd đề hoán vị) — GET /bank-questions/ không đảm bảo trả về theo
+        // đúng thứ tự này. Sort theo (Phần, lineNumber trong Phần) — không chỉ lineNumber thô, vì
+        // lineNumber đánh số lại từ 1 ở MỖI Phần (xem ModalSinhDeHoanVi.tsx).
+        .sort(compareByPartAndLineNumber);
     } catch {
       return [];
     }
