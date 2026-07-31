@@ -320,6 +320,7 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     # Calculate real score
     total_correct = 0
     total_questions = 0
+    detailed_results = []
     
     if exam_result.exam_id:
         # Find subject config
@@ -347,11 +348,22 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
             answers_dict = json.loads(payload.answers_json)
         except Exception:
             answers_dict = {}
-            
         total_score = 0.0
         
         import re
+        import html
+        
+        def clean_html(text):
+            if not text:
+                return ""
+            text = str(text)
+            text = re.sub(r'<[^>]+>', '', text)
+            text = html.unescape(text)
+            text = re.sub(r'[\u200b\u200c\u200d\ufeff]', '', text)
+            return text.strip()
+
         def parse_ds(ans_str):
+            ans_str = clean_html(ans_str)
             parts = str(ans_str).split(",")
             res = {}
             for p in parts:
@@ -366,7 +378,16 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
             q_type = row.QuestionType
             
             user_ans = answers_dict.get(str(q.id))
+            type_code = q_type.code.upper() if q_type and q_type.code else ""
+            
             if not user_ans or not q.correct_answer:
+                detailed_results.append({
+                    "question_id": q.id,
+                    "user_answer": user_ans or "",
+                    "correct_answer": clean_html(q.correct_answer) if q.correct_answer else "",
+                    "is_correct": False,
+                    "type_code": type_code
+                })
                 continue
                 
             part = None
@@ -378,9 +399,16 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                 elif q.type_id == config.type_id_p3:
                     part = "p3"
             
-            type_code = q_type.code.upper() if q_type and q_type.code else ""
             is_ds = type_code in ["DS", "TRUE_FALSE"]
             is_short_answer = type_code in ["TLN", "SHORT_ANSWER"] or (q_type and "ngắn" in q_type.name.lower())
+            
+            q_detailed_result = {
+                "question_id": q.id,
+                "user_answer": str(user_ans),
+                "correct_answer": clean_html(q.correct_answer),
+                "is_correct": False,
+                "type_code": type_code
+            }
             
             if is_ds:
                 user_ds = parse_ds(user_ans)
@@ -393,6 +421,9 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                         
                 if match_count > 0:
                     total_correct += 1 
+                
+                if match_count == len(correct_ds) and len(correct_ds) > 0:
+                    q_detailed_result["is_correct"] = True
                     
                 points = 0.0
                 if config:
@@ -416,10 +447,11 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                 total_score += points
                 
             elif is_short_answer:
-                u_ans = str(user_ans).strip().lower()
-                c_ans = str(q.correct_answer).strip().lower()
+                u_ans = clean_html(user_ans).lower()
+                c_ans = clean_html(q.correct_answer).lower()
                 if u_ans == c_ans:
                     total_correct += 1
+                    q_detailed_result["is_correct"] = True
                     if config:
                         if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
                         elif part == "p2": total_score += float(config.points_for_a_correct_answers_p2 or 0)
@@ -427,7 +459,32 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     else:
                         total_score += 1.0 
             else:
-                if str(user_ans).strip().lower() == str(q.correct_answer).strip().lower():
+                correct_letter = None
+                if q.options and q.correct_answer:
+                    try:
+                        opts = json.loads(q.options) if isinstance(q.options, str) else q.options
+                        if isinstance(opts, list):
+                            clean_correct = clean_html(q.correct_answer).lower()
+                            for i, opt in enumerate(opts):
+                                if clean_html(opt).lower() == clean_correct:
+                                    correct_letter = chr(65 + i)
+                                    break
+                    except Exception:
+                        pass
+                
+                u_ans = str(user_ans).strip().upper()
+                is_correct = False
+                
+                if correct_letter:
+                    q_detailed_result["correct_answer"] = correct_letter
+                    if u_ans == correct_letter:
+                        is_correct = True
+                else:
+                    if clean_html(user_ans).lower() == clean_html(q.correct_answer).lower():
+                        is_correct = True
+
+                if is_correct:
+                    q_detailed_result["is_correct"] = True
                     total_correct += 1
                     if config:
                         if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
@@ -435,6 +492,8 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                         elif part == "p3": total_score += float(config.points_for_a_correct_answers_p3 or 0)
                     else:
                         total_score += 1.0 
+
+            detailed_results.append(q_detailed_result)
 
         if config:
             exam_result.score = round(total_score, 2)
@@ -458,5 +517,6 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         "score": exam_result.score,
         "total_correct": exam_result.total_correct,
         "total_questions": exam_result.total_questions,
-        "submitted_at": exam_result.submitted_at
+        "submitted_at": exam_result.submitted_at,
+        "detailed_results": detailed_results
     }
