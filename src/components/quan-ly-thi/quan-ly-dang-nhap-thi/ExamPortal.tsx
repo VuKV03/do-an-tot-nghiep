@@ -359,7 +359,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     if (parts[key]) acc = acc.concat(parts[key]);
     return acc;
   }, []);
-  
+
   const currentVisualIdx = orderedQuestions.findIndex((q: any) => q.id === currentQ.id);
   const canGoBack = currentVisualIdx > 0;
   const canGoNext = currentVisualIdx < orderedQuestions.length - 1;
@@ -670,10 +670,6 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <span className="text-slate-700 text-sm">
                 Số câu đã trả lời: <span className="text-green-600 font-bold ml-1">{answeredCount}</span> / {totalQuestions}
               </span>
-              <div className="flex gap-1 ml-2">
-                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<UnorderedListOutlined className="text-[14px]" />} />
-                <Button type="text" className="bg-blue-700 text-white hover:bg-blue-800 w-7 h-7 rounded-sm flex items-center justify-center p-0" icon={<AppstoreOutlined className="text-[14px]" />} />
-              </div>
             </div>
           </div>
         </div>
