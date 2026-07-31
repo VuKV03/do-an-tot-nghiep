@@ -5,6 +5,8 @@
  */
 import { Paragraph, TextRun, ImageRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, type ParagraphChild } from 'docx';
 import { isLikelyHtml, sanitizeHtml } from './htmlContent';
+import { FORMULA_CLASS, getFormulaLatex } from './mathFormula';
+import { latexToDocxMath } from './latexToDocxMath';
 
 interface RunStyle {
   bold?: boolean;
@@ -86,6 +88,16 @@ function collectRunsForNode(node: Node, style: RunStyle): ParagraphChild[] {
   const tag = el.tagName.toLowerCase();
 
   if (tag === 'br') return [new TextRun({ text: '', break: 1 })];
+
+  // Công thức toán (RichTextEditor chèn qua mathFormula.ts) — nội dung thật bên trong là HTML/SVG do
+  // KaTeX render, CHỈ có ý nghĩa hiển thị trên web, không có ý nghĩa gì với Word. Nếu cứ đệ quy vào
+  // trong (như mọi <span> khác) sẽ trích ra toàn ký tự rời rạc từ cấu trúc dựng hình của KaTeX (mất
+  // hết dấu phân số/số mũ, thậm chí lẫn ký tự thừa). Lấy lại đúng mã LaTeX gốc (data-latex) và dựng
+  // thành công thức Word THẬT (OMML) — editable, hiển thị đúng cấu trúc như khi soạn trên web.
+  if (el.classList.contains(FORMULA_CLASS)) {
+    const latex = getFormulaLatex(el as HTMLElement);
+    return latex ? [latexToDocxMath(latex)] : [];
+  }
 
   if (tag === 'img') {
     const src = el.getAttribute('src') || '';

@@ -6,7 +6,7 @@ import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
 import { SUBJECTS as INITIAL_SUBJECTS } from '../../../data';
 import { subjectCategoryApi, bankQuestionApi } from '../../../services/danhMucApi';
-import { compareByPartAndLineNumber } from '../../../utils/examParts';
+import { compareByPartAndLineNumber, PART_DESCRIPTIONS } from '../../../utils/examParts';
 import ModalChonCauHoi from './ModalChonCauHoi';
 
 interface ModalDeRiengLeProps {
@@ -36,14 +36,6 @@ const DEFAULT_PARTS: Omit<ExamPart, 'questions' | 'collapsed'>[] = [
 
 const PART_ROMAN: Record<string, string> = { 'phan-1': 'I', 'phan-2': 'II', 'phan-3': 'III' };
 
-// Mô tả cách làm bài theo từng loại câu hỏi — khớp đúng nội dung ExamPortal.tsx đang hiển thị cho
-// thí sinh lúc thi thật, để đề xem trước ở đây và đề thi thật hiển thị nhất quán.
-const PART_DESC: Record<string, string> = {
-  single: 'Mỗi câu hỏi thí sinh chỉ chọn một phương án.',
-  true_false: 'Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.',
-  short: 'Thí sinh trả lời bằng cách nhập đáp án vào ô trống.',
-};
-
 /** Tiêu đề 1 Phần, tính động theo SỐ CÂU THẬT đã chọn — số thứ tự câu tính liên tục qua các phần
  * theo đúng thứ tự Phần I → II → III (không lặp lại "câu 1" ở mỗi phần), khớp cách đánh số thật của
  * đề thi (xem getQuestionGlobalIndex ở ExamPortal.tsx). */
@@ -61,7 +53,7 @@ const getPartLabel = (parts: ExamPart[], partId: string): string => {
   }
   const from = startIdx + 1;
   const to = startIdx + part.questions.length;
-  const desc = PART_DESC[part.questionType] || '';
+  const desc = PART_DESCRIPTIONS[part.questionType] || '';
   return `Phần ${roman}: Thí sinh trả lời từ câu ${from} đến câu ${to}. ${desc}`;
 };
 

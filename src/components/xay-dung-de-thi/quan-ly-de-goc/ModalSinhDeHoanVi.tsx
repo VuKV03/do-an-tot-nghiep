@@ -11,6 +11,7 @@ import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';
+import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
 interface ModalSinhDeHoanViProps {
   open: boolean;
@@ -287,26 +288,33 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     handleCancelEditQuestion();
   };
 
-  const handleDownloadSource = async () => {
+  // Mỗi nút "Tải xuống" mở modal hỏi Có/Không đáp án trước khi thực sự xuất — pendingExport giữ tên
+  // hiện trong modal + hàm thực thi thật (nhận includeAnswers từ lựa chọn của người dùng).
+  const [pendingExport, setPendingExport] = useState<{ label: string; run: (includeAnswers: boolean) => void } | null>(null);
+
+  const doDownloadSource = async (includeAnswers: boolean) => {
     if (!exam) return;
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions);
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}_DeGoc`, 'docx');
   };
+  const handleDownloadSource = () => setPendingExport({ label: 'đề gốc', run: doDownloadSource });
 
-  const handleDownloadVariant = async (index: number) => {
+  const doDownloadVariant = async (index: number, includeAnswers: boolean) => {
     if (!exam) return;
     const code = String((startCode || 1) + index);
-    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index]);
+    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index], exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}-${code}_DeHoanVi${index + 1}`, 'docx');
   };
+  const handleDownloadVariant = (index: number) =>
+    setPendingExport({ label: `đề hoán vị ${index + 1}`, run: (includeAnswers) => doDownloadVariant(index, includeAnswers) });
 
-  const handleDownloadAll = async () => {
+  const doDownloadAll = async (includeAnswers: boolean) => {
     if (!exam || variants.length === 0) return;
     const zip = new JSZip();
-    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions));
+    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers));
     await Promise.all(variants.map(async (qs, idx) => {
       const code = String((startCode || 1) + idx);
-      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs);
+      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
       zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.docx`, variantBlob);
     }));
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -318,6 +326,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     document.body.removeChild(element);
     URL.revokeObjectURL(element.href);
   };
+  const handleDownloadAll = () => setPendingExport({ label: 'tất cả đề (đề gốc + hoán vị)', run: doDownloadAll });
 
   const handleSavePackage = async () => {
     if (!exam) return;
@@ -722,6 +731,17 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           </div>
         )}
       </Modal>
+
+      <ExportAnswerChoiceModal
+        open={pendingExport !== null}
+        onCancel={() => setPendingExport(null)}
+        onConfirm={(includeAnswers) => {
+          const action = pendingExport;
+          setPendingExport(null);
+          action?.run(includeAnswers);
+        }}
+        targetLabel={pendingExport?.label}
+      />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { Card, Tag, Button, Space, Tooltip, Radio } from 'antd';
 import { SwapOutlined, SearchOutlined, FileTextOutlined, EditOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
+import { PART_META } from '../../../utils/examParts';
 
 interface ExamContentDisplayProps {
   questions: any[];
@@ -13,15 +14,6 @@ interface ExamContentDisplayProps {
   /** Chỉ số câu đang được "Sinh lại" (không giới hạn số lượt) — dùng để hiện loading và khoá tạm các nút khác. */
   regeneratingIndex?: number | null;
 }
-
-// Nhóm câu hỏi theo đúng cấu trúc 3 Phần của đề thi tốt nghiệp THPT (Thông tư 22/2024) thay vì liệt
-// kê lẫn lộn "Câu 1, Câu 2, ..." theo thứ tự sinh/chọn — mỗi Phần đánh số lại từ "Câu 1". Câu hỏi
-// không khớp 3 loại này (vd 'multiple' — câu hỏi nhóm) gộp vào 1 mục phụ ở cuối, không bị bỏ sót.
-const PART_META: { type: string; header: string }[] = [
-  { type: 'single', header: 'Phần I: Trắc nghiệm 1 lựa chọn' },
-  { type: 'true_false', header: 'Phần II: Trắc nghiệm Đúng/Sai' },
-  { type: 'short', header: 'Phần III: Trắc nghiệm trả lời ngắn' },
-];
 
 export default function ExamContentDisplay({
   questions = [],
@@ -206,11 +198,13 @@ export default function ExamContentDisplay({
   const withIndex = questions.map((q, idx) => ({ q, idx }));
   const groups = PART_META.map(part => ({
     header: part.header,
+    // "N" trong hướng dẫn gốc là placeholder — thay bằng đúng số câu THẬT của Phần này.
+    instruction: part.instruction.replace('N', String(withIndex.filter(({ q }) => q.type === part.type).length)),
     items: withIndex.filter(({ q }) => q.type === part.type),
   })).filter(g => g.items.length > 0);
   const knownTypes = new Set(PART_META.map(p => p.type));
   const otherItems = withIndex.filter(({ q }) => !knownTypes.has(q.type));
-  if (otherItems.length > 0) groups.push({ header: 'Câu hỏi khác', items: otherItems });
+  if (otherItems.length > 0) groups.push({ header: 'Câu hỏi khác', instruction: '', items: otherItems });
 
   return (
     <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2" id="exam-questions-content-display">
@@ -222,8 +216,13 @@ export default function ExamContentDisplay({
       ) : (
         groups.map(group => (
           <div key={group.header}>
-            <div className="text-xs font-bold text-[#1a3c8b] uppercase tracking-wide mb-2 pb-1 border-b border-slate-200">
-              {group.header}
+            <div className="mb-2 pb-1 border-b border-slate-200">
+              <div className="text-xs font-bold text-[#1a3c8b] uppercase tracking-wide">
+                {group.header}
+              </div>
+              {group.instruction && (
+                <div className="text-[11px] text-slate-500 italic mt-0.5">{group.instruction}</div>
+              )}
             </div>
             <div className="space-y-4">
               {group.items.map(({ q, idx }, localIdx) => renderQuestionCard(q, idx, localIdx + 1))}

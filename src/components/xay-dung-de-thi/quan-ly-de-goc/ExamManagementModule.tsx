@@ -46,6 +46,7 @@ import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
 import ExamContentDisplay from './ExamContentDisplay';
+import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
 const { RangePicker } = DatePicker;
 
@@ -339,13 +340,18 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Word export trigger — file .docx thật (OOXML, thư viện `docx`), không còn là RTF đổi đuôi
   // như trước (mở được trên Word desktop nhờ tự nhận diện nội dung, nhưng không phải file Word
   // chuẩn nên có thể lỗi/cảnh báo trên Word Online, LibreOffice, Google Docs...).
-  const handleExportWord = async (exam: any) => {
+  // Bấm "Tải đề thi (.docx)" mở modal hỏi Có/Không đáp án trước — xem exportExamTarget bên dưới.
+  const doExportWord = async (exam: any, includeAnswers: boolean) => {
     toast.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
     const questions = await fetchExamQuestions(exam.id);
-    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions);
+    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions, exam.duration || 90, includeAnswers);
     triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');
     toast.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };
+
+  // Đề đang chờ chọn "Có đáp án"/"Không đáp án" trước khi thực sự xuất — null = modal đang đóng.
+  const [exportExamTarget, setExportExamTarget] = useState<any | null>(null);
+  const handleExportWord = (exam: any) => setExportExamTarget(exam);
 
   // Cột xuất Excel — khớp đúng các cột đang hiển thị ở bảng "Kết quả tìm kiếm".
   const examExcelColumns: ExcelColumn<any>[] = [
@@ -1040,6 +1046,17 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           setSelectedExam(null);
           fetchData();
         }}
+      />
+
+      <ExportAnswerChoiceModal
+        open={exportExamTarget !== null}
+        onCancel={() => setExportExamTarget(null)}
+        onConfirm={(includeAnswers) => {
+          const exam = exportExamTarget;
+          setExportExamTarget(null);
+          if (exam) doExportWord(exam, includeAnswers);
+        }}
+        targetLabel={exportExamTarget ? `đề ${exportExamTarget.code}` : undefined}
       />
     </div>
   );

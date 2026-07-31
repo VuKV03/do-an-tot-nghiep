@@ -14,6 +14,27 @@ export function getPartOrder(type: string | undefined): number {
   return idx === -1 ? PART_ORDER.length : idx;
 }
 
+/** Mô tả cách làm bài theo từng loại câu hỏi (KHÔNG kèm số thứ tự câu) — khớp đúng nội dung
+ * ExamPortal.tsx hiển thị cho thí sinh lúc thi thật. Dùng chung cho ModalDeRiengLe.tsx (đánh số câu
+ * LIÊN TỤC qua các Phần — xem getPartLabel ở đó, đúng cách getQuestionGlobalIndex/ExamPortal.tsx tính
+ * số câu thật) và PART_META bên dưới (đánh số RESET lại từ 1 ở mỗi Phần — dùng cho preview quản trị/
+ * xuất Word, xem comment ở compareByPartAndLineNumber). 2 nơi đánh số khác nhau nhưng PHẦN MÔ TẢ cách
+ * làm bài phải giống hệt nhau — tách riêng ra đây để tránh lệch nội dung khi sửa. */
+export const PART_DESCRIPTIONS: Record<string, string> = {
+  single: 'Mỗi câu hỏi thí sinh chỉ chọn một phương án.',
+  true_false: 'Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.',
+  short: 'Thí sinh trả lời bằng cách nhập đáp án vào ô trống.',
+};
+
+/** Tiêu đề + hướng dẫn làm bài (đánh số RESET lại từ 1 ở mỗi Phần) — dùng cho UI xem trước quản trị
+ * (ExamContentDisplay.tsx) và file Word xuất ra (examWordExport.ts). "N" trong `instruction` là
+ * placeholder, thay bằng đúng số câu thật của Phần đó trước khi hiển thị. */
+export const PART_META: { type: string; header: string; instruction: string }[] = [
+  { type: 'single', header: 'Phần I: Trắc nghiệm 1 lựa chọn' },
+  { type: 'true_false', header: 'Phần II: Trắc nghiệm Đúng/Sai' },
+  { type: 'short', header: 'Phần III: Trắc nghiệm trả lời ngắn' },
+].map(p => ({ ...p, instruction: `Thí sinh trả lời từ câu 1 đến câu N. ${PART_DESCRIPTIONS[p.type]}` }));
+
 /** So sánh 2 câu hỏi để sort đúng thứ tự hiển thị: trước hết theo Phần (getPartOrder), sau đó theo
  * `lineNumber` trong phạm vi Phần đó (câu chưa có lineNumber coi như 1, đứng đầu Phần của nó). */
 export function compareByPartAndLineNumber(
