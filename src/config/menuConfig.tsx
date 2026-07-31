@@ -56,7 +56,7 @@ export const rawMenuItems = [
     children: [
       { key: 'quan-ly-nguoi-dung', label: 'Quản lý người dùng' },
       { key: 'quan-ly-nhom-nguoi-dung', label: 'Quản lý nhóm người dùng' },
-      { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
+      // { key: 'chinh-sach-bao-mat', label: 'Chính sách bảo mật' }
     ]
   }
 ];

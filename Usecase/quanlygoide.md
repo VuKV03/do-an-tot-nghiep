@@ -19,6 +19,10 @@
 
 ## 2. Biểu đồ Use Case (Use Case Diagram)
 
+**Mô tả:** Biểu đồ Use Case thể hiện sự tương tác của hai tác nhân chính (Giáo viên và Quản trị viên) với hệ thống trong quy trình quản lý gói đề thi. Các chức năng bao gồm xem danh sách, xem chi tiết mã đề hoán vị, thẩm định (duyệt/từ chối), xuất bản, xuất file Word đề thi và xóa gói đề.
+
+**Mục tiêu:** Cung cấp cái nhìn tổng thể về phân quyền và các thao tác nghiệp vụ, giúp định hình rõ vai trò của Giáo viên (tạo và đề xuất) và Quản trị viên (kiểm duyệt và điều phối trạng thái) trong hệ thống.
+
 ```plantuml
 @startuml
 title Biểu đồ Use Case: Quản lý gói đề
@@ -57,6 +61,12 @@ end note
 ```
 
 ## 3. Biểu đồ Trình tự chức năng (Sequence Diagram)
+
+**Mô tả:** Biểu đồ trình diễn chi tiết quy trình giao tiếp giữa Quản trị viên, giao diện người dùng, tầng Service và Cơ sở dữ liệu trong nghiệp vụ Thẩm định và Xuất bản gói đề. Quá trình bao gồm tải dữ liệu chi tiết, thực hiện thao tác phê duyệt hoặc từ chối, và cập nhật trạng thái gói đề sang hoạt động (xuất bản).
+
+**Mục tiêu:** Làm rõ luồng xử lý kỹ thuật và vòng đời trạng thái của gói đề ở tầng hệ thống, đảm bảo quy trình kiểm duyệt diễn ra minh bạch, lưu trữ kết quả chính xác và phản hồi trực quan.
+
+*Biểu đồ trình tự mô tả nghiệp vụ **Thẩm định và Xuất bản gói đề**.*
 
 ```plantuml
 @startuml

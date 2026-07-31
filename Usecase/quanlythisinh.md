@@ -15,6 +15,10 @@
 
 ## 2. Biểu đồ Use Case (Use Case Diagram)
 
+**Mô tả:** Biểu đồ mô tả sự tương tác giữa Quản trị viên và hệ thống trong phân hệ quản lý thông tin thí sinh. Bao gồm các chức năng cốt lõi: xem danh sách, thêm mới (kèm tạo tự động số báo danh), cập nhật thông tin, xóa thí sinh và đặc biệt là tính năng cấp quyền thi lại.
+
+**Mục tiêu:** Cung cấp cái nhìn tổng quan về quyền hạn của tác nhân Quản trị viên đối với hồ sơ thí sinh, đảm bảo mọi thao tác từ khi tạo mới đến khi xử lý sự cố thi cử đều được minh họa rõ ràng và đầy đủ.
+
 ```plantuml
 @startuml
 title Biểu đồ Use Case: Quản lý Thí sinh
@@ -50,6 +54,11 @@ end note
 ```
 
 ## 3. Biểu đồ Trình tự chức năng (Sequence Diagram)
+
+**Mô tả:** Biểu đồ trình diễn chuỗi tương tác hệ thống khi Quản trị viên cấp quyền "Thi lại" cho một thí sinh. Luồng hoạt động bắt đầu từ giao diện người dùng (tìm kiếm, xác nhận), gọi API tới Service để tương tác với cơ sở dữ liệu (xóa/vô hiệu hóa kết quả thi cũ, đặt lại trạng thái), và cuối cùng phản hồi kết quả cập nhật về giao diện.
+
+**Mục tiêu:** Làm rõ quy trình kỹ thuật và các bước thao tác dữ liệu an toàn để xử lý trường hợp thí sinh cần thi lại, đảm bảo hệ thống duy trì tính nhất quán khi reset trạng thái bài thi.
+
 *Biểu đồ trình tự mô tả nghiệp vụ **Cấp quyền "Thi lại" (Reset Result)** cho thí sinh.*
 
 ```plantuml

@@ -11,7 +11,7 @@ Phân hệ Quản lý Đề gốc bao gồm 2 tác nhân chính tham gia:
 
 | Tên Use case                 | Tác nhân                    | Giao dịch                                                                                                                                                | Độ phức tạp |
 | ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| **Quản lý đề gốc** | Giáo viên, Quản trị viên |                                                                                                                                                           | Cao             |
+| **Quản lý đề gốc** | Giáo viên, Quản trị viên |                                                                                                                                                           | Phức tạp      |
 |                               |                               | Giáo viên có thể yêu cầu hệ thống sinh đề gốc tự động. Hệ thống tạo đề gốc dựa trên thuật toán/AI và lưu vào cơ sở dữ liệu |                 |
 |                               |                               | Giáo viên, Quản trị viên có thể xem chi tiết danh sách câu hỏi, đáp án của đề gốc. Hệ thống hiển thị chi tiết đề gốc            |                 |
 |                               |                               | Giáo viên có thể thay thế câu hỏi trong đề gốc. Hệ thống cập nhật lại nội dung đề gốc trong cơ sở dữ liệu                          |                 |
@@ -22,6 +22,10 @@ Phân hệ Quản lý Đề gốc bao gồm 2 tác nhân chính tham gia:
 ---
 
 ## 3. Biểu đồ Use Case (Use Case Diagram)
+
+**Mô tả:** Biểu đồ thể hiện các chức năng cốt lõi trong phân hệ quản lý đề gốc, bao gồm việc Giáo viên yêu cầu sinh đề tự động từ ma trận, xem chi tiết, thay thế câu hỏi, gửi duyệt và Quản trị viên tiến hành phê duyệt hoặc từ chối đề.
+
+**Mục tiêu:** Cung cấp cái nhìn tổng quan về quy trình phối hợp làm việc giữa Giáo viên (người soạn đề) và Quản trị viên (người kiểm duyệt) trong giai đoạn khởi tạo và chuẩn hóa một đề thi gốc trước khi nó được xuất bản sử dụng chính thức.
 
 ```plantuml
 @startuml
@@ -57,7 +61,11 @@ QTV --> UC6
 
 ## 4. Biểu đồ Trình tự (Sequence Diagram)
 
-Biểu đồ trình tự mô tả nghiệp vụ **Sinh đề gốc tự động và Thay thế câu hỏi thủ công**.
+**Mô tả:** Biểu đồ mô phỏng chuỗi tương tác hệ thống khi Giáo viên yêu cầu sinh đề tự động (gọi AI Service và hệ thống Ngân hàng câu hỏi) và thực hiện thao tác thay thế một câu hỏi cụ thể trong đề (truy vấn câu hỏi tương đương từ cơ sở dữ liệu).
+
+**Mục tiêu:** Làm rõ luồng xử lý dữ liệu ở tầng backend và cách các hệ thống (Original Exam Controller, AI Generation Service, Question Bank Service) phối hợp với nhau để tạo ra một đề gốc đạt chuẩn và đáp ứng nhu cầu tùy chỉnh linh hoạt của Giáo viên.
+
+*Biểu đồ trình tự mô tả nghiệp vụ **Sinh đề gốc tự động và Thay thế câu hỏi thủ công**.*
 
 ```plantuml
 @startuml

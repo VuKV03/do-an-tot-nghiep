@@ -27,6 +27,10 @@ Bảng dưới đây liệt kê các chức năng chính của phân hệ Thi Tr
 
 ## 3. Biểu đồ Use Case (Use Case Diagram)
 
+**Mô tả:** Biểu đồ thể hiện sự tương tác tổng thể giữa Thí sinh và Hệ thống đối với các chức năng trong phân hệ thi trực tuyến. Các chức năng chính bao gồm việc đăng nhập phòng thi, làm bài, nộp bài, và việc hệ thống tự động xử lý ngầm (lưu tiến độ, tự động khóa nộp bài và tự động chấm điểm).
+
+**Mục tiêu:** Cung cấp cái nhìn bao quát về vai trò của từng tác nhân, quyền hạn và các hành động mà tác nhân có thể thực hiện, qua đó định hình rõ phạm vi chức năng của toàn bộ quy trình làm bài thi.
+
 ```plantuml
 @startuml
 title Biểu đồ Use Case: Hệ thống thi trực tuyến
@@ -70,6 +74,10 @@ HT --> UC7
 ## 4. Biểu đồ Trình tự (Sequence Diagram)
 
 Dưới đây là biểu đồ trình tự mô tả luồng nghiệp vụ quan trọng nhất: **Nộp bài và Chấm điểm tự động**.
+
+**Mô tả:** Biểu đồ mô phỏng dòng thời gian và tuần tự lời gọi hàm khi Thí sinh thực hiện thao tác nộp bài. Lớp Giao diện gửi yêu cầu xuống Controller và Service để lưu trạng thái hoàn thành. Ngay sau đó, tiến trình chấm điểm tự động (`autoGrade()`) được kích hoạt: đối chiếu đáp án với cơ sở dữ liệu, tính điểm và lưu kết quả trước khi phản hồi điểm số trực tiếp lên màn hình cho Thí sinh.
+
+**Mục tiêu:** Làm rõ thứ tự giao tiếp giữa các thành phần phần mềm (UI, Controller, Service, Database), đảm bảo khâu tiếp nhận bài thi và xử lý điểm tự động hoạt động chính xác, đồng bộ, và minh bạch.
 
 ```plantuml
 @startuml
