@@ -428,7 +428,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                     const globalIdx = getQuestionGlobalIndex(q.id);
                     return (
                       <div key={q.id} className="border-b pb-6 last:border-0 border-slate-100">
-                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {globalIdx + 1}: </span> <RichTextView html={q.content} className="font-medium" /></div>
+                        <div className="font-bold text-slate-800 mb-4 flex gap-1"><span className="shrink-0">Câu {q.line_number || (globalIdx + 1)}: </span> <RichTextView html={q.content} className="font-medium" /></div>
                         {q.type_code === 'true_false' || q.type_code?.toLowerCase() === 'đs' || q.type_code?.toLowerCase() === 'ds' ? (
                           <div className="pl-12 w-full max-w-4xl">
                             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -534,7 +534,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div className="space-y-6">
                 {['p1', 'p2', 'p3'].filter(k => parts[k]).map((partKey) => (
                   <div key={partKey}>
-                    <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => getQuestionGlobalIndex(q.id) + 1).join(', ')}</div>
+                    <div className="text-sm text-blue-900 mb-3">Phần {getTypeDisplayName(partKey)}: Câu {parts[partKey].map((q: any) => q.line_number || (getQuestionGlobalIndex(q.id) + 1)).join(', ')}</div>
                     <div className="flex flex-wrap gap-2">
                       {parts[partKey].map((q: any) => {
                         const gIdx = getQuestionGlobalIndex(q.id);
@@ -554,7 +554,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                             }}
                             className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer transition-all ${bgClass} hover:opacity-80`}
                           >
-                            {gIdx + 1}
+                            {q.line_number || (gIdx + 1)}
                           </div>
                         );
                       })}
@@ -662,8 +662,8 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               const currentTypeKey = getTypeGroupKey(currentQ.type_code);
               const partQuestions = parts[currentTypeKey] || [];
               if (partQuestions.length === 0) return null;
-              const startIdx = getQuestionGlobalIndex(partQuestions[0].id) + 1;
-              const endIdx = getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1;
+              const startIdx = partQuestions[0].line_number || (getQuestionGlobalIndex(partQuestions[0].id) + 1);
+              const endIdx = partQuestions[partQuestions.length - 1].line_number || (getQuestionGlobalIndex(partQuestions[partQuestions.length - 1].id) + 1);
 
               let partDesc = "Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
               if (currentTypeKey === 'p2') {
@@ -684,7 +684,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div className="flex-1">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="font-bold text-slate-800 text-[15px] shrink-0 pt-[2px]">
-                    Câu {currentQuestionIdx + 1}:
+                    Câu {currentQ.line_number || (currentQuestionIdx + 1)}:
                   </div>
                   <div className="flex-1">
                     <RichTextView html={currentQ.content} className="text-[15px] text-slate-800 font-medium leading-relaxed" />
@@ -822,7 +822,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                         onClick={() => setCurrentQuestionIdx(gIdx)}
                         className={`w-[28px] h-[28px] rounded-full flex items-center justify-center text-[13px] font-bold cursor-pointer transition-all border ${bgClass} hover:opacity-80`}
                       >
-                        {gIdx + 1}
+                        {q.line_number || (gIdx + 1)}
                       </div>
                     );
                   })}

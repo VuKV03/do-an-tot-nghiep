@@ -271,7 +271,8 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
             "content": q.content,
             "options": parsed_options,
             "statements": parsed_statements,
-            "correct_answer": q.correct_answer
+            "correct_answer": q.correct_answer,
+            "line_number": q.line_number
         })
             
     return {
