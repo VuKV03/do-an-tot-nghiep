@@ -95,12 +95,38 @@ class Package(Base):
     grade = Column(String(100), nullable=False)
     status = Column(String(50), default="active")
     examsCount = Column(Integer, default=0)
-    examIds = Column(Text)  # JSON string of exam IDs array
     downloadsCount = Column(Integer, default=0)
     accessType = Column(String(50), default="standard")
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
-    matrix_id = Column(String(255), nullable=True)
+    # Ma trận đề dùng để lọc/gắn nhãn gói đề (không ảnh hưởng logic sinh đề hoán vị) — có FK thật, xem
+    # comment ở matrix_configs.subject_id về lý do các FK thêm sau khi bảng đã tồn tại cần migration
+    # ALTER TABLE ADD CONSTRAINT riêng (backend/exam_service/main.py), không tự có chỉ nhờ khai báo ở đây.
+    matrix_id = Column(String(255), ForeignKey("matrix_configs.id", ondelete="SET NULL"), nullable=True)
+
+    # Danh sách đề thi thuộc gói — TRƯỚC ĐÂY lưu dạng 1 cột `examIds` TEXT chứa JSON string
+    # (vd '["exam-1","exam-2"]'), không có ràng buộc gì ở tầng DB: không JOIN được, có thể trỏ tới 1
+    # exam đã bị xóa từ lâu mà không ai biết, và không cách nào để DB tự dọn liên kết khi 1 đề bị xóa.
+    # Thay bằng bảng trung gian `package_exams` có khóa ngoại thật ở cả 2 đầu (packages.id, exams.id),
+    # ON DELETE CASCADE — xóa gói hoặc xóa đề đều tự dọn sạch liên kết, không để sót "đề ma". Thứ tự
+    # examIds[0] luôn là đề gốc, còn lại là đề hoán vị (xem ModalSinhDeHoanVi.tsx) — giữ đúng thứ tự
+    # này qua cột `PackageExam.position`, sort theo cột đó khi đọc lại (order_by bên dưới).
+    exam_links = relationship(
+        "PackageExam", back_populates="package", cascade="all, delete-orphan",
+        order_by="PackageExam.position",
+    )
+
+
+class PackageExam(Base):
+    """Bảng trung gian gói đề ⟷ đề thi (many-to-many) — xem comment ở Package.exam_links."""
+    __tablename__ = "package_exams"
+
+    package_id = Column(String(255), ForeignKey("packages.id", ondelete="CASCADE"), primary_key=True)
+    exam_id = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), primary_key=True)
+    # Vị trí trong gói (0-based) — 0 luôn là đề gốc, còn lại là đề hoán vị theo đúng thứ tự đã sinh.
+    position = Column(Integer, nullable=False, default=0)
+
+    package = relationship("Package", back_populates="exam_links")
 
 
 class MatrixConfig(Base):

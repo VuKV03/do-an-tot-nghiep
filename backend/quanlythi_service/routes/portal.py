@@ -89,18 +89,21 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
         started_at = None
         duration = None
         
-        # Try to get the default duration from package's first exam
-        if p.examIds:
-            try:
-                exam_ids = json.loads(p.examIds)
-                if exam_ids:
-                    first_exam_id = exam_ids[0]
-                    exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == first_exam_id))
-                    first_exam = exam_res.scalar_one_or_none()
-                    if first_exam:
-                        duration = first_exam.duration
-            except Exception:
-                pass
+        # Try to get the default duration from package's first exam — "first" nghĩa là
+        # position=0 trong package_exams (bảng trung gian có FK thật, thay cho Package.examIds
+        # JSON cũ — xem exam_service/models.py::Package.exam_links).
+        first_link_res = await db.execute(
+            select(exam_models.PackageExam.exam_id)
+            .where(exam_models.PackageExam.package_id == p.id)
+            .order_by(exam_models.PackageExam.position)
+            .limit(1)
+        )
+        first_exam_id = first_link_res.scalar_one_or_none()
+        if first_exam_id:
+            exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == first_exam_id))
+            first_exam = exam_res.scalar_one_or_none()
+            if first_exam:
+                duration = first_exam.duration
         
         if p.subject in submitted_subjects:
             status = "submitted"
@@ -161,12 +164,13 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
     if not package:
         raise HTTPException(status_code=404, detail=f"Không có gói đề nào đang phát cho môn {subject}")
 
-    exam_ids = []
-    if package.examIds:
-        try:
-            exam_ids = json.loads(package.examIds)
-        except:
-            pass
+    # Đọc danh sách đề từ bảng trung gian package_exams (FK thật, thay cho Package.examIds JSON cũ).
+    exam_ids_res = await db.execute(
+        select(exam_models.PackageExam.exam_id)
+        .where(exam_models.PackageExam.package_id == package.id)
+        .order_by(exam_models.PackageExam.position)
+    )
+    exam_ids = list(exam_ids_res.scalars().all())
 
     if not exam_ids:
         raise HTTPException(status_code=400, detail="Gói đề này không chứa đề thi nào.")
