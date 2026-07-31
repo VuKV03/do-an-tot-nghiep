@@ -86,6 +86,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Trạng thái đang duyệt/từ chối 1 đề thi cụ thể (per-row) — tránh 1 boolean chung khiến
   // spinner hiện sai hàng khi nhiều dòng bị thao tác liên tiếp.
   const [reviewActioning, setReviewActioning] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
+  const [bulkReviewing, setBulkReviewing] = useState(false);
 
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
@@ -195,6 +196,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       return isPending && isAllowedSubject;
     });
   }, [exams, isSubjectRestricted, subjects]);
+
+  // Danh sách đang hiển thị THEO ĐÚNG TAB — trước đây checkbox "chọn tất cả" ở header bảng cứng dùng
+  // filteredExamRoots bất kể đang ở tab nào, nên ở tab "Thẩm định đề gốc" (dùng filteredExamReview)
+  // tick "chọn tất cả" không khớp với các dòng đang hiển thị thật, khiến checkbox từng dòng không
+  // được tick theo dù trạng thái header hiện đã chọn hết.
+  const visibleExamRows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
 
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
@@ -391,6 +398,39 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       toast.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
     } finally {
       setReviewActioning(null);
+    }
+  };
+
+  // Duyệt/Từ chối hàng loạt các đề đang chọn (tick) ở tab "Thẩm định đề gốc" — chạy song song bằng
+  // Promise.all thay vì tuần tự từng đề (giống lý do đã tối ưu bulk-delete câu hỏi: mỗi request PUT
+  // vẫn tốn round-trip DB riêng dù backend không có endpoint bulk-review cho exams, nên chạy song song
+  // ở FE là cách nhanh nhất mà không cần đổi API).
+  const handleBulkReviewDecision = async (status: 'approved' | 'rejected') => {
+    if (selectedExamIds.length === 0) return;
+    setBulkReviewing(true);
+    try {
+      const results = await Promise.all(selectedExamIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/exams/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          });
+          const json = await res.json();
+          return !!json.success;
+        } catch {
+          return false;
+        }
+      }));
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
+      const verb = status === 'approved' ? 'duyệt' : 'từ chối';
+      if (successCount > 0) toast.success(`Đã ${verb} ${successCount} đề thi.`);
+      if (failCount > 0) toast.warning(`${failCount} đề thi ${verb} thất bại — vui lòng thử lại.`);
+      setSelectedExamIds([]);
+      fetchData();
+    } finally {
+      setBulkReviewing(false);
     }
   };
 
@@ -698,15 +738,62 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 )}
               </>
             )}
-            {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.export') && (
-              <Button
-                type="primary"
-                icon={<FileExcelOutlined />}
-                onClick={handleExportExcel}
-                className="bg-green-600 border-transparent text-white font-semibold text-[14px] rounded hover:bg-green-700 cursor-pointer"
-              >
-                Xuất Excel
-              </Button>
+            {activeTab === 'exam_review' && (
+              <>
+                {hasActionPermission(currentUser, 'exams.approve') && (
+                  <>
+                    <Popconfirm
+                      title={`Duyệt ${selectedExamIds.length} đề thi đã chọn?`}
+                      okText="Duyệt" cancelText="Hủy"
+                      onConfirm={() => handleBulkReviewDecision('approved')}
+                    >
+                      <Button
+                        icon={<CheckCircleOutlined className="text-green-600" />}
+                        disabled={selectedExamIds.length === 0}
+                        loading={bulkReviewing}
+                        className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
+                      >
+                        Duyệt hàng loạt
+                      </Button>
+                    </Popconfirm>
+                    <Popconfirm
+                      title={`Từ chối ${selectedExamIds.length} đề thi đã chọn?`}
+                      okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
+                      onConfirm={() => handleBulkReviewDecision('rejected')}
+                    >
+                      <Button
+                        danger
+                        icon={<CloseCircleOutlined />}
+                        disabled={selectedExamIds.length === 0}
+                        loading={bulkReviewing}
+                        className="font-semibold text-[14px] rounded cursor-pointer"
+                      >
+                        Từ chối hàng loạt
+                      </Button>
+                    </Popconfirm>
+                  </>
+                )}
+                {hasActionPermission(currentUser, 'exams.manage') && (
+                  <Button
+                    danger
+                    onClick={handleBatchDeleteExams}
+                    disabled={selectedExamIds.length === 0}
+                    className="font-semibold text-[14px] rounded cursor-pointer"
+                  >
+                    Xóa
+                  </Button>
+                )}
+                {hasActionPermission(currentUser, 'exams.export') && (
+                  <Button
+                    type="primary"
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExportExcel}
+                    className="bg-green-600 border-transparent text-white font-semibold text-[14px] rounded hover:bg-green-700 cursor-pointer"
+                  >
+                    Xuất Excel
+                  </Button>
+                )}
+              </>
             )}
           </Space>
         </div>
@@ -718,7 +805,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
               <Spin indicator={<SyncOutlined className="text-[14px]" spin />} />
               <p className="text-[14px] text-slate-400 font-bold mt-2">Đang tải tài liệu...</p>
             </div>
-          ) : (activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).length === 0 ? (
+          ) : visibleExamRows.length === 0 ? (
             <Empty description="Không có đề thi nào." className="py-12" />
           ) : (
             <table style={{ minWidth: examTableTotalWidth }} className={`w-full text-[14px] font-normal text-black border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
@@ -729,11 +816,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     <input
                       type="checkbox"
                       className="cursor-pointer accent-[#2c3e9e]"
-                      checked={filteredExamRoots.length > 0 && filteredExamRoots.every(e => selectedExamIds.includes(e.id))}
+                      checked={visibleExamRows.length > 0 && visibleExamRows.every(e => selectedExamIds.includes(e.id))}
                       onChange={() => {
-                        const allSelected = filteredExamRoots.every(e => selectedExamIds.includes(e.id));
-                        if (allSelected) setSelectedExamIds(prev => prev.filter(id => !filteredExamRoots.map(e => e.id).includes(id)));
-                        else setSelectedExamIds(prev => Array.from(new Set([...prev, ...filteredExamRoots.map(e => e.id)])));
+                        const allSelected = visibleExamRows.every(e => selectedExamIds.includes(e.id));
+                        if (allSelected) setSelectedExamIds(prev => prev.filter(id => !visibleExamRows.map(e => e.id).includes(id)));
+                        else setSelectedExamIds(prev => Array.from(new Set([...prev, ...visibleExamRows.map(e => e.id)])));
                       }}
                     />
                     <ColResizeHandle onMouseDown={startExamColResize(0)} />
@@ -752,7 +839,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview).map((row, idx) => (
+                {visibleExamRows.map((row, idx) => (
                   <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${selectedExamIds.includes(row.id) ? 'bg-blue-50/30' : ''}`}>
                     <td className="py-2.5 px-3 text-center">
                       <input type="checkbox" className="cursor-pointer accent-[#2c3e9e]"
