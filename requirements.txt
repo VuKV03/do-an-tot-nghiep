@@ -1,0 +1,37 @@
+# ============================================
+# Python Microservices Dependencies
+# System v2
+# ============================================
+
+# Web Framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+
+# Database (Async MySQL)
+sqlalchemy[asyncio]==2.0.41
+aiomysql==0.2.0
+pymysql==1.1.1
+
+# Validation
+pydantic==2.11.4
+
+# HTTP Client (Gateway proxy)
+httpx==0.28.1
+
+# Google Gemini AI SDK
+google-genai==1.16.1
+
+# Authentication
+PyJWT==2.10.1
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+
+# Environment
+python-dotenv==1.1.0
+
+# System monitoring
+psutil==7.0.0
+
+# CORS (included in FastAPI/Starlette)
+# Logging
+loguru==0.7.3

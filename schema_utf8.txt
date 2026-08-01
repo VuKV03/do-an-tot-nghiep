@@ -1,0 +1,443 @@
+﻿Tables: ['users', 'user_groups', 'user_group_members', 'topics', 'topic_histories', 'subject_configs', 'subject_categories', 'student_subjects', 'security_policies', 'questions', 'question_types', 'question_histories', 'permissions', 'packages', 'package_exams', 'matrix_configs', 'group_permissions', 'grade_levels', 'exams', 'exam_sessions', 'exam_results', 'exam_candidates', 'competency_components', 'cognitive_levels', 'audit_logs']
+
+--- Table: users ---
+CREATE TABLE `users` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fullName` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `position` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dateOfBirth` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phoneNumber` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gender` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subjects` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: user_groups ---
+CREATE TABLE `user_groups` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `memberCount` int DEFAULT NULL,
+  `createdAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: user_group_members ---
+CREATE TABLE `user_group_members` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `group_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `joinedAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_ugm_group` (`group_id`),
+  KEY `fk_ugm_user` (`user_id`),
+  CONSTRAINT `fk_ugm_group` FOREIGN KEY (`group_id`) REFERENCES `user_groups` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ugm_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: topics ---
+CREATE TABLE `topics` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `parent_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `grade_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` int DEFAULT NULL,
+  `created_by` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `submitted_by` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `submitted_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approved_by` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approved_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approval_note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`subject_id`),
+  KEY `fk_2` (`grade_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`subject_id`) REFERENCES `subject_categories` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_2` FOREIGN KEY (`grade_id`) REFERENCES `grade_levels` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: topic_histories ---
+CREATE TABLE `topic_histories` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `topic_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `actor` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `timestamp` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`topic_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: subject_configs ---
+CREATE TABLE `subject_configs` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type_id_p1` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type_id_p2` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type_id_p3` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subject_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content_p1` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content_p2` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content_p3` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `p1_from` int DEFAULT NULL,
+  `p1_to` int DEFAULT NULL,
+  `p2_from` int DEFAULT NULL,
+  `p2_to` int DEFAULT NULL,
+  `p3_from` int DEFAULT NULL,
+  `p3_to` int DEFAULT NULL,
+  `points_for_a_correct_answers_p1` decimal(65,30) DEFAULT NULL,
+  `points_for_1_correct_idea_p2` decimal(65,30) DEFAULT NULL,
+  `points_for_2_correct_idea_p2` decimal(65,30) DEFAULT NULL,
+  `points_for_3_correct_idea_p2` decimal(65,30) DEFAULT NULL,
+  `points_for_4_correct_idea_p2` decimal(65,30) DEFAULT NULL,
+  `points_for_a_correct_answers_p3` decimal(65,30) DEFAULT NULL,
+  `questions_number` int DEFAULT NULL,
+  `number_to_create` int DEFAULT NULL,
+  `scale` int DEFAULT NULL,
+  `time` int DEFAULT NULL,
+  `created_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `points_for_a_correct_answers_p2` decimal(65,30) DEFAULT NULL,
+  `points_for_1_correct_idea_p1` decimal(65,30) DEFAULT NULL,
+  `points_for_2_correct_idea_p1` decimal(65,30) DEFAULT NULL,
+  `points_for_3_correct_idea_p1` decimal(65,30) DEFAULT NULL,
+  `points_for_4_correct_idea_p1` decimal(65,30) DEFAULT NULL,
+  `points_for_1_correct_idea_p3` decimal(65,30) DEFAULT NULL,
+  `points_for_2_correct_idea_p3` decimal(65,30) DEFAULT NULL,
+  `points_for_3_correct_idea_p3` decimal(65,30) DEFAULT NULL,
+  `points_for_4_correct_idea_p3` decimal(65,30) DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`type_id_p1`),
+  KEY `fk_2` (`type_id_p2`),
+  KEY `fk_3` (`type_id_p3`),
+  KEY `fk_4` (`subject_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`type_id_p1`) REFERENCES `question_types` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_2` FOREIGN KEY (`type_id_p2`) REFERENCES `question_types` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_3` FOREIGN KEY (`type_id_p3`) REFERENCES `question_types` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_4` FOREIGN KEY (`subject_id`) REFERENCES `subject_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: subject_categories ---
+CREATE TABLE `subject_categories` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: student_subjects ---
+CREATE TABLE `student_subjects` (
+  `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `candidate_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`candidate_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`candidate_id`) REFERENCES `exam_candidates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: security_policies ---
+CREATE TABLE `security_policies` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `minPasswordLength` int DEFAULT NULL,
+  `requireUpperCase` tinyint(1) DEFAULT NULL,
+  `requireSpecialChar` tinyint(1) DEFAULT NULL,
+  `passwordExpiryDays` int DEFAULT NULL,
+  `sessionTimeoutMinutes` int DEFAULT NULL,
+  `maxLoginFailures` int DEFAULT NULL,
+  `enableCaptchaOnFail` tinyint(1) DEFAULT NULL,
+  `enable2FAForAdmin` tinyint(1) DEFAULT NULL,
+  `updatedAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: questions ---
+CREATE TABLE `questions` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `options` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `correct_answer` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `topic_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `parent_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subject_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `grade_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `level_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `competency_component_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `exam_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `line_number` int DEFAULT NULL,
+  `status` int DEFAULT NULL,
+  `status_ai` int DEFAULT NULL,
+  `approved_note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `statements` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`topic_id`),
+  KEY `fk_2` (`subject_id`),
+  KEY `fk_3` (`grade_id`),
+  KEY `fk_4` (`level_id`),
+  KEY `fk_5` (`type_id`),
+  KEY `fk_6` (`competency_component_id`),
+  KEY `fk_7` (`exam_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_2` FOREIGN KEY (`subject_id`) REFERENCES `subject_categories` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_3` FOREIGN KEY (`grade_id`) REFERENCES `grade_levels` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_4` FOREIGN KEY (`level_id`) REFERENCES `cognitive_levels` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_5` FOREIGN KEY (`type_id`) REFERENCES `question_types` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_6` FOREIGN KEY (`competency_component_id`) REFERENCES `competency_components` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_7` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: question_types ---
+CREATE TABLE `question_types` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: question_histories ---
+CREATE TABLE `question_histories` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `question_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `actor` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `action` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `timestamp` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`question_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: permissions ---
+CREATE TABLE `permissions` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `module` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: packages ---
+CREATE TABLE `packages` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `grade` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `examsCount` int DEFAULT NULL,
+  `downloadsCount` int DEFAULT NULL,
+  `accessType` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `matrix_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `exam_period_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`),
+  KEY `fk_packages_matrix` (`matrix_id`),
+  CONSTRAINT `fk_packages_matrix` FOREIGN KEY (`matrix_id`) REFERENCES `matrix_configs` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: package_exams ---
+CREATE TABLE `package_exams` (
+  `package_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exam_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `position` int NOT NULL,
+  PRIMARY KEY (`package_id`,`exam_id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_2` (`exam_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`package_id`) REFERENCES `packages` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_2` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: matrix_configs ---
+CREATE TABLE `matrix_configs` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `totalScore` float DEFAULT NULL,
+  `totalQuestions` int DEFAULT NULL,
+  `duration` int DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `structure` longtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subject_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`),
+  KEY `fk_matrix_configs_subject` (`subject_id`),
+  CONSTRAINT `fk_matrix_configs_subject` FOREIGN KEY (`subject_id`) REFERENCES `subject_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: group_permissions ---
+CREATE TABLE `group_permissions` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `group_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `permission_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_gp_group` (`group_id`),
+  KEY `fk_gp_permission` (`permission_id`),
+  CONSTRAINT `fk_gp_group` FOREIGN KEY (`group_id`) REFERENCES `user_groups` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_gp_permission` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: grade_levels ---
+CREATE TABLE `grade_levels` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: exams ---
+CREATE TABLE `exams` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `grade` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `attempts` int DEFAULT NULL,
+  `totalQuestions` int DEFAULT NULL,
+  `avgScore` float DEFAULT NULL,
+  `createdAt` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `duration` int NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `matrix_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: exam_sessions ---
+CREATE TABLE `exam_sessions` (
+  `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exam_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `start_time` datetime DEFAULT NULL,
+  `end_time` datetime DEFAULT NULL,
+  `duration_minutes` int DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `session_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `ix_exam_sessions_exam_id` (`exam_id`),
+  KEY `ix_exam_sessions_id` (`id`),
+  UNIQUE KEY `idx_session_code` (`session_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: exam_results ---
+CREATE TABLE `exam_results` (
+  `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `candidate_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `score` float DEFAULT NULL,
+  `total_correct` int DEFAULT NULL,
+  `total_questions` int DEFAULT NULL,
+  `started_at` datetime DEFAULT NULL,
+  `submitted_at` datetime DEFAULT NULL,
+  `answers_json` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `package_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `exam_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subject` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'in_progress',
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`candidate_id`),
+  KEY `fk_2` (`session_id`),
+  KEY `ix_exam_results_id` (`id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`candidate_id`) REFERENCES `exam_candidates` (`id`),
+  CONSTRAINT `fk_2` FOREIGN KEY (`session_id`) REFERENCES `exam_sessions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: exam_candidates ---
+CREATE TABLE `exam_candidates` (
+  `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `full_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cccd` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gender` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dob` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `diem_thi` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `registered_subjects` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  KEY `fk_1` (`session_id`),
+  UNIQUE KEY `ix_exam_candidates_username` (`username`),
+  KEY `ix_exam_candidates_id` (`id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`session_id`) REFERENCES `exam_sessions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: competency_components ---
+CREATE TABLE `competency_components` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`),
+  KEY `fk_1` (`subject_id`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`subject_id`) REFERENCES `subject_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: cognitive_levels ---
+CREATE TABLE `cognitive_levels` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+--- Table: audit_logs ---
+CREATE TABLE `audit_logs` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `timestamp` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `level` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `details` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

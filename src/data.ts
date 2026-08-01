@@ -2,13 +2,8 @@ import { Question, MatrixConfig, TopicNode, SubjectOption, GradeOption, SystemUs
 
 export const SUBJECTS: SubjectOption[] = [
   { value: 'Toán học', label: 'Toán học' },
-  { value: 'Ngữ văn', label: 'Ngữ văn' },
-  { value: 'Tiếng Anh', label: 'Tiếng Anh' },
   { value: 'Vật lí', label: 'Vật lí' },
-  { value: 'Hóa học', label: 'Hóa học' },
-  { value: 'Sinh học', label: 'Sinh học' },
-  { value: 'Lịch sử', label: 'Lịch sử' },
-  { value: 'Địa lí', label: 'Địa lí' }
+  { value: 'Tiếng Anh', label: 'Tiếng Anh' },
 ];
 
 export const GRADES: GradeOption[] = [
