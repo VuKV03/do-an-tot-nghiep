@@ -14,6 +14,11 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 SERVICES = [
     {
+        "name": "Quan ly thi Service",
+        "module": "backend.quanlythi_service.main:app",
+        "port": 8005,
+    },
+    {
         "name": "Auth Service",
         "module": "backend.auth_service.main:app",
         "port": 8004,
@@ -47,7 +52,7 @@ def start_all():
     """Start all microservices."""
     print("")
     print("=" * 60)
-    print("  SmartTest Microservices Architecture v2.0")
+    print("  NHCH Microservices Architecture v2.0")
     print(f"  Starting {len(SERVICES)} microservices...")
     print("=" * 60)
     print("")
@@ -57,6 +62,7 @@ def start_all():
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
 
         proc = subprocess.Popen(
             [
@@ -81,12 +87,14 @@ def start_all():
     print("  AI Service:        http://localhost:8002")
     print("  Analytics Service: http://localhost:8003")
     print("  Auth Service:      http://localhost:8004")
+    print("  Quan ly thi Service: http://localhost:8005")
     print("")
     print("  API Docs (Gateway): http://localhost:8000/docs")
     print("  API Docs (Exam):    http://localhost:8001/docs")
     print("  API Docs (AI):      http://localhost:8002/docs")
     print("  API Docs (Analytics): http://localhost:8003/docs")
     print("  API Docs (Auth):    http://localhost:8004/docs")
+    print("  API Docs (Quan ly thi): http://localhost:8005/docs")
     print("=" * 60)
     print("")
     print("Press Ctrl+C to stop all services.")

@@ -1,0 +1,152 @@
+# ============================================
+# SmartTest — Docker Compose Production Stack
+# 6 Microservices + MySQL 8.0
+# ============================================
+# Usage:
+#   docker compose --env-file .env.production up -d --build
+#   docker compose ps
+#   docker compose logs -f
+# ============================================
+
+services:
+  # ═══════════════ DATABASE ═══════════════
+  mysql:
+    image: mysql:8.0
+    container_name: smarttest-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-StrongPassword@2026}
+      MYSQL_DATABASE: ${DB_NAME:-quan_ly_sinh_de_ai_v2}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3306:3306"   # Chỉ bind localhost, không expose ra ngoài
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smarttest-net
+
+  # ═══════════════ API GATEWAY ═══════════════
+  gateway:
+    build: .
+    container_name: smarttest-gateway
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8000
+    command: >
+      python -m uvicorn backend.gateway.main:app
+      --host 0.0.0.0 --port 8000 --workers 2
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttest-net
+
+  # ═══════════════ EXAM SERVICE ═══════════════
+  exam:
+    build: .
+    container_name: smarttest-exam
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8001
+    command: >
+      python -m uvicorn backend.exam_service.main:app
+      --host 0.0.0.0 --port 8001 --workers 2
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttest-net
+
+  # ═══════════════ AI SERVICE ═══════════════
+  ai:
+    build: .
+    container_name: smarttest-ai
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8002
+    command: >
+      python -m uvicorn backend.ai_service.main:app
+      --host 0.0.0.0 --port 8002 --workers 1
+    ports:
+      - "127.0.0.1:8002:8002"
+    networks:
+      - smarttest-net
+
+  # ═══════════════ ANALYTICS SERVICE ═══════════════
+  analytics:
+    build: .
+    container_name: smarttest-analytics
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8003
+    command: >
+      python -m uvicorn backend.analytics_service.main:app
+      --host 0.0.0.0 --port 8003 --workers 1
+    ports:
+      - "127.0.0.1:8003:8003"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttest-net
+
+  # ═══════════════ AUTH SERVICE ═══════════════
+  auth:
+    build: .
+    container_name: smarttest-auth
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8004
+    command: >
+      python -m uvicorn backend.auth_service.main:app
+      --host 0.0.0.0 --port 8004 --workers 2
+    ports:
+      - "127.0.0.1:8004:8004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttest-net
+
+  # ═══════════════ QUANLYTHI SERVICE ═══════════════
+  quanlythi:
+    build: .
+    container_name: smarttest-quanlythi
+    restart: always
+    env_file: .env.production
+    environment:
+      - PORT=8005
+    command: >
+      python -m uvicorn backend.quanlythi_service.main:app
+      --host 0.0.0.0 --port 8005 --workers 2
+    ports:
+      - "127.0.0.1:8005:8005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttest-net
+
+# ═══════════════ VOLUMES & NETWORKS ═══════════════
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  smarttest-net:
+    driver: bridge

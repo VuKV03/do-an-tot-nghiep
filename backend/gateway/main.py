@@ -27,6 +27,7 @@ SERVICE_MAP = {
     "ai": service_config.AI_SERVICE_URL,
     "analytics": service_config.ANALYTICS_SERVICE_URL,
     "auth": service_config.AUTH_SERVICE_URL,
+    "quanlythi": service_config.QUANLYTHI_SERVICE_URL,
 }
 
 # ─── Replica state (in-memory, matches TypeScript version) ──────────
@@ -77,7 +78,7 @@ async def proxy_request(request: Request, target_url: str) -> Response:
     """Forward a request to a downstream service."""
     async with httpx.AsyncClient(timeout=120.0) as client:
         # Build the target URL
-        path = request.url.path
+        path = request.scope.get("path", request.url.path)
         query = str(request.url.query)
         url = f"{target_url}{path}" + (f"?{query}" if query else "")
 
@@ -107,6 +108,7 @@ async def proxy_request(request: Request, target_url: str) -> Response:
 
 
 # ─── Route: Exam Service ────────────────────────────────────────────
+@app.api_route("/api/v1/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/v1/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams(request: Request, path: str = ""):
     """Forward exam requests to Exam Service."""
@@ -115,6 +117,7 @@ async def proxy_exams(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
+@app.api_route("/api/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams_fallback(request: Request, path: str = ""):
     """Backward compatible exam route."""
@@ -127,11 +130,27 @@ async def proxy_exams_fallback(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
+# ─── Route: Matrix Configs ──────────────────────────────────────────
+@app.api_route("/api/matrix-configs", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/matrix-configs/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_matrix_configs(request: Request, path: str = ""):
+    """Forward matrix config requests to Exam Service."""
+    request.scope["path"] = f"/matrix-configs/{path}" if path else "/matrix-configs/"
+    return await proxy_request(request, SERVICE_MAP["exam"])
+
+
 # ─── Route: AI Service ──────────────────────────────────────────────
 @app.post("/api/generate-questions")
 async def proxy_generate_questions(request: Request):
     """Forward question generation to AI Service."""
     request.scope["path"] = "/generate"
+    return await proxy_request(request, SERVICE_MAP["ai"])
+
+
+@app.post("/api/generate-questions-batch")
+async def proxy_generate_questions_batch(request: Request):
+    """Forward grouped (multi-cell) question generation to AI Service — see /generate-batch."""
+    request.scope["path"] = "/generate-batch"
     return await proxy_request(request, SERVICE_MAP["ai"])
 
 
@@ -142,6 +161,7 @@ async def proxy_suggest_info(request: Request):
     return await proxy_request(request, SERVICE_MAP["ai"])
 
 
+@app.api_route("/api/ai/v1", methods=["GET", "POST"])
 @app.api_route("/api/ai/v1/{path:path}", methods=["GET", "POST"])
 async def proxy_ai_v1(request: Request, path: str = ""):
     """Forward AI v1 routes."""
@@ -157,12 +177,29 @@ async def proxy_analytics_summary(request: Request):
     return await proxy_request(request, SERVICE_MAP["analytics"])
 
 
-# ─── Route: Auth Service ────────────────────────────────────────────
-@app.api_route("/api/auth/{path:path}", methods=["GET", "POST"])
+@app.api_route("/api/auth", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_auth(request: Request, path: str = ""):
     """Forward auth requests to Auth Service."""
     request.scope["path"] = f"/{path}" if path else "/"
     return await proxy_request(request, SERVICE_MAP["auth"])
+
+
+# ─── Route: QuanLyThi Service ───────────────────────────────────────
+@app.api_route("/api/exam/admin", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/admin/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_quanlythi_admin(request: Request, path: str = ""):
+    """Forward admin requests to QuanLyThi Service."""
+    request.scope["path"] = f"/api/exam/admin/{path}" if path else "/api/exam/admin/"
+    return await proxy_request(request, SERVICE_MAP["quanlythi"])
+
+
+@app.api_route("/api/exam/portal", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/portal/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_quanlythi_portal(request: Request, path: str = ""):
+    """Forward portal requests to QuanLyThi Service."""
+    request.scope["path"] = f"/api/exam/portal/{path}" if path else "/api/exam/portal/"
+    return await proxy_request(request, SERVICE_MAP["quanlythi"])
 
 
 # ─── Microservices Control & Status ─────────────────────────────────
@@ -264,5 +301,6 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run("backend.gateway.main:app", host="0.0.0.0", port=8000, reload=True)

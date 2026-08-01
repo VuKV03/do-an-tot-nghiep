@@ -1,37 +1,54 @@
 import React, { useState } from 'react';
-import { Modal, Input, Upload, Button, Tag, Divider, message } from 'antd';
+import { Modal, Input, Upload, Button, Tag, Divider } from 'antd';
+import { toast } from '../utils/toast';
 import { InboxOutlined, CheckCircleOutlined, CloseCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Question } from '../types';
+import { RichTextView } from '../utils/htmlContent';
 
 interface ReviewModalProps {
   visible: boolean;
   onClose: () => void;
   question: Question | null;
-  onApprove: (id: string, feedback: string) => void;
-  onReject: (id: string, feedback: string) => void;
+  onApprove: (id: string, feedback: string) => void | Promise<void>;
+  onReject: (id: string, feedback: string) => void | Promise<void>;
 }
 
 export default function ReviewModal({ visible, onClose, question, onApprove, onReject }: ReviewModalProps) {
   const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null);
 
   if (!question) return null;
 
-  const handleApproveAction = () => {
-    onApprove(question.id, feedback);
-    message.success('Đã duyệt câu hỏi thành công!');
-    setFeedback('');
-    onClose();
+  const handleApproveAction = async () => {
+    setSubmitting('approve');
+    try {
+      await onApprove(question.id, feedback);
+      toast.success('Đã duyệt câu hỏi thành công!');
+      setFeedback('');
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || 'Không thể duyệt câu hỏi!');
+    } finally {
+      setSubmitting(null);
+    }
   };
 
-  const handleRejectAction = () => {
+  const handleRejectAction = async () => {
     if (!feedback.trim()) {
-      message.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
+      toast.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
       return;
     }
-    onReject(question.id, feedback);
-    message.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
-    setFeedback('');
-    onClose();
+    setSubmitting('reject');
+    try {
+      await onReject(question.id, feedback);
+      toast.error('Đã từ chối duyệt câu hỏi và gửi phản hồi.');
+      setFeedback('');
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || 'Không thể từ chối câu hỏi!');
+    } finally {
+      setSubmitting(null);
+    }
   };
 
   const getStatusTag = (status: string) => {
@@ -40,8 +57,11 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
         return <Tag color="success">Đã thẩm định</Tag>;
       case 'pending':
         return <Tag color="warning">Chờ thẩm định</Tag>;
+      case 'rejected':
+        return <Tag color="error">Từ chối</Tag>;
+      case 'draft':
       default:
-        return <Tag color="default">Lưu nháp</Tag>;
+        return <Tag color="default">Tạo mới</Tag>;
     }
   };
 
@@ -96,7 +116,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
         <div>
           <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Nội dung câu hỏi mô phỏng</label>
           <div className="bg-white border border-slate-200 rounded-xl p-4 min-h-[140px] max-h-[220px] overflow-y-auto shadow-inner text-slate-800 text-[13px] leading-relaxed font-sans space-y-4">
-            <div className="font-semibold">{question.text}</div>
+            <RichTextView html={question.text} className="font-semibold" />
             
             {/* Options display */}
             {question.options && question.options.length > 0 && (
@@ -110,7 +130,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
                         : 'bg-slate-50 border-slate-200 text-slate-700'
                     }`}
                   >
-                    {opt}
+                    <RichTextView html={opt} />
                   </div>
                 ))}
               </div>
@@ -150,7 +170,7 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
             onChange={(info) => {
               const { status } = info.file;
               if (status === 'done') {
-                message.success(`${info.file.name} đã được đính kèm thành công vào hồ sơ thẩm định.`);
+                toast.success(`${info.file.name} đã được đính kèm thành công vào hồ sơ thẩm định.`);
               }
             }}
             className="bg-slate-50 border-dashed border-slate-250 rounded-xl py-4"
@@ -165,24 +185,29 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
 
         {/* Modal Footer Controls */}
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-5 mt-6" id="modal-footer-container">
-          <Button 
+          <Button
             className="rounded-lg text-xs font-extrabold bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 cursor-pointer"
             onClick={onClose}
+            disabled={submitting !== null}
           >
             Đóng
           </Button>
-          <Button 
-            danger 
+          <Button
+            danger
             className="rounded-lg text-xs font-extrabold flex items-center gap-1 cursor-pointer"
             icon={<CloseCircleOutlined />}
             onClick={handleRejectAction}
+            loading={submitting === 'reject'}
+            disabled={submitting === 'approve'}
           >
             Chưa đạt yêu cầu / Từ chối
           </Button>
-          <Button 
+          <Button
             className="rounded-lg text-xs font-extrabold bg-emerald-700 text-white border-transparent hover:bg-emerald-800 flex items-center gap-1 cursor-pointer"
             icon={<CheckCircleOutlined />}
             onClick={handleApproveAction}
+            loading={submitting === 'approve'}
+            disabled={submitting === 'reject'}
           >
             Đạt yêu cầu / Phê duyệt
           </Button>
