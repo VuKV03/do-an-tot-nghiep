@@ -258,7 +258,7 @@ package "Exam Execution" {
 
 ---
 
-## 2. Biểu đồ Lớp Cơ sở dữ liệu (Database ERD)
+## 2. Biểu đồ Lớp Cơ sở dữ liệu (Database ERD)	
 
 Biểu đồ này là mô hình Thực thể - Mối quan hệ (ERD), mô tả chi tiết toàn bộ các bảng vật lý (25 bảng) hiện có trong Hệ quản trị CSDL của hệ thống bao gồm 2 phân hệ: Quản lý ngân hàng câu hỏi đề thi và Hệ thống thi trực tuyến.
 
