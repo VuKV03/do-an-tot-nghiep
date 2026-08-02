@@ -343,6 +343,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Exam Service] Error adding FK constraint on packages.matrix_id: {e}")
 
+    # Migration: add 'is_show_result' column to packages table if not exists
+    try:
+        async with engine.begin() as conn:
+            column_check = await conn.execute(text("SHOW COLUMNS FROM packages LIKE 'is_show_result'"))
+            if not column_check.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE packages ADD COLUMN is_show_result BOOLEAN DEFAULT TRUE;"
+                ))
+                print("[Exam Service] ✅ Added 'is_show_result' column to packages table.")
+            else:
+                print("[Exam Service] ✅ 'is_show_result' column already exists in packages table.")
+    except Exception as e:
+        print(f"[Exam Service] Error checking/adding is_show_result column to packages: {e}")
+
     # Migration: add 'comment' column to topic_histories table if not exists — nhận xét THẬT của
     # người thẩm định (Đồng ý/Từ chối) trước đây chỉ ghi đè vào topics.approval_note (mỗi lần thẩm
     # định lại là mất nhận xét cũ), không lưu riêng theo từng dòng lịch sử nên xem lại lịch sử cũ

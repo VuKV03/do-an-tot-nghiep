@@ -18,7 +18,6 @@ import QuestionStatsModule from './components/quan-ly-nhch/thong-ke-nhch/Questio
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
-import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-goc/ExamManagementModule';
 import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
@@ -483,15 +482,17 @@ export default function App() {
         {/* Dynamic viewport container */}
         <Content className="p-6 overflow-y-auto flex-1 flex flex-col space-y-4" id="app-viewport-container">
 
-          {/* Custom functional breadcrumbs */}
-          <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
-            <Breadcrumb
-              className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
-              items={
-                getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
-              }
-            />
-          </div>
+          {/* Custom functional breadcrumbs - hidden on dashboard */}
+          {activeMenuKey !== 'dashboard' && (
+            <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
+              <Breadcrumb
+                className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+                items={
+                  getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
+                }
+              />
+            </div>
+          )}
 
           {/* Yielded workspace content active view */}
           <div className="flex-1" id="main-content-yield-view">

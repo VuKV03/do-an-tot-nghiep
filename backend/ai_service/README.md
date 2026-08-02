@@ -45,9 +45,7 @@
       "grade": "Khối 10",
       "topic": "Conditional Sentences Type 1 & 2",
       "count": 5,
-      "easyPercent": 40,
-      "mediumPercent": 40,
-      "hardPercent": 20
+      "level": "easy"
     }
     ```
   - *Kết quả trả về*: Danh sách câu hỏi trắc nghiệm có cấu trúc chuẩn để đẩy trực tiếp vào ngân hàng dữ liệu.

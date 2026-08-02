@@ -154,6 +154,7 @@ class PackageCreate(BaseModel):
     description: Optional[str] = ""
     # Chỉ dùng để gắn nhãn/lọc gói đề (không ảnh hưởng logic sinh đề hoán vị)
     matrix_id: Optional[str] = None
+    is_show_result: Optional[bool] = True
 
 
 class PackageUpdate(BaseModel):
@@ -167,6 +168,7 @@ class PackageUpdate(BaseModel):
     accessType: Optional[str] = None
     description: Optional[str] = None
     matrix_id: Optional[str] = None
+    is_show_result: Optional[bool] = None
 
 
 class PackageResponse(BaseModel):
@@ -183,6 +185,7 @@ class PackageResponse(BaseModel):
     createdAt: str
     description: str
     matrix_id: Optional[str] = None
+    is_show_result: bool
 
     model_config = {"from_attributes": True}
 

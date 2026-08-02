@@ -303,6 +303,38 @@ export default function CreateQuestionModal({
     );
   };
 
+  // Tìm các đáp án trùng nội dung với nhau (so sánh text thuần, bỏ qua HTML/khoảng trắng thừa/hoa-
+  // thường) — trả về tập id bị trùng để vừa validate lúc lưu, vừa tô viền đỏ trực tiếp lên đúng
+  // các ô đang trùng nhau.
+  const duplicateAnswerIds = useMemo(() => {
+    const seen = new Map<string, number[]>();
+    answers.forEach((a) => {
+      const norm = stripHtmlToText(a.content).trim().toLowerCase();
+      if (!norm) return;
+      seen.set(norm, [...(seen.get(norm) ?? []), a.id]);
+    });
+    const dup = new Set<number>();
+    seen.forEach((ids) => {
+      if (ids.length > 1) ids.forEach((id) => dup.add(id));
+    });
+    return dup;
+  }, [answers]);
+
+  // Tương tự cho 4 ý trả lời Đúng/Sai, theo index thay vì id (statements không có field id riêng).
+  const duplicateStatementIndexes = useMemo(() => {
+    const seen = new Map<string, number[]>();
+    statements.forEach((st, idx) => {
+      const norm = stripHtmlToText(st.content).trim().toLowerCase();
+      if (!norm) return;
+      seen.set(norm, [...(seen.get(norm) ?? []), idx]);
+    });
+    const dup = new Set<number>();
+    seen.forEach((idxs) => {
+      if (idxs.length > 1) idxs.forEach((i) => dup.add(i));
+    });
+    return dup;
+  }, [statements]);
+
   // Chủ đề/tiểu mục giờ dùng chung 1 field ở "Phần 1" (đã có rule required riêng) — chỉ còn cần
   // kiểm tra nội dung từng ý ở đây.
   const validateStatements = (): boolean => {
@@ -312,6 +344,10 @@ export default function CreateQuestionModal({
         toast.error(`Vui lòng nhập nội dung trả lời cho ý thứ ${i + 1}!`);
         return false;
       }
+    }
+    if (duplicateStatementIndexes.size > 0) {
+      toast.error('Các ý trả lời không được trùng nội dung với nhau!');
+      return false;
     }
     return true;
   };
@@ -323,6 +359,10 @@ export default function CreateQuestionModal({
     const correct = answers.find((a) => a.isCorrect);
     if (!correct || !stripHtmlToText(correct.content).trim()) {
       toast.error('Vui lòng nhập nội dung đáp án đúng cho câu hỏi!');
+      return false;
+    }
+    if (duplicateAnswerIds.size > 0) {
+      toast.error('Các đáp án không được trùng nội dung với nhau!');
       return false;
     }
     return true;
@@ -460,7 +500,7 @@ export default function CreateQuestionModal({
 
       if (status === 'draft') {
         onSave(savedQuestion);
-        toast.success('Đã lưu thành công câu hỏi! (Trạng thái: Lưu nháp)');
+        toast.success('Đã lưu thành công câu hỏi! (Trạng thái: Tạo mới)');
       } else {
         onSendReview(savedQuestion);
         toast.success('Đã gửi câu hỏi đi thẩm định!');
@@ -771,6 +811,7 @@ export default function CreateQuestionModal({
                               onChange={(html) => updateContent(ans.id, html)}
                               placeholder={`Lựa chọn trả lời ${idx + 1}`}
                               minHeight={36}
+                              className={duplicateAnswerIds.has(ans.id) ? '!border-red-500 !ring-1 !ring-red-200' : undefined}
                             />
                           </div>
                           <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
@@ -880,6 +921,7 @@ export default function CreateQuestionModal({
                               }
                               placeholder={`Ý trả lời thứ ${idx + 1}`}
                               minHeight={36}
+                              className={duplicateStatementIndexes.has(idx) ? '!border-red-500 !ring-1 !ring-red-200' : undefined}
                             />
                           </div>
                           <div className='flex items-center gap-2 flex-shrink-0 pt-1.5 w-16 justify-end'>
