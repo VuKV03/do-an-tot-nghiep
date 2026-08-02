@@ -114,13 +114,13 @@ const buildCallGroups = (items: CellWork[]): CellWork[][] => {
 // nào để người dùng chọn nữa — dùng nhãn cố định này cho cột "grade" (bắt buộc, not null) của exams.
 const EXAM_GRADE_LABEL = 'THPT';
 
-// Tỉ lệ độ khó gửi cho AI service ứng với 1 mức độ tư duy cụ thể (ép 100% về đúng mức đó, để câu
-// AI sinh khớp đúng ô mức-độ mà ma trận yêu cầu — giống cách "Ngân hàng câu hỏi" > Sinh bằng AI làm).
-const LEVEL_PERCENT: Record<CognitiveLevel, { easyPercent: number; mediumPercent: number; hardPercent: number }> = {
-  nhan_biet: { easyPercent: 100, mediumPercent: 0, hardPercent: 0 },
-  thong_hieu: { easyPercent: 0, mediumPercent: 100, hardPercent: 0 },
-  van_dung: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
-  van_dung_cao: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
+// Mức độ tư duy cụ thể gửi cho AI service (khớp backend/ai_service/schemas.py::GenerateQuestionsRequest.level),
+// để câu AI sinh khớp đúng ô mức-độ mà ma trận yêu cầu — giống cách "Ngân hàng câu hỏi" > Sinh bằng AI làm.
+const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_hard'> = {
+  nhan_biet: 'easy',
+  thong_hieu: 'medium',
+  van_dung: 'hard',
+  van_dung_cao: 'very_hard',
 };
 
 /** Map 1 bản ghi question_types về loại mà AI service hỗ trợ sinh (khớp backend/ai_service/routes/generate.py) */
@@ -446,7 +446,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   // ĐÚNG cấu trúc ma trận đã chọn (mỗi ô: tiểu mục × mức độ × loại câu hỏi × số câu), thay cho "Cấu
   // hình môn học" (Phần I/II/III) trước đây — ma trận mới là nguồn cấu hình sinh đề duy nhất.
   // Tối ưu số lần gọi AI (đỡ tốn token/quota):
-  // - Ép đúng 1 mức độ tư duy của ô đó qua easy/medium/hardPercent thay vì để AI tự trộn.
+  // - Ép đúng 1 mức độ tư duy của ô đó qua field 'level' thay vì để AI tự trộn.
   // - Chia batch tối đa 15 câu/lần gọi (giới hạn cứng của ai_service/routes/generate.py).
   // - Chạy 3 phiên ĐỘC LẬP song song theo loại câu hỏi (Phần I/II/III), mỗi phiên khoá 1 key API
   //   riêng ở backend — 1 phiên hết quota không còn kéo sập cả 3 như trước, và tổng request/phút
@@ -583,7 +583,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           topic: current.topicName || 'Kiến thức tổng hợp',
           count: 1,
           type: current.type,
-          ...LEVEL_PERCENT[current.level],
+          level: LEVEL_TO_API[current.level],
         }),
       });
       const data = await res.json();

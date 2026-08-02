@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Form, Select, Button, Tag, Spin, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
 import { toast } from '../../../../utils/toast';
 import { ThunderboltOutlined, CheckCircleOutlined, LoadingOutlined, EditOutlined } from '@ant-design/icons';
@@ -44,12 +44,12 @@ const LEVEL_OPTIONS: { value: CognitiveLevel; label: string }[] = [
   { value: 'van_dung_cao', label: 'Vận dụng cao' },
 ];
 
-/** Tỉ lệ độ khó gửi cho AI service theo cấp độ tư duy người dùng chọn */
-const LEVEL_TO_PERCENT: Record<CognitiveLevel, { easyPercent: number; mediumPercent: number; hardPercent: number }> = {
-  nhan_biet: { easyPercent: 100, mediumPercent: 0, hardPercent: 0 },
-  thong_hieu: { easyPercent: 0, mediumPercent: 100, hardPercent: 0 },
-  van_dung: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
-  van_dung_cao: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
+/** Cấp độ tư duy người dùng chọn -> mức độ gửi cho AI service (khớp backend/ai_service/schemas.py::GenerateQuestionsRequest.level) */
+const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_hard'> = {
+  nhan_biet: 'easy',
+  thong_hieu: 'medium',
+  van_dung: 'hard',
+  van_dung_cao: 'very_hard',
 };
 
 /** Xây cây chủ đề (chỉ chủ đề đã duyệt) lọc theo môn học + khối lớp đang chọn trong modal */
@@ -112,6 +112,8 @@ export default function AIGenerateQuestionModal({
   const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   /** Đang chạy thao tác "Duyệt tất cả" — khoá toàn bộ thao tác khác trong lúc lưu tuần tự từng câu */
   const [acceptingAll, setAcceptingAll] = useState(false);
+  /** Controller của request /api/generate-questions đang chạy — abort khi đóng popup giữa chừng */
+  const generateAbortRef = useRef<AbortController | null>(null);
 
   const topicTreeData = useMemo(
     () => buildTopicTree(allTopicsRaw, selectedSubject, selectedGrade),
@@ -206,6 +208,11 @@ export default function AIGenerateQuestionModal({
   }, [open, selectedSubject]);
 
   const handleClose = () => {
+    // Đóng popup giữa lúc AI đang sinh câu hỏi thì ngắt luôn request /api/generate-questions
+    // đang chạy dở, tránh tốn quota/thời gian cho 1 kết quả không còn ai chờ nhận nữa.
+    generateAbortRef.current?.abort();
+    generateAbortRef.current = null;
+    setAiGenerating(false);
     onClose();
     form.resetFields();
     setAiSuggestedQuestions([]);
@@ -299,6 +306,9 @@ export default function AIGenerateQuestionModal({
     setAiSuggestedQuestions([]);
     setEditingIds(new Set());
 
+    const controller = new AbortController();
+    generateAbortRef.current = controller;
+
     try {
       const selectedTypeRecord = questionTypes.find((qt) => qt.id === values.type);
       const questionType: QuestionType = selectedTypeRecord
@@ -308,13 +318,14 @@ export default function AIGenerateQuestionModal({
       const res = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           subject: values.subject,
           grade: values.grade,
           topic: subTopicLabel ? `${topicLabel} - ${subTopicLabel}` : topicLabel,
           count: values.soLuong || 1,
           type: questionType,
-          ...LEVEL_TO_PERCENT[values.level as CognitiveLevel],
+          level: LEVEL_TO_API[values.level as CognitiveLevel],
         }),
       });
       const data = await res.json();
@@ -381,18 +392,47 @@ export default function AIGenerateQuestionModal({
       setAiSuggestedQuestions(generatedList);
       toast.success(`AI hoàn tất đề xuất ${generatedList.length} câu hỏi chất lượng cao!`);
     } catch (err: any) {
+      // Bị abort do người dùng đóng popup giữa chừng (xem handleClose, đã tự reset state ở đó) —
+      // không phải lỗi thật, bỏ qua toast và không ghi đè lại state đã reset.
+      if (err?.name === 'AbortError') return;
       toast.error(err?.message || 'Lỗi kết nối AI Gateway. Vui lòng kiểm tra dịch vụ AI đã khởi động.');
     } finally {
-      setAiGenerating(false);
+      if (generateAbortRef.current === controller) {
+        generateAbortRef.current = null;
+        setAiGenerating(false);
+      }
     }
+  };
+
+  /** Tìm index các đáp án/lựa chọn trùng nội dung với nhau (so sánh text thuần, bỏ qua HTML/khoảng
+   * trắng thừa/hoa-thường) trong 1 câu hỏi — dùng chung cho cả 'single' (options) và 'true_false'
+   * (statements, đọc content qua accessor riêng). */
+  const findDuplicateOptionIndexes = (contents: string[]): Set<number> => {
+    const seen = new Map<string, number[]>();
+    contents.forEach((content, idx) => {
+      const norm = stripHtmlToText(content).trim().toLowerCase();
+      if (!norm) return;
+      seen.set(norm, [...(seen.get(norm) ?? []), idx]);
+    });
+    const dup = new Set<number>();
+    seen.forEach((idxs) => {
+      if (idxs.length > 1) idxs.forEach((i) => dup.add(i));
+    });
+    return dup;
   };
 
   // Trắc nghiệm đơn — người dùng có thể sửa nội dung đáp án đúng thành rỗng lúc chỉnh sửa trước khi
   // lưu (vd xoá trắng nội dung phương án đang được đánh dấu đúng); phải chặn lại chứ không để lưu
-  // xuống DB với correctAnswer rỗng.
+  // xuống DB với correctAnswer rỗng. Đồng thời chặn luôn đáp án/ý trả lời trùng nội dung với nhau.
   const validateQuestionAnswer = (q: Question): string | null => {
     if (q.type === 'single' && !stripHtmlToText(String(q.correctAnswer || '')).trim()) {
       return `Câu hỏi ${q.code} chưa có đáp án đúng, vui lòng chọn và nhập đáp án trước khi lưu!`;
+    }
+    if (q.type === 'single' && findDuplicateOptionIndexes(q.options || []).size > 0) {
+      return `Câu hỏi ${q.code} có các đáp án trùng nội dung với nhau, vui lòng sửa lại!`;
+    }
+    if (q.type === 'true_false' && findDuplicateOptionIndexes((q.statements || []).map((st) => st.content)).size > 0) {
+      return `Câu hỏi ${q.code} có các ý trả lời trùng nội dung với nhau, vui lòng sửa lại!`;
     }
     return null;
   };
@@ -668,6 +708,12 @@ export default function AIGenerateQuestionModal({
               const qid = aiSuggestedQuestion.id;
               const isEditingPreview = editingIds.has(qid);
               const busy = acceptingIds.has(qid) || acceptingAll;
+              const duplicateOptionIndexes =
+                aiSuggestedQuestion.type === 'single'
+                  ? findDuplicateOptionIndexes(aiSuggestedQuestion.options || [])
+                  : aiSuggestedQuestion.type === 'true_false'
+                    ? findDuplicateOptionIndexes((aiSuggestedQuestion.statements || []).map((st) => st.content))
+                    : new Set<number>();
 
               return (
                 <RichTextGroupProvider key={qid}>
@@ -713,7 +759,7 @@ export default function AIGenerateQuestionModal({
                                 onChange={(html) => updateSuggestedOption(qid, idx, html)}
                                 placeholder={`Phương án ${String.fromCharCode(65 + idx)}`}
                                 minHeight={36}
-                                className="flex-1 text-xs"
+                                className={`flex-1 text-xs ${duplicateOptionIndexes.has(idx) ? '!border-red-500 !ring-1 !ring-red-200' : ''}`}
                               />
                             </div>
                           ))}
@@ -746,7 +792,7 @@ export default function AIGenerateQuestionModal({
                                 onChange={(html) => updateSuggestedStatementContent(qid, idx, html)}
                                 placeholder="Nội dung ý"
                                 minHeight={36}
-                                className="flex-1 text-xs"
+                                className={`flex-1 text-xs ${duplicateOptionIndexes.has(idx) ? '!border-red-500 !ring-1 !ring-red-200' : ''}`}
                               />
                               <Checkbox
                                 checked={st.isCorrect}
