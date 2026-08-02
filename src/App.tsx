@@ -38,7 +38,7 @@ import { ToastContainer } from './utils/toast';
 const { Header, Sider, Content } = Layout;
 
 export default function App() {
-  const isPortalPort = window.location.port === '5174';
+  const isPortalPort = window.location.port === '5174' || window.location.hostname.startsWith('thi.');
 
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenuKey, setActiveMenuKey] = useState<string>(() => {
