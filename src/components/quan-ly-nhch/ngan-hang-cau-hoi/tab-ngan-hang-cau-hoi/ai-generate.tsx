@@ -293,7 +293,14 @@ export default function AIGenerateQuestionModal({
     let values: any;
     try {
       values = await form.validateFields();
-    } catch {
+    } catch (err: any) {
+      // Trường "Số lượng câu hỏi tạo" vượt quá MAX_GENERATE_COUNT (hoặc bỏ trống) đã có viền đỏ +
+      // thông báo inline từ Form.Item rule — toast thêm ở đây để người dùng thấy ngay lý do chặn
+      // sinh mà không cần nhìn xuống form.
+      const soLuongError = err?.errorFields?.find((f: any) => f.name?.[0] === 'soLuong');
+      if (soLuongError?.errors?.[0]) {
+        toast.error(soLuongError.errors[0]);
+      }
       return;
     }
 
@@ -642,10 +649,21 @@ export default function AIGenerateQuestionModal({
             <Form.Item
               label={<span className="text-[12px] font-bold text-slate-600">Số lượng câu hỏi tạo <span className="text-red-500">*</span></span>}
               name="soLuong"
-              rules={[{ required: true, message: 'Vui lòng nhập số lượng câu hỏi!' }]}
+              rules={[
+                { required: true, message: 'Vui lòng nhập số lượng câu hỏi!' },
+                {
+                  validator: (_, value) =>
+                    value > MAX_GENERATE_COUNT
+                      ? Promise.reject(new Error(`Chỉ được sinh tối đa ${MAX_GENERATE_COUNT} câu/lần!`))
+                      : Promise.resolve(),
+                },
+              ]}
               style={{ marginBottom: 4 }}
             >
-              <InputNumber size="middle" min={1} max={MAX_GENERATE_COUNT} className="w-full" placeholder={`Tối đa ${MAX_GENERATE_COUNT}`} />
+              {/* Cố tình KHÔNG đặt prop `max` — InputNumber sẽ tự âm thầm kẹp giá trị nhập về
+                  MAX_GENERATE_COUNT thay vì báo lỗi, khiến người dùng tưởng đã nhập 20 nhưng hệ
+                  thống lặng lẽ sinh 15. Để rule validator ở trên báo lỗi + viền đỏ + chặn sinh. */}
+              <InputNumber size="middle" min={1} className="w-full" placeholder={`Tối đa ${MAX_GENERATE_COUNT}`} />
             </Form.Item>
           </Form>
         </div>
