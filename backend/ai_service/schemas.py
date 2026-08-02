@@ -24,9 +24,11 @@ class GenerateQuestionsRequest(BaseModel):
     grade: Optional[str] = "Lớp 12"
     topic: Optional[str] = "Kiến thức tổng hợp"
     count: Optional[int] = 5
-    easyPercent: Optional[int] = 40
-    mediumPercent: Optional[int] = 40
-    hardPercent: Optional[int] = 20
+    # 'easy' | 'medium' | 'hard' | 'very_hard' — mọi câu sinh ra trong request PHẢI đúng 1 mức độ
+    # nhận thức này. Trước đây field này là easy/medium/hard/veryHardPercent (%) kế thừa từ 1 wizard
+    # trộn nhiều mức độ trong cùng 1 lần gọi (đã xoá, xem ExamPackageModule.tsx cũ) — nhưng 2 nơi gọi
+    # thực tế (ai-generate.tsx, ModalTaoDeTuDong.tsx) luôn ép 100% về đúng 1 mức nên rút gọn về đây.
+    level: Optional[str] = "easy"
     # 'single' | 'true_false' | 'short' — quyết định định dạng câu hỏi Gemini phải sinh ra
     type: Optional[str] = "single"
 
