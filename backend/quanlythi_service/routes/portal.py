@@ -73,6 +73,13 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
     )
     active_packages = pkg_result.scalars().all()
     
+    # Nhóm các gói đề active theo từng môn thi
+    packages_by_subject = {}
+    for p in active_packages:
+        if p.subject not in packages_by_subject:
+            packages_by_subject[p.subject] = []
+        packages_by_subject[p.subject].append(p)
+    
     # Check submission status
     res_result = await db.execute(
         select(models.ExamResult)
@@ -83,15 +90,14 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
     in_progress_subjects = {r.subject: r for r in all_results if r.submitted_at is None}
     
     available_subjects = []
-    for p in active_packages:
+    for subj_name, pkgs in packages_by_subject.items():
         status = "available"
         score = None
         started_at = None
         duration = None
         
-        # Try to get the default duration from package's first exam — "first" nghĩa là
-        # position=0 trong package_exams (bảng trung gian có FK thật, thay cho Package.examIds
-        # JSON cũ — xem exam_service/models.py::Package.exam_links).
+        # Lấy gói đề đầu tiên làm mặc định để đọc thời lượng thi
+        p = pkgs[0]
         first_link_res = await db.execute(
             select(exam_models.PackageExam.exam_id)
             .where(exam_models.PackageExam.package_id == p.id)
@@ -105,19 +111,17 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
             if first_exam:
                 duration = first_exam.duration
         
-        if p.subject in submitted_subjects:
+        if subj_name in submitted_subjects:
             status = "submitted"
-            score = submitted_subjects[p.subject].score
-        elif p.subject in in_progress_subjects:
-            res = in_progress_subjects[p.subject]
+            score = submitted_subjects[subj_name].score
+        elif subj_name in in_progress_subjects:
+            res = in_progress_subjects[subj_name]
             if res.started_at:
                 status = "in_progress"
             else:
                 status = "available"
-            # Ensure proper ISO string format with Z to denote UTC, since datetime.utcnow() was used
             started_at = res.started_at.isoformat() + "Z" if res.started_at else None
             
-            # Need to get exam duration specifically if different
             if res.exam_id:
                 exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == res.exam_id))
                 exam = exam_res.scalar_one_or_none()
@@ -125,7 +129,7 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
                     duration = exam.duration
             
         available_subjects.append({
-            "subject": p.subject,
+            "subject": subj_name,
             "status": status,
             "score": score,
             "started_at": started_at,
@@ -136,7 +140,7 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
 
 @router.post("/me/start-exam")
 async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
-    """Bắt đầu thi: Chọn 1 đề ngẫu nhiên từ gói đề đang phát của môn thi đó."""
+    """Bắt đầu thi: Cho phép nhiều gói đề đang phát -> Bốc ngẫu nhiên 1 gói đề, sau đó bốc ngẫu nhiên 1 đề thi hoán vị trong gói đề đó."""
     # Check candidate
     result = await db.execute(select(models.ExamCandidate).where(models.ExamCandidate.id == candidate_id))
     candidate = result.scalar_one_or_none()
@@ -155,34 +159,37 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
         else:
             return {"message": "Already started", "exam_id": res.exam_id, "result_id": res.id}
 
-    # Find active package for the subject
+    # Tìm tất cả các gói đề đang active của môn thi
     pkg_result = await db.execute(
         select(exam_models.Package)
         .where(exam_models.Package.status == "active", exam_models.Package.subject == subject)
     )
-    package = pkg_result.scalar_one_or_none()
-    if not package:
+    active_packages = pkg_result.scalars().all()
+    if not active_packages:
         raise HTTPException(status_code=404, detail=f"Không có gói đề nào đang phát cho môn {subject}")
 
-    # Đọc danh sách đề từ bảng trung gian package_exams (FK thật, thay cho Package.examIds JSON cũ).
+    # 1. Bốc ngẫu nhiên 1 gói đề trong các gói đề đang phát của môn thi này
+    chosen_package = random.choice(active_packages)
+
+    # 2. Đọc danh sách đề từ bảng trung gian package_exams của gói đề đã chọn
     exam_ids_res = await db.execute(
         select(exam_models.PackageExam.exam_id)
-        .where(exam_models.PackageExam.package_id == package.id)
+        .where(exam_models.PackageExam.package_id == chosen_package.id)
         .order_by(exam_models.PackageExam.position)
     )
     exam_ids = list(exam_ids_res.scalars().all())
 
     if not exam_ids:
-        raise HTTPException(status_code=400, detail="Gói đề này không chứa đề thi nào.")
+        raise HTTPException(status_code=400, detail=f"Gói đề '{chosen_package.name}' không chứa đề thi nào.")
 
-    # Randomly pick an exam
+    # 3. Bốc ngẫu nhiên 1 mã đề thi hoán vị trong gói đề đã chọn
     chosen_exam_id = random.choice(exam_ids)
 
     # Create ExamResult
     new_result = models.ExamResult(
         id=f"res-{uuid.uuid4().hex[:8]}",
         candidate_id=candidate_id,
-        package_id=package.id,
+        package_id=chosen_package.id,
         exam_id=chosen_exam_id,
         subject=subject
         # started_at will be set when candidate clicks "Bắt đầu làm bài"
@@ -513,14 +520,27 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     if cand:
         cand.status = "submitted"
     
+    # Check package is_show_result
+    is_show_result = True
+    if exam_result.package_id:
+        package_res = await db.execute(select(exam_models.Package).where(exam_models.Package.id == exam_result.package_id))
+        package = package_res.scalar_one_or_none()
+        if package and hasattr(package, 'is_show_result'):
+            is_show_result = package.is_show_result if package.is_show_result is not None else True
+            
     await db.commit()
     await db.refresh(exam_result)
     
-    return {
+    res_data = {
         "success": True,
+        "submitted_at": exam_result.submitted_at,
+        "is_show_result": is_show_result,
         "score": exam_result.score,
         "total_correct": exam_result.total_correct,
-        "total_questions": exam_result.total_questions,
-        "submitted_at": exam_result.submitted_at,
-        "detailed_results": detailed_results
+        "total_questions": exam_result.total_questions
     }
+    
+    if is_show_result:
+        res_data["detailed_results"] = detailed_results
+        
+    return res_data

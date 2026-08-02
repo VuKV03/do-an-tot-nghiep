@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Select, Button, Table, Row, Col, Typography, Tag } from 'antd';
 import { toast } from '../../utils/toast';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { exportToExcel, type ExcelColumn } from '../../utils/excelExport';
 
 interface Package {
   id: string;
@@ -30,10 +31,10 @@ export default function QuanLyKetQuaThi() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
-  
+
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
-  
+
   const [results, setResults] = useState<ExamResultRow[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
 
@@ -90,14 +91,54 @@ export default function QuanLyKetQuaThi() {
     return packages.filter(p => p.subject === selectedSubject);
   }, [packages, selectedSubject]);
 
+  const handleExportExcel = () => {
+    if (!results || results.length === 0) {
+      toast.warning('Không có dữ liệu kết quả thi để xuất Excel');
+      return;
+    }
+
+    const selectedPkg = packages.find(p => p.id === selectedPackageId);
+    const pkgName = selectedPkg ? selectedPkg.name.replace(/[/\\?%*:|"<>]/g, '_') : 'GoiDe';
+    const fileName = `KetQuaThi_${pkgName}_${dayjs().format('YYYYMMDD_HHmmss')}`;
+
+    const excelColumns: ExcelColumn<ExamResultRow>[] = [
+      { header: 'STT', accessor: (_, index) => index + 1, width: 8, align: 'center' },
+      { header: 'Họ tên thí sinh', accessor: (row) => row.full_name || '', width: 25 },
+      { header: 'SBD', accessor: (row) => row.sbd || '', width: 15, align: 'center' },
+      { header: 'Mã đề đã làm', accessor: (row) => row.exam_code || '', width: 15, align: 'center' },
+      { header: 'Trạng thái', accessor: (row) => row.status || '', width: 15, align: 'center' },
+      {
+        header: 'Điểm số',
+        accessor: (row) => (row.score !== null && row.score !== undefined ? Number(row.score.toFixed(2)) : '-'),
+        width: 12,
+        align: 'center'
+      },
+      {
+        header: 'Thời gian bắt đầu',
+        accessor: (row) => (row.started_at ? dayjs(row.started_at + 'Z').format('HH:mm:ss DD/MM/YYYY') : '-'),
+        width: 22,
+        align: 'center'
+      },
+      {
+        header: 'Thời gian nộp bài',
+        accessor: (row) => (row.submitted_at ? dayjs(row.submitted_at + 'Z').format('HH:mm:ss DD/MM/YYYY') : (row.started_at ? 'Đang thi' : '-')),
+        width: 22,
+        align: 'center'
+      },
+    ];
+
+    exportToExcel(results, excelColumns, fileName, 'Kết quả thi');
+    toast.success('Xuất file Excel thành công!');
+  };
+
   const columns: ColumnsType<ExamResultRow> = [
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_, __, index) => index + 1 },
     { title: 'Họ tên thí sinh', dataIndex: 'full_name', key: 'full_name', className: 'font-medium text-slate-800' },
     { title: 'SBD', dataIndex: 'sbd', key: 'sbd' },
     { title: 'Mã đề đã làm', dataIndex: 'exam_code', key: 'exam_code' },
-    { 
-      title: 'Trạng thái', 
-      dataIndex: 'status', 
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
       key: 'status',
       align: 'center',
       render: (status: string) => {
@@ -105,9 +146,9 @@ export default function QuanLyKetQuaThi() {
         return <Tag color="processing" className="px-3 py-1 rounded-md bg-blue-50 text-blue-600 border-blue-200">Đang làm</Tag>;
       }
     },
-    { 
-      title: 'Điểm số', 
-      dataIndex: 'score', 
+    {
+      title: 'Điểm số',
+      dataIndex: 'score',
       key: 'score',
       align: 'center',
       render: (score: number | null) => score !== null ? <span className="font-bold text-red-500">{score.toFixed(2)}</span> : '-'
@@ -158,16 +199,16 @@ export default function QuanLyKetQuaThi() {
               value={selectedPackageId}
               onChange={(val) => setSelectedPackageId(val)}
               loading={loadingPackages}
-              options={filteredPackages.map(p => ({ 
-                label: `${p.name} - ${p.status === 'active' ? '(Đang phát)' : '(Đã hoàn thành)'}`, 
-                value: p.id 
+              options={filteredPackages.map(p => ({
+                label: `${p.name} - ${p.status === 'active' ? '(Đang phát)' : '(Đã hoàn thành)'}`,
+                value: p.id
               }))}
             />
           </Col>
           <Col span={6}>
-            <Button 
-              type="primary" 
-              icon={<SearchOutlined />} 
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
               onClick={fetchResults}
               loading={loadingResults}
               disabled={!selectedPackageId}
@@ -184,7 +225,17 @@ export default function QuanLyKetQuaThi() {
           title={
             <div className="flex justify-between items-center">
               <span className="text-blue-800 font-semibold text-lg">Danh sách thí sinh</span>
-              <Button icon={<ReloadOutlined />} onClick={fetchResults} size="small" className="rounded-lg">Làm mới</Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  icon={<FileExcelOutlined />}
+                  onClick={handleExportExcel}
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 rounded-lg flex items-center h-8"
+                  disabled={results.length === 0}
+                >
+                  Xuất Excel
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={fetchResults} size="small" className="rounded-lg h-8">Làm mới</Button>
+              </div>
             </div>
           }
           className="shadow-sm rounded-xl"

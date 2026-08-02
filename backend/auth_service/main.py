@@ -168,9 +168,7 @@ async def seed_admin_user():
 
             # Menu cấp 1: Tổ chức thi
             {"code": "to-chuc-thi", "name": "Menu: Tổ chức thi", "module": "Menu truy cập"},
-            {"code": "quan-ly-ky-thi", "name": "Menu: Quản lý kỳ thi", "module": "Menu truy cập"},
             {"code": "quan-ly-thi-sinh", "name": "Menu: Quản lý thí sinh", "module": "Menu truy cập"},
-            {"code": "quan-ly-de-thi", "name": "Menu: Quản lý đề thi", "module": "Menu truy cập"},
             {"code": "quan-ly-ket-qua-thi", "name": "Menu: Quản lý kết quả thi", "module": "Menu truy cập"},
 
             # Menu cấp 1: Quản lý NHCH
@@ -190,7 +188,6 @@ async def seed_admin_user():
             {"code": "cap-do-tu-duy", "name": "Menu: Cấp độ tư duy", "module": "Menu truy cập"},
             {"code": "loai-hinh-cau-hoi", "name": "Menu: Loại hình câu hỏi", "module": "Menu truy cập"},
             {"code": "thanh-phan-nang-luc", "name": "Menu: Thành phần năng lực", "module": "Menu truy cập"},
-            {"code": "danh-muc-dot-thi", "name": "Menu: Danh mục kỳ thi", "module": "Menu truy cập"},
 
             # Menu cấp 1: Quản trị hệ thống
             {"code": "quan-tri-he-thong", "name": "Menu: Quản trị hệ thống", "module": "Menu truy cập"},

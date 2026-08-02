@@ -1,4 +1,4 @@
-﻿Tables: ['users', 'user_groups', 'user_group_members', 'topics', 'topic_histories', 'subject_configs', 'subject_categories', 'student_subjects', 'security_policies', 'questions', 'question_types', 'question_histories', 'permissions', 'packages', 'package_exams', 'matrix_configs', 'group_permissions', 'grade_levels', 'exams', 'exam_sessions', 'exam_results', 'exam_candidates', 'competency_components', 'cognitive_levels', 'audit_logs']
+Tables: ['users', 'user_groups', 'user_group_members', 'topics', 'topic_histories', 'subject_configs', 'subject_categories', 'student_subjects', 'security_policies', 'questions', 'question_types', 'question_histories', 'permissions', 'packages', 'package_exams', 'matrix_configs', 'group_permissions', 'grade_levels', 'exams', 'exam_results', 'exam_candidates', 'competency_components', 'cognitive_levels', 'audit_logs']
 
 --- Table: users ---
 CREATE TABLE `users` (
@@ -78,6 +78,7 @@ CREATE TABLE `topic_histories` (
   `actor` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `timestamp` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `comment` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `fk_1` (`topic_id`),
   CONSTRAINT `fk_1` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE
@@ -342,27 +343,10 @@ CREATE TABLE `exams` (
   UNIQUE KEY `code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
---- Table: exam_sessions ---
-CREATE TABLE `exam_sessions` (
-  `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `exam_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `start_time` datetime DEFAULT NULL,
-  `end_time` datetime DEFAULT NULL,
-  `duration_minutes` int DEFAULT NULL,
-  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `session_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
-  KEY `ix_exam_sessions_exam_id` (`exam_id`),
-  KEY `ix_exam_sessions_id` (`id`),
-  UNIQUE KEY `idx_session_code` (`session_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-
 --- Table: exam_results ---
 CREATE TABLE `exam_results` (
   `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `candidate_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `session_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `score` float DEFAULT NULL,
   `total_correct` int DEFAULT NULL,
   `total_questions` int DEFAULT NULL,
@@ -375,16 +359,13 @@ CREATE TABLE `exam_results` (
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'in_progress',
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `fk_1` (`candidate_id`),
-  KEY `fk_2` (`session_id`),
   KEY `ix_exam_results_id` (`id`),
-  CONSTRAINT `fk_1` FOREIGN KEY (`candidate_id`) REFERENCES `exam_candidates` (`id`),
-  CONSTRAINT `fk_2` FOREIGN KEY (`session_id`) REFERENCES `exam_sessions` (`id`)
+  CONSTRAINT `fk_exam_results_candidate` FOREIGN KEY (`candidate_id`) REFERENCES `exam_candidates` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
 --- Table: exam_candidates ---
 CREATE TABLE `exam_candidates` (
   `id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `session_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `full_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -396,10 +377,8 @@ CREATE TABLE `exam_candidates` (
   `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `registered_subjects` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
-  KEY `fk_1` (`session_id`),
   UNIQUE KEY `ix_exam_candidates_username` (`username`),
-  KEY `ix_exam_candidates_id` (`id`),
-  CONSTRAINT `fk_1` FOREIGN KEY (`session_id`) REFERENCES `exam_sessions` (`id`)
+  KEY `ix_exam_candidates_id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
 --- Table: competency_components ---

@@ -483,15 +483,17 @@ export default function App() {
         {/* Dynamic viewport container */}
         <Content className="p-6 overflow-y-auto flex-1 flex flex-col space-y-4" id="app-viewport-container">
 
-          {/* Custom functional breadcrumbs */}
-          <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
-            <Breadcrumb
-              className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
-              items={
-                getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
-              }
-            />
-          </div>
+          {/* Custom functional breadcrumbs - hidden on dashboard */}
+          {activeMenuKey !== 'dashboard' && (
+            <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
+              <Breadcrumb
+                className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+                items={
+                  getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
+                }
+              />
+            </div>
+          )}
 
           {/* Yielded workspace content active view */}
           <div className="flex-1" id="main-content-yield-view">

@@ -226,6 +226,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
       setIsTimeOutSubmit(isAuto);
       setExamResultData({ score: 10 });
       setResultModalVisible(true);
+      setViewMode('taking');
       return;
     }
     setSubmitting(true);
@@ -244,6 +245,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
         setIsTimeOutSubmit(isAuto);
         setExamResultData(data);
         setResultModalVisible(true);
+        setViewMode('taking');
       } else {
         message.error(data.detail || 'Nộp bài thất bại.');
       }
@@ -907,6 +909,11 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                   <span className="text-slate-600 font-medium">Số câu đúng:</span>
                   <strong className="text-[#22c55e] font-bold text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
                 </div>
+                {examResultData.is_show_result === false && (
+                  <div className="text-center text-slate-500 italic text-sm mt-3 pt-3 border-t border-slate-200">
+                    Chi tiết bài làm đang được ẩn theo cấu hình của gói đề thi.
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex justify-between items-center">
