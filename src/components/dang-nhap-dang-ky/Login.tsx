@@ -283,7 +283,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           </div>
 
           {/* Quick Demo Access Bar */}
-          {activeTab === 'login' && (
+          {/* {activeTab === 'login' && (
             <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-wider">
                 <TeamOutlined className="text-blue-400" />
@@ -302,7 +302,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>
