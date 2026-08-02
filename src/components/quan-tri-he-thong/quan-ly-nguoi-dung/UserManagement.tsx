@@ -811,14 +811,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       </div>
 
       {/* Foot disclaimer memo */}
-      <Alert
-        type="info"
-        title={
-          <span className="text-[11px] leading-relaxed block text-slate-600 font-medium select-none">
-            📍 <strong>Mẹo quản trị:</strong> Mật khẩu tài khoản tạo mới sẽ mặc định tuân thủ theo <strong>Chính sách an toàn bảo mật</strong> đang kích hoạt. Hãy chuyển sang tab <strong>Chính sách</strong> để tăng cường các tiêu chuẩn chống mã độc.
-          </span>
-        }
-      />
       {/* ============================================================== */}
       {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
       {/* ============================================================== */}
