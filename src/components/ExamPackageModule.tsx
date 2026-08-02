@@ -1196,7 +1196,7 @@ export default function ExamPackageModule({ onNavigateTab }: ExamPackageModulePr
                       )}
 
                       <div className="pt-1.5 border-t border-dashed flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <span>Hình thức: Trắc nghiệm khách quan</span>
+                        {/* <span>Hình thức: Trắc nghiệm khách quan</span> */}
                         <span className="text-emerald-600">Đáp án chính xác: Tùy ý chọn {q.correctAnswer}</span>
                       </div>
                     </div>
