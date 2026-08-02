@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Question, MatrixConfig, AuditLog } from '../types';
 import { Badge, Tooltip, Avatar, Tag, Timeline, Button, Spin, Empty } from 'antd';
 import {
   BookOutlined,
@@ -25,7 +26,48 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { Question, MatrixConfig, AuditLog } from '../types';
+
+const renderCognitivePieLabel = (props: any) => {
+  const { cx, cy, midAngle, outerRadius, value, name, fill } = props;
+  const RADIAN = Math.PI / 180;
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+
+  const sx = cx + (outerRadius + 2) * cos;
+  const sy = cy + (outerRadius + 2) * sin;
+  const mx = cx + (outerRadius + 10) * cos;
+  const my = cy + (outerRadius + 10) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 12;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+  const xOffset = cos >= 0 ? 3 : -3;
+
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={1.2} />
+      <text
+        x={ex + xOffset}
+        y={ey - 3}
+        textAnchor={textAnchor}
+        fill="#0f172a"
+        fontSize={11}
+        fontWeight="600"
+      >
+        {name}
+      </text>
+      <text
+        x={ex + xOffset}
+        y={ey + 10}
+        textAnchor={textAnchor}
+        fill="#334155"
+        fontSize={11}
+        fontWeight="400"
+      >
+        {value.toLocaleString()} câu
+      </text>
+    </g>
+  );
+};
 
 interface DashboardOverviewProps {
   questions: Question[];
@@ -63,10 +105,10 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
 
   // Compute cognitive level data for the pie chart
   const levelCounts = {
-    'nhan_biet': { name: 'Nhận biết', value: 0, color: '#0f172a' },
-    'thong_hieu': { name: 'Thông hiểu', value: 0, color: '#1890ff' },
-    'van_dung': { name: 'Vận dụng', value: 0, color: '#722ed1' },
-    'van_dung_cao': { name: 'Vận dụng cao', value: 0, color: '#f5222d' },
+    'nhan_biet': { name: 'Nhận biết', value: 0, color: '#f97316' },
+    'thong_hieu': { name: 'Thông hiểu', value: 0, color: '#2563eb' },
+    'van_dung': { name: 'Vận dụng', value: 0, color: '#7e3af2' },
+    'van_dung_cao': { name: 'Vận dụng cao', value: 0, color: '#ef4444' },
   };
   questions.forEach(q => {
     if (levelCounts[q.level as keyof typeof levelCounts]) {
@@ -74,6 +116,7 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
     }
   });
   const levelData = Object.values(levelCounts).filter(l => l.value > 0);
+  const totalCognitiveQuestions = levelData.reduce((acc, curr) => acc + curr.value, 0);
 
   // Generate recent matrices and questions for the recent activities section
   const recentMatrices = [...matrices].reverse().slice(0, 5);
@@ -87,166 +130,234 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
   const newQuestionsThisWeek = questions.filter(q => new Date(q.createdAt) >= oneWeekAgo).length;
 
   return (
-    <div className="space-y-6 pt-2" id="dashboard-container">
-      {/* Dynamic Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="space-y-3.5 select-none relative" id="dashboard-container">
+      {/* Background Ambient Orbs for Glassmorphism Depth */}
+      <div className="absolute top-10 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse" />
+      <div className="absolute top-60 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white px-5 py-3.5 rounded-2xl shadow-xl relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-32 -bottom-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 backdrop-blur-md">
+              Thời gian
+            </span>
+            <span className="text-[11px] text-slate-300 font-medium">• {now.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+          <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+            BẢNG TỔNG QUAN ĐIỀU KHIỂN
+          </h1>
+          <p className="text-[11px] text-slate-300 mt-0.5 max-w-xl font-normal leading-tight">
+            Giám sát thời gian thực số lượng câu hỏi, cấu hình ma trận đề và tiến độ thẩm định trên toàn hệ thống.
+          </p>
+        </div>
+      </div>
+
+      {/* Dynamic Metric Cards Grid - Glassmorphism style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
 
         {/* Card 1: Tổng câu hỏi hệ thống */}
         <div
           id="metric-card-total-questions"
-          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('question-bank')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#0f172a] transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-900 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Tổng câu hỏi hệ thống</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{totalQuestionsFormatted}</span>
+              <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Tổng câu hỏi hệ thống</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{totalQuestionsFormatted}</span>
             </div>
-            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-lg text-[#0f172a] transition-all group-hover:bg-[#0f172a] group-hover:text-white">
-              <BookOutlined className="transition-all" />
+            <div className="w-9 h-9 bg-slate-900/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-slate-900 transition-all group-hover:bg-slate-900 group-hover:text-white shadow-sm border border-slate-900/10">
+              <BookOutlined />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
             <ArrowUpOutlined className="text-[9px]" />
             <span>+{newQuestionsThisWeek} câu mới tuần này</span>
           </div>
         </div>
-        {/* Card 3: Câu hỏi đã duyệt */}
+
+        {/* Card 2: Câu hỏi đã duyệt */}
         <div
           id="metric-card-approved-questions"
-          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('question-bank')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-500 transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-600 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Câu hỏi đã duyệt</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{questions.filter(q => q.status === 'approved').length.toLocaleString()} Câu</span>
+              <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Câu hỏi đã duyệt</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{questions.filter(q => q.status === 'approved').length.toLocaleString()}</span>
             </div>
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center text-lg text-violet-600 transition-all group-hover:bg-violet-500 group-hover:text-white">
-              <AuditOutlined className="transition-all" />
+            <div className="w-9 h-9 bg-violet-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-violet-600 transition-all group-hover:bg-violet-600 group-hover:text-white shadow-sm border border-violet-500/20">
+              <AuditOutlined />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-violet-600 font-semibold select-none">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-violet-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
             <span>Chất lượng đạt chuẩn</span>
           </div>
         </div>
 
-        {/* Card 2: Cấu hình Ma trận */}
+        {/* Card 3: Cấu hình Ma trận */}
         <div
           id="metric-card-total-matrices"
-          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('matrix-config')}
         >
           <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Cấu hình Ma trận</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{totalMatricesCount} Ma trận</span>
+              <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Cấu hình Ma trận</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{totalMatricesCount} <span className="text-xs font-bold text-slate-500">Ma trận</span></span>
             </div>
-            <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-lg text-sky-600 transition-all group-hover:bg-sky-500 group-hover:text-white">
-              <FileDoneOutlined className="transition-all" />
+            <div className="w-9 h-9 bg-sky-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-sky-600 transition-all group-hover:bg-sky-500 group-hover:text-white shadow-sm border border-sky-500/20">
+              <FileDoneOutlined />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-sky-600 font-medium select-none">
-            <span>Sẵn sàng sinh đề từ AI</span>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-sky-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block" />
+            <span>Sẵn sàng sinh đề AI</span>
           </div>
         </div>
 
-        {/* Card 6: Tổng số đề đã tạo */}
+        {/* Card 4: Tổng số đề đã tạo */}
         <div
           id="metric-card-total-exams"
-          className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('quan-ly-de-thi-goi-de')}
         >
           <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block">Tổng số đề đã tạo</span>
-              <span className="text-xl font-black text-slate-900 tracking-tight block mt-1">{totalExamsCount.toLocaleString()} Đề</span>
+              <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Tổng số đề đã tạo</span>
+              <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{totalExamsCount.toLocaleString()} <span className="text-xs font-bold text-slate-500">Đề</span></span>
             </div>
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-lg text-emerald-600 transition-all group-hover:bg-emerald-500 group-hover:text-white">
-              <AuditOutlined className="transition-all" />
+            <div className="w-9 h-9 bg-emerald-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-emerald-600 transition-all group-hover:bg-emerald-500 group-hover:text-white shadow-sm border border-emerald-500/20">
+              <GroupOutlined />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1 text-[11px] text-emerald-600 font-semibold select-none">
-            <span>Chất lượng đạt chuẩn</span>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            <span>Đã đóng gói đề thi</span>
           </div>
         </div>
 
-        {/* Card 4: Chờ thẩm định (Câu hỏi) */}
+        {/* Card 5: Chờ thẩm định (Câu hỏi) */}
         <div
           id="metric-card-pending-questions"
-          className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-amber-500/10 backdrop-blur-xl border border-amber-300/40 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-amber-500/15 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('question-bank', 'review')}
         >
           <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-amber-700/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Câu hỏi)</span>
-              <span className="text-xl font-black text-amber-700 tracking-tight block mt-1">{pendingApprovalsFormatted}</span>
+              <span className="text-amber-900/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Câu hỏi)</span>
+              <span className="text-xl font-black text-amber-950 tracking-tight block mt-0.5">{pendingApprovalsFormatted}</span>
             </div>
-            <div className="w-10 h-10 bg-amber-100/80 rounded-xl flex items-center justify-center text-lg text-amber-600 transition-all group-hover:bg-amber-500 group-hover:text-white">
-              <FileTextOutlined className="transition-all animate-pulse" />
+            <div className="w-9 h-9 bg-amber-500/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-amber-600 transition-all group-hover:bg-amber-500 group-hover:text-white shadow-sm border border-amber-500/30">
+              <FileTextOutlined className="animate-pulse" />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-amber-600 font-semibold uppercase tracking-wider text-[9px]">
-            <span>⚠️ Cần duyệt</span>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-amber-700 font-bold">
+            <span className="px-1.5 py-0.5 rounded-md bg-amber-200/70 text-amber-900 text-[9px]">⚠️ Cần duyệt</span>
           </div>
         </div>
 
-        {/* Card 5: Chờ thẩm định (Ma trận) */}
+        {/* Card 6: Chờ thẩm định (Ma trận) */}
         <div
           id="metric-card-pending-matrices"
-          className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-rose-500/10 backdrop-blur-xl border border-rose-300/40 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-rose-500/15 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('matrix-config', 'evaluation')}
         >
           <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-rose-700/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Ma trận)</span>
-              <span className="text-xl font-black text-rose-700 tracking-tight block mt-1">{pendingMatrixFormatted}</span>
+              <span className="text-rose-900/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Ma trận)</span>
+              <span className="text-xl font-black text-rose-950 tracking-tight block mt-0.5">{pendingMatrixFormatted}</span>
             </div>
-            <div className="w-10 h-10 bg-rose-100/80 rounded-xl flex items-center justify-center text-lg text-rose-600 transition-all group-hover:bg-rose-500 group-hover:text-white">
-              <AuditOutlined className="transition-all animate-pulse" />
+            <div className="w-9 h-9 bg-rose-500/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-rose-600 transition-all group-hover:bg-rose-500 group-hover:text-white shadow-sm border border-rose-500/30">
+              <AuditOutlined className="animate-pulse" />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-rose-600 font-semibold uppercase tracking-wider text-[9px]">
-            <span>⚠️ Cần duyệt</span>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-rose-700 font-bold">
+            <span className="px-1.5 py-0.5 rounded-md bg-rose-200/70 text-rose-900 text-[9px]">⚠️ Cần duyệt</span>
           </div>
         </div>
 
-
       </div>
-      {/* Main Graph Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="dashboard-charts-layout">
 
-        {/* Left Side: Recharts Bar Chart & Metrics (8 cols) */}
+      {/* Main Charts Section - Glassmorphism cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5" id="dashboard-charts-layout">
+
+        {/* Left Side: Recharts Bar Chart (8 cols) */}
         <div
           id="questions-by-subject-chart-card"
-          className="lg:col-span-8 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col overflow-hidden"
+          className="lg:col-span-8 rounded-xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm hover:shadow-lg transition-all flex flex-col overflow-hidden"
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/60 bg-white/40">
             <div className="flex items-center gap-2">
-              <span className="w-1 h-4 bg-[#0f172a] rounded-full inline-block" />
-              <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">Phân bố câu hỏi theo Môn học và Trạng thái</span>
+              <span className="w-1.5 h-4 bg-indigo-600 rounded-full inline-block" />
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
+                Phân bố câu hỏi theo Môn học và Trạng thái
+              </h3>
             </div>
+            <Badge count={`${subjectData.length} Môn học`} style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 600, fontSize: '10px' }} />
           </div>
-          <div className="p-5 flex-1 select-none">
-            <div className="h-[280px] w-full pt-2 min-h-[280px]">
+
+          <div className="p-3 flex-1 select-none">
+            <div className="h-[210px] w-full min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart
                   data={subjectData}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11, fontWeight: 500 }} />
-                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
-                  <ChartTooltip contentStyle={{ fontSize: 12, borderRadius: 12 }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Đã duyệt" fill="#0f172a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Chờ duyệt" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#64748b"
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#334155' }}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <ChartTooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                      backdropFilter: 'blur(12px)',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(255, 255, 255, 0.8)',
+                      boxShadow: '0 8px 20px -5px rgba(0,0,0,0.1)'
+                    }}
+                  />
+                  <Legend
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+                  />
+                  <Bar
+                    dataKey="Đã duyệt"
+                    fill="#3b82f6"
+                    radius={[5, 5, 0, 0]}
+                    barSize={32}
+                    maxBarSize={40}
+                  />
+                  <Bar
+                    dataKey="Chờ duyệt"
+                    fill="#f59e0b"
+                    radius={[5, 5, 0, 0]}
+                    barSize={32}
+                    maxBarSize={40}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -256,48 +367,55 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
         {/* Right Side: Recharts Pie Chart of Cognitive Levels (4 cols) */}
         <div
           id="cognitive-levels-pie-chart-card"
-          className="lg:col-span-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col overflow-hidden"
+          className="lg:col-span-4 rounded-xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm hover:shadow-lg transition-all flex flex-col overflow-hidden"
         >
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
-            <span className="w-1 h-4 bg-purple-600 rounded-full inline-block" />
-            <span className="font-extrabold text-xs uppercase tracking-wider text-[#0f172a]">Cấp độ tư duy</span>
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/60 bg-white/40">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-purple-600 rounded-full inline-block" />
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
+                Cấp độ tư duy
+              </h3>
+            </div>
           </div>
-          <div className="p-5 flex-1 flex flex-col justify-between select-none">
-            <div className="h-[180px] w-full flex items-center justify-center min-h-[180px]">
+
+          <div className="p-2 flex-1 flex items-center justify-center select-none min-h-[210px]">
+            <div className="h-[200px] w-full relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <PieChart>
+                <PieChart margin={{ top: 10, right: 25, bottom: 10, left: 25 }}>
                   <Pie
                     data={levelData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={3}
+                    innerRadius={42}
+                    outerRadius={65}
+                    paddingAngle={2}
                     dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
+                    label={renderCognitivePieLabel}
+                    labelLine={false}
+                    isAnimationActive={true}
                   >
                     {levelData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
                     ))}
                   </Pie>
-                  <ChartTooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                  <ChartTooltip contentStyle={{ fontSize: 11, borderRadius: 8, backgroundColor: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)' }} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
-              {levelData.map((lvl) => (
-                <div key={lvl.name} className="flex flex-col items-start p-1.5 hover:bg-slate-50 rounded-lg">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: lvl.color }} />
-                    {lvl.name}
-                  </span>
-                  <span className="text-xs font-black text-slate-800 pl-3">{lvl.value.toLocaleString()} câu</span>
-                </div>
-              ))}
+              {/* Total count displayed inside center of donut chart */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {totalCognitiveQuestions.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Câu hỏi</span>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
 }
+

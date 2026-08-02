@@ -27,9 +27,6 @@ class ExamCandidate(Base):
     dob = Column(String(50), nullable=True) 
     note = Column(Text, nullable=True)
     
-    # Các trường cũ (session_id, diem_thi, registered_subjects, status) 
-    # được ẩn khỏi ORM để không sử dụng nữa nhưng vẫn còn trong DB để tránh mất dữ liệu.
-
     subjects = relationship("StudentSubject", back_populates="candidate", cascade="all, delete-orphan")
     results = relationship("ExamResult", back_populates="candidate", cascade="all, delete-orphan")
 
