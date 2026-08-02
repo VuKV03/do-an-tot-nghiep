@@ -27,6 +27,9 @@ import {
   CloseCircleOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
+  EyeInvisibleOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
@@ -78,8 +81,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const [pageSize, setPageSize] = useState(10);
 
   // Trạng thái đang thao tác 1 gói đề cụ thể (per-row) — tránh 1 boolean chung khiến spinner
-  // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (duyệt/từ chối/phát thi/tắt phát/xóa).
-  const [actioning, setActioning] = useState<{ id: string; kind: 'approve' | 'reject' | 'publish' | 'unpublish' | 'delete' } | null>(null);
+  // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (duyệt/từ chối/cho thi/tắt phát/xóa).
+  const [actioning, setActioning] = useState<{ id: string; kind: 'approve' | 'reject' | 'publish' | 'unpublish' | 'delete' | 'toggle_result' } | null>(null);
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
@@ -161,9 +164,9 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       case 'approved':
         return <Tag color="success" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đã thẩm định</Tag>;
       case 'active':
-        return <Tag color="processing" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đang phát</Tag>;
+        return <Tag color="processing" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đang thi</Tag>;
       case 'inactive':
-        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Ngừng phát</Tag>;
+        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Ngừng thi</Tag>;
       case '4':
       case 'rejected':
         return <Tag color="error" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Từ chối</Tag>;
@@ -250,13 +253,13 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       });
       const json = await res.json();
       if (json.success) {
-        toast.success(json.message || `Đã phát thi gói đề "${pkg.name}".`);
+        toast.success(json.message || `Đã cho thi gói đề "${pkg.name}".`);
         fetchData();
       } else {
-        toast.error(json.detail || json.error || 'Lỗi khi phát thi gói đề.');
+        toast.error(json.detail || json.error || 'Lỗi khi cho thi gói đề.');
       }
     } catch {
-      toast.error('Lỗi kết nối khi phát thi gói đề.');
+      toast.error('Lỗi kết nối khi cho thi gói đề.');
     } finally {
       setActioning(null);
     }
@@ -270,13 +273,35 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       });
       const json = await res.json();
       if (json.success) {
-        toast.success(json.message || `Đã tắt phát thi gói đề "${pkg.name}".`);
+        toast.success(json.message || `Đã tắt cho thi gói đề "${pkg.name}".`);
         fetchData();
       } else {
-        toast.error(json.detail || json.error || 'Lỗi khi tắt phát thi gói đề.');
+        toast.error(json.detail || json.error || 'Lỗi khi tắt cho thi gói đề.');
       }
     } catch {
-      toast.error('Lỗi kết nối khi tắt phát thi gói đề.');
+      toast.error('Lỗi kết nối khi tắt cho thi gói đề.');
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const handleToggleShowResult = async (pkg: any) => {
+    setActioning({ id: pkg.id, kind: 'toggle_result' });
+    try {
+      const res = await fetch(`/api/exams/packages/${pkg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_show_result: !pkg.is_show_result }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(`Đã ${!pkg.is_show_result ? 'bật' : 'tắt'} hiển thị kết quả cho gói đề "${pkg.name}".`);
+        fetchData();
+      } else {
+        toast.error(json.error || 'Lỗi khi cập nhật trạng thái hiển thị kết quả.');
+      }
+    } catch {
+      toast.error('Lỗi kết nối khi cập nhật trạng thái hiển thị kết quả.');
     } finally {
       setActioning(null);
     }
@@ -287,10 +312,10 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
 
     Modal.confirm({
       title: isActive
-        ? `Cảnh báo: Gói đề "${pkg.name}" đang được phát thi!`
+        ? `Cảnh báo: Gói đề "${pkg.name}" đang được cho thi!`
         : `Xác nhận xóa gói đề: "${pkg.name}"?`,
       content: isActive
-        ? 'Việc xóa gói đề đang phát thi có thể ảnh hưởng nghiêm trọng đến kỳ thi đang diễn ra. Bạn có chắc chắn muốn xóa (làm mất toàn bộ dữ liệu thi của thí sinh đang thi)?'
+        ? 'Việc xóa gói đề đang cho thi có thể ảnh hưởng nghiêm trọng đến kỳ thi đang diễn ra. Bạn có chắc chắn muốn xóa (làm mất toàn bộ dữ liệu thi của thí sinh đang thi)?'
         : undefined,
       okText: 'Xóa',
       cancelText: 'Hủy',
@@ -690,8 +715,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                           )}
                           {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
-                              title={`Phát thi gói đề "${row.name}"?`}
-                              okText="Phát thi" cancelText="Hủy"
+                              title={`Cho thi gói đề "${row.name}"?`}
+                              okText="Cho thi" cancelText="Hủy"
                               onConfirm={() => handlePublishPackage(row)}
                             >
                               <Tooltip title="Cho thi">
@@ -705,11 +730,11 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                           )}
                           {row.status === 'active' && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
-                              title={`Tắt phát thi gói đề "${row.name}"?`}
-                              okText="Tắt phát" cancelText="Hủy"
+                              title={`Tắt cho thi gói đề "${row.name}"?`}
+                              okText="Tắt cho thi" cancelText="Hủy"
                               onConfirm={() => handleUnpublishPackage(row)}
                             >
-                              <Tooltip title="Tắt phát thi">
+                              <Tooltip title="Tắt cho thi">
                                 <Button
                                   size="small" type="text" icon={<PauseCircleOutlined className="text-orange-500" />} className="cursor-pointer"
                                   loading={actioning?.id === row.id && actioning.kind === 'unpublish'}
@@ -722,6 +747,24 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                               onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
+                          {hasActionPermission(currentUser, 'exams.manage') && (
+                            <Popconfirm
+                              title={`Bạn muốn ${row.is_show_result ? 'ẩn' : 'hiển thị'} kết quả cho học sinh?`}
+                              okText="Đồng ý" cancelText="Hủy"
+                              onConfirm={() => handleToggleShowResult(row)}
+                            >
+                              <Tooltip title={row.is_show_result ? "Đang cho xem kết quả bài làm (Nhấn để ẩn)" : "Đang ẩn kết quả bài làm (Nhấn để cho xem)"}>
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={row.is_show_result ? <UnlockOutlined className="text-green-600" /> : <LockOutlined className="text-red-500" />}
+                                  className="cursor-pointer"
+                                  loading={actioning?.id === row.id && actioning.kind === 'toggle_result'}
+                                  disabled={actioning !== null && actioning.id !== row.id}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
+                          )}
                           {hasActionPermission(currentUser, 'exams.export') && (
                             <Tooltip title="Tải gói đề thi">
                               <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}

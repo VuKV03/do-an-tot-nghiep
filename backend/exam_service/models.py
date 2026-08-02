@@ -99,6 +99,7 @@ class Package(Base):
     accessType = Column(String(50), default="standard")
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
+    is_show_result = Column(Boolean, default=True)
     # Ma trận đề dùng để lọc/gắn nhãn gói đề (không ảnh hưởng logic sinh đề hoán vị) — có FK thật, xem
     # comment ở matrix_configs.subject_id về lý do các FK thêm sau khi bảng đã tồn tại cần migration
     # ALTER TABLE ADD CONSTRAINT riêng (backend/exam_service/main.py), không tự có chỉ nhờ khai báo ở đây.

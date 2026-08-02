@@ -44,6 +44,7 @@ def _build_package_response(p: Package, exam_ids: list[str]) -> PackageResponse:
         createdAt=p.createdAt,
         description=p.description or "",
         matrix_id=p.matrix_id,
+        is_show_result=p.is_show_result if p.is_show_result is not None else True,
     )
 
 
@@ -101,6 +102,7 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         createdAt=now,
         description=body.description or "",
         matrix_id=body.matrix_id,
+        is_show_result=body.is_show_result,
     )
     db.add(package)
     try:
@@ -205,21 +207,7 @@ async def publish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
     if not package:
         raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi yêu cầu.")
 
-    # Kiểm tra xem Môn thi của gói đề này đã có gói nào đang "active" chưa
-    active_result = await db.execute(
-        select(Package).where(
-            Package.subject == package.subject,
-            Package.status == "active",
-            Package.id != pkg_id
-        )
-    )
-    active_package = active_result.scalar_one_or_none()
-    if active_package:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Môn {package.subject} đang có Gói đề {active_package.name} được phát. Vui lòng tắt Gói đề đó trước."
-        )
-
+    # Cho phép phát thi nhiều gói đề của cùng 1 môn thi đồng thời.
     package.status = "active"
     await db.commit()
     await db.refresh(package)
