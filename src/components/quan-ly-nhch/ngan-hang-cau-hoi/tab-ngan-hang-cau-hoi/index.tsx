@@ -668,35 +668,40 @@ export default function QuestionBankModule({
       case 'pending': return 'Chờ thẩm định';
       case 'rejected': return 'Từ chối';
       case 'draft':
-      default: return 'Lưu nháp';
+      default: return 'Tạo mới';
     }
   };
+
+  // Base dùng chung cho cả 4 trạng thái — width cố định + căn giữa để viền bao quanh bằng nhau bất
+  // kể độ dài chữ (trước đây span tự co theo nội dung, "Chờ thẩm định" dài hơn hẳn "Lưu nháp"/"Từ
+  // chối" nhìn lệch hàng). 96px đủ rộng cho nhãn dài nhất ("Chờ thẩm định") ở cỡ chữ text-[10px].
+  const QUESTION_STATUS_BADGE_BASE = "inline-flex items-center justify-center w-24 py-0.5 rounded border font-bold text-[10px] text-center";
 
   const renderQuestionStatusBadge = (status: QuestionStatus) => {
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-emerald-300 bg-emerald-50 text-emerald-700`}>
             Đã thẩm định
           </span>
         );
       case 'pending':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-blue-350 bg-blue-50 text-blue-700 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-amber-300 bg-amber-50 text-amber-700`}>
             Chờ thẩm định
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-rose-300 bg-rose-50 text-rose-600`}>
             Từ chối
           </span>
         );
       case 'draft':
       default:
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
-            Lưu nháp
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-slate-300 bg-slate-50 text-slate-700`}>
+            Tạo mới
           </span>
         );
     }
@@ -704,7 +709,9 @@ export default function QuestionBankModule({
 
   const renderQuestionActions = (record: Question) => {
     const canSendReview = record.status === 'draft' || record.status === 'rejected';
-    const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+    // Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm định"/"Đã
+    // thẩm định" coi như đã chốt, không cho sửa nữa (ẩn hẳn nút thay vì chỉ disable).
+    const canEditQuestion = record.status === 'draft' || record.status === 'rejected';
     const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
 
     const menuItems: MenuProps['items'] = [];
@@ -1009,7 +1016,7 @@ export default function QuestionBankModule({
                           { value: 'all', label: 'Tất cả' },
                           { value: 'approved', label: 'Đã thẩm định' },
                           { value: 'pending', label: 'Chờ thẩm định' },
-                          { value: 'draft', label: 'Lưu nháp' }
+                          { value: 'draft', label: 'Tạo mới' }
                         ]}
                       />
                     </div>

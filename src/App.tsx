@@ -18,7 +18,6 @@ import QuestionStatsModule from './components/quan-ly-nhch/thong-ke-nhch/Questio
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
-import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-goc/ExamManagementModule';
 import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';

@@ -20,6 +20,14 @@ _KEY_INDEX_BY_TYPE = {"single": 0, "true_false": 1, "short": 2}
 # ngưỡng thấp hơn (10), đây chỉ là chặn lạm dụng phía server.
 _MAX_BATCH_TOTAL = 20
 
+# Nhãn tiếng Việt cho từng mức độ nhận thức gửi tới Gemini (endpoint /generate — 1 request = đúng 1 mức).
+_LEVEL_LABEL = {
+    "easy": "Dễ (Nhận biết)",
+    "medium": "Vừa (Thông hiểu)",
+    "hard": "Khó (Vận dụng)",
+    "very_hard": "Rất khó (Vận dụng cao)",
+}
+
 # Quy tắc trình bày chung để tránh Gemini trả về markdown / LaTeX gây ra ký tự lạ khi hiển thị dạng text thuần
 _PLAIN_TEXT_RULES = (
     "- Không dùng cú pháp LaTeX (vd: \\frac{}{}, \\(, \\), \\[, \\], $...$, ^{}, _{}).\n"
@@ -135,7 +143,7 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
             "Quy tắc:\n"
             "- 'statements' là mảng đúng 4 phần tử, mỗi phần tử có 'content' (nội dung ý nhận định, "
             "không chèn nhãn a/b/c/d vào nội dung) và 'isCorrect' (true hoặc false).\n"
-            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'level': 'easy', 'medium', 'hard', hoặc 'very_hard'.\n"
             "- 'type': luôn là 'true_false'.\n"
             f"{_PLAIN_TEXT_RULES}"
             "\nTrả về JSON: {\"questions\": [{text, type, level, statements: [{content, isCorrect}, ...]}]}"
@@ -151,7 +159,7 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
             "'5', '-3', '12', '3,5', '0,25'. TUYỆT ĐỐI KHÔNG vượt quá 4 ký tự và KHÔNG để trống; "
             "nếu đáp số thật dài hơn 4 ký tự, phải chọn số liệu trong đề bài sao cho đáp số rút "
             "gọn về đúng phạm vi 1-4 ký tự.\n"
-            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'level': 'easy', 'medium', 'hard', hoặc 'very_hard'.\n"
             "- 'type': luôn là 'short'.\n"
             f"{_PLAIN_TEXT_RULES}"
             "\nTrả về JSON: {\"questions\": [{text, type, level, correctAnswer}]}"
@@ -163,20 +171,25 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
             "Quy tắc:\n"
             "- 'options' chứa đúng 4 đáp án văn bản. Không chèn nhãn A/B/C/D vào nội dung.\n"
             "- 'correctAnswer' là chữ cái in hoa: 'A', 'B', 'C', hoặc 'D'.\n"
-            "- 'level': 'easy', 'medium', hoặc 'hard'.\n"
+            "- 'level': 'easy', 'medium', 'hard', hoặc 'very_hard'.\n"
             "- 'type': luôn là 'single'.\n"
             f"{_PLAIN_TEXT_RULES}"
             "\nTrả về JSON: {\"questions\": [{text, type, level, options, correctAnswer}]}"
         )
 
+    level = (body.level or "easy").strip()
+    level_desc = _LEVEL_LABEL.get(level, _LEVEL_LABEL["easy"])
     prompt = (
         f"Tạo đúng {q_count} câu hỏi tiếng Việt môn {body.subject} "
         f"lớp {body.grade} về nội dung: {body.topic}.\n"
-        f"Phân chia tỉ lệ độ khó:\n"
-        f"- Dễ: {body.easyPercent}%\n"
-        f"- Vừa: {body.mediumPercent}%\n"
-        f"- Khó: {body.hardPercent}%"
+        f"Toàn bộ {q_count} câu PHẢI ở đúng mức độ: {level_desc}."
     )
+    if level == "very_hard":
+        prompt += (
+            "\nCâu ở mức 'Rất khó' PHẢI khó hơn hẳn mức 'Khó' thông thường — yêu cầu vận dụng cao: "
+            "kết hợp nhiều đơn vị kiến thức, suy luận đa bước hoặc liên hệ thực tiễn phức tạp, không "
+            "chỉ đơn thuần áp dụng công thức."
+        )
 
     return system_instruction, prompt
 

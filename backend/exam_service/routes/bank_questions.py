@@ -31,6 +31,7 @@ from backend.exam_service.models import (
     CompetencyComponent,
     QuestionHistory,
     INT_TO_SOURCE,
+    SOURCE_TO_INT,
 )
 from backend.exam_service.schemas import QuestionHistoryResponse, QuestionHistoryListResponse
 
@@ -324,7 +325,16 @@ async def random_select_questions(body: RandomSelectRequest, db: AsyncSession = 
             })
             continue
 
-        conditions = [Question.topic_id == cell.don_vi_id, Question.status == body.status]
+        conditions = [
+            Question.topic_id == cell.don_vi_id,
+            Question.status == body.status,
+            # Loại câu hỏi "sinh cả đề bằng AI" (ma trận đề / đề hoán vị) — cùng điều kiện ẩn
+            # đang áp dụng ở tab Ngân hàng câu hỏi (q.source !== 'ai_exam'), tránh random-select
+            # âm thầm bốc phải câu hỏi vốn không hiển thị/kiểm soát được ở Ngân hàng câu hỏi.
+            # status_ai có thể NULL với dữ liệu cũ (chưa từng backfill) nên phải cho phép NULL
+            # đi qua, chứ "!= 2" thuần SQL sẽ loại luôn NULL (unknown), làm mất câu hỏi cũ hợp lệ.
+            or_(Question.status_ai.is_(None), Question.status_ai != SOURCE_TO_INT["ai_exam"]),
+        ]
         if cell.muc_do_id:
             conditions.append(Question.level_id == cell.muc_do_id)
         if cell.loai_cau_hoi_id:
