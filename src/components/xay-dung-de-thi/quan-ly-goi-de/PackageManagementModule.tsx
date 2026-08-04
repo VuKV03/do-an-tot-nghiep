@@ -23,8 +23,6 @@ import {
   FileExcelOutlined,
   DownOutlined,
   UpOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   EyeInvisibleOutlined,
@@ -38,7 +36,7 @@ import { subjectCategoryApi, bankQuestionApi, type SubjectCategoryAPI } from '..
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
-import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
+import { hasActionPermission } from '../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
@@ -47,17 +45,15 @@ import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 const { RangePicker } = DatePicker;
 
 interface PackageManagementModuleProps {
-  initialTab?: 'list' | 'review';
   currentUser?: any;
 }
 
 // Gói đề thi hiện chỉ được tạo ra qua "Sinh đề hoán vị" (ModalSinhDeHoanVi.tsx, trong "Quản lý đề
-// thi & gói đề") — mỗi lần sinh hoán vị 1 đề gốc tạo ra đúng 1 gói. Màn này chỉ để xem/lọc/thẩm
-// định/tải/xóa, không có luồng tạo gói thủ công riêng.
-export default function PackageManagementModule({ initialTab, currentUser }: PackageManagementModuleProps) {
-  const [activeTab, setActiveTab] = useState<'list' | 'review'>(
-    initialTab || (checkUserPermission(currentUser, 'tab-goi-de') ? 'list' : 'review')
-  );
+// thi & gói đề") — mỗi lần sinh hoán vị 1 đề gốc tạo ra đúng 1 gói. Màn này chỉ để xem/lọc/tải/xóa/
+// cho thi, không có luồng tạo gói thủ công riêng. Gói đề KHÔNG có bước thẩm định riêng (khác đề/câu
+// hỏi/chủ đề/ma trận) — chỉ 3 trạng thái theo vòng đời cho thi: Chờ thi -> Đang thi -> Ngừng thi
+// (xem getPackageStatusTag), nên không còn tab "Thẩm định gói đề" nữa.
+export default function PackageManagementModule({ currentUser }: PackageManagementModuleProps) {
   const { colGroup: pkgTableColGroup, startResize: startPkgColResize, totalWidth: pkgTableTotalWidth } = useResizableColumns(
     [40, 48, 140, 200, 100, 100, 130, 140, 100, 120, 140]
   );
@@ -81,8 +77,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const [pageSize, setPageSize] = useState(10);
 
   // Trạng thái đang thao tác 1 gói đề cụ thể (per-row) — tránh 1 boolean chung khiến spinner
-  // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (duyệt/từ chối/cho thi/tắt phát/xóa).
-  const [actioning, setActioning] = useState<{ id: string; kind: 'approve' | 'reject' | 'publish' | 'unpublish' | 'delete' | 'toggle_result' } | null>(null);
+  // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (cho thi/tắt phát/xóa).
+  const [actioning, setActioning] = useState<{ id: string; kind: 'publish' | 'unpublish' | 'delete' | 'toggle_result' } | null>(null);
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
@@ -127,7 +123,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
+  }, [pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
 
   const examsById = useMemo(() => {
     const map = new Map<string, any>();
@@ -151,38 +147,40 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     };
   };
 
-  const getStatusTag = (status: string) => {
+  // Gói đề chỉ có đúng 3 trạng thái theo vòng đời cho thi (không có bước thẩm định riêng như đề/câu
+  // hỏi/chủ đề/ma trận) — border có màu rõ (không phải border-transparent như trước), khớp quy ước
+  // badge trạng thái ở các tab khác (vd renderQuestionStatusBadge ở tab-ngan-hang-cau-hoi/index.tsx).
+  const PKG_STATUS_TAG_BASE = "inline-flex items-center justify-center w-24 py-0.5 rounded border font-bold text-[10px] uppercase text-center";
+  const getPackageStatusTag = (status: string) => {
     switch (status) {
-      case '1':
-      case 'draft':
-      case 'new':
-        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Nháp</Tag>;
-      case '2':
-      case 'pending':
-        return <Tag color="warning" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Chờ thẩm định</Tag>;
-      case '3':
-      case 'approved':
-        return <Tag color="success" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đã thẩm định</Tag>;
       case 'active':
-        return <Tag color="processing" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Đang thi</Tag>;
+        return <span className={`${PKG_STATUS_TAG_BASE} border-emerald-300 bg-emerald-50 text-emerald-700`}>Đang thi</span>;
       case 'inactive':
-        return <Tag color="default" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Ngừng thi</Tag>;
-      case '4':
-      case 'rejected':
-        return <Tag color="error" className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">Từ chối</Tag>;
+        return <span className={`${PKG_STATUS_TAG_BASE} border-slate-300 bg-slate-50 text-slate-600`}>Ngừng thi</span>;
+      case 'pending':
       default:
-        return <Tag className="rounded-full text-[10px] font-bold uppercase py-0.5 px-2 border-transparent">{status}</Tag>;
+        return <span className={`${PKG_STATUS_TAG_BASE} border-amber-300 bg-amber-50 text-amber-700`}>Chờ thi</span>;
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getPackageStatusLabel = (status: string): string => {
     switch (status) {
-      case '1': case 'draft': case 'new': return 'Nháp';
+      case 'active': return 'Đang thi';
+      case 'inactive': return 'Ngừng thi';
+      case 'pending':
+      default: return 'Chờ thi';
+    }
+  };
+
+  // Trạng thái THẨM ĐỊNH của từng ĐỀ riêng lẻ bên trong gói (khác hẳn trạng thái CHO THI của gói) —
+  // chỉ dùng để hiển thị text gọn trong modal "Xem chi tiết gói đề", khớp đúng quy ước getStatusLabel
+  // ở ExamManagementModule.tsx.
+  const getExamStatusLabel = (status: string): string => {
+    switch (status) {
+      case '1': case 'draft': return 'Tạo mới';
       case '2': case 'pending': return 'Chờ thẩm định';
-      case '3': case 'approved': return 'Đã thẩm định';
-      case 'active': return 'Đang phát';
-      case 'inactive': return 'Ngừng phát';
-      case '4': case 'rejected': return 'Từ chối';
+      case '3': case 'approved': case 'active': return 'Đã thẩm định';
+      case '4': case 'rejected': case 'closed': return 'Từ chối';
       default: return status;
     }
   };
@@ -205,45 +203,11 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     });
   }, [packages, pkgSearch, pkgSubject, pkgMatrixId, dateRange]);
 
-  const filteredReviewPackages = useMemo(() => {
-    // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
-    // lọc "pending", ẩn mất các gói đã thẩm định xong khỏi tab này. "draft"/"1" (Nháp, chưa gửi
-    // thẩm định) vẫn cố tình loại trừ — khớp getStatusTag/getStatusLabel ở trên.
-    const REVIEWABLE_STATUSES = ['pending', '2', 'approved', '3', 'rejected', '4'];
-    return packages.filter(p => {
-      const isReviewable = REVIEWABLE_STATUSES.includes(p.status);
-      const isAllowedSubject = !isSubjectRestricted || subjects.some(s => s.name === p.subject);
-      return isReviewable && isAllowedSubject;
-    });
-  }, [packages, isSubjectRestricted, subjects]);
-
-  const currentRows = activeTab === 'list' ? filteredListPackages : filteredReviewPackages;
+  const currentRows = filteredListPackages;
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
-
-  const handleReviewDecision = async (pkg: any, status: 'approved' | 'rejected') => {
-    setActioning({ id: pkg.id, kind: status === 'approved' ? 'approve' : 'reject' });
-    try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(status === 'approved' ? `Đã duyệt gói đề "${pkg.name}".` : `Đã từ chối gói đề "${pkg.name}".`);
-        fetchData();
-      } else {
-        toast.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
-      }
-    } catch {
-      toast.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
-    } finally {
-      setActioning(null);
-    }
-  };
 
   const handlePublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'publish' });
@@ -346,10 +310,10 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     if (selectedPkgIds.length === 0) return;
 
     const selectedPackages = packages.filter(p => selectedPkgIds.includes(p.id));
-    const invalidPackages = selectedPackages.filter(p => !['2', 'pending', '3', 'approved', 'inactive', 'active'].includes(p.status));
+    const invalidPackages = selectedPackages.filter(p => !['pending', 'active', 'inactive'].includes(p.status));
 
     if (invalidPackages.length > 0) {
-      toast.error('Chỉ được xóa các gói đề ở trạng thái: Chờ thẩm định, Đã thẩm định, Ngừng phát hoặc Đang phát.');
+      toast.error('Chỉ được xóa các gói đề ở trạng thái: Chờ thi, Đang thi hoặc Ngừng thi.');
       return;
     }
 
@@ -473,7 +437,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
     { header: 'Ngày tạo', accessor: row => row.createdAt ? row.createdAt.slice(0, 10) : '', width: 14, align: 'center' },
-    { header: 'Trạng thái', accessor: row => getStatusLabel(row.status), width: 16, align: 'center' },
+    { header: 'Trạng thái', accessor: row => getPackageStatusLabel(row.status), width: 16, align: 'center' },
   ];
 
   const handleExportExcel = () => {
@@ -489,32 +453,6 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   return (
     <div className="pt-3 px-6 pb-6 flex flex-col gap-4 bg-white min-h-[calc(100vh-200px)]" id="package-management-layout-facade">
       <ResizableTableStyles />
-      {/* Tab Headers */}
-      <div className="flex gap-1 border-b border-gray-300 relative select-none">
-        {checkUserPermission(currentUser, 'tab-goi-de') && (
-          <button
-            onClick={() => { setActiveTab('list'); setSelectedPkgIds([]); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'list'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-              }`}
-          >
-            Gói đề
-          </button>
-        )}
-        {checkUserPermission(currentUser, 'tab-tham-dinh-goi-de') && (
-          <button
-            onClick={() => { setActiveTab('review'); setSelectedPkgIds([]); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-t-md border transition-all relative z-10 -mb-px ${activeTab === 'review'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-              }`}
-          >
-            Thẩm định gói đề
-          </button>
-        )}
-      </div>
-
       {/* Filters Panel */}
       <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
         <div
@@ -590,17 +528,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
           <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
           <Space size={8}>
-            {activeTab === 'list' && hasActionPermission(currentUser, 'exams.manage') && (
-              <Button
-                danger
-                onClick={handleBatchDelete}
-                disabled={selectedPkgIds.length === 0}
-                className="font-semibold text-xs rounded cursor-pointer"
-              >
-                Xóa
-              </Button>
-            )}
-            {activeTab === 'review' && hasActionPermission(currentUser, 'exams.export') && (
+            {hasActionPermission(currentUser, 'exams.export') && (
               <Button
                 type="primary"
                 icon={<FileExcelOutlined />}
@@ -608,6 +536,16 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                 className="!bg-green-600 !border-green-600 !text-white font-semibold text-xs rounded hover:!bg-green-700 cursor-pointer"
               >
                 Xuất Excel
+              </Button>
+            )}
+            {hasActionPermission(currentUser, 'exams.manage') && (
+              <Button
+                danger
+                onClick={handleBatchDelete}
+                disabled={selectedPkgIds.length === 0}
+                className="font-semibold text-xs rounded cursor-pointer"
+              >
+                Xóa
               </Button>
             )}
           </Space>
@@ -680,40 +618,10 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                       </td>
                       <td className="py-2.5 px-3 text-center font-semibold text-[11px]">{stats.duration}</td>
                       <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</td>
-                      <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
+                      <td className="py-2.5 px-3 text-center">{getPackageStatusTag(row.status)}</td>
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
-                          {activeTab === 'review' && hasActionPermission(currentUser, 'exams.approve') && (
-                            <>
-                              <Popconfirm
-                                title={`Duyệt gói đề "${row.name}"?`}
-                                okText="Duyệt" cancelText="Hủy"
-                                onConfirm={() => handleReviewDecision(row, 'approved')}
-                              >
-                                <Tooltip title="Duyệt (Đã thẩm định)">
-                                  <Button
-                                    size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer"
-                                    loading={actioning?.id === row.id && actioning.kind === 'approve'}
-                                    disabled={actioning !== null && actioning.id !== row.id}
-                                  />
-                                </Tooltip>
-                              </Popconfirm>
-                              <Popconfirm
-                                title={`Từ chối gói đề "${row.name}"?`}
-                                okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
-                                onConfirm={() => handleReviewDecision(row, 'rejected')}
-                              >
-                                <Tooltip title="Từ chối">
-                                  <Button
-                                    size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer"
-                                    loading={actioning?.id === row.id && actioning.kind === 'reject'}
-                                    disabled={actioning !== null && actioning.id !== row.id}
-                                  />
-                                </Tooltip>
-                              </Popconfirm>
-                            </>
-                          )}
-                          {(row.status === '3' || row.status === 'approved' || row.status === 'inactive') && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
+                          {row.status !== 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
                               title={`Cho thi gói đề "${row.name}"?`}
                               okText="Cho thi" cancelText="Hủy"
@@ -728,7 +636,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                               </Tooltip>
                             </Popconfirm>
                           )}
-                          {row.status === 'active' && activeTab === 'list' && hasActionPermission(currentUser, 'exams.test_run') && (
+                          {row.status === 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
                               title={`Tắt cho thi gói đề "${row.name}"?`}
                               okText="Tắt cho thi" cancelText="Hủy"
@@ -771,7 +679,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                                 onClick={() => handleDownloadPackage(row)} className="cursor-pointer" />
                             </Tooltip>
                           )}
-                          {hasActionPermission(currentUser, 'exams.manage') && ['2', 'pending', '3', 'approved', 'inactive', 'active'].includes(row.status) && (
+                          {hasActionPermission(currentUser, 'exams.manage') && ['pending', 'active', 'inactive'].includes(row.status) && (
                             <Tooltip title="Xóa">
                               <Button
                                 size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
@@ -846,7 +754,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-[11px] text-slate-500">
-                            {exam ? <>Trạng thái: {getStatusTag(exam.status)}</> : 'Không tìm thấy dữ liệu đề này.'}
+                            {exam ? <>Trạng thái: <span className="font-semibold text-slate-700">{getExamStatusLabel(exam.status)}</span></> : 'Không tìm thấy dữ liệu đề này.'}
                           </div>
                           {exam && (
                             <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadSingleExam(exam, qs)} disabled={qs.length === 0} className="rounded text-xs">

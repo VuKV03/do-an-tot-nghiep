@@ -93,8 +93,9 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         name=body.name,
         subject=body.subject,
         grade=body.grade,
-        # "pending" ngay khi tạo — mirror cách exams.py đặt status="pending" lúc tạo đề thi, để
-        # gói đề mới hiện diện ngay trong tab "Thẩm định/phản biện gói đề" không cần bước gửi riêng.
+        # Gói đề không có bước thẩm định riêng — chỉ 3 trạng thái xuất phát từ vòng đời "cho thi":
+        # "pending" (Chờ thi, mặc định khi tạo) -> "active" (Đang thi, publish_package) -> "inactive"
+        # (Ngừng thi, unpublish_package). Xem PackageManagementModule.tsx::getPackageStatusTag.
         status="pending",
         examsCount=len(exam_ids),
         downloadsCount=0,

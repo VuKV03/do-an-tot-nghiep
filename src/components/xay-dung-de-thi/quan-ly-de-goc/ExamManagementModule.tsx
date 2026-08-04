@@ -12,7 +12,8 @@ import {
   DatePicker,
   Timeline,
   Dropdown,
-  Popconfirm
+  Popconfirm,
+  Radio
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +26,7 @@ import {
   SafetyCertificateOutlined,
   SyncOutlined,
   FileExcelOutlined,
+  FileTextOutlined,
   DownOutlined,
   UpOutlined,
   MoreOutlined,
@@ -95,6 +97,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // spinner hiện sai hàng khi nhiều dòng bị thao tác liên tiếp.
   const [reviewActioning, setReviewActioning] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
   const [bulkReviewing, setBulkReviewing] = useState(false);
+
+  // Modal "Thẩm định chi tiết" (1 đề) — thay cho 2 icon Duyệt/Từ chối rời rạc trước đây trong cột
+  // Thao tác, đồng bộ đúng UI đang dùng ở các tab thẩm định khác (chủ đề câu hỏi/câu hỏi/ma trận đề):
+  // 1 icon "Thẩm định chi tiết" mở modal chọn Đồng ý/Từ chối, thay vì 2 nút rời + Popconfirm riêng.
+  const [examReviewModalTarget, setExamReviewModalTarget] = useState<any | null>(null);
+  const [examReviewVerdict, setExamReviewVerdict] = useState<'approved' | 'rejected'>('approved');
 
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
@@ -463,6 +471,17 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     } finally {
       setReviewActioning(null);
     }
+  };
+
+  const handleOpenExamReviewModal = (exam: any) => {
+    setExamReviewModalTarget(exam);
+    setExamReviewVerdict('approved');
+  };
+
+  const handleSubmitExamReviewModal = async () => {
+    if (!examReviewModalTarget) return;
+    await handleReviewDecision(examReviewModalTarget, examReviewVerdict);
+    setExamReviewModalTarget(null);
   };
 
   // Duyệt/Từ chối hàng loạt các đề đang chọn (tick) ở tab "Thẩm định đề gốc" — chạy song song bằng
@@ -937,34 +956,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     <td className="py-2.5 px-3 text-center">
                       <Space size={2}>
                         {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.approve') && (
-                          <>
-                            <Popconfirm
-                              title={`Duyệt đề thi "${row.name}"?`}
-                              okText="Duyệt" cancelText="Hủy"
-                              onConfirm={() => handleReviewDecision(row, 'approved')}
-                            >
-                              <Tooltip title="Duyệt (Đã thẩm định)">
-                                <Button
-                                  size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer"
-                                  loading={reviewActioning?.id === row.id && reviewActioning.action === 'approved'}
-                                  disabled={reviewActioning !== null && reviewActioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                            <Popconfirm
-                              title={`Từ chối đề thi "${row.name}"?`}
-                              okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
-                              onConfirm={() => handleReviewDecision(row, 'rejected')}
-                            >
-                              <Tooltip title="Từ chối">
-                                <Button
-                                  size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer"
-                                  loading={reviewActioning?.id === row.id && reviewActioning.action === 'rejected'}
-                                  disabled={reviewActioning !== null && reviewActioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                          </>
+                          <Tooltip title="Thẩm định chi tiết">
+                            <Button
+                              size="small" type="text" icon={<FileTextOutlined className="text-[#2c3e9e]" />} className="cursor-pointer"
+                              onClick={() => handleOpenExamReviewModal(row)}
+                            />
+                          </Tooltip>
                         )}
                         <Tooltip title="Xem đề thi">
                           <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
@@ -1076,6 +1073,57 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
             />
           )}
         </div>
+      </Modal>
+
+      {/* Modal: Thẩm định chi tiết 1 đề — khớp UI đang dùng ở tab thẩm định chủ đề câu hỏi/câu hỏi/
+          ma trận đề (1 icon mở modal chọn Đồng ý/Từ chối), thay cho 2 icon Duyệt/Từ chối rời trước đây. */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-600" />
+            <span className="font-extrabold uppercase text-[14px] text-slate-800">
+              Thẩm định đề thi{examReviewModalTarget ? `: ${examReviewModalTarget.name}` : ''}
+            </span>
+          </div>
+        }
+        open={examReviewModalTarget !== null}
+        onCancel={() => setExamReviewModalTarget(null)}
+        centered
+        footer={[
+          <Button key="cancel" onClick={() => setExamReviewModalTarget(null)} className="rounded font-semibold text-[14px]">
+            Hủy
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={reviewActioning?.id === examReviewModalTarget?.id}
+            onClick={handleSubmitExamReviewModal}
+            className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
+          >
+            Xác nhận thẩm định
+          </Button>,
+        ]}
+      >
+        {examReviewModalTarget && (
+          <div className="space-y-4 py-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[14px] flex flex-wrap gap-x-6 gap-y-1">
+              <span><strong>Mã đề:</strong> {examReviewModalTarget.code}</span>
+              <span><strong>Môn:</strong> {examReviewModalTarget.subject}</span>
+              <span><strong>Số câu:</strong> {examReviewModalTarget.totalQuestions || 0}</span>
+            </div>
+            <div>
+              <label className="block text-[14px] font-semibold text-slate-700 mb-2">Kết quả thẩm định</label>
+              <Radio.Group value={examReviewVerdict} onChange={e => setExamReviewVerdict(e.target.value)} className="flex gap-4">
+                <Radio value="approved">
+                  <span className="text-emerald-700 font-bold text-[14px]">Đồng ý / Thông qua</span>
+                </Radio>
+                <Radio value="rejected">
+                  <span className="text-rose-600 font-bold text-[14px]">Từ chối</span>
+                </Radio>
+              </Radio.Group>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ModalDeRiengLe
