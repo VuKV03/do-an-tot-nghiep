@@ -4,7 +4,7 @@ import { toast } from '../../../utils/toast';
 import { AuditLog } from '../../../types';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'https://api.quanlythi.site/api';
 // import các component modal và hằng số
 import PermissionsModal from './modals/PermissionsModal';
 import AddEditGroupModal from './modals/AddEditGroupModal';

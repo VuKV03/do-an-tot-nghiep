@@ -97,8 +97,8 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     setLoading(true);
     try {
       const [pkgRes, examRes] = await Promise.all([
-        fetch('/api/exams/packages').then(r => r.json()),
-        fetch('/api/exams').then(r => r.json()),
+        fetch('https://api.quanlythi.site/api/exams/packages').then(r => r.json()),
+        fetch('https://api.quanlythi.site/api/exams').then(r => r.json()),
       ]);
       if (pkgRes.success) setPackages(pkgRes.data || []);
       if (examRes.success) setExams(examRes.data || []);
@@ -119,7 +119,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
     }).catch(() => setSubjects([]));
     // Không có matrixConfigApi dùng chung trong danhMucApi.ts — mô phỏng đúng cách raw-fetch mà
     // ModalSinhDeHoanVi.tsx đang dùng để lấy danh sách ma trận đề.
-    fetch('/api/matrix-configs?page=1&pageSize=200')
+    fetch('https://api.quanlythi.site/api/matrix-configs?page=1&pageSize=200')
       .then(r => r.json())
       .then(json => { if (json.success) setMatrices(json.data || []); })
       .catch(() => setMatrices([]));
@@ -226,7 +226,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const handleReviewDecision = async (pkg: any, status: 'approved' | 'rejected') => {
     setActioning({ id: pkg.id, kind: status === 'approved' ? 'approve' : 'reject' });
     try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -248,7 +248,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const handlePublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}/publish`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}/publish`, {
         method: 'POST',
       });
       const json = await res.json();
@@ -268,7 +268,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const handleUnpublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'unpublish' });
     try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}/unpublish`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}/unpublish`, {
         method: 'POST',
       });
       const json = await res.json();
@@ -288,7 +288,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
   const handleToggleShowResult = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'toggle_result' });
     try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_show_result: !pkg.is_show_result }),
@@ -324,7 +324,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       onOk: async () => {
         setActioning({ id: pkg.id, kind: 'delete' });
         try {
-          const res = await fetch(`/api/exams/packages/${pkg.id}`, { method: 'DELETE' });
+          const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -367,7 +367,7 @@ export default function PackageManagementModule({ initialTab, currentUser }: Pac
       onOk: async () => {
         try {
           for (const id of selectedPkgIds) {
-            await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
+            await fetch(`https://api.quanlythi.site/api/exams/packages/${id}`, { method: 'DELETE' });
           }
           toast.success('Đã xóa thành công các gói đề được chọn.');
           setSelectedPkgIds([]);

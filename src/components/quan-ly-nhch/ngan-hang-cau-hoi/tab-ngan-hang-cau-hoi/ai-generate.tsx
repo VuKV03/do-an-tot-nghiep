@@ -322,7 +322,7 @@ export default function AIGenerateQuestionModal({
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
 
-      const res = await fetch('/api/generate-questions', {
+      const res = await fetch('https://api.quanlythi.site/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

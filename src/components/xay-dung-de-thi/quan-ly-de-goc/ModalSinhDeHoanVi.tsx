@@ -345,8 +345,8 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       // backend từ chối do trùng UNIQUE constraint (lỗi rất hay gặp khi sinh hoán vị nhiều lần cho
       // cùng 1 đề gốc mà không đổi lại số bắt đầu giữa các lần, hoặc trùng đề đã tạo từ trước).
       const [existingExamsRes, existingPackagesRes] = await Promise.all([
-        fetch('/api/exams').then(r => r.json()).catch(() => null),
-        fetch('/api/exams/packages').then(r => r.json()).catch(() => null),
+        fetch('https://api.quanlythi.site/api/exams').then(r => r.json()).catch(() => null),
+        fetch('https://api.quanlythi.site/api/exams/packages').then(r => r.json()).catch(() => null),
       ]);
       const takenCodes = new Set<string>(
         (existingExamsRes?.data || []).map((e: any) => String(e.code || '').toLowerCase())
@@ -396,7 +396,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const results = await Promise.all(variants.map(async (variantQuestions, i) => {
         const code = assignedCodes[i];
         try {
-          const examRes = await fetch('/api/exams', {
+          const examRes = await fetch('https://api.quanlythi.site/api/exams', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -481,7 +481,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
         return;
       }
 
-      const pkgRes = await fetch('/api/exams/packages', {
+      const pkgRes = await fetch('https://api.quanlythi.site/api/exams/packages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -126,8 +126,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     setLoading(true);
     try {
       const [resExams, resPkgs, resSubjects] = await Promise.all([
-        fetch('/api/exams').then(r => r.json()),
-        fetch('/api/exams/packages').then(r => r.json()),
+        fetch('https://api.quanlythi.site/api/exams').then(r => r.json()),
+        fetch('https://api.quanlythi.site/api/exams/packages').then(r => r.json()),
         subjectCategoryApi.list()
       ]);
 
@@ -229,7 +229,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       onOk: async () => {
         try {
           for (const id of selectedExamIds) {
-            await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+            await fetch(`https://api.quanlythi.site/api/exams/${id}`, { method: 'DELETE' });
           }
           toast.success('Đã xóa thành công các đề thi được chọn.');
           setSelectedExamIds([]);
@@ -250,7 +250,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+          const res = await fetch(`https://api.quanlythi.site/api/exams/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -266,7 +266,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleTogglePkgStatus = async (pkg: any) => {
     const nextStatus = pkg.status === 'active' ? 'inactive' : 'active';
     try {
-      const res = await fetch(`/api/exams/packages/${pkg.id}`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
@@ -290,7 +290,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch(`/api/exams/packages/${id}`, { method: 'DELETE' });
+          const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -401,7 +401,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleReviewDecision = async (exam: any, status: 'approved' | 'rejected') => {
     setReviewActioning({ id: exam.id, action: status });
     try {
-      const res = await fetch(`/api/exams/${exam.id}`, {
+      const res = await fetch(`https://api.quanlythi.site/api/exams/${exam.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -430,7 +430,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     try {
       const results = await Promise.all(selectedExamIds.map(async (id) => {
         try {
-          const res = await fetch(`/api/exams/${id}`, {
+          const res = await fetch(`https://api.quanlythi.site/api/exams/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status }),

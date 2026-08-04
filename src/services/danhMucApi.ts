@@ -1,12 +1,12 @@
 /**
  * danhMucApi.ts
  * Centralized API service for all 5 category tables.
- * Base URL: http://localhost:8001
+ * Base URL: https://api.quanlythi.site
  */
 
 import type { Question, QuestionType, CognitiveLevel } from '../types';
 
-const BASE_URL = 'http://localhost:8001';
+const BASE_URL = 'https://api.quanlythi.site';
 
 // ─── Generic helpers ───────────────────────────────────────────────────────
 

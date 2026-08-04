@@ -63,7 +63,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
+      const response = await fetch(`https://api.quanlythi.site/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

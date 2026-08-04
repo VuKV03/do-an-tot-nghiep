@@ -1,10 +1,10 @@
 /**
  * quanLyThiApi.ts
  * Centralized API service for Exam Management and Portal (Port 8005)
- * Base URL: http://localhost:8005
+ * Base URL: https://api.quanlythi.site
  */
 
-const BASE_URL = '';
+const BASE_URL = 'https://api.quanlythi.site';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {

@@ -110,7 +110,7 @@ export default function QuestionBankModule({
   const [creatorFilterOptions, setCreatorFilterOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    const authApiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+    const authApiUrl = import.meta.env.VITE_APP_API_URL || 'https://api.quanlythi.site/api';
     fetch(`${authApiUrl}/auth/users`)
       .then((res) => res.json())
       .then((json) => {
