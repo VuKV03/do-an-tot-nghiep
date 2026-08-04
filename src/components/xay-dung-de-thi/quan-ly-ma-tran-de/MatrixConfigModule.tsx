@@ -119,6 +119,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const [evalIsSearchExpanded, setEvalIsSearchExpanded] = useState(true);
   const [evalSearchText, setEvalSearchText] = useState('');
   const [evalFilterSubject, setEvalFilterSubject] = useState<string>('all');
+  // Mặc định lọc sẵn "Chờ thẩm định" (đúng trọng tâm của tab thẩm định — ưu tiên xem việc cần xử lý
+  // trước), nhưng vẫn đổi được sang "Tất cả"/"Đã thẩm định"/"Từ chối" — khớp quy ước searchStatus ở
+  // tham-dinh-chu-de/index.tsx. "Tạo mới" không có trong lựa chọn vì tab này vốn không hiển thị.
+  const [evalFilterStatus, setEvalFilterStatus] = useState<string>('pending');
 
   const [evalTableData, setEvalTableData] = useState<MatrixTableDataRow[]>([]);
   const [evalTableTotal, setEvalTableTotal] = useState(0);
@@ -191,9 +195,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
       if (evalFilterSubject !== 'all') params.set('subject_id', evalFilterSubject);
-      // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
-      // lọc cứng "pending", ẩn mất các ma trận đã thẩm định xong (approved/rejected) khỏi tab này.
-      params.set('status', 'pending,approved,rejected');
+      // "Tất cả" ở tab này vẫn chỉ hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm
+      // định/Từ chối) — "Tạo mới" (chưa từng gửi) không thuộc phạm vi tab này. Chọn 1 trạng thái cụ
+      // thể thì thu hẹp lại đúng trạng thái đó.
+      params.set('status', evalFilterStatus === 'all' ? 'pending,approved,rejected' : evalFilterStatus);
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
@@ -347,7 +352,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const STATUS_TAG_LABELS: Record<string, string> = {
     approved: "Đã thẩm định",
     rejected: "Từ chối",
-    new: "Nháp",
+    new: "Tạo mới",
     pending: "Chờ thẩm định",
   };
   const renderStatusTag = (status: string) => (
@@ -589,7 +594,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         { value: 'approved', label: 'Đã thẩm định' },
                         { value: 'pending', label: 'Chờ thẩm định' },
                         { value: 'rejected', label: 'Từ chối' },
-                        { value: 'new', label: 'Nháp' }
+                        { value: 'new', label: 'Tạo mới' }
                       ]}
                     />
                   </div>
@@ -700,7 +705,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
-                            {hasActionPermission(currentUser, 'matrices.manage') && (
+                            {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
+                                định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
+                                nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
+                            {(row.status === 'new' || row.status === 'rejected') && hasActionPermission(currentUser, 'matrices.manage') && (
                               <Tooltip title="Chỉnh sửa">
                                 <Button
                                   size="small"
@@ -828,7 +836,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
             {evalIsSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -856,6 +864,22 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       options={[
                         { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.id, label: s.name }))
+                      ]}
+                    />
+                  </div>
+
+                  {/* Trạng thái */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
+                    <Select
+                      value={evalFilterStatus}
+                      onChange={setEvalFilterStatus}
+                      className="w-full text-xs"
+                      options={[
+                        { value: 'all', label: 'Tất cả' },
+                        { value: 'pending', label: 'Chờ thẩm định' },
+                        { value: 'approved', label: 'Đã thẩm định' },
+                        { value: 'rejected', label: 'Từ chối' },
                       ]}
                     />
                   </div>

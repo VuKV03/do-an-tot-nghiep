@@ -77,7 +77,7 @@ async def list_matrix_configs(
 
     if status and status != "all":
         # Tab "Thẩm định ma trận đề" cần lọc gộp 3 trạng thái (Chờ thẩm định/Đã thẩm định/Từ chối,
-        # loại trừ "new"/Nháp — chưa từng gửi thẩm định) — hỗ trợ danh sách phân tách bởi dấu phẩy
+        # loại trừ "new"/Tạo mới — chưa từng gửi thẩm định) — hỗ trợ danh sách phân tách bởi dấu phẩy
         # (vd "pending,approved,rejected"), vẫn tương thích tra đúng 1 giá trị như tab "Ma trận đề".
         status_list = [s.strip() for s in status.split(",") if s.strip()]
         if len(status_list) > 1:
