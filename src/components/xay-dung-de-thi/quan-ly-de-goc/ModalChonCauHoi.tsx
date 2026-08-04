@@ -285,7 +285,7 @@ export default function ModalChonCauHoi({
                   <div>
                     <label className="block font-medium text-slate-600 mb-0.5">Trạng thái</label>
                     <Select size="small" value={fStatus} onChange={setFStatus} className="w-full text-xs"
-                      options={[{ value: 'all', label: 'Tất cả' }, { value: 'approved', label: 'Đã duyệt' }, { value: 'pending', label: 'Chờ duyệt' }, { value: 'draft', label: 'Nháp' }]} />
+                      options={[{ value: 'all', label: 'Tất cả' }, { value: 'approved', label: 'Đã duyệt' }, { value: 'pending', label: 'Chờ duyệt' }, { value: 'draft', label: 'Tạo mới' }]} />
                   </div>
                 </div>
               </>

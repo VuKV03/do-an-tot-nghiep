@@ -92,7 +92,7 @@ function StatusBadge({ status }: { status: QuestionStatus }) {
       );
     case 'pending':
       return (
-        <span className="inline-block px-2.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 font-bold text-[10px] whitespace-nowrap">
+        <span className="inline-block px-2.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 font-bold text-[10px] whitespace-nowrap">
           Chờ thẩm định
         </span>
       );
@@ -633,7 +633,12 @@ export default function ThamDinhCauHoiTab({
       width: 120,
       align: 'center',
       render: (_: any, record: Question) => {
-        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+        // Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm
+        // định"/"Đã thẩm định" coi như đã chốt, không cho sửa nữa (khớp quy ước canEditQuestion ở
+        // tab-ngan-hang-cau-hoi/index.tsx). Trên thực tế tab này chỉ hiển thị câu pending/approved/
+        // rejected (xem filteredQuestions ở trên, draft bị loại từ base filter) nên "Tạo mới" ở đây
+        // không bao giờ khớp — chỉ "Từ chối" thực sự cho hiện nút sửa.
+        const canEditQuestion = record.status === 'draft' || record.status === 'rejected';
         return (
           <div className="flex items-center justify-center gap-1.5">
             <Tooltip title="Thẩm định chi tiết">
