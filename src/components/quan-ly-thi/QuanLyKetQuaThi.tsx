@@ -63,14 +63,15 @@ export default function QuanLyKetQuaThi() {
     }
   };
 
-  const fetchResults = async () => {
-    if (!selectedPackageId) {
+  const fetchResults = async (packageId?: string) => {
+    const idToFetch = packageId || selectedPackageId;
+    if (!idToFetch) {
       toast.warning("Vui lòng chọn gói đề");
       return;
     }
     setLoadingResults(true);
     try {
-      const res = await fetch(`/api/exam/admin/packages/${selectedPackageId}/results`);
+      const res = await fetch(`/api/exam/admin/packages/${idToFetch}/results`);
       if (res.ok) {
         const data = await res.json();
         const resultsList = data.data || data;
@@ -197,7 +198,14 @@ export default function QuanLyKetQuaThi() {
               placeholder="Chọn gói đề"
               allowClear
               value={selectedPackageId}
-              onChange={(val) => setSelectedPackageId(val)}
+              onChange={(val) => {
+                setSelectedPackageId(val);
+                if (val) {
+                  fetchResults(val);
+                } else {
+                  setResults([]);
+                }
+              }}
               loading={loadingPackages}
               options={filteredPackages.map(p => ({
                 label: `${p.name} - ${p.status === 'active' ? '(Đang phát)' : '(Đã hoàn thành)'}`,
@@ -209,7 +217,7 @@ export default function QuanLyKetQuaThi() {
             <Button
               type="primary"
               icon={<SearchOutlined />}
-              onClick={fetchResults}
+              onClick={() => fetchResults()}
               loading={loadingResults}
               disabled={!selectedPackageId}
               className="w-full bg-[#1d4ed8] hover:bg-blue-700 font-medium rounded-lg h-8"
@@ -234,7 +242,7 @@ export default function QuanLyKetQuaThi() {
                 >
                   Xuất Excel
                 </Button>
-                <Button icon={<ReloadOutlined />} onClick={fetchResults} size="small" className="rounded-lg h-8">Làm mới</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => fetchResults()} size="small" className="rounded-lg h-8">Làm mới</Button>
               </div>
             </div>
           }
