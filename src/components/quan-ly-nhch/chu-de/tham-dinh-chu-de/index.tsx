@@ -94,7 +94,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [searchParent, setSearchParent] = useState('Tất cả');
   // Mặc định lọc sẵn "Chờ thẩm định" (đúng trọng tâm của tab thẩm định — ưu tiên xem việc cần xử
   // lý trước), nhưng vẫn đổi được sang "Tất cả"/"Đã thẩm định"/"Từ chối" bình thường — base filter ở
-  // filteredTree bên dưới đã hỗ trợ đủ cả 3 trạng thái (chỉ loại trừ "Lưu nháp"/draft), dropdown này
+  // filteredTree bên dưới đã hỗ trợ đủ cả 3 trạng thái (chỉ loại trừ "Tạo mới"/draft), dropdown này
   // chỉ quyết định giá trị CHỌN SẴN lúc mở tab, không giới hạn lựa chọn của người dùng.
   const [searchStatus, setSearchStatus] = useState('Chờ thẩm định');
   const [filterDates, setFilterDates] = useState<any>(null);
@@ -281,8 +281,8 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
     }));
 
     const filteredFlat = mapped.filter((item) => {
-      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Lưu nháp) không thuộc phạm vi
-      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Lưu nháp" và
+      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Tạo mới) không thuộc phạm vi
+      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Tạo mới" và
       // không được hiển thị/gộp vào đây.
       if (item.TrangThai === 'draft') return false;
 
@@ -376,7 +376,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       case 'approved': return 'Đã thẩm định';
       case 'rejected': return 'Từ chối';
       case 'pending': return 'Chờ thẩm định';
-      default: return 'Lưu nháp';
+      default: return 'Tạo mới';
     }
   };
 
