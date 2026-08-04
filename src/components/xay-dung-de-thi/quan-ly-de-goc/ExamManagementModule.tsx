@@ -75,10 +75,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [examMatrix, setExamMatrix] = useState('all');
   const [examStatus, setExamStatus] = useState('all');
   // Trạng thái lọc RIÊNG cho tab "Thẩm định đề gốc" — tách khỏi `examStatus` (dùng chung filter
-  // panel nhưng KHÔNG reset khi đổi tab) để tránh trường hợp chọn "Nháp" ở tab "Đề gốc" rồi qua tab
-  // Thẩm định vẫn giữ giá trị "draft" — giá trị này không tồn tại trong danh sách option của tab
-  // Thẩm định (không có Nháp), khiến Select hiện sai/trống.
-  const [examReviewStatus, setExamReviewStatus] = useState('all');
+  // panel nhưng KHÔNG reset khi đổi tab) để tránh trường hợp chọn "Tạo mới" ở tab "Đề gốc" rồi qua
+  // tab Thẩm định vẫn giữ giá trị "draft" — giá trị này không tồn tại trong danh sách option của tab
+  // Thẩm định (không có "Tạo mới"), khiến Select hiện sai/trống. Mặc định "Chờ thẩm định" (đúng
+  // trọng tâm của tab — ưu tiên xem việc cần xử lý trước), vẫn đổi được sang "Tất cả"/khác.
+  const [examReviewStatus, setExamReviewStatus] = useState('pending');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
   // Filters for Packages (Tab 3)
@@ -402,11 +403,43 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     toast.success('Xuất báo cáo Excel thành công!');
   };
 
-  // Gửi thẩm định: đề thi đã ở trạng thái "Chờ thẩm định" ngay khi tạo, nên chỉ cần
-  // chuyển sang tab "Thẩm định/phản biện đề" để hội đồng xử lý tiếp.
-  const handleSendReview = () => {
+  // Gửi thẩm định: chuyển đề từ "Tạo mới"/"Từ chối" (canEditExam) sang "Chờ thẩm định" (status=
+  // 'pending'), rồi chuyển sang tab "Thẩm định/phản biện đề" để hội đồng xử lý tiếp. Đề đang "Chờ
+  // thẩm định"/"Đã thẩm định" (không khớp canEditExam) bị bỏ qua âm thầm — nơi gọi (dropdown từng
+  // dòng, nút hàng loạt) đã tự lọc sẵn nên hiếm khi lọt vào đây.
+  const handleSendReview = async (examIds: string[]) => {
+    const targets = examIds.filter(id => {
+      const e = exams.find(x => x.id === id);
+      return e && canEditExam(e.status);
+    });
+    if (targets.length === 0) {
+      toast.warning('Chỉ đề ở trạng thái "Tạo mới" hoặc "Từ chối" mới gửi thẩm định được.');
+      return;
+    }
+    try {
+      const results = await Promise.all(targets.map(async (id) => {
+        try {
+          const res = await fetch(`/api/exams/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'pending' }),
+          });
+          const json = await res.json();
+          return !!json.success;
+        } catch {
+          return false;
+        }
+      }));
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
+      if (successCount > 0) toast.success(`Đã gửi thẩm định ${successCount} đề thi.`);
+      if (failCount > 0) toast.warning(`${failCount} đề thi gửi thẩm định thất bại — vui lòng thử lại.`);
+    } catch {
+      toast.error('Lỗi kết nối khi gửi thẩm định.');
+    }
     setSelectedExamIds([]);
     setActiveTab('exam_review');
+    fetchData();
   };
 
   // Duyệt / Từ chối đề thi ở tab thẩm định
@@ -497,7 +530,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     switch (status) {
       case '1':
       case 'draft':
-        return 'Lưu nháp';
+        return 'Tạo mới';
       case '2':
       case 'pending':
         return 'Chờ thẩm định';
@@ -519,7 +552,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     switch (status) {
       case '1':
       case 'draft':
-        return <Tag color="default" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-slate-400">Lưu nháp</Tag>;
+        return <Tag color="default" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-slate-400">Tạo mới</Tag>;
       case '2':
       case 'pending':
         return <Tag color="warning" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-amber-500">Chờ thẩm định</Tag>;
@@ -536,8 +569,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     }
   };
 
-  // Chỉ cho sửa đề khi chưa "Đã thẩm định" (Nháp / Chờ thẩm định / Từ chối) — đề đã thẩm định coi như chốt.
-  const canEditExam = (status: string) => !['3', 'approved', 'active'].includes(status);
+  // Chỉ cho sửa đề khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm định"/
+  // "Đã thẩm định" coi như đã chốt, không cho sửa nữa (khớp quy ước canEditQuestion/canEdit ở các
+  // module câu hỏi/chủ đề/ma trận đề).
+  const canEditExam = (status: string) => ['1', 'draft', '4', 'rejected', 'closed'].includes(status);
 
   // Chỉ cho sinh đề hoán vị khi đề gốc đã "Đã thẩm định" — nội dung câu hỏi lúc đó mới coi như chốt,
   // hoán vị dựa trên đề chưa thẩm định thì nội dung có thể còn thay đổi.
@@ -546,12 +581,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Dropdown actions generator
   const getActionMenuItems = (exam: any) => {
     const items = [];
-    if (hasActionPermission(currentUser, 'exams.submit')) {
+    if (hasActionPermission(currentUser, 'exams.submit') && canEditExam(exam.status)) {
       items.push({
         key: 'review',
         label: 'Gửi thẩm định/phản biên',
         icon: <SafetyCertificateOutlined />,
-        onClick: () => handleSendReview()
+        onClick: () => handleSendReview([exam.id])
       });
     }
     if (hasActionPermission(currentUser, 'exams.manage')) {
@@ -691,7 +726,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     className="w-full text-[14px]"
                     options={[
                       { value: 'all', label: 'Tất cả' },
-                      { value: 'draft', label: 'Nháp (vừa tạo mới)' },
+                      { value: 'draft', label: 'Tạo mới' },
                       { value: 'approved', label: 'Đã thẩm định' },
                       { value: 'pending', label: 'Chờ thẩm định' },
                       { value: 'rejected', label: 'Từ chối' }
@@ -758,7 +793,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   <Button
                     icon={<SafetyCertificateOutlined />}
                     disabled={selectedExamIds.length === 0}
-                    onClick={handleSendReview}
+                    onClick={() => handleSendReview(selectedExamIds)}
                     className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
                   >
                     Gửi thẩm định

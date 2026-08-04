@@ -237,7 +237,11 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
         name=body.name,
         subject=body.subject,
         grade=body.grade,
-        status="pending",
+        # "draft" (Tạo mới) khi tạo mới — phải qua bước "Gửi thẩm định" tường minh mới chuyển sang
+        # "pending" (Chờ thẩm định), khớp quy ước topics/matrix_configs (trước đây tạo thẳng
+        # "pending", bỏ qua bước Tạo mới, khiến ExamManagementModule.tsx::handleSendReview chỉ đơn
+        # thuần chuyển tab chứ không thực sự gọi API đổi trạng thái).
+        status="draft",
         attempts=0,
         totalQuestions=0,
         avgScore=0.0,
