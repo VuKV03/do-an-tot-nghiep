@@ -162,7 +162,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         if comp_result.scalar_one_or_none():
             competency_component_id = body.competencyComponentId
 
-    question_id = f"q-{int(time.time() * 1000)}"
+    question_id = f"q-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     question = Question(
         id=question_id,
         code=f"Q-{str(int(time.time()))[-6:].upper()}",
@@ -388,7 +388,10 @@ async def create_questions_bulk(body: QuestionBulkCreate, db: AsyncSession = Dep
         topic = await _resolve_topic(db, topic_cache, item.topicId, item.topicName, item.subTopicName)
         competency_component_id = item.competencyComponentId if (item.competencyComponentId and await _resolve_competency(db, competency_cache, item.competencyComponentId)) else None
 
-        question_id = f"q-{int(time.time() * 1000)}-{idx}"
+        # uuid hậu tố — mốc mili-giây + idx không đủ duy nhất khi nhiều đề (vd nhiều đề hoán vị)
+        # cùng gọi bulk-create SONG SONG, mỗi lệnh gọi tự đếm idx từ 0 riêng nên dễ trùng
+        # "q-{ts}-{idx}" giữa 2 đề khác nhau rơi vào cùng mili-giây với cùng idx.
+        question_id = f"q-{int(time.time() * 1000)}-{idx}-{uuid.uuid4().hex[:6]}"
         question = Question(
             id=question_id,
             code=f"Q-{str(int(time.time()))[-6:].upper()}{idx}",

@@ -133,7 +133,10 @@ async def _duplicate_questions_into_exam(
         if not src or src.exam_id is not None:
             skipped.append(qid)
             continue
-        new_id = f"q-{int(time.time() * 1000)}-{len(created)}"
+        # uuid hậu tố — mốc mili-giây không đủ duy nhất khi nhiều request nhân bản câu hỏi chạy
+        # SONG SONG (vd nhiều đề hoán vị cùng lúc), dễ trùng "q-{ts}-{len(created)}" giữa 2 request
+        # khác nhau rơi vào cùng mili-giây với cùng số thứ tự — xem comment tương tự ở exam_id.
+        new_id = f"q-{int(time.time() * 1000)}-{len(created)}-{uuid.uuid4().hex[:6]}"
         new_q = Question(
             id=new_id,
             code=src.code,
@@ -227,7 +230,11 @@ async def list_exams(db: AsyncSession = Depends(get_db)):
 @router.post("/", status_code=201)
 async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
     """Tạo đề thi mới."""
-    exam_id = f"exam-{int(time.time() * 1000)}"
+    # Thêm hậu tố ngẫu nhiên — chỉ dùng mốc mili-giây (int(time.time()*1000)) không đủ duy nhất khi
+    # nhiều request tạo đề chạy SONG SONG (vd sinh hàng loạt đề hoán vị qua Promise.all ở
+    # ModalSinhDeHoanVi.tsx), dễ trùng id giữa 2 request rơi vào cùng 1 mili-giây, gây lỗi
+    # IntegrityError "Duplicate entry ... for key 'exams.PRIMARY'".
+    exam_id = f"exam-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     exam_code = body.code or f"DE-{str(int(time.time()))[-6:].upper()}"
     now = datetime.utcnow().isoformat() + "Z"
 
