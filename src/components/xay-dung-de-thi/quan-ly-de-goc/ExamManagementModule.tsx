@@ -103,6 +103,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // 1 icon "Thẩm định chi tiết" mở modal chọn Đồng ý/Từ chối, thay vì 2 nút rời + Popconfirm riêng.
   const [examReviewModalTarget, setExamReviewModalTarget] = useState<any | null>(null);
   const [examReviewVerdict, setExamReviewVerdict] = useState<'approved' | 'rejected'>('approved');
+  const [examReviewComment, setExamReviewComment] = useState('');
 
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
@@ -521,12 +522,14 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleOpenExamReviewModal = (exam: any) => {
     setExamReviewModalTarget(exam);
     setExamReviewVerdict('approved');
+    setExamReviewComment('');
   };
 
   const handleSubmitExamReviewModal = async () => {
     if (!examReviewModalTarget) return;
     await handleReviewDecision(examReviewModalTarget, examReviewVerdict);
     setExamReviewModalTarget(null);
+    setExamReviewComment('');
   };
 
   // Duyệt/Từ chối hàng loạt các đề đang chọn (tick) ở tab "Thẩm định đề gốc" — chạy song song bằng
@@ -1120,22 +1123,25 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         </div>
       </Modal>
 
-      {/* Modal: Thẩm định chi tiết 1 đề — khớp UI đang dùng ở tab thẩm định chủ đề câu hỏi/câu hỏi/
-          ma trận đề (1 icon mở modal chọn Đồng ý/Từ chối), thay cho 2 icon Duyệt/Từ chối rời trước đây. */}
+      {/* Modal: Thẩm định chi tiết 1 đề — khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự
+          án (icon FileTextOutlined xanh + tiêu đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ
+          chối, ô nhận xét, footer Hủy/Xác nhận) — xem tham-dinh-cau-hoi/index.tsx::ReviewDetailModal,
+          MatrixConfigModule.tsx, tham-dinh-chu-de/review.tsx. */}
       <Modal
         title={
           <div className="flex items-center gap-2">
             <FileTextOutlined className="text-blue-600" />
-            <span className="font-extrabold uppercase text-[14px] text-slate-800">
-              Thẩm định đề thi{examReviewModalTarget ? `: ${examReviewModalTarget.name}` : ''}
+            <span className="text-[#002147] font-black text-sm tracking-tight">
+              Thẩm định đề thi{examReviewModalTarget ? ` — ${examReviewModalTarget.code}` : ''}
             </span>
           </div>
         }
         open={examReviewModalTarget !== null}
         onCancel={() => setExamReviewModalTarget(null)}
+        width={640}
         centered
         footer={[
-          <Button key="cancel" onClick={() => setExamReviewModalTarget(null)} className="rounded font-semibold text-[14px]">
+          <Button key="cancel" onClick={() => setExamReviewModalTarget(null)} className="rounded font-semibold text-xs">
             Hủy
           </Button>,
           <Button
@@ -1143,29 +1149,40 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
             type="primary"
             loading={reviewActioning?.id === examReviewModalTarget?.id}
             onClick={handleSubmitExamReviewModal}
-            className="bg-[#2c3e9e] border-transparent text-white font-semibold text-[14px] rounded hover:bg-[#243590] cursor-pointer"
+            className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
           >
             Xác nhận thẩm định
           </Button>,
         ]}
+        destroyOnHidden
       >
         {examReviewModalTarget && (
           <div className="space-y-4 py-2">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[14px] flex flex-wrap gap-x-6 gap-y-1">
-              <span><strong>Mã đề:</strong> {examReviewModalTarget.code}</span>
-              <span><strong>Môn:</strong> {examReviewModalTarget.subject}</span>
-              <span><strong>Số câu:</strong> {examReviewModalTarget.totalQuestions || 0}</span>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex flex-wrap gap-x-6 gap-y-1 text-slate-600">
+              <span><strong className="text-slate-500">Tên đề:</strong> <span className="text-slate-800 font-semibold">{examReviewModalTarget.name}</span></span>
+              <span><strong className="text-slate-500">Môn:</strong> {examReviewModalTarget.subject}</span>
+              <span><strong className="text-slate-500">Số câu:</strong> {examReviewModalTarget.totalQuestions || 0}</span>
             </div>
             <div>
-              <label className="block text-[14px] font-semibold text-slate-700 mb-2">Kết quả thẩm định</label>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
               <Radio.Group value={examReviewVerdict} onChange={e => setExamReviewVerdict(e.target.value)} className="flex gap-4">
                 <Radio value="approved">
-                  <span className="text-emerald-700 font-bold text-[14px]">Đồng ý / Thông qua</span>
+                  <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
                 </Radio>
                 <Radio value="rejected">
-                  <span className="text-rose-600 font-bold text-[14px]">Từ chối</span>
+                  <span className="text-rose-600 font-bold text-xs">Từ chối</span>
                 </Radio>
               </Radio.Group>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
+              <Input.TextArea
+                rows={3}
+                placeholder="Nhập nhận xét thẩm định..."
+                value={examReviewComment}
+                onChange={e => setExamReviewComment(e.target.value)}
+                className="text-xs rounded border-slate-300"
+              />
             </div>
           </div>
         )}

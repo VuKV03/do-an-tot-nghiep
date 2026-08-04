@@ -12,7 +12,8 @@ import {
   Steps,
   Popconfirm,
   Space,
-  Empty
+  Empty,
+  Radio
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import {
@@ -1072,14 +1073,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         </div>
       )}
 
-      {/* Review Confirmation Modal */}
+      {/* Review Confirmation Modal — khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự án
+          (icon FileTextOutlined xanh + tiêu đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ
+          chối, ô nhận xét, footer Hủy/Xác nhận) — xem tham-dinh-cau-hoi/index.tsx::ReviewDetailModal,
+          ExamManagementModule.tsx, tham-dinh-chu-de/review.tsx. */}
       <Modal
         title={
-          <div className="flex items-center gap-2 text-[#1a3c8b] font-bold text-sm italic">
-            <CheckCircleOutlined className="text-[#2c3e9e]" />
-            {isBatchReview
-              ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
-              : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-600" />
+            <span className="text-[#002147] font-black text-sm tracking-tight">
+              {isBatchReview
+                ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
+                : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+            </span>
           </div>
         }
         open={isReviewModalOpen}
@@ -1111,37 +1117,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">Kết quả thẩm định</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="approved"
-                  checked={reviewStatus === 'approved'}
-                  onChange={() => setReviewStatus('approved')}
-                  className="accent-[#2c3e9e] cursor-pointer"
-                />
-                Đồng ý thông qua (Đã thẩm định)
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="rejected"
-                  checked={reviewStatus === 'rejected'}
-                  onChange={() => setReviewStatus('rejected')}
-                  className="accent-red-600 cursor-pointer"
-                />
-                Từ chối thông qua
-              </label>
-            </div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
+            <Radio.Group value={reviewStatus} onChange={e => setReviewStatus(e.target.value)} className="flex gap-4">
+              <Radio value="approved">
+                <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
+              </Radio>
+              <Radio value="rejected">
+                <span className="text-rose-600 font-bold text-xs">Từ chối</span>
+              </Radio>
+            </Radio.Group>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Ý kiến thẩm định / Nhận xét phản biện
-            </label>
+            <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
             <Input.TextArea
               rows={4}
               placeholder="Nhập nội dung nhận xét chi tiết..."
