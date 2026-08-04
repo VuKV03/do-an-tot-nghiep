@@ -726,9 +726,19 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
       // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
       // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
+      // lineNumber = vị trí (1-based) TRONG PHẠM VI PHẦN của câu hỏi — đánh số lại từ 1 ở MỖI Phần,
+      // giống hệt cách ModalSinhDeHoanVi.tsx tính cho đề hoán vị (backend mặc định line_number=0 khi
+      // không truyền, vi phạm bất biến "câu đã thuộc 1 đề phải >= 1" nếu bỏ trống ở đây).
+      const partCounters = new Map<string, number>();
+      const lineNumbers = genQuestions.map((q) => {
+        const key = q.type || 'other';
+        const next = (partCounters.get(key) || 0) + 1;
+        partCounters.set(key, next);
+        return next;
+      });
       // 1 request duy nhất cho toàn bộ câu hỏi thay vì lặp `await` tuần tự từng câu (trước đây rất
       // chậm — mỗi câu 1 round-trip DB cloud riêng) — xem questionApi.createBulk.
-      await questionApi.createBulk(genQuestions.map((q) => ({
+      await questionApi.createBulk(genQuestions.map((q, qi) => ({
         text: q.text,
         type: q.type,
         level: q.level,
@@ -744,6 +754,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         examId: newExamId,
         creator: q.creator,
         competencyComponentId: q.nangLucId,
+        lineNumber: lineNumbers[qi],
         // 'ai_exam' — sinh cả đề bằng AI, ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi
         // (khác 'ai_bank' — sinh bằng AI ngay trong màn Ngân hàng câu hỏi, vẫn hiện bình thường).
         source: 'ai_exam',

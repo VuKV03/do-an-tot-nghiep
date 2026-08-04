@@ -163,6 +163,13 @@ export default function ModalChonCauHoi({
   const filtered = useMemo(() => {
     return questionPool.filter(q => {
       if (q.subject !== subject) return false;
+      // Chỉ cho chọn câu TỰ DO trong Ngân hàng câu hỏi (chưa nhân bản vào đề nào) — câu đã thuộc 1
+      // đề (examId khác rỗng, lineNumber >= 1) là bản sao RIÊNG của đề đó, không được chọn lại cho
+      // đề khác (xem backend/exam_service/routes/exams.py::_duplicate_questions_into_exam).
+      if (q.examId || (q.lineNumber ?? 0) !== 0) return false;
+      // Chỉ cho chọn câu ĐÃ THẨM ĐỊNH (approved) — khớp quy ước status=2 mặc định của luồng ma trận
+      // tự động (bankQuestionApi.randomSelect), tránh đưa câu chưa qua kiểm duyệt vào đề.
+      if (q.status !== 'approved') return false;
       if (excludeIds.includes(q.id)) return false;
       if (fGrade !== 'all' && q.grade !== fGrade) return false;
       if (fType !== 'all' && q.type !== fType) return false;

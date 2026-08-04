@@ -59,7 +59,11 @@ class Question(Base):
     # Optional relation to exams (to maintain compatibility)
     exam_id = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=True)
     
-    line_number = Column(Integer, default=1)
+    # 0 = câu tự do trong Ngân hàng câu hỏi (chưa/không thuộc đề nào cụ thể) — mặc định khi TẠO MỚI
+    # câu hỏi (thủ công/AI). Câu đã thuộc 1 đề (exam_id NOT NULL) LUÔN có line_number >= 1, đánh theo
+    # đúng vị trí trong đề (reset về 1 ở mỗi Phần I/II/III — xem _renumber_exam_questions ở
+    # routes/exams.py và compareByPartAndLineNumber ở utils/examParts.ts, 2 nơi PHẢI cùng quy ước).
+    line_number = Column(Integer, default=0)
     status = Column(Integer, default=0)
     # Tái sử dụng cột này (trước đây tồn tại nhưng không được đọc/ghi có ý nghĩa gì) làm cờ NGUỒN GỐC
     # câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn
