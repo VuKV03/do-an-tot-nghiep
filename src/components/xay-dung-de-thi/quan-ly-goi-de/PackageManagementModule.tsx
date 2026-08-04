@@ -604,18 +604,16 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                       </td>
                       <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-[11px]">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="py-2.5 px-3">
-                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border rounded text-[10px]">{row.code}</span>
+                        <TruncatedText text={row.code} className="font-mono text-slate-700 text-[11px]" />
                       </td>
                       <td className="py-2.5 px-3">
                         <TruncatedText text={row.name} className="font-semibold text-slate-800 text-[11px]" />
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <Tag color="blue" className="rounded-md font-bold text-[9px] m-0 border-transparent">{row.subject}</Tag>
+                        <TruncatedText text={row.subject} className="text-slate-700 text-[11px]" />
                       </td>
                       <td className="py-2.5 px-3 text-center font-bold text-[11px]">{row.examsCount || 0}</td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span className="font-mono bg-slate-50 px-2 py-0.5 rounded border text-[11px]">{stats.totalQuestions}</span>
-                      </td>
+                      <td className="py-2.5 px-3 text-center text-[11px]">{stats.totalQuestions}</td>
                       <td className="py-2.5 px-3 text-center font-semibold text-[11px]">{stats.duration}</td>
                       <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</td>
                       <td className="py-2.5 px-3 text-center">{getPackageStatusTag(row.status)}</td>

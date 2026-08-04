@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text, update
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory
+from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory, Package, PackageExam
 # Tái dùng _map_type (đã xử lý đủ alias code cũ/mới, tiếng Việt có dấu) để nhóm câu hỏi theo Phần
 # I/II/III khi đánh lại line_number — PHẢI khớp đúng cách bank_questions.py tự map, tránh 2 nơi suy
 # luận Phần khác nhau cho cùng 1 câu hỏi.
@@ -400,6 +400,12 @@ async def delete_exam(exam_id: str, db: AsyncSession = Depends(get_db)):
     Mọi câu hỏi có exam_id trỏ tới đề này đều là bản sao RIÊNG của đề (nhân bản lúc lưu đề — xem
     _duplicate_questions_into_exam), không còn dùng chung với Ngân hàng câu hỏi như trước nữa — nên
     xóa đề kéo theo xóa hẳn toàn bộ câu hỏi của đề, không cần phân biệt nguồn gốc/gỡ liên kết nữa.
+
+    Nếu đề này là ĐỀ GỐC của 1+ gói đề hoán vị (position=0 trong package_exams — xem
+    PackageManagementModule.tsx::handleDeletePackage), gói đề đó mất hết ý nghĩa khi thiếu đề gốc
+    nên bị xóa theo LUÔN (kéo theo cả đề hoán vị + câu hỏi riêng bên trong gói, cùng cascade như
+    packages.py::delete_package) — không chỉ xóa mỗi bản ghi đề. FE phải tự cảnh báo trước (đặc biệt
+    nếu gói đề đó đang "Đang thi") vì endpoint này xóa thẳng, không hỏi lại.
     """
     result = await db.execute(select(Exam).where(Exam.id == exam_id))
     exam = result.scalar_one_or_none()
@@ -407,6 +413,21 @@ async def delete_exam(exam_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi cần xóa.")
 
     name = exam.name
+
+    root_links_result = await db.execute(
+        select(PackageExam.package_id).where(PackageExam.position == 0, PackageExam.exam_id == exam_id)
+    )
+    dependent_package_ids = list(root_links_result.scalars().all())
+    for pkg_id in dependent_package_ids:
+        variant_links_result = await db.execute(
+            select(PackageExam.exam_id).where(PackageExam.package_id == pkg_id).order_by(PackageExam.position)
+        )
+        variant_exam_ids = list(variant_links_result.scalars().all())[1:]  # bỏ vị trí 0 (chính là exam_id đang xóa)
+        if variant_exam_ids:
+            await db.execute(delete(Question).where(Question.exam_id.in_(variant_exam_ids)))
+            await db.execute(delete(Exam).where(Exam.id.in_(variant_exam_ids)))
+        await db.execute(delete(Package).where(Package.id == pkg_id))
+
     await db.execute(delete(Question).where(Question.exam_id == exam_id))
     await db.execute(delete(Exam).where(Exam.id == exam_id))
     await db.commit()

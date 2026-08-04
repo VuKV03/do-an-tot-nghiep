@@ -225,12 +225,52 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // được tick theo dù trạng thái header hiện đã chọn hết.
   const visibleExamRows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
 
+  // Gói đề được sinh hoán vị từ 1 đề gốc — examIds[0] luôn là đề gốc (xem comment ở
+  // packages.py::Package.exam_links) — dùng để cảnh báo trước khi xóa đề, vì backend
+  // (exams.py::delete_exam) sẽ xóa LUÔN các gói đề này (không chỉ riêng bản ghi đề).
+  const getDependentPackages = (examId: string) =>
+    packages.filter((p: any) => (p.examIds || [])[0] === examId);
+
+  const renderDeleteExamWarning = (dependentPackages: any[]) => {
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
+    if (dependentPackages.length === 0) return null;
+    return (
+      <div className="text-xs text-slate-600 space-y-2">
+        <div>
+          Có <strong>{dependentPackages.length}</strong> gói đề hoán vị được sinh ra từ (các) đề này —
+          xóa đề sẽ xóa LUÔN các gói đề sau (kèm toàn bộ đề hoán vị bên trong):
+        </div>
+        <ul className="list-disc pl-4">
+          {dependentPackages.map((p: any) => (
+            <li key={p.id}>
+              {p.name} ({p.code}){p.status === 'active' ? <span className="text-red-600 font-bold"> — đang thi</span> : ''}
+            </li>
+          ))}
+        </ul>
+        {hasActivePackage && (
+          <div className="text-red-600 font-semibold">
+            Có gói đề đang ở trạng thái "Đang thi" — xóa sẽ hủy bài thi của thí sinh đang làm bài!
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
     if (selectedExamIds.length === 0) return;
+    const dependentPackages = packages.filter((p: any) => selectedExamIds.includes((p.examIds || [])[0]));
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
     Modal.confirm({
-      title: `Xác nhận xóa ${selectedExamIds.length} đề thi đã chọn?`,
-      content: 'Hành động này sẽ gỡ bỏ vĩnh viễn các đề thi được chọn.',
+      title: hasActivePackage
+        ? 'Cảnh báo: trong các đề đã chọn có gói đề ĐANG THI!'
+        : `Xác nhận xóa ${selectedExamIds.length} đề thi đã chọn?`,
+      content: (
+        <div className="space-y-2">
+          <div className="text-xs text-slate-600">Hành động này sẽ gỡ bỏ vĩnh viễn các đề thi được chọn.</div>
+          {renderDeleteExamWarning(dependentPackages)}
+        </div>
+      ),
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
@@ -263,8 +303,13 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   };
 
   const handleSingleDeleteExam = (id: string, name: string) => {
+    const dependentPackages = getDependentPackages(id);
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
     Modal.confirm({
-      title: `Xác nhận xóa đề thi: "${name}"?`,
+      title: hasActivePackage
+        ? `Cảnh báo: đề "${name}" đang có gói đề ĐANG THI!`
+        : `Xác nhận xóa đề thi: "${name}"?`,
+      content: renderDeleteExamWarning(dependentPackages),
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
