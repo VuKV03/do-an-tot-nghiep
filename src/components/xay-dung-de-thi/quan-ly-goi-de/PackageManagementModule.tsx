@@ -209,31 +209,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
 
-<<<<<<< HEAD
-  const handleReviewDecision = async (pkg: any, status: 'approved' | 'rejected') => {
-    setActioning({ id: pkg.id, kind: status === 'approved' ? 'approve' : 'reject' });
-    try {
-      const res = await fetch(`https://api.quanlythi.site/api/exams/packages/${pkg.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(status === 'approved' ? `Đã duyệt gói đề "${pkg.name}".` : `Đã từ chối gói đề "${pkg.name}".`);
-        fetchData();
-      } else {
-        toast.error(json.error || 'Lỗi khi cập nhật kết quả thẩm định.');
-      }
-    } catch {
-      toast.error('Lỗi kết nối khi cập nhật kết quả thẩm định.');
-    } finally {
-      setActioning(null);
-    }
-  };
 
-=======
->>>>>>> d50f4cdf36251f3505d04070abbaf54868adfe3d
   const handlePublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {
