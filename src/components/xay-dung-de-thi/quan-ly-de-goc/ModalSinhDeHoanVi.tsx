@@ -368,7 +368,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           suffix += 1;
           candidate = `${finalPackageCode}-${suffix}`;
         }
-        toast.warning(`Mã gói đề thi "${finalPackageCode}" đã tồn tại — tự động dùng mã "${candidate}" thay thế.`);
+        // Tự động né trùng mã gói — đã xử lý xong hoàn toàn, không cần cảnh báo người dùng.
         finalPackageCode = candidate;
       }
       let nextNumber = startCode || 1;
@@ -384,11 +384,8 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
         nextNumber += 1;
         return candidate;
       });
-      if (assignedCodes[0] !== String(startCode || 1)) {
-        toast.warning(
-          `Mã đề bắt đầu từ ${startCode || 1} đã tồn tại — tự động dùng mã ${exam.code}-${assignedCodes[0]} trở đi để tránh trùng.`
-        );
-      }
+      // Tự động né trùng mã đề bắt đầu (nếu "Mã đề thi bắt đầu từ" đã tồn tại) — đã xử lý xong hoàn
+      // toàn, không cần cảnh báo người dùng.
 
       // Mỗi đề hoán vị (đề + toàn bộ câu hỏi của nó) độc lập với các đề khác, nên chạy song song
       // cả bên ngoài (giữa các đề hoán vị) lẫn bên trong (giữa các câu hỏi của cùng 1 đề) — tránh

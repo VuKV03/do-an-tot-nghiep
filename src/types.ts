@@ -40,6 +40,7 @@ export interface Question {
   createdAt: string;    // Ngày tạo câu hỏi
   feedback?: string;    // Nhận xét, phản hồi (từ người thẩm định)
   lineNumber?: number;  // Vị trí câu hỏi trong đề (1-based) — giữ đúng thứ tự đã sắp/hoán vị
+  examId?: string | null; // Đề đang sở hữu câu hỏi này (null/undefined = câu tự do trong Ngân hàng)
 }
 
 // Interface biểu diễn một node trong cây cấu trúc chủ đề/chương bài

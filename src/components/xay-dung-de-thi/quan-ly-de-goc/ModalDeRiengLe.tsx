@@ -118,6 +118,8 @@ export default function ModalDeRiengLe({
             correctAnswer: q.correctAnswer,
             creator: q.creator,
             createdAt: q.createdAt,
+            examId: q.examId,
+            lineNumber: q.lineNumber,
           })));
         }
       } catch (err) {

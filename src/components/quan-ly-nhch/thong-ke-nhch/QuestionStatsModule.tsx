@@ -212,7 +212,7 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     { value: 'Tất cả', label: 'Tất cả' },
     { value: 'approved', label: 'Đã duyệt' },
     { value: 'pending', label: 'Chờ duyệt' },
-    { value: 'draft', label: 'Bản nháp' },
+    { value: 'draft', label: 'Tạo mới' },
   ];
 
   const creatorOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...Array.from(new Set(questions.map(q => q.creator))).filter(Boolean).map(c => ({ value: c, label: c }))];

@@ -12,7 +12,8 @@ import {
   DatePicker,
   Timeline,
   Dropdown,
-  Popconfirm
+  Popconfirm,
+  Radio
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +26,7 @@ import {
   SafetyCertificateOutlined,
   SyncOutlined,
   FileExcelOutlined,
+  FileTextOutlined,
   DownOutlined,
   UpOutlined,
   MoreOutlined,
@@ -75,10 +77,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [examMatrix, setExamMatrix] = useState('all');
   const [examStatus, setExamStatus] = useState('all');
   // Trạng thái lọc RIÊNG cho tab "Thẩm định đề gốc" — tách khỏi `examStatus` (dùng chung filter
-  // panel nhưng KHÔNG reset khi đổi tab) để tránh trường hợp chọn "Nháp" ở tab "Đề gốc" rồi qua tab
-  // Thẩm định vẫn giữ giá trị "draft" — giá trị này không tồn tại trong danh sách option của tab
-  // Thẩm định (không có Nháp), khiến Select hiện sai/trống.
-  const [examReviewStatus, setExamReviewStatus] = useState('all');
+  // panel nhưng KHÔNG reset khi đổi tab) để tránh trường hợp chọn "Tạo mới" ở tab "Đề gốc" rồi qua
+  // tab Thẩm định vẫn giữ giá trị "draft" — giá trị này không tồn tại trong danh sách option của tab
+  // Thẩm định (không có "Tạo mới"), khiến Select hiện sai/trống. Mặc định "Chờ thẩm định" (đúng
+  // trọng tâm của tab — ưu tiên xem việc cần xử lý trước), vẫn đổi được sang "Tất cả"/khác.
+  const [examReviewStatus, setExamReviewStatus] = useState('pending');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
   // Filters for Packages (Tab 3)
@@ -94,6 +97,13 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // spinner hiện sai hàng khi nhiều dòng bị thao tác liên tiếp.
   const [reviewActioning, setReviewActioning] = useState<{ id: string; action: 'approved' | 'rejected' } | null>(null);
   const [bulkReviewing, setBulkReviewing] = useState(false);
+
+  // Modal "Thẩm định chi tiết" (1 đề) — thay cho 2 icon Duyệt/Từ chối rời rạc trước đây trong cột
+  // Thao tác, đồng bộ đúng UI đang dùng ở các tab thẩm định khác (chủ đề câu hỏi/câu hỏi/ma trận đề):
+  // 1 icon "Thẩm định chi tiết" mở modal chọn Đồng ý/Từ chối, thay vì 2 nút rời + Popconfirm riêng.
+  const [examReviewModalTarget, setExamReviewModalTarget] = useState<any | null>(null);
+  const [examReviewVerdict, setExamReviewVerdict] = useState<'approved' | 'rejected'>('approved');
+  const [examReviewComment, setExamReviewComment] = useState('');
 
   // Modal Triggers
   const [isDeRiengLeOpen, setIsDeRiengLeOpen] = useState(false);
@@ -216,22 +226,74 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // được tick theo dù trạng thái header hiện đã chọn hết.
   const visibleExamRows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
 
+  // Gói đề được sinh hoán vị từ 1 đề gốc — examIds[0] luôn là đề gốc (xem comment ở
+  // packages.py::Package.exam_links) — dùng để cảnh báo trước khi xóa đề, vì backend
+  // (exams.py::delete_exam) sẽ xóa LUÔN các gói đề này (không chỉ riêng bản ghi đề).
+  const getDependentPackages = (examId: string) =>
+    packages.filter((p: any) => (p.examIds || [])[0] === examId);
+
+  const renderDeleteExamWarning = (dependentPackages: any[]) => {
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
+    if (dependentPackages.length === 0) return null;
+    return (
+      <div className="text-xs text-slate-600 space-y-2">
+        <div>
+          Có <strong>{dependentPackages.length}</strong> gói đề hoán vị được sinh ra từ (các) đề này —
+          xóa đề sẽ xóa LUÔN các gói đề sau (kèm toàn bộ đề hoán vị bên trong):
+        </div>
+        <ul className="list-disc pl-4">
+          {dependentPackages.map((p: any) => (
+            <li key={p.id}>
+              {p.name} ({p.code}){p.status === 'active' ? <span className="text-red-600 font-bold"> — đang thi</span> : ''}
+            </li>
+          ))}
+        </ul>
+        {hasActivePackage && (
+          <div className="text-red-600 font-semibold">
+            Có gói đề đang ở trạng thái "Đang thi" — xóa sẽ hủy bài thi của thí sinh đang làm bài!
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Batch delete handlers
   const handleBatchDeleteExams = () => {
     if (selectedExamIds.length === 0) return;
+    const dependentPackages = packages.filter((p: any) => selectedExamIds.includes((p.examIds || [])[0]));
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
     Modal.confirm({
-      title: `Xác nhận xóa ${selectedExamIds.length} đề thi đã chọn?`,
-      content: 'Hành động này sẽ gỡ bỏ vĩnh viễn các đề thi được chọn.',
+      title: hasActivePackage
+        ? 'Cảnh báo: trong các đề đã chọn có gói đề ĐANG THI!'
+        : `Xác nhận xóa ${selectedExamIds.length} đề thi đã chọn?`,
+      content: (
+        <div className="space-y-2">
+          <div className="text-xs text-slate-600">Hành động này sẽ gỡ bỏ vĩnh viễn các đề thi được chọn.</div>
+          {renderDeleteExamWarning(dependentPackages)}
+        </div>
+      ),
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
       centered: true,
       onOk: async () => {
         try {
-          for (const id of selectedExamIds) {
-            await fetch(`/api/exams/${id}`, { method: 'DELETE' });
-          }
-          toast.success('Đã xóa thành công các đề thi được chọn.');
+          // Chạy song song + kiểm tra từng response — trước đây gọi tuần tự và LUÔN báo thành công
+          // dù DELETE thất bại (không đọc response), khiến "Xóa hàng loạt" hiện toast thành công
+          // nhưng thực chất không xóa được đề nào cả.
+          const results = await Promise.all(selectedExamIds.map(async (id) => {
+            try {
+              const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+              const json = await res.json().catch(() => null);
+              return !!json?.success;
+            } catch {
+              return false;
+            }
+          }));
+          const successCount = results.filter(Boolean).length;
+          const failCount = results.length - successCount;
+          if (successCount > 0) toast.success(`Đã xóa thành công ${successCount} đề thi.`);
+          if (failCount > 0) toast.warning(`${failCount} đề thi xóa thất bại — vui lòng thử lại.`);
           setSelectedExamIds([]);
           fetchData();
         } catch {
@@ -242,8 +304,13 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   };
 
   const handleSingleDeleteExam = (id: string, name: string) => {
+    const dependentPackages = getDependentPackages(id);
+    const hasActivePackage = dependentPackages.some((p: any) => p.status === 'active');
     Modal.confirm({
-      title: `Xác nhận xóa đề thi: "${name}"?`,
+      title: hasActivePackage
+        ? `Cảnh báo: đề "${name}" đang có gói đề ĐANG THI!`
+        : `Xác nhận xóa đề thi: "${name}"?`,
+      content: renderDeleteExamWarning(dependentPackages),
       okText: 'Xóa',
       cancelText: 'Hủy',
       okButtonProps: { danger: true },
@@ -390,11 +457,43 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     toast.success('Xuất báo cáo Excel thành công!');
   };
 
-  // Gửi thẩm định: đề thi đã ở trạng thái "Chờ thẩm định" ngay khi tạo, nên chỉ cần
-  // chuyển sang tab "Thẩm định/phản biện đề" để hội đồng xử lý tiếp.
-  const handleSendReview = () => {
+  // Gửi thẩm định: chuyển đề từ "Tạo mới"/"Từ chối" (canEditExam) sang "Chờ thẩm định" (status=
+  // 'pending'), rồi chuyển sang tab "Thẩm định/phản biện đề" để hội đồng xử lý tiếp. Đề đang "Chờ
+  // thẩm định"/"Đã thẩm định" (không khớp canEditExam) bị bỏ qua âm thầm — nơi gọi (dropdown từng
+  // dòng, nút hàng loạt) đã tự lọc sẵn nên hiếm khi lọt vào đây.
+  const handleSendReview = async (examIds: string[]) => {
+    const targets = examIds.filter(id => {
+      const e = exams.find(x => x.id === id);
+      return e && canEditExam(e.status);
+    });
+    if (targets.length === 0) {
+      toast.warning('Chỉ đề ở trạng thái "Tạo mới" hoặc "Từ chối" mới gửi thẩm định được.');
+      return;
+    }
+    try {
+      const results = await Promise.all(targets.map(async (id) => {
+        try {
+          const res = await fetch(`/api/exams/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'pending' }),
+          });
+          const json = await res.json();
+          return !!json.success;
+        } catch {
+          return false;
+        }
+      }));
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
+      if (successCount > 0) toast.success(`Đã gửi thẩm định ${successCount} đề thi.`);
+      if (failCount > 0) toast.warning(`${failCount} đề thi gửi thẩm định thất bại — vui lòng thử lại.`);
+    } catch {
+      toast.error('Lỗi kết nối khi gửi thẩm định.');
+    }
     setSelectedExamIds([]);
     setActiveTab('exam_review');
+    fetchData();
   };
 
   // Duyệt / Từ chối đề thi ở tab thẩm định
@@ -418,6 +517,19 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     } finally {
       setReviewActioning(null);
     }
+  };
+
+  const handleOpenExamReviewModal = (exam: any) => {
+    setExamReviewModalTarget(exam);
+    setExamReviewVerdict('approved');
+    setExamReviewComment('');
+  };
+
+  const handleSubmitExamReviewModal = async () => {
+    if (!examReviewModalTarget) return;
+    await handleReviewDecision(examReviewModalTarget, examReviewVerdict);
+    setExamReviewModalTarget(null);
+    setExamReviewComment('');
   };
 
   // Duyệt/Từ chối hàng loạt các đề đang chọn (tick) ở tab "Thẩm định đề gốc" — chạy song song bằng
@@ -485,7 +597,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     switch (status) {
       case '1':
       case 'draft':
-        return 'Lưu nháp';
+        return 'Tạo mới';
       case '2':
       case 'pending':
         return 'Chờ thẩm định';
@@ -507,7 +619,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     switch (status) {
       case '1':
       case 'draft':
-        return <Tag color="default" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-slate-400">Lưu nháp</Tag>;
+        return <Tag color="default" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-slate-400">Tạo mới</Tag>;
       case '2':
       case 'pending':
         return <Tag color="warning" className="!inline-flex !items-center !justify-center !text-center rounded-full text-[14px] font-bold uppercase w-[150px] !h-[26px] !m-0 !border-1 !border-amber-500">Chờ thẩm định</Tag>;
@@ -524,8 +636,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     }
   };
 
-  // Chỉ cho sửa đề khi chưa "Đã thẩm định" (Nháp / Chờ thẩm định / Từ chối) — đề đã thẩm định coi như chốt.
-  const canEditExam = (status: string) => !['3', 'approved', 'active'].includes(status);
+  // Chỉ cho sửa đề khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm định"/
+  // "Đã thẩm định" coi như đã chốt, không cho sửa nữa (khớp quy ước canEditQuestion/canEdit ở các
+  // module câu hỏi/chủ đề/ma trận đề).
+  const canEditExam = (status: string) => ['1', 'draft', '4', 'rejected', 'closed'].includes(status);
 
   // Chỉ cho sinh đề hoán vị khi đề gốc đã "Đã thẩm định" — nội dung câu hỏi lúc đó mới coi như chốt,
   // hoán vị dựa trên đề chưa thẩm định thì nội dung có thể còn thay đổi.
@@ -534,12 +648,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Dropdown actions generator
   const getActionMenuItems = (exam: any) => {
     const items = [];
-    if (hasActionPermission(currentUser, 'exams.submit')) {
+    if (hasActionPermission(currentUser, 'exams.submit') && canEditExam(exam.status)) {
       items.push({
         key: 'review',
         label: 'Gửi thẩm định/phản biên',
         icon: <SafetyCertificateOutlined />,
-        onClick: () => handleSendReview()
+        onClick: () => handleSendReview([exam.id])
       });
     }
     if (hasActionPermission(currentUser, 'exams.manage')) {
@@ -679,7 +793,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     className="w-full text-[14px]"
                     options={[
                       { value: 'all', label: 'Tất cả' },
-                      { value: 'draft', label: 'Nháp (vừa tạo mới)' },
+                      { value: 'draft', label: 'Tạo mới' },
                       { value: 'approved', label: 'Đã thẩm định' },
                       { value: 'pending', label: 'Chờ thẩm định' },
                       { value: 'rejected', label: 'Từ chối' }
@@ -746,7 +860,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   <Button
                     icon={<SafetyCertificateOutlined />}
                     disabled={selectedExamIds.length === 0}
-                    onClick={handleSendReview}
+                    onClick={() => handleSendReview(selectedExamIds)}
                     className="border-slate-300 text-slate-700 font-semibold text-[14px] rounded cursor-pointer"
                   >
                     Gửi thẩm định
@@ -890,34 +1004,12 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     <td className="py-2.5 px-3 text-center">
                       <Space size={2}>
                         {activeTab === 'exam_review' && hasActionPermission(currentUser, 'exams.approve') && (
-                          <>
-                            <Popconfirm
-                              title={`Duyệt đề thi "${row.name}"?`}
-                              okText="Duyệt" cancelText="Hủy"
-                              onConfirm={() => handleReviewDecision(row, 'approved')}
-                            >
-                              <Tooltip title="Duyệt (Đã thẩm định)">
-                                <Button
-                                  size="small" type="text" icon={<CheckCircleOutlined className="text-green-600" />} className="cursor-pointer"
-                                  loading={reviewActioning?.id === row.id && reviewActioning.action === 'approved'}
-                                  disabled={reviewActioning !== null && reviewActioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                            <Popconfirm
-                              title={`Từ chối đề thi "${row.name}"?`}
-                              okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
-                              onConfirm={() => handleReviewDecision(row, 'rejected')}
-                            >
-                              <Tooltip title="Từ chối">
-                                <Button
-                                  size="small" type="text" danger icon={<CloseCircleOutlined />} className="cursor-pointer"
-                                  loading={reviewActioning?.id === row.id && reviewActioning.action === 'rejected'}
-                                  disabled={reviewActioning !== null && reviewActioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                          </>
+                          <Tooltip title="Thẩm định chi tiết">
+                            <Button
+                              size="small" type="text" icon={<FileTextOutlined className="text-[#2c3e9e]" />} className="cursor-pointer"
+                              onClick={() => handleOpenExamReviewModal(row)}
+                            />
+                          </Tooltip>
                         )}
                         <Tooltip title="Xem đề thi">
                           <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
@@ -1029,6 +1121,71 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
             />
           )}
         </div>
+      </Modal>
+
+      {/* Modal: Thẩm định chi tiết 1 đề — khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự
+          án (icon FileTextOutlined xanh + tiêu đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ
+          chối, ô nhận xét, footer Hủy/Xác nhận) — xem tham-dinh-cau-hoi/index.tsx::ReviewDetailModal,
+          MatrixConfigModule.tsx, tham-dinh-chu-de/review.tsx. */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-600" />
+            <span className="text-[#002147] font-black text-sm tracking-tight">
+              Thẩm định đề thi{examReviewModalTarget ? ` — ${examReviewModalTarget.code}` : ''}
+            </span>
+          </div>
+        }
+        open={examReviewModalTarget !== null}
+        onCancel={() => setExamReviewModalTarget(null)}
+        width={640}
+        centered
+        footer={[
+          <Button key="cancel" onClick={() => setExamReviewModalTarget(null)} className="rounded font-semibold text-xs">
+            Hủy
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={reviewActioning?.id === examReviewModalTarget?.id}
+            onClick={handleSubmitExamReviewModal}
+            className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+          >
+            Xác nhận thẩm định
+          </Button>,
+        ]}
+        destroyOnHidden
+      >
+        {examReviewModalTarget && (
+          <div className="space-y-4 py-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex flex-wrap gap-x-6 gap-y-1 text-slate-600">
+              <span><strong className="text-slate-500">Tên đề:</strong> <span className="text-slate-800 font-semibold">{examReviewModalTarget.name}</span></span>
+              <span><strong className="text-slate-500">Môn:</strong> {examReviewModalTarget.subject}</span>
+              <span><strong className="text-slate-500">Số câu:</strong> {examReviewModalTarget.totalQuestions || 0}</span>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
+              <Radio.Group value={examReviewVerdict} onChange={e => setExamReviewVerdict(e.target.value)} className="flex gap-4">
+                <Radio value="approved">
+                  <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
+                </Radio>
+                <Radio value="rejected">
+                  <span className="text-rose-600 font-bold text-xs">Từ chối</span>
+                </Radio>
+              </Radio.Group>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
+              <Input.TextArea
+                rows={3}
+                placeholder="Nhập nhận xét thẩm định..."
+                value={examReviewComment}
+                onChange={e => setExamReviewComment(e.target.value)}
+                className="text-xs rounded border-slate-300"
+              />
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ModalDeRiengLe

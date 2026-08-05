@@ -12,7 +12,8 @@ import {
   Steps,
   Popconfirm,
   Space,
-  Empty
+  Empty,
+  Radio
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import {
@@ -119,6 +120,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const [evalIsSearchExpanded, setEvalIsSearchExpanded] = useState(true);
   const [evalSearchText, setEvalSearchText] = useState('');
   const [evalFilterSubject, setEvalFilterSubject] = useState<string>('all');
+  // Mặc định lọc sẵn "Chờ thẩm định" (đúng trọng tâm của tab thẩm định — ưu tiên xem việc cần xử lý
+  // trước), nhưng vẫn đổi được sang "Tất cả"/"Đã thẩm định"/"Từ chối" — khớp quy ước searchStatus ở
+  // tham-dinh-chu-de/index.tsx. "Tạo mới" không có trong lựa chọn vì tab này vốn không hiển thị.
+  const [evalFilterStatus, setEvalFilterStatus] = useState<string>('pending');
 
   const [evalTableData, setEvalTableData] = useState<MatrixTableDataRow[]>([]);
   const [evalTableTotal, setEvalTableTotal] = useState(0);
@@ -191,9 +196,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
       if (evalFilterSubject !== 'all') params.set('subject_id', evalFilterSubject);
-      // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
-      // lọc cứng "pending", ẩn mất các ma trận đã thẩm định xong (approved/rejected) khỏi tab này.
-      params.set('status', 'pending,approved,rejected');
+      // "Tất cả" ở tab này vẫn chỉ hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm
+      // định/Từ chối) — "Tạo mới" (chưa từng gửi) không thuộc phạm vi tab này. Chọn 1 trạng thái cụ
+      // thể thì thu hẹp lại đúng trạng thái đó.
+      params.set('status', evalFilterStatus === 'all' ? 'pending,approved,rejected' : evalFilterStatus);
 
       const res = await fetch(`/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
@@ -347,7 +353,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const STATUS_TAG_LABELS: Record<string, string> = {
     approved: "Đã thẩm định",
     rejected: "Từ chối",
-    new: "Nháp",
+    new: "Tạo mới",
     pending: "Chờ thẩm định",
   };
   const renderStatusTag = (status: string) => (
@@ -589,7 +595,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         { value: 'approved', label: 'Đã thẩm định' },
                         { value: 'pending', label: 'Chờ thẩm định' },
                         { value: 'rejected', label: 'Từ chối' },
-                        { value: 'new', label: 'Nháp' }
+                        { value: 'new', label: 'Tạo mới' }
                       ]}
                     />
                   </div>
@@ -700,7 +706,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
-                            {hasActionPermission(currentUser, 'matrices.manage') && (
+                            {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
+                                định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
+                                nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
+                            {(row.status === 'new' || row.status === 'rejected') && hasActionPermission(currentUser, 'matrices.manage') && (
                               <Tooltip title="Chỉnh sửa">
                                 <Button
                                   size="small"
@@ -828,7 +837,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
             {evalIsSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -856,6 +865,22 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       options={[
                         { value: 'all', label: 'Tất cả' },
                         ...allowedSubjects.map(s => ({ value: s.id, label: s.name }))
+                      ]}
+                    />
+                  </div>
+
+                  {/* Trạng thái */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
+                    <Select
+                      value={evalFilterStatus}
+                      onChange={setEvalFilterStatus}
+                      className="w-full text-xs"
+                      options={[
+                        { value: 'all', label: 'Tất cả' },
+                        { value: 'pending', label: 'Chờ thẩm định' },
+                        { value: 'approved', label: 'Đã thẩm định' },
+                        { value: 'rejected', label: 'Từ chối' },
                       ]}
                     />
                   </div>
@@ -1048,14 +1073,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         </div>
       )}
 
-      {/* Review Confirmation Modal */}
+      {/* Review Confirmation Modal — khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự án
+          (icon FileTextOutlined xanh + tiêu đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ
+          chối, ô nhận xét, footer Hủy/Xác nhận) — xem tham-dinh-cau-hoi/index.tsx::ReviewDetailModal,
+          ExamManagementModule.tsx, tham-dinh-chu-de/review.tsx. */}
       <Modal
         title={
-          <div className="flex items-center gap-2 text-[#1a3c8b] font-bold text-sm italic">
-            <CheckCircleOutlined className="text-[#2c3e9e]" />
-            {isBatchReview
-              ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
-              : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-600" />
+            <span className="text-[#002147] font-black text-sm tracking-tight">
+              {isBatchReview
+                ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
+                : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+            </span>
           </div>
         }
         open={isReviewModalOpen}
@@ -1087,37 +1117,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">Kết quả thẩm định</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="approved"
-                  checked={reviewStatus === 'approved'}
-                  onChange={() => setReviewStatus('approved')}
-                  className="accent-[#2c3e9e] cursor-pointer"
-                />
-                Đồng ý thông qua (Đã thẩm định)
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="rejected"
-                  checked={reviewStatus === 'rejected'}
-                  onChange={() => setReviewStatus('rejected')}
-                  className="accent-red-600 cursor-pointer"
-                />
-                Từ chối thông qua
-              </label>
-            </div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
+            <Radio.Group value={reviewStatus} onChange={e => setReviewStatus(e.target.value)} className="flex gap-4">
+              <Radio value="approved">
+                <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
+              </Radio>
+              <Radio value="rejected">
+                <span className="text-rose-600 font-bold text-xs">Từ chối</span>
+              </Radio>
+            </Radio.Group>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Ý kiến thẩm định / Nhận xét phản biện
-            </label>
+            <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
             <Input.TextArea
               rows={4}
               placeholder="Nhập nội dung nhận xét chi tiết..."

@@ -21,7 +21,7 @@ class QuestionBase(BaseModel):
     level_id: Optional[str] = None
     type_id: Optional[str] = None
     competency_component_id: Optional[str] = None
-    line_number: Optional[int] = 1
+    line_number: Optional[int] = 0
     status: Optional[int] = 0
     status_ai: Optional[int] = 0
     approved_note: Optional[str] = ""
@@ -51,7 +51,7 @@ class QuestionManualCreate(BaseModel):
     creator: Optional[str] = None
     createdAt: Optional[str] = None
     status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'
-    lineNumber: Optional[int] = 1
+    lineNumber: Optional[int] = 0
     examId: Optional[str] = None
     # Nguồn gốc câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI,
     # ModalSinhDeHoanVi.tsx) khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi, KHÁC với câu hỏi
