@@ -130,13 +130,36 @@ async def proxy_exams_fallback(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
-# ─── Route: Matrix Configs ──────────────────────────────────────────
-@app.api_route("/api/matrix-configs", methods=["GET", "POST", "PUT", "DELETE"])
-@app.api_route("/api/matrix-configs/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_matrix_configs(request: Request, path: str = ""):
-    """Forward matrix config requests to Exam Service."""
-    request.scope["path"] = f"/matrix-configs/{path}" if path else "/matrix-configs/"
-    return await proxy_request(request, SERVICE_MAP["exam"])
+# ─── Route: Exam Service Additional Resources ───────────────────────
+EXAM_RESOURCES = [
+    "matrix-configs",
+    "subject-categories",
+    "subject-configs",
+    "cognitive-levels",
+    "question-types",
+    "competency-components",
+    "grade-levels",
+    "topics",
+    "questions",
+    "bank-questions",
+    "packages"
+]
+
+def make_proxy_route(resource_name: str):
+    @app.api_route(f"/api/{resource_name}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/api/{resource_name}/{{path:path}}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/{resource_name}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/{resource_name}/{{path:path}}", methods=["GET", "POST", "PUT", "DELETE"])
+    async def proxy_resource(request: Request, path: str = ""):
+        req_path = request.scope.get("path", request.url.path)
+        if req_path.startswith(f"/api/{resource_name}"):
+            request.scope["path"] = f"/{resource_name}/{path}" if path else f"/{resource_name}/"
+        elif req_path.startswith(f"/{resource_name}"):
+            request.scope["path"] = f"/{resource_name}/{path}" if path else f"/{resource_name}/"
+        return await proxy_request(request, SERVICE_MAP["exam"])
+
+for res in EXAM_RESOURCES:
+    make_proxy_route(res)
 
 
 # ─── Route: AI Service ──────────────────────────────────────────────
