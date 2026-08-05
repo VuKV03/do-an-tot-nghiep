@@ -92,7 +92,7 @@ function StatusBadge({ status }: { status: QuestionStatus }) {
       );
     case 'pending':
       return (
-        <span className="inline-block px-2.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 font-bold text-[10px] whitespace-nowrap">
+        <span className="inline-block px-2.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 font-bold text-[10px] whitespace-nowrap">
           Chờ thẩm định
         </span>
       );
@@ -150,8 +150,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
     <Modal
       open={!!question}
       onCancel={handleCancel}
-      footer={null}
-      width={720}
+      width={640}
       title={
         <div className="flex items-center gap-2">
           <FileTextOutlined className="text-blue-600" />
@@ -160,8 +159,19 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
           </span>
         </div>
       }
+      footer={[
+        <Button key="cancel" onClick={handleCancel} className="rounded font-semibold text-xs">Hủy</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={submitting}
+          onClick={handleSubmit}
+          className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+        >
+          Xác nhận thẩm định
+        </Button>,
+      ]}
       destroyOnHidden
-      styles={{ body: { padding: '20px 24px 8px' } }}
     >
       {/* Question info */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4 space-y-3">
@@ -204,10 +214,10 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
         <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Kết quả thẩm định</div>
         <Radio.Group value={verdict} onChange={(e) => setVerdict(e.target.value)} className="flex gap-4">
           <Radio value="approve">
-            <span className="text-emerald-700 font-bold text-xs">✅ Đồng ý / Thông qua</span>
+            <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
           </Radio>
           <Radio value="reject">
-            <span className="text-rose-600 font-bold text-xs">❌ Từ chối</span>
+            <span className="text-rose-600 font-bold text-xs">Từ chối</span>
           </Radio>
         </Radio.Group>
         <div>
@@ -220,22 +230,6 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
             className="text-xs rounded border-slate-300"
           />
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-end gap-2 pt-2 pb-1">
-        <Button onClick={handleCancel} className="text-xs font-bold border-slate-300 h-9 px-6 rounded cursor-pointer" style={{ cursor: 'pointer' }}>
-          Huỷ
-        </Button>
-        <Button
-          type="primary"
-          loading={submitting}
-          onClick={handleSubmit}
-          className="bg-[#1a4f9c] text-white font-bold text-xs h-9 px-8 rounded cursor-pointer"
-          style={{ cursor: 'pointer' }}
-        >
-          Xác nhận thẩm định
-        </Button>
       </div>
     </Modal>
   );
@@ -633,7 +627,12 @@ export default function ThamDinhCauHoiTab({
       width: 120,
       align: 'center',
       render: (_: any, record: Question) => {
-        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+        // Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm
+        // định"/"Đã thẩm định" coi như đã chốt, không cho sửa nữa (khớp quy ước canEditQuestion ở
+        // tab-ngan-hang-cau-hoi/index.tsx). Trên thực tế tab này chỉ hiển thị câu pending/approved/
+        // rejected (xem filteredQuestions ở trên, draft bị loại từ base filter) nên "Tạo mới" ở đây
+        // không bao giờ khớp — chỉ "Từ chối" thực sự cho hiện nút sửa.
+        const canEditQuestion = record.status === 'draft' || record.status === 'rejected';
         return (
           <div className="flex items-center justify-center gap-1.5">
             <Tooltip title="Thẩm định chi tiết">

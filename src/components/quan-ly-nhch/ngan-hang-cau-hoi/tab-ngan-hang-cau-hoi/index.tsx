@@ -673,7 +673,7 @@ export default function QuestionBankModule({
   };
 
   // Base dùng chung cho cả 4 trạng thái — width cố định + căn giữa để viền bao quanh bằng nhau bất
-  // kể độ dài chữ (trước đây span tự co theo nội dung, "Chờ thẩm định" dài hơn hẳn "Lưu nháp"/"Từ
+  // kể độ dài chữ (trước đây span tự co theo nội dung, "Chờ thẩm định" dài hơn hẳn "Tạo mới"/"Từ
   // chối" nhìn lệch hàng). 96px đủ rộng cho nhãn dài nhất ("Chờ thẩm định") ở cỡ chữ text-[10px].
   const QUESTION_STATUS_BADGE_BASE = "inline-flex items-center justify-center w-24 py-0.5 rounded border font-bold text-[10px] text-center";
 

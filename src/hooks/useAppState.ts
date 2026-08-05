@@ -15,7 +15,12 @@ export const useAppState = () => {
       try {
         const res = await bankQuestionApi.list();
         if (res.success && res.data) {
-          const mappedQuestions: Question[] = res.data.map((q: any) => ({
+          // Chỉ đếm câu hỏi TỰ DO trong Ngân hàng (exam_id rỗng, line_number = 0) — bảng tổng quan/
+          // thống kê NHCH dùng chung state này (xem App.tsx), không được tính luôn các bản sao đã
+          // nhân bản vào đề (exam_id khác rỗng), nếu không sẽ đếm trùng/thổi phồng số liệu (xem
+          // backend/exam_service/routes/exams.py::_duplicate_questions_into_exam).
+          const freeQuestions = res.data.filter((q: any) => !q.examId && (q.lineNumber ?? 0) === 0);
+          const mappedQuestions: Question[] = freeQuestions.map((q: any) => ({
             id: q.id,
             code: q.code,
             text: q.text,

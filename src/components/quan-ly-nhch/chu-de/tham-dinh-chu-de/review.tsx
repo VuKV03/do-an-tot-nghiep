@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Button } from 'antd';
+import { Modal, Button, Radio, Input } from 'antd';
+import { FileTextOutlined } from '@ant-design/icons';
 
 interface ReviewModalProps {
   open: boolean;
@@ -21,137 +22,96 @@ interface ReviewModalProps {
   onReject?: (comment: string) => void | Promise<void>;
 }
 
+// Khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự án (icon FileTextOutlined xanh + tiêu
+// đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ chối, ô nhận xét, footer Hủy/Xác nhận) — xem
+// tham-dinh-cau-hoi/index.tsx::ReviewDetailModal, MatrixConfigModule.tsx, ExamManagementModule.tsx.
+// Trước đây màn này dùng 2 nút "Đạt yêu cầu"/"Chưa đạt yêu cầu" bấm là quyết định luôn, khác hẳn quy
+// ước "chọn rồi mới xác nhận" ở các module còn lại.
 export default function ReviewModal({ open, onClose, record, onApprove, onReject }: ReviewModalProps) {
+  const [verdict, setVerdict] = useState<'approve' | 'reject'>('approve');
   const [comment, setComment] = useState('');
-  const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleApprove = async () => {
-    if (!onApprove) return;
-    setSubmitting('approve');
-    try {
-      await onApprove(comment);
-      setComment('');
-      onClose();
-    } finally {
-      setSubmitting(null);
-    }
+  const handleCancel = () => {
+    setVerdict('approve');
+    setComment('');
+    onClose();
   };
 
-  const handleReject = async () => {
-    if (!onReject) return;
-    setSubmitting('reject');
+  const handleSubmit = async () => {
+    setSubmitting(true);
     try {
-      await onReject(comment);
+      if (verdict === 'approve') await onApprove?.(comment);
+      else await onReject?.(comment);
+      setVerdict('approve');
       setComment('');
       onClose();
     } finally {
-      setSubmitting(null);
+      setSubmitting(false);
     }
   };
 
   return (
     <Modal
+      open={open}
+      onCancel={handleCancel}
+      width={640}
+      centered
       title={
-        <div className="text-gray-800 text-lg font-bold pb-2 border-b border-gray-100">
-          Thẩm định thông tin chủ đề
+        <div className="flex items-center gap-2">
+          <FileTextOutlined className="text-blue-600" />
+          <span className="text-[#002147] font-black text-sm tracking-tight">
+            Thẩm định / Phản biện — {record?.Ma}
+          </span>
         </div>
       }
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={800}
-      centered
-      className="custom-review-modal"
+      footer={[
+        <Button key="cancel" onClick={handleCancel} className="rounded font-semibold text-xs">Hủy</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={submitting}
+          onClick={handleSubmit}
+          className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+        >
+          Xác nhận thẩm định
+        </Button>,
+      ]}
+      destroyOnHidden
     >
-      <div className="flex flex-col gap-6 py-4">
-        {/* Section: Thông tin chủ đề */}
-        <div>
-          <h3 className="text-[#1e3a8a] font-semibold text-base mb-4">
-            Thông tin chủ đề
-          </h3>
-
-          <div className="flex flex-col gap-4">
-            <div>
-              <div className="text-gray-500 text-sm mb-1">Tên chủ đề</div>
-              <div className="text-gray-800 font-medium text-base">
-                {record?.Ten || 'Tên chủ đề 01'}
-              </div>
-            </div>
-
-            {/* Ghi chú / Yêu cầu cần đạt */}
-            <div>
-              <div className="text-gray-500 text-sm mb-1">Ghi chú</div>
-              <div className="text-gray-800 text-sm whitespace-pre-wrap">
-                {record?.GhiChu || <span className="text-gray-400 italic">—</span>}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <div className="text-gray-500 text-sm mb-1">Người tạo</div>
-                <div className="text-gray-800 font-medium">
-                  {record?.NguoiTao || 'Nguyễn Văn An'}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-sm mb-1">Người duyệt lần cuối</div>
-                <div className="text-gray-800 font-medium">
-                  {record?.NguoiDuyetCuoi || 'Chưa có thông tin'}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-sm mb-1">Ngày duyệt lần cuối</div>
-                <div className="text-gray-800 font-medium">
-                  {record?.NgayDuyetCuoi || 'Chưa có thông tin'}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="space-y-4 py-2">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs grid grid-cols-2 gap-x-4 gap-y-1.5 text-slate-600">
+          <div className="col-span-2"><span className="font-bold text-slate-500">Tên chủ đề:</span> <span className="font-semibold text-slate-800">{record?.Ten}</span></div>
+          <div><span className="font-bold text-slate-500">Môn học:</span> {record?.MonHoc}</div>
+          <div><span className="font-bold text-slate-500">Khối lớp:</span> {record?.KhoiLop}</div>
+          <div><span className="font-bold text-slate-500">Người tạo:</span> {record?.NguoiTao || 'Chưa có thông tin'}</div>
+          <div><span className="font-bold text-slate-500">Người duyệt lần cuối:</span> {record?.NguoiDuyetCuoi || 'Chưa có thông tin'}</div>
+          {record?.GhiChu && (
+            <div className="col-span-2"><span className="font-bold text-slate-500">Ghi chú:</span> <span className="whitespace-pre-wrap">{record.GhiChu}</span></div>
+          )}
         </div>
 
-        {/* Section: Nhận xét */}
         <div>
-          <h3 className="text-gray-700 font-semibold text-sm mb-2">
-            Nhận xét
-          </h3>
-
-          <div className="border border-gray-300 rounded-md overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all">
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Nhập"
-              className="w-full min-h-[160px] p-4 text-gray-800 border-none outline-none focus:ring-0 resize-y text-sm leading-relaxed font-sans"
-            />
-          </div>
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
+          <Radio.Group value={verdict} onChange={e => setVerdict(e.target.value)} className="flex gap-4">
+            <Radio value="approve">
+              <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
+            </Radio>
+            <Radio value="reject">
+              <span className="text-rose-600 font-bold text-xs">Từ chối</span>
+            </Radio>
+          </Radio.Group>
         </div>
 
-        {/* Footer Actions (Centered) */}
-        <div className="flex justify-center gap-4 mt-4">
-          <Button
-            className="border-blue-700 text-blue-700 hover:bg-blue-50 px-8 h-10 font-semibold"
-            onClick={onClose}
-            disabled={submitting !== null}
-          >
-            Đóng
-          </Button>
-          <Button
-            danger
-            className="bg-[#d91b29] hover:bg-[#b01420] border-none text-white px-6 h-10 font-semibold"
-            onClick={handleReject}
-            loading={submitting === 'reject'}
-            disabled={submitting === 'approve'}
-          >
-            Chưa đạt yêu cầu
-          </Button>
-          <Button
-            type="primary"
-            className="bg-[#1d4ed8] hover:bg-[#1e40af] border-none px-8 h-10 font-semibold"
-            onClick={handleApprove}
-            loading={submitting === 'approve'}
-            disabled={submitting === 'reject'}
-          >
-            Đạt yêu cầu
-          </Button>
+        <div>
+          <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
+          <Input.TextArea
+            rows={3}
+            placeholder="Nhập nhận xét thẩm định..."
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            className="text-xs rounded border-slate-300"
+          />
         </div>
       </div>
     </Modal>

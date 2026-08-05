@@ -292,7 +292,6 @@ export default function App() {
       case 'quan-ly-goi-de':
         return (
           <PackageManagementModule
-            initialTab={targetSubTab as 'list' | 'review'}
             currentUser={currentUser}
           />
         );
