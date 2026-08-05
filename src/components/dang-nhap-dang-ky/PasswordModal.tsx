@@ -27,7 +27,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
+      const response = await fetch(`https://api.quanlythi.site/api/auth/users/${currentUser?.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

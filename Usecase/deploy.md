@@ -1,168 +1,172 @@
-# Kế hoạch chi tiết Triển khai Hệ thống Quản lý thi lên VPS VNPT
+# Kế hoạch chi tiết Triển khai Hệ thống Quản lý thi (Kiến trúc phân tán)
 
-Dưới đây là tài liệu hướng dẫn từng bước (Step-by-step) để cấu hình VPS và deploy dự án (gồm Frontend React/Vite, Backend Python, và Database) lên tên miền `quanlythi.site`.
-
----
-
-## Giai đoạn 1: Chuẩn bị Domain & VPS
-
-### 1. Trỏ tên miền (DNS)
-1. Truy cập trang quản trị tên miền của nhà cung cấp (nơi bạn mua `quanlythi.site`).
-2. Cấu hình các bản ghi (DNS Records) trỏ về địa chỉ IP public của VPS VNPT:
-   - **Type A**: Host: `@`, Value: `[IP_VPS_VNPT]`
-   - **Type A**: Host: `www`, Value: `[IP_VPS_VNPT]`
-   - *(Tuỳ chọn)* **Type A**: Host: `api`, Value: `[IP_VPS_VNPT]` (nếu bạn muốn tách subdomain cho backend API).
-
-### 2. Cập nhật và bảo mật cơ bản cho VPS
-1. SSH vào VPS VNPT qua terminal (sử dụng PuTTY hoặc CMD/Powershell):
-   ```bash
-   ssh root@[IP_VPS_VNPT]
-   ```
-2. Cập nhật hệ điều hành (giả sử VPS dùng Ubuntu 22.04/24.04):
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
-3. Cài đặt các công cụ cơ bản cần thiết:
-   ```bash
-   sudo apt install curl git nano unzip build-essential nginx certbot python3-certbot-nginx -y
-   ```
+Dưới đây là tài liệu hướng dẫn từng bước (Step-by-step) để cấu hình Backend trên VPS VNPT và deploy Frontend lên Vercel để tối ưu hiệu suất và giảm tải cho VPS.
 
 ---
 
-## Giai đoạn 2: Cài đặt Môi trường chạy (Docker & Docker Compose)
-*Khuyến nghị sử dụng Docker để deploy vì dự án có nhiều thành phần (microservices, database).*
+## Kiến trúc Triển khai (Deployment Architecture)
 
-1. Cài đặt Docker:
-   ```bash
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
-   ```
-2. Cài đặt Docker Compose (nếu Docker chưa tích hợp sẵn):
-   ```bash
-   sudo apt-get install docker-compose-plugin -y
-   ```
-3. Cho phép Docker khởi động cùng hệ thống:
-   ```bash
-   sudo systemctl enable docker
-   sudo systemctl start docker
-   ```
+- **Frontend (Vercel)**:
+  - Cổng Quản trị (Admin): `quanlythi.site`
+  - Cổng Thi trực tuyến (Thí sinh): `thi.quanlythi.site`
+- **Backend (VPS VNPT - IP: 14.225.165.25)**:
+  - API Gateway: `api.quanlythi.site` (Nginx Reverse Proxy)
+  - Microservices: 6 services chạy nội bộ trên VPS (ports 8000-8005)
 
 ---
 
-## Giai đoạn 3: Triển khai Cơ sở dữ liệu (Database)
+# Giai đoạn 1: Chuẩn bị Domain & DNS
 
-1. Tạo thư mục chứa source code và database trên VPS:
+1. Cấu hình DNS cho Backend (VPS):
+   - Trên trang quản lý tên miền, cấu hình bản ghi **Type A**:
+     - Host: `api`
+     - Value: `14.225.165.25`
+2. Cấu hình DNS cho Frontend (Vercel):
+   - Đăng nhập Vercel, cấu hình domain trên Vercel project. Vercel sẽ yêu cầu bạn thêm các bản ghi (thường là CNAME cho `www` và `thi`, A record cho `@` trỏ về IP của Vercel). Thực hiện cấu hình này tương ứng trên trang quản lý tên miền.
+
+---
+
+## Giai đoạn 2: Cài đặt và Cấu hình Backend trên VPS VNPT
+
+### 1. Truy cập và thiết lập VPS cơ bản
+
+1. SSH vào VPS:
    ```bash
-   mkdir -p /opt/quanlythi
-   cd /opt/quanlythi
+   ssh root@14.225.165.25
    ```
-2. Cấu hình chạy Database bằng Docker. Tạo file `docker-compose.yml` (hoặc chạy lệnh cài đặt MySQL/PostgreSQL/MongoDB tuỳ hệ thống).
-3. Import dữ liệu khởi tạo (seed data/migrations) vào database mới. Đảm bảo cấu hình mật khẩu an toàn.
 
----
-
-## Giai đoạn 4: Triển khai Backend (Python API)
-
-1. Upload mã nguồn Backend lên VPS:
-   - Có thể dùng lệnh `git clone` từ repo GitHub/Gitlab.
-   - Hoặc copy file bằng SCP/FileZilla.
-2. Thiết lập biến môi trường (`.env`):
-   - Đổi `DB_HOST`, `DB_USER`, `DB_PASS` để kết nối vào Database vừa tạo.
-   - Cập nhật các secret key, API URL, đường dẫn upload file.
-   - Cấu hình port (ví dụ chạy trên port `8000`).
-3. Build và chạy Backend:
-   - Nếu dùng Docker: Cấu hình `Dockerfile` cho Python (uvicorn/gunicorn) và đưa vào file `docker-compose.yml`. Sau đó chạy:
-     ```bash
-     docker compose up -d backend
-     ```
-   - Nếu chạy trực tiếp (không khuyến nghị): Dùng `venv`, cài `requirements.txt` và chạy qua `gunicorn` cùng `supervisor`/`systemd`.
-
----
-
-## Giai đoạn 5: Triển khai Frontend (React/Vite)
-
-1. Build ứng dụng trên local (máy tính của bạn):
-   - Mở terminal tại thư mục frontend của dự án.
-   - Kiểm tra file `.env` (hoặc `.env.production`), đảm bảo `VITE_API_URL` trỏ đến `https://quanlythi.site/api` (hoặc subdomain).
-   - Chạy lệnh build:
-     ```bash
-     npm run build
-     ```
-2. Đưa code frontend lên VPS:
-   - Sau khi build, bạn sẽ có thư mục `dist` (hoặc `build`).
-   - Copy toàn bộ nội dung thư mục này lên VPS vào đường dẫn phục vụ web của Nginx:
-     ```bash
-     sudo mkdir -p /var/www/quanlythi/html
-     # (Upload file vào đây thông qua SCP hoặc SFTP)
-     sudo chown -R www-data:www-data /var/www/quanlythi/html
-     ```
-
----
-
-## Giai đoạn 6: Cấu hình Nginx (Reverse Proxy)
-
-1. Tạo file cấu hình Nginx cho domain `quanlythi.site`:
+   *(Lưu ý: Bạn nên thay đổi mật khẩu mặc định của VPS ngay sau khi kết nối thành công để đảm bảo bảo mật).*
+2. Cập nhật hệ thống và cài đặt công cụ cần thiết:
    ```bash
-   sudo nano /etc/nginx/sites-available/quanlythi.site
+   apt update && apt upgrade -y
+   apt install nginx certbot python3-certbot-nginx python3-venv git htop -y
    ```
-2. Dán nội dung cấu hình cơ bản sau:
+3. Tạo Swap (RAM ảo 2GB) để chống treo máy khi thiếu RAM (OOM):
+   ```bash
+   fallocate -l 2G /swapfile
+   chmod 600 /swapfile
+   mkswap /swapfile
+   swapon /swapfile
+   echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+   ```
+
+### 2. Triển khai Source Code Backend
+
+1. Clone dự án về VPS (đảm bảo không bị lỗi thư mục đã tồn tại):
+   ```bash
+   mkdir -p /www/wwwroot/quanlythi_project
+   cd /www/wwwroot/quanlythi_project
+   # Xóa thư mục cũ nếu có trước khi clone
+   rm -rf quan-ly-sinh-de-ai-v2
+   git clone https://github.com/CHEINNGUYEN/quan-ly-sinh-de-ai-v2.git
+   cd quan-ly-sinh-de-ai-v2
+   ```
+2. Thiết lập môi trường Python ảo (venv) và cài thư viện:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. Cấu hình CORS cho Backend (FastAPI):
+   - Trong code backend, cấu hình `CORSMiddleware` cần cho phép nguồn (origins): `https://quanlythi.site`, `https://thi.quanlythi.site`, `http://localhost:5173`, `http://localhost:5174`.
+4. Chạy các dịch vụ (Microservices):
+   ```bash
+   nohup python start_services.py > backend.log 2>&1 &
+   ```
+
+   - *Để dừng tất cả dịch vụ:* `pkill -f "uvicorn"`
+   - *Để xem log trực tiếp:* `tail -f backend.log`
+
+---
+
+## Giai đoạn 3: Cấu hình API Gateway (Nginx) & SSL trên VPS
+
+### 1. Cấu hình Nginx Reverse Proxy
+
+1. Tạo file cấu hình Nginx cho API:
+   ```bash
+   nano /etc/nginx/sites-available/api.quanlythi.site
+   ```
+2. Thêm cấu hình sau (Routing cho các microservices):
+   *(Điều chỉnh URL proxy_pass cho phù hợp với logic router của backend)*
    ```nginx
    server {
        listen 80;
-       server_name quanlythi.site www.quanlythi.site;
+       server_name api.quanlythi.site;
 
-       # Phục vụ Frontend
+       # Ví dụ chuyển hướng tới Service chính (Port 8000)
        location / {
-           root /var/www/quanlythi/html;
-           index index.html index.htm;
-           try_files $uri $uri/ /index.html; # Rất quan trọng cho React/Vite Router
-       }
-
-       # Reverse proxy cho Backend API (Giả sử backend chạy ở localhost:8000)
-       location /api/ {
            proxy_pass http://127.0.0.1:8000/;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            proxy_set_header X-Forwarded-Proto $scheme;
        }
+
+       # Cấu hình cụ thể thêm các location khác dựa vào port (8001-8005) nếu cần thiết
    }
    ```
-3. Kích hoạt cấu hình Nginx và khởi động lại dịch vụ:
+3. Kích hoạt Nginx:
    ```bash
-   sudo ln -s /etc/nginx/sites-available/quanlythi.site /etc/nginx/sites-enabled/
-   sudo nginx -t
-   sudo systemctl reload nginx
+   ln -s /etc/nginx/sites-available/api.quanlythi.site /etc/nginx/sites-enabled/
+   nginx -t
+   systemctl reload nginx
    ```
+
+### 2. Cài đặt SSL (HTTPS) cho API
+
+Sử dụng Certbot để tự động đăng ký và cài đặt chứng chỉ SSL miễn phí:
+
+```bash
+certbot --nginx -d api.quanlythi.site
+```
 
 ---
 
-## Giai đoạn 7: Cài đặt Chứng chỉ bảo mật (SSL/HTTPS)
+## Giai đoạn 4: Cấu hình và Deploy Frontend lên Vercel
 
-1. Sử dụng Certbot để tự động đăng ký SSL miễn phí với Let's Encrypt:
-   ```bash
-   sudo certbot --nginx -d quanlythi.site -d www.quanlythi.site
-   ```
-2. Làm theo hướng dẫn trên màn hình, điền email và đồng ý điều khoản. Certbot sẽ tự động sửa file cấu hình Nginx của bạn để áp dụng chứng chỉ HTTPS.
+### 1. Cập nhật Code Frontend (Local)
+
+1. Cấu hình gọi API: Đảm bảo biến môi trường hoặc cấu hình baseUrl gọi API trỏ về API Gateway: `https://api.quanlythi.site`.
+2. Logic cổng Quản trị/Thí sinh (Đã được thực hiện trong `App.tsx`):
+   Sử dụng điều kiện `window.location.hostname.startsWith('thi.')` để tự động render giao diện cổng thi.
+
+### 2. Đẩy Code lên GitHub
+
+Commit và push code mới nhất chứa các thay đổi trên lên repository GitHub:
+
+```bash
+git add .
+git commit -m "Update routing and configurations for Vercel & VPS decoupled deployment"
+git push origin main
+```
+
+### 3. Deploy trên Vercel
+
+1. Đăng nhập [Vercel](https://vercel.com) bằng tài khoản GitHub của bạn.
+2. Tạo project mới (**Add New -> Project**) và import repository `quan-ly-sinh-de-ai-v2`.
+3. Giữ cấu hình mặc định:
+   - Framework Preset: **Vite**
+   - Root Directory: `./`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+4. Ấn **Deploy**.
+5. Gán Custom Domains (trong phần **Settings -> Domains** của Project):
+   - Thêm `quanlythi.site` cho Admin.
+   - Thêm `thi.quanlythi.site` cho Học viên.
+6. Quay lại trình quản lý tên miền (nơi mua DNS) và cấu hình các bản ghi theo yêu cầu của Vercel cho đến khi trạng thái domain báo Valid.
 
 ---
 
-## Giai đoạn 8: Kiểm thử & Nghiệm thu (Testing)
+## Giai đoạn 5: Kiểm tra và Troubleshooting
 
-1. Mở trình duyệt và truy cập `https://quanlythi.site`. Đảm bảo trang web tải lên an toàn (có biểu tượng ổ khoá HTTPS).
-2. Kiểm tra các chức năng:
-   - Đăng nhập/Đăng ký.
-   - Thao tác API (giao tiếp với backend).
-   - Tải lên/Tải xuống file ảnh hoặc tài liệu.
-3. Kiểm tra log hệ thống:
-   - Log Nginx: `sudo tail -f /var/log/nginx/error.log`
-   - Log Backend (nếu dùng docker): `docker logs [container_id] -f`
-
-## Các lưu ý bảo mật (Security Checklist)
-- Cấu hình Firewall (UFW): Chỉ mở port `22` (SSH), `80` (HTTP) và `443` (HTTPS).
-  ```bash
-  sudo ufw allow OpenSSH
-  sudo ufw allow 'Nginx Full'
-  sudo ufw enable
-  ```
-- Thường xuyên sao lưu Database theo lịch trình (cronjob) để đề phòng sự cố trên VPS.
+1. **Kiểm tra Frontend:**
+   - Truy cập `https://quanlythi.site`: Cổng Quản trị viên (Admin).
+   - Truy cập `https://thi.quanlythi.site`: Cổng Thí sinh (Exam portal).
+2. **Kiểm tra luồng Data:**
+   - Đăng nhập và thực hiện thao tác cơ bản. Mở tab Network (F12) để chắc chắn Frontend gọi đúng về `https://api.quanlythi.site/...`.
+   - Nếu xuất hiện lỗi `CORS Blocked`, bạn cần SSH vào VPS và kiểm tra lại danh sách các origin được cho phép trong code FastAPI, sau đó restart lại backend.
+3. **Xử lý sự cố máy chủ:**
+   - Nếu có lỗi kết nối, xem log Nginx: `tail -f /var/log/nginx/error.log`
+   - Nếu hệ thống có dấu hiệu quá tải RAM: `dmesg -T | grep -i oom`
+   - Nếu mất kết nối SSH do đơ VPS, thực hiện Reset Hard qua portal của nhà cung cấp VNPT.

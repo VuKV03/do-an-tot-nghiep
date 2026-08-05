@@ -215,7 +215,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       return;
     }
     setLoadingMatrices(true);
-    fetch('/api/matrix-configs?page=1&pageSize=200')
+    fetch('https://api.quanlythi.site/api/matrix-configs?page=1&pageSize=200')
       .then(r => r.json())
       .then(json => {
         if (json.success) {
@@ -384,7 +384,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     for (const group of callGroups) {
       if (aborted) break;
       try {
-        const res = await fetch('/api/generate-questions-batch', {
+        const res = await fetch('https://api.quanlythi.site/api/generate-questions-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -574,7 +574,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setRegeneratingIndex(index);
     try {
-      const res = await fetch('/api/generate-questions', {
+      const res = await fetch('https://api.quanlythi.site/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -668,7 +668,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/exams', {
+      const res = await fetch('https://api.quanlythi.site/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -705,7 +705,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setSaving(true);
     try {
-      const examRes = await fetch('/api/exams', {
+      const examRes = await fetch('https://api.quanlythi.site/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

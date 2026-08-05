@@ -79,7 +79,7 @@ export const useAppState = () => {
 
     const fetchMatrices = async () => {
       try {
-        const res = await fetch('/api/matrix-configs?page=1&pageSize=1000');
+        const res = await fetch('https://api.quanlythi.site/api/matrix-configs?page=1&pageSize=1000');
         const data = await res.json();
         if (data.data) {
           const mappedMatrices = data.data.map((m: any) => ({
@@ -104,7 +104,7 @@ export const useAppState = () => {
 
     const fetchExams = async () => {
       try {
-        const res = await fetch('/api/exams');
+        const res = await fetch('https://api.quanlythi.site/api/exams');
         const data = await res.json();
         if (data.data) {
           setExams(data.data);

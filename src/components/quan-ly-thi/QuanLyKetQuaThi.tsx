@@ -46,7 +46,7 @@ export default function QuanLyKetQuaThi() {
     setLoadingPackages(true);
     try {
       // Lấy danh sách gói đề từ exam_service
-      const res = await fetch('/api/exam/packages');
+      const res = await fetch('https://api.quanlythi.site/api/exam/packages');
       if (res.ok) {
         const data = await res.json();
         const packagesListRaw = data.data || data; // Handle both wrapped and unwrapped arrays
@@ -71,7 +71,7 @@ export default function QuanLyKetQuaThi() {
     }
     setLoadingResults(true);
     try {
-      const res = await fetch(`/api/exam/admin/packages/${idToFetch}/results`);
+      const res = await fetch(`https://api.quanlythi.site/api/exam/admin/packages/${idToFetch}/results`);
       if (res.ok) {
         const data = await res.json();
         const resultsList = data.data || data;
