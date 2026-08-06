@@ -283,7 +283,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           // nhưng thực chất không xóa được đề nào cả.
           const results = await Promise.all(selectedExamIds.map(async (id) => {
             try {
-              const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+              const res = await fetch(`https://api.quanlythi.site/api/exams/${id}`, { method: 'DELETE' });
               const json = await res.json().catch(() => null);
               return !!json?.success;
             } catch {
