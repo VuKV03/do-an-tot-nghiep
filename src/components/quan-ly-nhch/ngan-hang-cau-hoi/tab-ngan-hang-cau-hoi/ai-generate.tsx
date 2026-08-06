@@ -14,6 +14,7 @@ import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
+import { API_BASE_URL } from '../../../../config/apiConfig';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -322,7 +323,7 @@ export default function AIGenerateQuestionModal({
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
 
-      const res = await fetch('https://api.quanlythi.site/api/generate-questions', {
+      const res = await fetch(`${API_BASE_URL}/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

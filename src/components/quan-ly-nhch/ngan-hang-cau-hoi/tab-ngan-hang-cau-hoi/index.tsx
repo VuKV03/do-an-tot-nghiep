@@ -38,6 +38,7 @@ import { SUBJECTS, GRADES } from '../../../../data';
 import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi, questionTypeApi } from '../../../../services/danhMucApi';
 import { checkUserPermission } from '../../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
+import { API_BASE_URL } from '../../../../config/apiConfig';
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
@@ -110,8 +111,7 @@ export default function QuestionBankModule({
   const [creatorFilterOptions, setCreatorFilterOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    const authApiUrl = import.meta.env.VITE_APP_API_URL || 'https://api.quanlythi.site/api';
-    fetch(`${authApiUrl}/auth/users`)
+    fetch(`${API_BASE_URL}/auth/users`)
       .then((res) => res.json())
       .then((json) => {
         if (!json.success || !Array.isArray(json.data)) return;

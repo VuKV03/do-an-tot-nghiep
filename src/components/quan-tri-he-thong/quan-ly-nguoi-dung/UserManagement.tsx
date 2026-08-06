@@ -41,7 +41,7 @@ import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/d
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 
-const API_URL = import.meta.env.VITE_APP_API_URL || 'https://api.quanlythi.site/api';
+import { API_BASE_URL as API_URL } from '../../../config/apiConfig';
 
 interface UserGroup {
   id: string;

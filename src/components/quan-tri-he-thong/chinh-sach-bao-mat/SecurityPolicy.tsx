@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_APP_API_URL || 'https://api.quanlythi.site/api';
+import { API_BASE_URL as API_URL } from '../../../config/apiConfig';
 import { 
   Button, 
   Switch, 

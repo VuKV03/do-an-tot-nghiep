@@ -3,6 +3,7 @@ import { toast } from '../utils/toast';
 import { Question, MatrixConfig, AuditLog } from '../types';
 import { INITIAL_QUESTIONS, INITIAL_MATRICES } from '../data';
 import { bankQuestionApi } from '../services/danhMucApi';
+import { API_BASE_URL } from '../config/apiConfig';
 
 export const useAppState = () => {
   const [questions, setQuestions] = useState<Question[]>([]); // Khởi tạo rỗng, sẽ fetch từ DB
@@ -79,7 +80,7 @@ export const useAppState = () => {
 
     const fetchMatrices = async () => {
       try {
-        const res = await fetch('https://api.quanlythi.site/api/matrix-configs?page=1&pageSize=1000');
+        const res = await fetch(`${API_BASE_URL}/matrix-configs?page=1&pageSize=1000`);
         const data = await res.json();
         if (data.data) {
           const mappedMatrices = data.data.map((m: any) => ({
@@ -104,7 +105,7 @@ export const useAppState = () => {
 
     const fetchExams = async () => {
       try {
-        const res = await fetch('https://api.quanlythi.site/api/exams');
+        const res = await fetch(`${API_BASE_URL}/exams`);
         const data = await res.json();
         if (data.data) {
           setExams(data.data);

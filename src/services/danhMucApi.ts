@@ -5,8 +5,7 @@
  */
 
 import type { Question, QuestionType, CognitiveLevel } from '../types';
-
-const BASE_URL = 'https://api.quanlythi.site';
+import { BASE_URL } from '../config/apiConfig';
 
 // ─── Generic helpers ───────────────────────────────────────────────────────
 
