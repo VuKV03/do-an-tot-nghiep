@@ -13,6 +13,51 @@ import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';
 import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 
+// Backend chỉ mở tối đa pool_size(1) + max_overflow(5) = 6 connection DB/service (xem
+// backend/shared/database.py) — sinh nhiều đề hoán vị cùng lúc qua Promise.all không giới hạn
+// (mỗi đề tốn 2 request: tạo đề + tạo câu hỏi hàng loạt) rất dễ bắn vượt quá 6 connection này khi số
+// lượng đủ lớn, khiến 1 vài request thất bại NGẪU NHIÊN (lỗi kết nối DB) — và vì nguyên nhân là giới
+// hạn hạ tầng chứ không phải dữ liệu sai, bấm lưu lại y hệt vẫn gặp lại chứ không tự hết. Giới hạn số
+// đề xử lý song song cùng lúc để tránh vượt ngưỡng này.
+const VARIANT_SAVE_CONCURRENCY = 3;
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+// Thử lại tối đa `retries` lần (có nghỉ tăng dần) khi gặp lỗi TẠM THỜI (vd mất kết nối CSDL giữa
+// chừng lúc backend đang bận xử lý nhiều đề hoán vị cùng lúc — xem 503 mới thêm ở
+// routes/questions.py::create_questions_bulk) — trước đây 1 lần lỗi là bỏ luôn, khiến đề vừa tạo
+// xong (request riêng, đã thành công) bị rỗng câu hỏi vĩnh viễn dù chỉ là trục trặc thoáng qua.
+async function retryAsync<T>(fn: () => Promise<T>, retries: number, delayMs: number): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 interface ModalSinhDeHoanViProps {
   open: boolean;
   exam: any | null; // đề gốc — dòng đang chọn ở bảng "Đề gốc"
@@ -387,10 +432,11 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       // Tự động né trùng mã đề bắt đầu (nếu "Mã đề thi bắt đầu từ" đã tồn tại) — đã xử lý xong hoàn
       // toàn, không cần cảnh báo người dùng.
 
-      // Mỗi đề hoán vị (đề + toàn bộ câu hỏi của nó) độc lập với các đề khác, nên chạy song song
-      // cả bên ngoài (giữa các đề hoán vị) lẫn bên trong (giữa các câu hỏi của cùng 1 đề) — tránh
-      // dồn độ trễ mạng của DB cloud (TiDB) theo kiểu tuần tự từng request một, rất chậm.
-      const results = await Promise.all(variants.map(async (variantQuestions, i) => {
+      // Mỗi đề hoán vị (đề + toàn bộ câu hỏi của nó) độc lập với các đề khác nên chạy song song —
+      // nhưng GIỚI HẠN số lượng cùng lúc (VARIANT_SAVE_CONCURRENCY) thay vì bắn hết toàn bộ 1 lần
+      // qua Promise.all như trước đây, để không vượt quá connection pool của backend (xem comment ở
+      // VARIANT_SAVE_CONCURRENCY phía trên) — vẫn nhanh hơn hẳn chạy tuần tự hoàn toàn.
+      const results = await mapWithConcurrencyLimit(variants, VARIANT_SAVE_CONCURRENCY, async (variantQuestions, i) => {
         const code = assignedCodes[i];
         try {
           const examRes = await fetch('https://api.quanlythi.site/api/exams', {
@@ -439,32 +485,41 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
           // 1 request duy nhất cho toàn bộ câu hỏi của đề này thay vì N request riêng (mỗi request
           // trước đây tự tra lại subject/grade/level/type/topic bằng SELECT riêng — rất chậm với DB
           // cloud có độ trễ mạng cao) — xem questionApi.createBulk / routes/questions.py::create_questions_bulk.
-          await questionApi.createBulk(variantQuestions.map((q, qi) => ({
-            text: q.text,
-            type: q.type,
-            level: q.level,
-            subject: exam.subject,
-            grade: q.grade || exam.grade,
-            topicId: q.topicId || undefined,
-            topicName: q.topicName || undefined,
-            subTopicName: q.subTopicName || undefined,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            statements: q.statements,
-            status: 'approved',
-            examId: newExamId,
-            creator: q.creator,
-            competencyComponentId: q.nangLucId,
-            lineNumber: lineNumbers[qi],
-            // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
-            // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
-            source: 'ai_exam',
-          } as any)));
+          // Thử lại tối đa 2 lần nếu lỗi TẠM THỜI (mất kết nối CSDL) — xem retryAsync phía trên.
+          try {
+            await retryAsync(() => questionApi.createBulk(variantQuestions.map((q, qi) => ({
+              text: q.text,
+              type: q.type,
+              level: q.level,
+              subject: exam.subject,
+              grade: q.grade || exam.grade,
+              topicId: q.topicId || undefined,
+              topicName: q.topicName || undefined,
+              subTopicName: q.subTopicName || undefined,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              statements: q.statements,
+              status: 'approved',
+              examId: newExamId,
+              creator: q.creator,
+              competencyComponentId: q.nangLucId,
+              lineNumber: lineNumbers[qi],
+              // 'ai_exam' — đề hoán vị coi như 1 dạng "sinh cả đề bằng AI", ẩn khỏi Ngân hàng câu
+              // hỏi/Thẩm định/picker chọn câu hỏi giống đề sinh bằng AI trực tiếp.
+              source: 'ai_exam',
+            } as any))), 2, 1000);
+          } catch {
+            // Vẫn thất bại sau khi đã thử lại — đề vừa tạo (newExamId) giờ rỗng câu hỏi, không còn
+            // giá trị gì, xóa luôn thay vì để mồ côi tồn đọng trong "Đề gốc" (không thuộc gói nào,
+            // không câu hỏi nào — đúng kiểu rác đã thấy trước đây khi debug lỗi này).
+            await fetch(`/api/exams/${newExamId}`, { method: 'DELETE' }).catch(() => {});
+            return { code, examId: null as string | null };
+          }
           return { code, examId: newExamId as string | null };
         } catch {
           return { code, examId: null as string | null };
         }
-      }));
+      });
 
       const newExamIds = results.filter(r => r.examId).map(r => r.examId as string);
       const failedCodes = results.filter(r => !r.examId).map(r => r.code);

@@ -208,8 +208,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     const start = (currentPage - 1) * pageSize;
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
-
-
   const handlePublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {

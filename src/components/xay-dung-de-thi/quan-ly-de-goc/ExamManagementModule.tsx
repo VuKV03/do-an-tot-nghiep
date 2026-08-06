@@ -143,7 +143,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
 
       if (resExams.success) setExams(resExams.data || []);
       if (resPkgs.success) setPackages(resPkgs.data || []);
-      
+
       const activeSubjects = (resSubjects?.data || []).filter((s: any) => s.is_active);
       const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
       setSubjects(filteredSubjects);
@@ -170,7 +170,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
       const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' 
+      const matchesSubject = examSubject === 'all'
         ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
         : e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;

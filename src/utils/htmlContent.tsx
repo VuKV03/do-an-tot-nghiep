@@ -111,7 +111,12 @@ const parserOptions: HTMLReactParserOptions = {
  * lướt qua lại giữa các ảnh ngay trong khung xem full. Nếu là text thuần (dữ liệu cũ, AI sinh)
  * thì hiển thị nguyên văn, giữ xuống dòng.
  */
-export function RichTextView({ html, className }: { html: string | undefined | null; className?: string }) {
+// React.memo — sanitizeHtml (DOMPurify + regex bảo vệ công thức) + html-react-parser đều tốn kém,
+// và KHÔNG nên chạy lại nếu `html`/`className` không đổi. Trước đây thiếu memo khiến bất kỳ re-render
+// nào của component cha (vd gõ phím ở 1 input KHÁC hoàn toàn, như "Tên đề" trong ModalDeRiengLe.tsx)
+// cũng làm TOÀN BỘ danh sách câu hỏi đang hiển thị (có thể hàng chục câu, mỗi câu 1 RichTextView)
+// chạy lại sanitize + parse dù nội dung không hề đổi — gây giật/delay rõ rệt khi gõ.
+export const RichTextView = React.memo(function RichTextView({ html, className }: { html: string | undefined | null; className?: string }) {
   if (!html) return null;
   if (isLikelyHtml(html)) {
     const clean = sanitizeHtml(html);
@@ -122,4 +127,4 @@ export function RichTextView({ html, className }: { html: string | undefined | n
     );
   }
   return <div className={className} style={{ whiteSpace: 'pre-wrap' }}>{html}</div>;
-}
+});
