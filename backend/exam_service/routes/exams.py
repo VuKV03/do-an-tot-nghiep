@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select, delete, text, update
+# pyrefly: ignore [missing-import]
+from sqlalchemy.exc import IntegrityError
 
 from backend.shared.database import get_db
 from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory, Package, PackageExam
@@ -296,7 +298,22 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
             db.add(question)
             questions.append(question)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        # Rollback trước khi raise — nếu không session ở trạng thái lỗi sẽ làm hỏng luôn request kế
+        # tiếp dùng chung session (giống pattern packages.py::create_package).
+        await db.rollback()
+        if "exams.code" in str(getattr(e, "orig", e)):
+            # Trùng UNIQUE constraint exams.code — trước đây để lọt nguyên lỗi SQL thô (500,
+            # "Duplicate entry ... for key 'exams.code'") ra ngoài thay vì thông báo dễ hiểu. Có thể
+            # xảy ra dù FE đã tự né trùng (ModalSinhDeHoanVi.tsx) nếu 2 request tạo đề cùng mã chạy
+            # song song thật sự (race condition), hoặc mã đề người dùng tự nhập đã tồn tại.
+            raise HTTPException(
+                status_code=400,
+                detail=f"Mã đề thi \"{exam_code}\" đã tồn tại. Vui lòng đổi mã khác.",
+            )
+        raise HTTPException(status_code=400, detail="Không thể tạo đề thi — dữ liệu bị trùng lặp.")
 
     if body.questionIds:
         q_result = await db.execute(select(Question).where(Question.exam_id == exam_id))
