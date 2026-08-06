@@ -1,10 +1,11 @@
 /**
  * quanLyThiApi.ts
  * Centralized API service for Exam Management and Portal (Port 8005)
- * Base URL: ${BASE_URL}
+ * Base URL: xem src/config/apiBase.ts (đổi qua VITE_APP_API_URL, mặc định domain online).
  */
+import { API_ORIGIN } from '../config/apiBase';
 
-import { BASE_URL } from '../config/apiConfig';
+const BASE_URL = API_ORIGIN;
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {

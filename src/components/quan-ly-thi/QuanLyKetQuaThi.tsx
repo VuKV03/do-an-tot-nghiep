@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../config/apiConfig';
+import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Select, Button, Table, Row, Col, Typography, Tag } from 'antd';
 import { toast } from '../../utils/toast';
@@ -47,7 +47,7 @@ export default function QuanLyKetQuaThi() {
     setLoadingPackages(true);
     try {
       // Lấy danh sách gói đề từ exam_service
-      const res = await fetch(`${API_BASE_URL}/exam/packages`);
+      const res = await fetch(`${API_ORIGIN}/api/exam/packages`);
       if (res.ok) {
         const data = await res.json();
         const packagesListRaw = data.data || data; // Handle both wrapped and unwrapped arrays
@@ -72,7 +72,7 @@ export default function QuanLyKetQuaThi() {
     }
     setLoadingResults(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/exam/admin/packages/${idToFetch}/results`);
+      const res = await fetch(`${API_ORIGIN}/api/exam/admin/packages/${idToFetch}/results`);
       if (res.ok) {
         const data = await res.json();
         const resultsList = data.data || data;

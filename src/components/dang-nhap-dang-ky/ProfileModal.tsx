@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../config/apiConfig';
+import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Avatar, Input, Tooltip } from 'antd';
 import { toast } from '../../utils/toast';
@@ -64,7 +64,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/auth/users/${currentUser?.id}`, {
+      const response = await fetch(`${API_ORIGIN}/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Input,
@@ -94,8 +94,8 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     setLoading(true);
     try {
       const [pkgRes, examRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/exams/packages`).then(r => r.json()),
-        fetch(`${API_BASE_URL}/exams`).then(r => r.json()),
+        fetch(`${API_ORIGIN}/api/exams/packages`).then(r => r.json()),
+        fetch(`${API_ORIGIN}/api/exams`).then(r => r.json()),
       ]);
       if (pkgRes.success) setPackages(pkgRes.data || []);
       if (examRes.success) setExams(examRes.data || []);
@@ -116,7 +116,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     }).catch(() => setSubjects([]));
     // Không có matrixConfigApi dùng chung trong danhMucApi.ts — mô phỏng đúng cách raw-fetch mà
     // ModalSinhDeHoanVi.tsx đang dùng để lấy danh sách ma trận đề.
-    fetch(`${API_BASE_URL}/matrix-configs?page=1&pageSize=200`)
+    fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200`)
       .then(r => r.json())
       .then(json => { if (json.success) setMatrices(json.data || []); })
       .catch(() => setMatrices([]));
@@ -209,10 +209,11 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     const start = (currentPage - 1) * pageSize;
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
+
   const handlePublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/packages/${pkg.id}/publish`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}/publish`, {
         method: 'POST',
       });
       const json = await res.json();
@@ -232,7 +233,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
   const handleUnpublishPackage = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'unpublish' });
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/packages/${pkg.id}/unpublish`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}/unpublish`, {
         method: 'POST',
       });
       const json = await res.json();
@@ -252,7 +253,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
   const handleToggleShowResult = async (pkg: any) => {
     setActioning({ id: pkg.id, kind: 'toggle_result' });
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/packages/${pkg.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_show_result: !pkg.is_show_result }),
@@ -288,7 +289,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
       onOk: async () => {
         setActioning({ id: pkg.id, kind: 'delete' });
         try {
-          const res = await fetch(`${API_BASE_URL}/exams/packages/${pkg.id}`, { method: 'DELETE' });
+          const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -331,7 +332,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
       onOk: async () => {
         try {
           for (const id of selectedPkgIds) {
-            await fetch(`${API_BASE_URL}/exams/packages/${id}`, { method: 'DELETE' });
+            await fetch(`${API_ORIGIN}/api/exams/packages/${id}`, { method: 'DELETE' });
           }
           toast.success('Đã xóa thành công các gói đề được chọn.');
           setSelectedPkgIds([]);
