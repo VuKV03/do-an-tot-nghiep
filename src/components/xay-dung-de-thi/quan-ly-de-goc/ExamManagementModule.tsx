@@ -143,7 +143,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
 
       if (resExams.success) setExams(resExams.data || []);
       if (resPkgs.success) setPackages(resPkgs.data || []);
-      
+
       const activeSubjects = (resSubjects?.data || []).filter((s: any) => s.is_active);
       const { filteredSubjects, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
       setSubjects(filteredSubjects);
@@ -170,7 +170,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       // loai=4: variants / ai-generated
       const isVariant = e.source === 'ai';
       const matchesSearch = e.name.toLowerCase().includes(kw) || e.code.toLowerCase().includes(kw);
-      const matchesSubject = examSubject === 'all' 
+      const matchesSubject = examSubject === 'all'
         ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
         : e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
@@ -278,7 +278,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       centered: true,
       onOk: async () => {
         try {
-<<<<<<< HEAD
           // Chạy song song + kiểm tra từng response — trước đây gọi tuần tự và LUÔN báo thành công
           // dù DELETE thất bại (không đọc response), khiến "Xóa hàng loạt" hiện toast thành công
           // nhưng thực chất không xóa được đề nào cả.
@@ -295,12 +294,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           const failCount = results.length - successCount;
           if (successCount > 0) toast.success(`Đã xóa thành công ${successCount} đề thi.`);
           if (failCount > 0) toast.warning(`${failCount} đề thi xóa thất bại — vui lòng thử lại.`);
-=======
-          for (const id of selectedExamIds) {
-            await fetch(`https://api.quanlythi.site/api/exams/${id}`, { method: 'DELETE' });
-          }
-          toast.success('Đã xóa thành công các đề thi được chọn.');
->>>>>>> main
           setSelectedExamIds([]);
           fetchData();
         } catch {

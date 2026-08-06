@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SmartTest - API Gateway",
+    title="NHCH - API Gateway",
     description="Central reverse proxy routing requests to microservices.",
     version="2.0.0",
     lifespan=lifespan,
