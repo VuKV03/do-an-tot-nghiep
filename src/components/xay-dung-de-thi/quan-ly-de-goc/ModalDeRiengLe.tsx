@@ -5,7 +5,7 @@ import { SwapOutlined, DeleteOutlined, SaveOutlined, PlusOutlined, DownOutlined,
 import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
 import { SUBJECTS as INITIAL_SUBJECTS } from '../../../data';
-import { subjectCategoryApi, bankQuestionApi } from '../../../services/danhMucApi';
+import { subjectCategoryApi, bankQuestionApi, subjectConfigApi, type SubjectConfigAPI } from '../../../services/danhMucApi';
 import { compareByPartAndLineNumber, PART_DESCRIPTIONS } from '../../../utils/examParts';
 import ModalChonCauHoi from './ModalChonCauHoi';
 
@@ -57,6 +57,10 @@ const getPartLabel = (parts: ExamPart[], partId: string): string => {
   return `Phần ${roman}: Thí sinh trả lời từ câu ${from} đến câu ${to}. ${desc}`;
 };
 
+/** Số câu trong 1 Phần theo Cấu hình môn học (Từ câu -> Đến câu, khớp cách quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx::countQuestions tính). */
+const countConfiguredQuestions = (from?: number | null, to?: number | null): number =>
+  (from == null || to == null || to < from) ? 0 : to - from + 1;
+
 const getTypeLabel = (t: string) => {
   switch (t) {
     case 'single': return 'Trắc nghiệm';
@@ -84,8 +88,14 @@ export default function ModalDeRiengLe({
   // Sidebar: phần đang chọn
   const [activePart, setActivePart] = useState<string | null>(null);
 
-  // Dynamic Subjects
-  const [subjects, setSubjects] = useState<{ value: string, label: string }[]>(INITIAL_SUBJECTS);
+  // Dynamic Subjects — giữ cả `id` (không chỉ tên) để tra Cấu hình môn học (subjectConfigApi cần
+  // subject_id, không nhận tên).
+  const [subjects, setSubjects] = useState<{ id?: string; value: string, label: string }[]>(INITIAL_SUBJECTS);
+
+  // Cấu hình môn học (số câu bắt buộc theo từng Phần I/II/III + tổng) của môn đang chọn — null nếu
+  // môn chưa được cấu hình (bỏ qua validate, không chặn lưu). Xem
+  // quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx cho màn cấu hình gốc.
+  const [subjectConfig, setSubjectConfig] = useState<SubjectConfigAPI | null>(null);
 
   // Question Pool from API
   const [questionPool, setQuestionPool] = useState<Question[]>([]);
@@ -138,7 +148,7 @@ export default function ModalDeRiengLe({
       try {
         const res = await subjectCategoryApi.list();
         if (res.success && res.data) {
-          setSubjects(res.data.map((item: any) => ({ value: item.name, label: item.name })));
+          setSubjects(res.data.map((item: any) => ({ id: item.id, value: item.name, label: item.name })));
         }
       } catch (err) {
         console.error('Failed to fetch subjects:', err);
@@ -189,6 +199,17 @@ export default function ModalDeRiengLe({
         .catch(() => toast.error('Không tải được câu hỏi hiện có của đề thi.'));
     }
   }, [open, exam, typeAdd]);
+
+  // Tra Cấu hình môn học của môn đang chọn mỗi khi đổi môn — dùng để validate số câu bắt buộc lúc lưu
+  // (xem handleSave). Môn chưa từng cấu hình (404) coi như không có ràng buộc gì, không chặn lưu.
+  useEffect(() => {
+    if (!open || !selectedSubject) { setSubjectConfig(null); return; }
+    const subjectId = subjects.find(s => s.value === selectedSubject)?.id;
+    if (!subjectId) { setSubjectConfig(null); return; }
+    subjectConfigApi.getBySubjectId(subjectId)
+      .then(res => setSubjectConfig(res.data ?? null))
+      .catch(() => setSubjectConfig(null));
+  }, [open, selectedSubject, subjects]);
 
   // Tổng câu hỏi
   const totalQuestions = useMemo(() => parts.reduce((sum, p) => sum + p.questions.length, 0), [parts]);
@@ -261,6 +282,33 @@ export default function ModalDeRiengLe({
     if (totalQuestions === 0) {
       toast.error('Đề thi phải có ít nhất 1 câu hỏi!');
       return;
+    }
+
+    // Validate theo Cấu hình môn học (quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx) — trước đây chỉ
+    // luồng "Theo ma trận đề" (ma trận tự thân đã giới hạn đúng số câu từng ô) mới gián tiếp khớp
+    // cấu hình; luồng nhặt câu thủ công này không hề kiểm tra, cho lưu thoải mái dù chọn thừa/thiếu
+    // câu so với cấu hình (vd môn Toán cấu hình 22 câu nhưng chọn hơn 22 vẫn lưu được).
+    if (subjectConfig) {
+      const expectedByPart: Record<string, number> = {
+        'phan-1': countConfiguredQuestions(subjectConfig.p1_from, subjectConfig.p1_to),
+        'phan-2': countConfiguredQuestions(subjectConfig.p2_from, subjectConfig.p2_to),
+        'phan-3': countConfiguredQuestions(subjectConfig.p3_from, subjectConfig.p3_to),
+      };
+      if (subjectConfig.questions_number != null && totalQuestions !== subjectConfig.questions_number) {
+        toast.error(
+          `Đề đang có ${totalQuestions} câu, không khớp Cấu hình môn học "${selectedSubject}" (yêu cầu đúng ${subjectConfig.questions_number} câu). Vui lòng thêm/bớt câu hỏi cho khớp.`
+        );
+        return;
+      }
+      for (const part of parts) {
+        const expected = expectedByPart[part.id];
+        if (expected > 0 && part.questions.length !== expected) {
+          toast.error(
+            `Phần ${PART_ROMAN[part.id]} đang có ${part.questions.length} câu, cần đúng ${expected} câu theo Cấu hình môn học "${selectedSubject}".`
+          );
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -376,7 +424,17 @@ export default function ModalDeRiengLe({
 
           {/* Tổng kết */}
           <div className="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-bold">
-            Tổng số: <span className="text-slate-800">{totalQuestions} câu hỏi</span>
+            Tổng số:{' '}
+            <span className={subjectConfig?.questions_number != null && totalQuestions !== subjectConfig.questions_number ? 'text-red-500' : 'text-slate-800'}>
+              {totalQuestions} câu hỏi{subjectConfig?.questions_number != null ? ` / ${subjectConfig.questions_number}` : ''}
+            </span>
+            {subjectConfig?.questions_number != null && (
+              <div className="mt-1 font-normal text-slate-400 normal-case">
+                Theo Cấu hình môn học: Phần I {countConfiguredQuestions(subjectConfig.p1_from, subjectConfig.p1_to)} câu ·
+                {' '}Phần II {countConfiguredQuestions(subjectConfig.p2_from, subjectConfig.p2_to)} câu ·
+                {' '}Phần III {countConfiguredQuestions(subjectConfig.p3_from, subjectConfig.p3_to)} câu
+              </div>
+            )}
           </div>
         </div>
 
