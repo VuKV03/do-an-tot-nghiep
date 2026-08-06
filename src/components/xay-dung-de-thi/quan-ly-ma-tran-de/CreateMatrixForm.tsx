@@ -673,19 +673,19 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                   </div>
                 ) : (
                   <table className="w-full text-[11px] border-collapse" style={{ minWidth: 600 }}>
-                    <thead>
+                    <thead className="sticky top-0 z-20">
                       {/* Row 1: Năng lực header */}
                       <tr className="bg-slate-50">
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-10 sticky left-0 bg-slate-50 z-10">STT</th>
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-10" style={{ minWidth: 140, left: 40 }}>Nội dung kiến thức</th>
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold" style={{ minWidth: 160 }}>Đơn vị kiến thức</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-10 sticky left-0 bg-slate-50 z-30">STT</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-30" style={{ minWidth: 140, left: 40 }}>Nội dung kiến thức</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-left font-bold sticky bg-slate-50 z-30" style={{ minWidth: 160, left: 180 }}>Đơn vị kiến thức</th>
                         {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) => (
                           <th key={nl.id} colSpan={caiDat.ds_dm_muc_do.length * caiDat.ds_loai_cau_hoi.length}
                             className="border border-slate-200 px-2 py-1.5 text-center font-bold bg-blue-50 text-[#1a3c8b]">
                             {nl.ten}
                           </th>
                         ))}
-                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-16 bg-amber-50">Tổng % điểm</th>
+                        <th rowSpan={3} className="border border-slate-200 px-2 py-2 text-center font-bold w-16 sticky right-0 bg-amber-50 z-30">Tổng % điểm</th>
                       </tr>
                       {/* Row 2: Mức độ */}
                       <tr className="bg-slate-50">
@@ -737,7 +737,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                                 </td>
                               </>
                             )}
-                            <td className="border border-slate-200 px-2 py-1.5 text-left text-slate-700">
+                            <td className="border border-slate-200 px-2 py-1.5 text-left text-slate-700 sticky bg-white z-10" style={{ left: 180, minWidth: 160 }}>
                               <div className="flex items-center justify-between gap-1 group">
                                 <span className="font-medium">{row.don_vi_kien_thuc}</span>
                                 <Button
@@ -796,7 +796,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                               )
                             )}
                             {rs > 0 && (
-                              <td rowSpan={rs} className="border border-slate-200 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50">
+                              <td rowSpan={rs} className="border border-slate-200 px-2 py-1.5 text-center font-bold text-amber-700 sticky right-0 bg-amber-50 z-10">
                                 {(() => {
                                   const totalScoreVal = obj.reduce((s, r) => s + r.ds_loai_cau_hoi.reduce((ss, c) => ss + (c.so_cau || 0) * (c.diem || 0), 0), 0);
                                   const chudeScore = obj
@@ -815,7 +815,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                     <tfoot>
                       {/* Row 1: Tổng lệnh hỏi */}
                       <tr className="bg-slate-50 font-semibold border-t border-slate-200">
-                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold bg-slate-50">Tổng lệnh hỏi</td>
+                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold sticky left-0 bg-slate-50 z-10">Tổng lệnh hỏi</td>
                         {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
                           caiDat.ds_dm_muc_do.map((md) =>
                             caiDat.ds_loai_cau_hoi.map((lch) => {
@@ -840,13 +840,13 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                             })
                           )
                         )}
-                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-amber-700 bg-amber-50">
+                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-amber-700 sticky right-0 bg-amber-50 z-10">
                           {totalQuestions} câu
                         </td>
                       </tr>
                       {/* Row 2: Tỉ lệ lệnh hỏi */}
                       <tr className="bg-slate-50 font-semibold border-t border-slate-200">
-                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold bg-slate-50">Tỉ lệ lệnh hỏi</td>
+                        <td colSpan={3} className="border border-slate-200 px-2 py-2 text-right text-xs font-bold sticky left-0 bg-slate-50 z-10">Tỉ lệ lệnh hỏi</td>
                         {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
                           caiDat.ds_dm_muc_do.map((md) => {
                             // Sum questions in this specific Năng lực & Mức độ
@@ -878,7 +878,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                             );
                           })
                         )}
-                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-slate-500 bg-slate-50"></td>
+                        <td className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-slate-500 sticky right-0 bg-slate-50 z-10"></td>
                       </tr>
                     </tfoot>
                   </table>

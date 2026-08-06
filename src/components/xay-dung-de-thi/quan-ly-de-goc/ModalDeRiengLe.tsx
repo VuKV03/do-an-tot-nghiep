@@ -284,27 +284,26 @@ export default function ModalDeRiengLe({
       return;
     }
 
-    // Validate theo Cấu hình môn học (quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx) — trước đây chỉ
-    // luồng "Theo ma trận đề" (ma trận tự thân đã giới hạn đúng số câu từng ô) mới gián tiếp khớp
-    // cấu hình; luồng nhặt câu thủ công này không hề kiểm tra, cho lưu thoải mái dù chọn thừa/thiếu
-    // câu so với cấu hình (vd môn Toán cấu hình 22 câu nhưng chọn hơn 22 vẫn lưu được).
+    // Validate theo Cấu hình môn học (quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx) — chỉ chặn lưu
+    // khi VƯỢT QUÁ số câu cấu hình (vd môn Toán cấu hình 22 câu nhưng chọn hơn 22). Thiếu câu so với
+    // cấu hình VẪN cho lưu bình thường (đề có thể đang soạn dở, chưa đủ câu) — không chặn như thừa.
     if (subjectConfig) {
       const expectedByPart: Record<string, number> = {
         'phan-1': countConfiguredQuestions(subjectConfig.p1_from, subjectConfig.p1_to),
         'phan-2': countConfiguredQuestions(subjectConfig.p2_from, subjectConfig.p2_to),
         'phan-3': countConfiguredQuestions(subjectConfig.p3_from, subjectConfig.p3_to),
       };
-      if (subjectConfig.questions_number != null && totalQuestions !== subjectConfig.questions_number) {
+      if (subjectConfig.questions_number != null && totalQuestions > subjectConfig.questions_number) {
         toast.error(
-          `Đề đang có ${totalQuestions} câu, không khớp Cấu hình môn học "${selectedSubject}" (yêu cầu đúng ${subjectConfig.questions_number} câu). Vui lòng thêm/bớt câu hỏi cho khớp.`
+          `Đề đang có ${totalQuestions} câu, vượt quá Cấu hình môn học "${selectedSubject}" (tối đa ${subjectConfig.questions_number} câu). Vui lòng bớt câu hỏi cho khớp.`
         );
         return;
       }
       for (const part of parts) {
         const expected = expectedByPart[part.id];
-        if (expected > 0 && part.questions.length !== expected) {
+        if (expected > 0 && part.questions.length > expected) {
           toast.error(
-            `Phần ${PART_ROMAN[part.id]} đang có ${part.questions.length} câu, cần đúng ${expected} câu theo Cấu hình môn học "${selectedSubject}".`
+            `Phần ${PART_ROMAN[part.id]} đang có ${part.questions.length} câu, vượt quá ${expected} câu theo Cấu hình môn học "${selectedSubject}".`
           );
           return;
         }
@@ -425,7 +424,7 @@ export default function ModalDeRiengLe({
           {/* Tổng kết */}
           <div className="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-bold">
             Tổng số:{' '}
-            <span className={subjectConfig?.questions_number != null && totalQuestions !== subjectConfig.questions_number ? 'text-red-500' : 'text-slate-800'}>
+            <span className={subjectConfig?.questions_number != null && totalQuestions > subjectConfig.questions_number ? 'text-red-500' : 'text-slate-800'}>
               {totalQuestions} câu hỏi{subjectConfig?.questions_number != null ? ` / ${subjectConfig.questions_number}` : ''}
             </span>
             {subjectConfig?.questions_number != null && (

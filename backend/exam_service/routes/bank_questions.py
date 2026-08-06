@@ -281,6 +281,11 @@ async def count_bank_questions_by_topic(
         )
         .where(Question.topic_id.in_(ids))
         .where(Question.status == status)
+        # Chỉ đếm câu tự do trong Ngân hàng câu hỏi (chưa gắn vào đề nào) — câu đã thuộc 1 đề
+        # (exam_id NOT NULL, line_number >= 1, xem comment ở Question.line_number trong models.py)
+        # không được tính vào số câu khả dụng để soạn ma trận, nếu không tổng sẽ bị đếm dư.
+        .where(Question.exam_id.is_(None))
+        .where(Question.line_number == 0)
         .group_by(Question.topic_id, Question.level_id, Question.type_id, Question.competency_component_id)
     )
     result = await db.execute(stmt)
