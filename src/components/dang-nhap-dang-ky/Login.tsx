@@ -1,3 +1,4 @@
+import { API_BASE_URL, BASE_URL } from '../../config/apiConfig';
 import React, { useState } from 'react';
 import { Form, Input, Button, Tabs, Alert, message, ConfigProvider } from 'antd';
 import {
@@ -41,7 +42,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('https://api.quanlythi.site/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +78,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('https://api.quanlythi.site/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

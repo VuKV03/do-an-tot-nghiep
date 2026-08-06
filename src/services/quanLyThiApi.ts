@@ -1,7 +1,7 @@
 /**
  * quanLyThiApi.ts
  * Centralized API service for Exam Management and Portal (Port 8005)
- * Base URL: https://api.quanlythi.site
+ * Base URL: ${BASE_URL}
  */
 
 import { BASE_URL } from '../config/apiConfig';

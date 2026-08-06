@@ -1,3 +1,4 @@
+import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Input,
@@ -173,7 +174,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       if (filterSubject !== 'all') params.set('subject_id', filterSubject);
       if (filterStatus !== 'all') params.set('status', filterStatus);
 
-      const res = await fetch(`https://api.quanlythi.site/api/matrix-configs?${params.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/matrix-configs?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setTableData(json.data);
@@ -201,7 +202,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       // thể thì thu hẹp lại đúng trạng thái đó.
       params.set('status', evalFilterStatus === 'all' ? 'pending,approved,rejected' : evalFilterStatus);
 
-      const res = await fetch(`https://api.quanlythi.site/api/matrix-configs?${params.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/matrix-configs?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setEvalTableData(json.data);
@@ -248,7 +249,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch('https://api.quanlythi.site/api/matrix-configs', {
+          const res = await fetch(`${API_BASE_URL}/matrix-configs`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: selectedRowIds }),
@@ -272,7 +273,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const handleDeleteRow = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`https://api.quanlythi.site/api/matrix-configs/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
         toast.success(json.message);
@@ -290,7 +291,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // Handle single row send to evaluation
   const handleSendToEvaluation = async (id: string) => {
     try {
-      const res = await fetch('https://api.quanlythi.site/api/matrix-configs/status', {
+      const res = await fetch(`${API_BASE_URL}/matrix-configs/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -447,7 +448,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
     setReviewSubmitting(true);
     const targetIds = isBatchReview ? evalSelectedRowIds : [reviewTargetRecord?.id].filter(Boolean) as string[];
     try {
-      const res = await fetch('https://api.quanlythi.site/api/matrix-configs/status', {
+      const res = await fetch(`${API_BASE_URL}/matrix-configs/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

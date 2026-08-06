@@ -1,3 +1,4 @@
+import { API_BASE_URL, BASE_URL } from '../../config/apiConfig';
 import React, { useState } from 'react';
 import { Modal, Button, Input } from 'antd';
 import { toast } from '../../utils/toast';
@@ -27,7 +28,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://api.quanlythi.site/api/auth/users/${currentUser?.id}/password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/users/${currentUser?.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

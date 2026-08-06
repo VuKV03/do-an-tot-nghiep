@@ -1,3 +1,4 @@
+import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
 import React, { useEffect, useState } from 'react';
 import { Card, Button, Typography, Spin, message, Badge } from 'antd';
 import { BookOutlined, CheckCircleOutlined, PlayCircleOutlined, LogoutOutlined } from '@ant-design/icons';
@@ -67,7 +68,7 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
   const fetchAvailableSubjects = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/me/available-subjects?candidate_id=${currentUser.id}`, {
+      const res = await fetch(`${API_BASE_URL}/exam/portal/me/available-subjects?candidate_id=${currentUser.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,7 +91,7 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
     setStartingSubject(subject);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/me/start-exam?candidate_id=${currentUser.id}&subject=${encodeURIComponent(subject)}`, {
+      const res = await fetch(`${API_BASE_URL}/exam/portal/me/start-exam?candidate_id=${currentUser.id}&subject=${encodeURIComponent(subject)}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
