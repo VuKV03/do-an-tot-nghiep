@@ -1,4 +1,4 @@
-import { BASE_URL } from '../../../config/apiConfig';
+import { API_BASE_URL } from '../../../config/apiConfig';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, Select, Input, Popconfirm, Tooltip, Empty } from 'antd';
 import { toast } from '../../../utils/toast';
@@ -324,7 +324,7 @@ export default function ModalDeRiengLe({
         questionIds: allQuestions.map(q => q.id),
       };
 
-      const url = typeAdd || !exam ? `${BASE_URL}/exams/` : `${BASE_URL}/exams/${exam.id}`;
+      const url = typeAdd || !exam ? `${API_BASE_URL}/exams/` : `${API_BASE_URL}/exams/${exam.id}`;
       const method = typeAdd || !exam ? 'POST' : 'PUT';
 
       const response = await fetch(url, {

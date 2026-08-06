@@ -513,7 +513,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             // Vẫn thất bại sau khi đã thử lại — đề vừa tạo (newExamId) giờ rỗng câu hỏi, không còn
             // giá trị gì, xóa luôn thay vì để mồ côi tồn đọng trong "Đề gốc" (không thuộc gói nào,
             // không câu hỏi nào — đúng kiểu rác đã thấy trước đây khi debug lỗi này).
-            await fetch(`/api/exams/${newExamId}`, { method: 'DELETE' }).catch(() => {});
+            await fetch(`${API_BASE_URL}/exams/${newExamId}`, { method: 'DELETE' }).catch(() => {});
             return { code, examId: null as string | null };
           }
           return { code, examId: newExamId as string | null };
