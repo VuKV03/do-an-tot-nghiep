@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect } from 'react';
 import { Layout, Button, message, Spin, Typography, Modal, Radio, Space, Input } from 'antd';
 import { ClockCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined, FlagOutlined, FlagFilled, FullscreenOutlined, AppstoreOutlined, UnorderedListOutlined, LogoutOutlined, RollbackOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
@@ -51,7 +52,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   const fetchSessionInfo = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/me/exam-info?candidate_id=${currentUser.id}&subject=${encodeURIComponent(subject)}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exam/portal/me/exam-info?candidate_id=${currentUser.id}&subject=${encodeURIComponent(subject)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -106,7 +107,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/me/confirm-start?result_id=${sessionInfo?.result_info?.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exam/portal/me/confirm-start?result_id=${sessionInfo?.result_info?.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -201,7 +202,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     }
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/submit-draft?result_id=${sessionInfo?.result_info?.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exam/portal/submit-draft?result_id=${sessionInfo?.result_info?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +233,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
     setSubmitting(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`https://api.quanlythi.site/api/exam/portal/submit-final?result_id=${sessionInfo?.result_info?.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exam/portal/submit-final?result_id=${sessionInfo?.result_info?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

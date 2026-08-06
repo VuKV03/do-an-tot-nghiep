@@ -1,12 +1,13 @@
 /**
  * danhMucApi.ts
  * Centralized API service for all 5 category tables.
- * Base URL: https://api.quanlythi.site
+ * Base URL: xem src/config/apiBase.ts (đổi qua VITE_APP_API_URL, mặc định domain online).
  */
 
 import type { Question, QuestionType, CognitiveLevel } from '../types';
+import { API_ORIGIN } from '../config/apiBase';
 
-const BASE_URL = 'https://api.quanlythi.site';
+const BASE_URL = API_ORIGIN;
 
 // ─── Generic helpers ───────────────────────────────────────────────────────
 

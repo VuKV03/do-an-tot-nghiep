@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, Select, Input, Popconfirm, Tooltip, Empty } from 'antd';
 import { toast } from '../../../utils/toast';
@@ -323,7 +324,9 @@ export default function ModalDeRiengLe({
         questionIds: allQuestions.map(q => q.id),
       };
 
-      const url = typeAdd || !exam ? 'https://api.quanlythi.site/exams/' : `https://api.quanlythi.site/exams/${exam.id}`;
+      // Lưu ý: phải có tiền tố '/api' — Gateway chỉ đăng ký route /api/exams (proxy_exams_fallback),
+      // không có route trần '/exams' (xem backend/gateway/main.py).
+      const url = typeAdd || !exam ? `${API_ORIGIN}/api/exams/` : `${API_ORIGIN}/api/exams/${exam.id}`;
       const method = typeAdd || !exam ? 'POST' : 'PUT';
 
       const response = await fetch(url, {

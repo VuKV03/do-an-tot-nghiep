@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../../config/apiBase';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Form, Select, Button, Tag, Spin, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
 import { toast } from '../../../../utils/toast';
@@ -322,7 +323,7 @@ export default function AIGenerateQuestionModal({
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
 
-      const res = await fetch('https://api.quanlythi.site/api/generate-questions', {
+      const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

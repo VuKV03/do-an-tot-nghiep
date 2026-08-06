@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 // ============================================================
 // Mock data simulating API responses per full_flow_spec.md
 // Will be replaced by real API calls later
@@ -103,7 +104,7 @@ export interface MaTranData {
 /** 2.1 Lấy danh sách Môn học */
 export async function apiGetMonHoc(): Promise<MonHocOption[]> {
   try {
-    const res = await fetch('https://api.quanlythi.site/api/exams/subject-categories');
+    const res = await fetch(`${API_ORIGIN}/api/exams/subject-categories`);
     const json = await res.json();
     if (json.success && json.data) {
       return json.data.map((item: any) => ({
@@ -121,7 +122,7 @@ export async function apiGetMonHoc(): Promise<MonHocOption[]> {
 /** 2.3 Lấy Chủ đề theo Môn (cây cha-con) */
 export async function apiGetChuDe(monHocId: string): Promise<ChuDeNode[]> {
   try {
-    const res = await fetch('https://api.quanlythi.site/api/exams/topics');
+    const res = await fetch(`${API_ORIGIN}/api/exams/topics`);
     const json = await res.json();
     if (json.success && json.data) {
       // Filter by monHocId
@@ -164,7 +165,7 @@ export async function apiGetChuDe(monHocId: string): Promise<ChuDeNode[]> {
 /** 2.5 Lưu ma trận */
 export async function apiSaveMaTran(payload: any): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch('https://api.quanlythi.site/api/matrix-configs', {
+    const res = await fetch(`${API_ORIGIN}/api/matrix-configs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -186,7 +187,7 @@ export async function apiSaveMaTran(payload: any): Promise<{ success: boolean; m
 /** Lấy chi tiết ma trận để sửa */
 export async function apiGetMatrixConfigDetail(id: string): Promise<{ success: boolean; data?: any; message?: string }> {
   try {
-    const res = await fetch(`https://api.quanlythi.site/api/matrix-configs/${id}`);
+    const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}`);
     return await res.json();
   } catch (err) {
     return { success: false, message: 'Lỗi kết nối API khi lấy chi tiết ma trận.' };
@@ -196,7 +197,7 @@ export async function apiGetMatrixConfigDetail(id: string): Promise<{ success: b
 /** Cập nhật ma trận */
 export async function apiUpdateMaTran(id: string, payload: any): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch(`https://api.quanlythi.site/api/matrix-configs/${id}`, {
+    const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

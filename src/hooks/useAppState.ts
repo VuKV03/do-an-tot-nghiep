@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../config/apiBase';
 import { useState, useEffect } from 'react';
 import { toast } from '../utils/toast';
 import { Question, MatrixConfig, AuditLog } from '../types';
@@ -79,7 +80,7 @@ export const useAppState = () => {
 
     const fetchMatrices = async () => {
       try {
-        const res = await fetch('https://api.quanlythi.site/api/matrix-configs?page=1&pageSize=1000');
+        const res = await fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=1000`);
         const data = await res.json();
         if (data.data) {
           const mappedMatrices = data.data.map((m: any) => ({
@@ -104,7 +105,7 @@ export const useAppState = () => {
 
     const fetchExams = async () => {
       try {
-        const res = await fetch('https://api.quanlythi.site/api/exams');
+        const res = await fetch(`${API_ORIGIN}/api/exams`);
         const data = await res.json();
         if (data.data) {
           setExams(data.data);

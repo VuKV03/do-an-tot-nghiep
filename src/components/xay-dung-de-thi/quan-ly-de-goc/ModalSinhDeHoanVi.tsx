@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Select, Input, InputNumber, Tabs, Spin, Empty, Tag, Checkbox } from 'antd';
 import { toast } from '../../../utils/toast';
@@ -390,8 +391,8 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       // backend từ chối do trùng UNIQUE constraint (lỗi rất hay gặp khi sinh hoán vị nhiều lần cho
       // cùng 1 đề gốc mà không đổi lại số bắt đầu giữa các lần, hoặc trùng đề đã tạo từ trước).
       const [existingExamsRes, existingPackagesRes] = await Promise.all([
-        fetch('https://api.quanlythi.site/api/exams').then(r => r.json()).catch(() => null),
-        fetch('https://api.quanlythi.site/api/exams/packages').then(r => r.json()).catch(() => null),
+        fetch(`${API_ORIGIN}/api/exams`).then(r => r.json()).catch(() => null),
+        fetch(`${API_ORIGIN}/api/exams/packages`).then(r => r.json()).catch(() => null),
       ]);
       const takenCodes = new Set<string>(
         (existingExamsRes?.data || []).map((e: any) => String(e.code || '').toLowerCase())
@@ -439,7 +440,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const results = await mapWithConcurrencyLimit(variants, VARIANT_SAVE_CONCURRENCY, async (variantQuestions, i) => {
         const code = assignedCodes[i];
         try {
-          const examRes = await fetch('https://api.quanlythi.site/api/exams', {
+          const examRes = await fetch(`${API_ORIGIN}/api/exams`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -533,7 +534,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
         return;
       }
 
-      const pkgRes = await fetch('https://api.quanlythi.site/api/exams/packages', {
+      const pkgRes = await fetch(`${API_ORIGIN}/api/exams/packages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
