@@ -318,7 +318,10 @@ export default function ModalDeRiengLe({
         name: examTitle,
         subject: selectedSubject,
         grade: 'Khối 12',
-        duration: 90,
+        // Lấy theo Cấu hình môn học (subjectConfig.time — "Thời gian thi (phút)", xem
+        // quan-ly-danh-muc/danh-muc-mon-hoc/config.tsx) thay vì cứng 90 — môn/cấu hình chưa thiết
+        // lập thì mới rơi về 90 làm giá trị mặc định an toàn.
+        duration: subjectConfig?.time ?? 90,
         source: 'manual',
         // Câu hỏi chọn từ Ngân hàng câu hỏi đã tồn tại sẵn — chỉ cần gắn exam_id, không tạo lại.
         questionIds: allQuestions.map(q => q.id),
