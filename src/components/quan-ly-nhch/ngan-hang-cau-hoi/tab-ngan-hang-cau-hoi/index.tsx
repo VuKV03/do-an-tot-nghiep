@@ -1058,7 +1058,8 @@ export default function QuestionBankModule({
                           { value: 'all', label: 'Tất cả' },
                           { value: 'approved', label: 'Đã thẩm định' },
                           { value: 'pending', label: 'Chờ thẩm định' },
-                          { value: 'draft', label: 'Tạo mới' }
+                          { value: 'draft', label: 'Tạo mới' },
+                          { value: 'rejected', label: 'Từ chối' }
                         ]}
                       />
                     </div>
@@ -1073,6 +1074,11 @@ export default function QuestionBankModule({
                         className="w-full text-xs font-medium"
                         options={[
                           { value: 'all', label: 'Tất cả' },
+                          // Câu hỏi sinh bằng AI (ai-generate.tsx, source 'ai_bank') luôn lưu
+                          // creator='AI' — xem base object ở triggerAIQuestionGeneration — khác hẳn
+                          // tài khoản người dùng thật nên không nằm trong creatorFilterOptions (lấy
+                          // từ /auth/users), phải khai báo tay cho khớp đúng giá trị đang lưu.
+                          { value: 'AI', label: 'AI' },
                           ...creatorFilterOptions,
                         ]}
                       />
