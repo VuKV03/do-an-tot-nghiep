@@ -298,7 +298,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           }))
       );
       if (cells.length === 0) {
-        toast.warning('Ma trận đã chọn không có ô nào yêu cầu số câu.');
         setGenResults([]); setGenQuestions([]);
         return;
       }
@@ -311,7 +310,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       const ids = new Set(res.data.flatMap(r => r.questionIds));
       if (ids.size === 0) {
         setGenQuestions([]);
-        toast.warning('Không tìm được câu hỏi nào phù hợp trong Ngân hàng câu hỏi.');
         return;
       }
       setGenQuestions(await mapBankQuestions(ids));
@@ -551,7 +549,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         q.id !== current.id && !usedIds.has(q.id) && q.type === current.type && q.level === current.level
       );
       if (candidates.length === 0) {
-        toast.warning('Không tìm thấy câu hỏi khác cùng loại/mức độ còn trống trong Ngân hàng câu hỏi.');
         return;
       }
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
@@ -589,7 +586,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       });
       const data = await res.json();
       if (!data.success || !data.questions?.length) {
-        toast.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
         return;
       }
       const aiQ = convertAiQuestionMath(data.questions[0]);

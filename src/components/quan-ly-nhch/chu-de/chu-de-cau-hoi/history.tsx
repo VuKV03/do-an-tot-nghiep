@@ -102,7 +102,6 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
 
   const handleExportExcel = () => {
     if (filteredData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `LichSuChuDe_${new Date().toISOString().slice(0, 10)}`;

@@ -443,7 +443,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
 
   const handleExportExcel = () => {
     if (currentRows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `GoiDeThi_${new Date().toISOString().slice(0, 10)}`;

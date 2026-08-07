@@ -237,7 +237,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // Handle batch delete
   const handleBatchDelete = async () => {
     if (selectedRowIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất 1 bản ghi để xóa.');
       return;
     }
     Modal.confirm({
@@ -416,7 +415,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
   const handleExportExcel = () => {
     if (sortedEvalData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất file.');
       return;
     }
     const fileName = `ThamDinhMaTranDe_${new Date().toISOString().slice(0, 10)}`;
@@ -426,7 +424,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
   const handleBatchReviewClick = () => {
     if (evalSelectedRowIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất 1 ma trận để thẩm định.');
       return;
     }
     setIsBatchReview(true);

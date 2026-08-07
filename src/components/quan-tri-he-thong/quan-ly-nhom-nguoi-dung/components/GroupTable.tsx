@@ -54,7 +54,6 @@ export default function GroupTable({
 
   const handleExportExcel = () => {
     if (filteredGroups.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `NhomNguoiDung_${new Date().toISOString().slice(0, 10)}`;

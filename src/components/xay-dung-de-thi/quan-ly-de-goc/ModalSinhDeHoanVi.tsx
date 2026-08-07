@@ -526,7 +526,6 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
       const failedCodes = results.filter(r => !r.examId).map(r => r.code);
 
       if (failedCodes.length > 0) {
-        toast.warning(`Không tạo được đề mã: ${failedCodes.map(c => `${exam.code}-${c}`).join(', ')} — có thể mã đề đã tồn tại. Hãy đổi "Mã đề thi bắt đầu từ" rồi thử lại cho các mã còn thiếu.`);
       }
 
       if (newExamIds.length === 0) {

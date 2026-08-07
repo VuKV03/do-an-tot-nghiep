@@ -67,7 +67,6 @@ export default function QuanLyKetQuaThi() {
   const fetchResults = async (packageId?: string) => {
     const idToFetch = packageId || selectedPackageId;
     if (!idToFetch) {
-      toast.warning("Vui lòng chọn gói đề");
       return;
     }
     setLoadingResults(true);
@@ -95,7 +94,6 @@ export default function QuanLyKetQuaThi() {
 
   const handleExportExcel = () => {
     if (!results || results.length === 0) {
-      toast.warning('Không có dữ liệu kết quả thi để xuất Excel');
       return;
     }
 

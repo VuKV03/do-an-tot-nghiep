@@ -292,9 +292,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
             }
           }));
           const successCount = results.filter(Boolean).length;
-          const failCount = results.length - successCount;
           if (successCount > 0) toast.success(`Đã xóa thành công ${successCount} đề thi.`);
-          if (failCount > 0) toast.warning(`${failCount} đề thi xóa thất bại — vui lòng thử lại.`);
           setSelectedExamIds([]);
           fetchData();
         } catch {
@@ -450,7 +448,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleExportExcel = () => {
     const rows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
     if (rows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `DanhSachDeThi_${activeTab === 'exam_roots' ? 'DeGoc' : 'ThamDinh'}_${new Date().toISOString().slice(0, 10)}`;
@@ -468,7 +465,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       return e && canEditExam(e.status);
     });
     if (targets.length === 0) {
-      toast.warning('Chỉ đề ở trạng thái "Tạo mới" hoặc "Từ chối" mới gửi thẩm định được.');
       return;
     }
     try {
@@ -486,9 +482,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         }
       }));
       const successCount = results.filter(Boolean).length;
-      const failCount = results.length - successCount;
       if (successCount > 0) toast.success(`Đã gửi thẩm định ${successCount} đề thi.`);
-      if (failCount > 0) toast.warning(`${failCount} đề thi gửi thẩm định thất bại — vui lòng thử lại.`);
     } catch {
       toast.error('Lỗi kết nối khi gửi thẩm định.');
     }
@@ -555,10 +549,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         }
       }));
       const successCount = results.filter(Boolean).length;
-      const failCount = results.length - successCount;
       const verb = status === 'approved' ? 'duyệt' : 'từ chối';
       if (successCount > 0) toast.success(`Đã ${verb} ${successCount} đề thi.`);
-      if (failCount > 0) toast.warning(`${failCount} đề thi ${verb} thất bại — vui lòng thử lại.`);
       setSelectedExamIds([]);
       fetchData();
     } finally {

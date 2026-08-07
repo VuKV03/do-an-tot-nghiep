@@ -153,7 +153,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
 
   const handleOpenReviewMultiple = () => {
     if (selectedRowKeys.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một chủ đề để thẩm định');
       return;
     }
     setIsMultipleAction(true);
@@ -405,7 +404,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const handleExportExcel = () => {
     const rows = flattenThamDinh(filteredTree);
     if (rows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `ThamDinhChuDe_${new Date().toISOString().slice(0, 10)}`;
@@ -642,11 +640,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
-                  toast.warning(
-                    hasChildren
-                      ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
-                      : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
-                  );
                   fetchData();
                 } catch (e: any) {
                   toast.error(e.message || 'Không thể từ chối chủ đề!');
@@ -673,7 +666,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
-                  toast.warning('Từ chối các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {

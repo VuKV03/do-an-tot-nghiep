@@ -524,7 +524,6 @@ export default function AIGenerateQuestionModal({
       toast.success(`Đã duyệt và lưu tất cả ${succeededIds.length} câu hỏi vào hồ sơ chờ thẩm định.`);
       handleClose();
     } else {
-      toast.warning(`Đã lưu ${succeededIds.length} câu hỏi, còn ${failCount} câu bị lỗi — vui lòng thử lại riêng câu đó.`);
     }
   };
 
