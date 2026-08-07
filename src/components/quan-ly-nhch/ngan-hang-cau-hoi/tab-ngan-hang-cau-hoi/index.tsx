@@ -40,6 +40,33 @@ import { checkUserPermission } from '../../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
 import { API_BASE_URL } from '../../../../config/apiConfig';
 
+/**
+ * Ô tìm kiếm chủ đề — tách riêng khỏi `QuestionBankModule` để state gõ-từng-ký-tự chỉ khiến CHÍNH
+ * component nhỏ này re-render, không kéo theo re-render toàn bộ `QuestionBankModule` (component rất
+ * to, có cả bảng câu hỏi hàng trăm dòng bên dưới) — đây mới là nguyên nhân delay thật khi gõ, debounce
+ * chỉ trì hoãn việc LỌC cây, không tránh được việc re-render cả cây component cha trên mỗi ký tự gõ.
+ * `onSearch` chỉ được gọi (và làm cha re-render) sau 300ms ngừng gõ, không phải mỗi ký tự.
+ */
+function TopicSearchInput({ onSearch }: { onSearch: (value: string) => void }) {
+  const [value, setValue] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => onSearch(value), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <Input
+      id="select-topic-search-filter"
+      allowClear
+      prefix={<SearchOutlined className="text-slate-400" />}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder="Nhập tên chủ đề để lọc cây bên dưới..."
+      className="w-full text-xs font-bold"
+    />
+  );
+}
+
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
   onUpdateQuestion?: (q: Question, options?: { silent?: boolean }) => void;
@@ -76,6 +103,18 @@ export default function QuestionBankModule({
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
+  // Ô tìm kiếm chủ đề ở sidebar — chỉ lọc/thu hẹp Cây chủ đề hiện sẵn bên dưới, KHÔNG xổ ra dropdown
+  // danh sách riêng của nó (khác Select showSearch trước đây).
+  const [topicSearch, setTopicSearch] = useState('');
+  // Debounce riêng giá trị dùng để LỌC (khác giá trị hiện trong input) — lọc cây đệ quy trên toàn bộ
+  // topicTreeData rồi re-render lại cả Tree là việc tốn, làm mỗi lần gõ 1 ký tự lại chạy ngay khiến ô
+  // input có cảm giác giật/delay nặng. Input vẫn cập nhật ngay (mượt), chỉ việc LỌC bị trì hoãn 300ms
+  // sau khi ngừng gõ.
+  const [debouncedTopicSearch, setDebouncedTopicSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedTopicSearch(topicSearch), 300);
+    return () => clearTimeout(timer);
+  }, [topicSearch]);
 
   // API data for subject/grade dropdowns and topic tree
   const [apiSubjects, setApiSubjects] = useState<{ value: string; label: string }[]>([]);
@@ -357,9 +396,8 @@ export default function QuestionBankModule({
     }
   };
 
-  // Danh sách chủ đề dạng phẳng cho ô tìm kiếm "Chọn chủ đề" (autocomplete) — lấy đúng từ
-  // topicTreeData (đã lọc theo môn học/khối lớp đang chọn) để luôn khớp với cây chủ đề hiển thị bên
-  // dưới. Nhãn ghép theo đường dẫn cha > con để phân biệt các tiểu mục trùng tên ở chủ đề khác nhau.
+  // Danh sách chủ đề dạng phẳng — chỉ dùng để tính treeExpandedKeys (mở hết cây), KHÔNG còn dùng
+  // làm nguồn cho dropdown riêng của ô tìm kiếm nữa (xem topicSearch/filteredTopicTreeData bên dưới).
   const topicSearchOptions = useMemo(() => {
     const flatten = (nodes: any[], parentPath: string[] = []): { value: string; label: string }[] =>
       nodes.flatMap((n) => {
@@ -369,6 +407,26 @@ export default function QuestionBankModule({
       });
     return flatten(topicTreeData);
   }, [topicTreeData]);
+
+  // Ô "Chọn chủ đề" chỉ để LỌC cây chủ đề hiện sẵn bên dưới (Cây chủ đề môn học) khi gõ — không mở
+  // dropdown danh sách riêng như Select showSearch trước đây. Giữ cả node khớp tên lẫn tổ tiên/con
+  // của nó để không mất ngữ cảnh cây khi đang lọc.
+  const filteredTopicTreeData = useMemo(() => {
+    const term = debouncedTopicSearch.trim().toLowerCase();
+    if (!term) return topicTreeData;
+    const filterNodes = (nodes: any[]): any[] =>
+      nodes.reduce((acc: any[], n: any) => {
+        const ownMatch = String(n.title).toLowerCase().includes(term);
+        const matchedChildren = n.children ? filterNodes(n.children) : [];
+        if (ownMatch) {
+          acc.push(n); // Tên khớp — giữ nguyên cả nhánh con, không lọc tiếp bên trong.
+        } else if (matchedChildren.length > 0) {
+          acc.push({ ...n, children: matchedChildren });
+        }
+        return acc;
+      }, []);
+    return filterNodes(topicTreeData);
+  }, [topicTreeData, debouncedTopicSearch]);
 
   // Cây chủ đề luôn hiện đầy đủ (giữ hành vi defaultExpandAll cũ) — nhưng phải chủ động tính lại mỗi
   // khi topicTreeData đổi (đổi môn học/khối lớp), vì defaultExpandAll của antd Tree chỉ tự áp dụng
@@ -470,6 +528,8 @@ export default function QuestionBankModule({
       dateRange: null
     });
     setSelectedTopicKey(null);
+    setTopicSearch('');
+    setDebouncedTopicSearch(''); // reset lọc ngay, không chờ debounce 300ms
     toast.info('Đã làm mới bộ lọc.');
   };
 
@@ -872,6 +932,8 @@ export default function QuestionBankModule({
                   onChange={(val) => {
                     setSelectedSubject(val);
                     setSelectedTopicKey(null); // reset topic key
+                    setTopicSearch(''); // reset ô lọc chủ đề — cây chủ đề đổi hẳn theo môn học khác
+                    setDebouncedTopicSearch('');
                   }}
                   options={subjectDropdownOptions}
                   className="w-full text-xs font-bold"
@@ -879,21 +941,14 @@ export default function QuestionBankModule({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chọn chủ đề</label>
-                <Select
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tìm kiếm</label>
+                <Input
                   id="select-topic-search-filter"
-                  showSearch={{
-                    optionFilterProp: 'label',
-                    filterOption: (input, option) =>
-                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                  }}
                   allowClear
-                  value={selectedTopicKey || undefined}
-                  onChange={(val) => setSelectedTopicKey(val || null)}
-                  onClear={() => setSelectedTopicKey(null)}
-                  options={topicSearchOptions}
-                  placeholder="Nhập tên chủ đề để tìm kiếm..."
-                  notFoundContent="Không tìm thấy chủ đề phù hợp"
+                  prefix={<SearchOutlined className="text-slate-400" />}
+                  value={topicSearch}
+                  onChange={(e) => setTopicSearch(e.target.value)}
+                  placeholder="Nhập tên chủ đề để lọc cây bên dưới..."
                   className="w-full text-xs font-bold"
                 />
               </div>
@@ -903,7 +958,7 @@ export default function QuestionBankModule({
             <div className="flex-1 mt-4 overflow-y-auto pr-1">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cây chủ đề môn học</label>
               <Spin spinning={topicsLoading} size="small">
-                {topicTreeData.length > 0 ? (
+                {filteredTopicTreeData.length > 0 ? (
                   <Tree
                     ref={topicTreeRef}
                     showLine={{ showLeafIcon: false }}
@@ -911,13 +966,17 @@ export default function QuestionBankModule({
                     expandedKeys={treeExpandedKeys}
                     onExpand={(keys) => setTreeExpandedKeys(keys)}
                     onSelect={handleSelectTopicNode}
-                    treeData={topicTreeData}
+                    treeData={filteredTopicTreeData}
                     selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
                     className="text-xs font-medium text-slate-700 bg-transparent"
                   />
                 ) : (
                   <div className="text-center py-8 text-slate-400 text-xs font-medium">
-                    {topicsLoading ? 'Đang tải chủ đề...' : 'Chưa có chủ đề đã thẩm định cho môn học này'}
+                    {topicsLoading
+                      ? 'Đang tải chủ đề...'
+                      : debouncedTopicSearch.trim()
+                        ? 'Không tìm thấy chủ đề phù hợp'
+                        : 'Chưa có chủ đề đã thẩm định cho môn học này'}
                   </div>
                 )}
               </Spin>
