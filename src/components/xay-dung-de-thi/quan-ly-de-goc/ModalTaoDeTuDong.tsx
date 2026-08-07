@@ -394,6 +394,12 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
               grade: atom.grade,
               level: levelToApiString(atom.levelSlug),
               count: atom.soCau,
+              // Chỉ dùng khi AI Service quá 10s không phản hồi — bốc bù ĐÚNG chủ đề/mức độ/loại câu
+              // hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem generate.py::_fallback_from_bank).
+              topicId: atom.donViId,
+              cognitiveLevelId: atom.mucDoId,
+              questionTypeId: atom.loaiCauHoiId,
+              competencyComponentId: atom.nangLucId,
             })),
           }),
         });
@@ -403,6 +409,29 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           aborted = true;
           break;
         }
+        // AI Service quá _AI_TIMEOUT_SECONDS (10s) không phản hồi thì tự bốc bù từ Ngân hàng câu hỏi
+        // (xem generate.py::_fallback_from_bank) — nhóm này không phải AI vừa sinh, phải hiện ĐÚNG
+        // như màn "Theo ngân hàng câu hỏi" (id/code/trạng thái/người tạo thật), không gán id/code giả
+        // kiểu 'AI-N' như buildQuestionFromAi bên dưới.
+        if (data.source === 'bank_fallback') {
+          (data.questions as any[]).forEach((bankQ) => {
+            const atom = group[bankQ.groupIndex];
+            if (!atom) return;
+            const q: Question = {
+              id: bankQ.id, code: bankQ.code, text: bankQ.text, type: bankQ.type, level: bankQ.level,
+              status: bankQ.status, subject: bankQ.subject, grade: bankQ.grade,
+              topicId: bankQ.topicId || atom.donViId, topicName: bankQ.topicName || atom.donViKienThuc || 'Chưa phân loại',
+              subTopicName: bankQ.subTopicName || '',
+              options: bankQ.options, correctAnswer: bankQ.correctAnswer, statements: bankQ.statements,
+              creator: bankQ.creator, createdAt: bankQ.createdAt,
+              nangLucId: atom.nangLucId || undefined,
+            };
+            generated.push(q);
+            foundIdsByKey.get(cellWorkKey(atom))!.push(q.id);
+          });
+          continue;
+        }
+
         (data.questions as any[]).forEach((rawAiQ) => {
           const atom = group[rawAiQ.groupIndex];
           if (!atom) return; // groupIndex lạ (AI trả sai) — bỏ qua thay vì gán nhầm cell.

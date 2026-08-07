@@ -31,6 +31,14 @@ class GenerateQuestionsRequest(BaseModel):
     level: Optional[str] = "easy"
     # 'single' | 'true_false' | 'short' — quyết định định dạng câu hỏi Gemini phải sinh ra
     type: Optional[str] = "single"
+    # ID thật trong DB (topics/cognitive_levels/question_types/competency_components) của tiểu mục
+    # đang sinh — KHÔNG bắt buộc, chỉ dùng khi Gemini phản hồi quá 10s để bốc thay thế ĐÚNG chủ đề/
+    # mức độ/loại câu hỏi/năng lực từ Ngân hàng câu hỏi (xem _fallback_from_bank). Không truyền thì
+    # quá 10s vẫn báo lỗi như cũ, không bốc bù.
+    topicId: Optional[str] = None
+    cognitiveLevelId: Optional[str] = None
+    questionTypeId: Optional[str] = None
+    competencyComponentId: Optional[str] = None
 
 
 class TopicGroupItem(BaseModel):
@@ -39,6 +47,11 @@ class TopicGroupItem(BaseModel):
     grade: Optional[str] = "Lớp 12"
     level: Optional[str] = "medium"  # 'easy' | 'medium' | 'hard'
     count: int = 1
+    # Xem GenerateQuestionsRequest — cùng mục đích, cho fallback bốc từ Ngân hàng khi timeout.
+    topicId: Optional[str] = None
+    cognitiveLevelId: Optional[str] = None
+    questionTypeId: Optional[str] = None
+    competencyComponentId: Optional[str] = None
 
 
 class GenerateQuestionsBatchRequest(BaseModel):

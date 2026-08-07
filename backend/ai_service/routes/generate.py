@@ -1,14 +1,18 @@
 """
 AI question generation routes — ported from aiService.ts
 """
+import asyncio
 import json
 import re
+# pyrefly: ignore [missing-import]
+import httpx
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, HTTPException
 from backend.ai_service.gemini_client import generate_content_with_retry
 from backend.ai_service.schemas import (
-    SuggestInfoRequest, GenerateQuestionsRequest, GenerateQuestionsBatchRequest,
+    SuggestInfoRequest, GenerateQuestionsRequest, GenerateQuestionsBatchRequest, TopicGroupItem,
 )
+from backend.shared.config import service_config
 
 router = APIRouter(tags=["AI Generation"])
 
@@ -19,6 +23,10 @@ _KEY_INDEX_BY_TYPE = {"single": 0, "true_false": 1, "short": 2}
 # Giới hạn an toàn tổng số câu/lần gọi gộp nhiều nhóm (/generate-batch) — frontend tự chia nhóm ở
 # ngưỡng thấp hơn (10), đây chỉ là chặn lạm dụng phía server.
 _MAX_BATCH_TOTAL = 20
+
+# Gemini chậm quá ngưỡng này (giây) thì bỏ chờ, chuyển sang bốc tạm từ Ngân hàng câu hỏi thay vì
+# để người dùng chờ vô thời hạn — xem _fallback_from_bank.
+_AI_TIMEOUT_SECONDS = 6.0
 
 # Nhãn tiếng Việt cho từng mức độ nhận thức gửi tới Gemini (endpoint /generate — 1 request = đúng 1 mức).
 _LEVEL_LABEL = {
@@ -91,6 +99,66 @@ def _is_valid_short_answer(q: dict) -> bool:
         return True
     ans = str(q.get("correctAnswer") or "").strip()
     return 1 <= len(ans) <= 4
+
+
+async def _fallback_from_bank(
+    *,
+    topic_id: str | None,
+    cognitive_level_id: str | None,
+    question_type_id: str | None,
+    competency_component_id: str | None,
+    count: int,
+) -> list[dict]:
+    """
+    Khi Gemini quá `_AI_TIMEOUT_SECONDS` không phản hồi, bốc tạm câu có sẵn trong Ngân hàng câu hỏi
+    thay AI — vẫn phải ĐÚNG chủ đề/mức độ nhận thức/loại câu hỏi/năng lực như ô ma trận yêu cầu.
+
+    AI Service không có DB riêng (chỉ Exam/Analytics/Auth Service mới dùng chung
+    backend/shared/database.py — xem docstring ở đó), nên gọi lại qua HTTP sang Exam Service, dùng
+    đúng logic random-select đã có sẵn (backend/exam_service/routes/bank_questions.py) thay vì
+    query DB trực tiếp — tránh 2 nơi tự viết cùng 1 luật chọn câu hỏi rồi lệch nhau.
+
+    Trả về [] (không raise) nếu thiếu topic_id hoặc lỗi kết nối/không tìm được câu nào phù hợp —
+    để caller tự quyết định báo lỗi timeout gốc, không che giấu bằng 1 lỗi khác khó hiểu hơn.
+    """
+    if not topic_id or count <= 0:
+        return []
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            select_res = await client.post(
+                f"{service_config.EXAM_SERVICE_URL}/bank-questions/random-select",
+                json={"cells": [{
+                    "don_vi_id": topic_id,
+                    "muc_do_id": cognitive_level_id,
+                    "loai_cau_hoi_id": question_type_id,
+                    "nang_luc_id": competency_component_id,
+                    "so_cau": count,
+                }]},
+            )
+            select_res.raise_for_status()
+            cells = select_res.json().get("data") or []
+            question_ids = cells[0].get("questionIds") if cells else []
+            if not question_ids:
+                return []
+
+            list_res = await client.get(f"{service_config.EXAM_SERVICE_URL}/bank-questions/")
+            list_res.raise_for_status()
+            by_id = {q["id"]: q for q in list_res.json().get("data", [])}
+    except Exception as err:
+        print(f"[AI Service] Bốc bù từ Ngân hàng câu hỏi thất bại (bỏ qua, giữ lỗi timeout gốc): {err}")
+        return []
+
+    # Trả về NGUYÊN bản ghi Ngân hàng câu hỏi (id/code/status/creator/topicName/...), không chỉ mấy
+    # field nội dung — để FE hiển thị câu bốc bù giống đúng màn "Theo ngân hàng câu hỏi" (bốc tự
+    # động, xem mapBankQuestions ở ModalTaoDeTuDong.tsx), thay vì bị gán nhầm code/id giả 'AI-N' như
+    # câu AI thật sự sinh ra (xem buildQuestionFromAi) — 2 nguồn câu hỏi khác nhau phải hiện khác nhau.
+    fallback_questions = []
+    for qid in question_ids:
+        q = by_id.get(qid)
+        if q:
+            fallback_questions.append(q)
+    return fallback_questions
 
 
 @router.post("/suggest")
@@ -197,23 +265,45 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
 @router.post("/generate")
 async def generate_questions(body: GenerateQuestionsRequest):
     """Tạo sinh gói câu hỏi bằng AI (trắc nghiệm / đúng-sai / trả lời ngắn)."""
+    q_count = max(1, min(body.count or 5, 15))
+    question_type = (body.type or "single").strip()
     try:
-        q_count = max(1, min(body.count or 5, 15))
         system_instruction, prompt = _build_generation_prompt(body, q_count)
-        preferred_key_index = _KEY_INDEX_BY_TYPE.get((body.type or "single").strip())
+        preferred_key_index = _KEY_INDEX_BY_TYPE.get(question_type)
 
-        response_text = await generate_content_with_retry(
-            prompt=prompt,
-            system_instruction=system_instruction,
-            temperature=0.75,
-            preferred_key_index=preferred_key_index,
-        )
+        try:
+            response_text = await asyncio.wait_for(
+                generate_content_with_retry(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    temperature=0.75,
+                    preferred_key_index=preferred_key_index,
+                ),
+                timeout=_AI_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            fallback = await _fallback_from_bank(
+                topic_id=body.topicId,
+                cognitive_level_id=body.cognitiveLevelId,
+                question_type_id=body.questionTypeId,
+                competency_component_id=body.competencyComponentId,
+                count=q_count,
+            )
+            if fallback:
+                return {"success": True, "questions": fallback, "source": "bank_fallback"}
+            raise HTTPException(
+                status_code=504,
+                detail=f"AI phản hồi quá {_AI_TIMEOUT_SECONDS:.0f}s và không tìm được câu hỏi phù hợp "
+                        "trong Ngân hàng câu hỏi để thay thế.",
+            )
 
         data = json.loads(response_text.strip())
         questions = _clean_generated_questions(data.get("questions", []))
         questions = [q for q in questions if _is_valid_short_answer(q)]
         return {"success": True, "questions": questions}
 
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -299,12 +389,31 @@ def _build_batch_generation_prompt(body: GenerateQuestionsBatchRequest) -> tuple
     return system_instruction, prompt
 
 
+async def _fallback_batch_from_bank(items: list[TopicGroupItem]) -> list[dict]:
+    """Bốc bù cho TỪNG nhóm riêng (mỗi nhóm giữ đúng chủ đề/mức độ/năng lực của nó), rồi gắn lại
+    'groupIndex' đúng vị trí trong `items` — khớp quy ước AI trả về ở _build_batch_generation_prompt."""
+    fallback_questions = []
+    for i, item in enumerate(items):
+        picked = await _fallback_from_bank(
+            topic_id=item.topicId,
+            cognitive_level_id=item.cognitiveLevelId,
+            question_type_id=item.questionTypeId,
+            competency_component_id=item.competencyComponentId,
+            count=item.count,
+        )
+        for q in picked:
+            q["groupIndex"] = i
+        fallback_questions.extend(picked)
+    return fallback_questions
+
+
 @router.post("/generate-batch")
 async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
     """Sinh nhiều nhóm câu hỏi (khác tiểu mục/mức độ) trong 1 lần gọi AI duy nhất — xem
     _build_batch_generation_prompt để biết lý do và cách gắn groupIndex."""
+    total = sum(max(0, item.count or 0) for item in body.items)
+    question_type = (body.type or "single").strip()
     try:
-        total = sum(max(0, item.count or 0) for item in body.items)
         if not body.items or total <= 0:
             return {"success": True, "questions": []}
         if total > _MAX_BATCH_TOTAL:
@@ -314,14 +423,27 @@ async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
             )
 
         system_instruction, prompt = _build_batch_generation_prompt(body)
-        preferred_key_index = _KEY_INDEX_BY_TYPE.get((body.type or "single").strip())
+        preferred_key_index = _KEY_INDEX_BY_TYPE.get(question_type)
 
-        response_text = await generate_content_with_retry(
-            prompt=prompt,
-            system_instruction=system_instruction,
-            temperature=0.75,
-            preferred_key_index=preferred_key_index,
-        )
+        try:
+            response_text = await asyncio.wait_for(
+                generate_content_with_retry(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    temperature=0.75,
+                    preferred_key_index=preferred_key_index,
+                ),
+                timeout=_AI_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            fallback = await _fallback_batch_from_bank(body.items)
+            if fallback:
+                return {"success": True, "questions": fallback, "source": "bank_fallback"}
+            raise HTTPException(
+                status_code=504,
+                detail=f"AI phản hồi quá {_AI_TIMEOUT_SECONDS:.0f}s và không tìm được câu hỏi phù hợp "
+                        "trong Ngân hàng câu hỏi để thay thế.",
+            )
 
         data = json.loads(response_text.strip())
         questions = _clean_generated_questions(data.get("questions", []))
