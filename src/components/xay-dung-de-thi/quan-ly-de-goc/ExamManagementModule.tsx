@@ -470,7 +470,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     try {
       const results = await Promise.all(targets.map(async (id) => {
         try {
-          const res = await fetch(`${API_BASE_URL}/exams/${id}`, {
+          const res = await fetch(`${API_ORIGIN}/api/exams/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'pending' }),
