@@ -26,7 +26,7 @@ _MAX_BATCH_TOTAL = 20
 
 # Gemini chậm quá ngưỡng này (giây) thì bỏ chờ, chuyển sang bốc tạm từ Ngân hàng câu hỏi thay vì
 # để người dùng chờ vô thời hạn — xem _fallback_from_bank.
-_AI_TIMEOUT_SECONDS = 6.0
+_AI_TIMEOUT_SECONDS = 60.0
 
 # Nhãn tiếng Việt cho từng mức độ nhận thức gửi tới Gemini (endpoint /generate — 1 request = đúng 1 mức).
 _LEVEL_LABEL = {
@@ -291,10 +291,15 @@ async def generate_questions(body: GenerateQuestionsRequest):
             )
             if fallback:
                 return {"success": True, "questions": fallback, "source": "bank_fallback"}
-            raise HTTPException(
-                status_code=504,
-                detail=f"AI phản hồi quá {_AI_TIMEOUT_SECONDS:.0f}s và không tìm được câu hỏi phù hợp "
-                        "trong Ngân hàng câu hỏi để thay thế.",
+            # Ngân hàng không có câu nào khớp chủ đề/mức độ/loại câu hỏi/năng lực — quay lại chờ AI
+            # sinh tiếp như hành vi cũ trước khi có timeout+fallback này, thay vì báo lỗi luôn (báo
+            # lỗi ngay chỉ đúng khi có phương án thay thế mà cũng không dùng được, còn ở đây Ngân
+            # hàng đơn giản là không có dữ liệu để bù, không phải lỗi thật).
+            response_text = await generate_content_with_retry(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                temperature=0.75,
+                preferred_key_index=preferred_key_index,
             )
 
         data = json.loads(response_text.strip())
@@ -439,10 +444,13 @@ async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
             fallback = await _fallback_batch_from_bank(body.items)
             if fallback:
                 return {"success": True, "questions": fallback, "source": "bank_fallback"}
-            raise HTTPException(
-                status_code=504,
-                detail=f"AI phản hồi quá {_AI_TIMEOUT_SECONDS:.0f}s và không tìm được câu hỏi phù hợp "
-                        "trong Ngân hàng câu hỏi để thay thế.",
+            # Ngân hàng không có câu nào khớp — quay lại chờ AI sinh tiếp như cũ (xem lý do ở
+            # generate_questions/nhánh /generate phía trên), thay vì báo lỗi luôn.
+            response_text = await generate_content_with_retry(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                temperature=0.75,
+                preferred_key_index=preferred_key_index,
             )
 
         data = json.loads(response_text.strip())

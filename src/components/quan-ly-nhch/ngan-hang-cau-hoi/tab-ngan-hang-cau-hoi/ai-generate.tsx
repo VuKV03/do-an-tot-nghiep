@@ -9,12 +9,15 @@ import {
   subjectCategoryApi,
   competencyComponentApi,
   questionTypeApi,
+  cognitiveLevelApi,
   type QuestionTypeAPI,
+  type CognitiveLevelAPI,
 } from '../../../../services/danhMucApi.ts';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
+import { mapCognitiveLevelRecord } from '../../../../utils/cognitiveLevel';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -103,6 +106,10 @@ export default function AIGenerateQuestionModal({
 
   const [competencyOptions, setCompetencyOptions] = useState<{ value: string; label: string }[]>([]);
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
+  // ID thật của danh mục cognitive_levels (khác LEVEL_OPTIONS chỉ là slug/label tĩnh) — chỉ dùng để
+  // gửi kèm request AI, giúp backend bốc bù đúng mức độ từ Ngân hàng câu hỏi khi Gemini quá giờ
+  // (xem triggerAIQuestionGeneration và backend/ai_service/routes/generate.py::_fallback_from_bank).
+  const [cognitiveLevels, setCognitiveLevels] = useState<CognitiveLevelAPI[]>([]);
 
   const [aiGenerating, setAiGenerating] = useState(false);
   /** Danh sách câu hỏi AI vừa đề xuất — có thể sinh nhiều câu 1 lần (trường "Số lượng câu hỏi tạo") */
@@ -184,6 +191,13 @@ export default function AIGenerateQuestionModal({
     }
     loadQuestionTypes();
   }, [open, form]);
+
+  // Tải danh mục "Cấp độ tư duy" thật mỗi khi mở modal — chỉ để lấy ID gửi kèm request AI (xem
+  // khai báo state cognitiveLevels ở trên), không đổi options hiển thị (vẫn dùng LEVEL_OPTIONS).
+  useEffect(() => {
+    if (!open) return;
+    cognitiveLevelApi.list().then((res) => setCognitiveLevels(res.data || [])).catch(() => setCognitiveLevels([]));
+  }, [open]);
 
   useEffect(() => {
     async function loadCompetencyOptions() {
@@ -322,6 +336,12 @@ export default function AIGenerateQuestionModal({
       const questionType: QuestionType = selectedTypeRecord
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
+      const topicId = values.tieuMuc || values.chuDe || '';
+      // LEVEL_OPTIONS chỉ là slug/label tĩnh, không có ID thật — tra ngược qua danh mục
+      // cognitive_levels đã tải (cognitiveLevels) để lấy đúng ID gửi kèm cho backend.
+      const cognitiveLevelId = cognitiveLevels.find(
+        (cl) => mapCognitiveLevelRecord(cl) === values.level,
+      )?.id;
 
       const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
@@ -334,12 +354,47 @@ export default function AIGenerateQuestionModal({
           count: values.soLuong || 1,
           type: questionType,
           level: LEVEL_TO_API[values.level as CognitiveLevel],
+          // Chỉ dùng khi AI Service quá giờ (_AI_TIMEOUT_SECONDS) không phản hồi — bốc bù ĐÚNG chủ
+          // đề/mức độ/loại câu hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem
+          // backend/ai_service/routes/generate.py::_fallback_from_bank).
+          topicId,
+          cognitiveLevelId,
+          questionTypeId: values.type,
+          competencyComponentId: values.nangLuc,
         }),
       });
       const data = await res.json();
 
       if (!data.success || !data.questions?.length) {
         throw new Error(data.error || data.detail || 'AI không trả về câu hỏi nào.');
+      }
+
+      // AI Service quá giờ thì tự bốc bù từ Ngân hàng câu hỏi (xem _fallback_from_bank) — nhóm này
+      // không phải AI vừa sinh, phải hiện ĐÚNG field thật (id/code/trạng thái/người tạo) của bản ghi
+      // Ngân hàng, không gán id/code giả kiểu 'q-ai-...' như nhánh AI sinh thật bên dưới.
+      if (data.source === 'bank_fallback') {
+        const fallbackList: Question[] = data.questions.map((bankQ: any) => ({
+          id: bankQ.id,
+          code: bankQ.code,
+          text: bankQ.text,
+          type: bankQ.type,
+          level: bankQ.level,
+          status: bankQ.status,
+          subject: bankQ.subject,
+          grade: bankQ.grade,
+          topicId: bankQ.topicId || topicId,
+          topicName: bankQ.topicName || topicLabel,
+          subTopicName: bankQ.subTopicName || subTopicLabel,
+          options: bankQ.options,
+          correctAnswer: bankQ.correctAnswer,
+          statements: bankQ.statements,
+          nangLucId: values.nangLuc,
+          creator: bankQ.creator,
+          createdAt: bankQ.createdAt,
+        }));
+        setAiSuggestedQuestions(fallbackList);
+        toast.info(`AI phản hồi quá chậm — đã bốc bù ${fallbackList.length} câu từ Ngân hàng câu hỏi thay AI.`);
+        return;
       }
 
       const generatedList: Question[] = data.questions.map((rawAiQ: any, i: number) => {
