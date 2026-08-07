@@ -458,7 +458,6 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
   const handleExportExcel = () => {
     const rows = flattenChuDeTree(filteredTree);
     if (rows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `ChuDeCauHoi_${new Date().toISOString().slice(0, 10)}`;
@@ -749,7 +748,6 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
               return true;
             } catch (e: any) {
               if (e.message?.includes('Mã chủ đề đã tồn tại')) {
-                toast.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`);
                 return 'duplicate_code';
               }
               if (e.message?.includes('Failed to fetch')) {
@@ -786,7 +784,6 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
               return true;
             } catch (e: any) {
               if (e.message?.includes('Mã chủ đề đã tồn tại')) {
-                toast.warning(`Mã "${values.Ma}" đã tồn tại trong hệ thống. Vui lòng chọn mã khác!`);
                 return 'duplicate_code';
               }
               if (e.message?.includes('Failed to fetch')) {
@@ -833,9 +830,6 @@ export default function ChuDeCauHoi({ currentUser }: ChuDeCauHoiProps) {
                 // request cũ vẫn tốn round-trip + transaction DB riêng dù chạy nối tiếp ở FE.
                 const res = await topicsApi.bulkDelete(rootKeys.map(k => k.toString()));
                 if (res.blocked.length > 0) {
-                  toast.warning(
-                    `Đã xóa ${res.deletedCount} chủ đề. Bỏ qua ${res.blocked.length} chủ đề đang được tham chiếu (vd "${res.blocked[0].name}": ${res.blocked[0].reason}).`
-                  );
                 } else {
                   toast.success('Đã xóa các chủ đề được chọn!');
                 }

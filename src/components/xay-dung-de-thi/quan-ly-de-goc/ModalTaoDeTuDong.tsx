@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
+import { API_ORIGIN } from '../../../config/apiBase';
 import { useState, useEffect } from 'react';
 import { Modal, Button, Select, Input, Steps, Spin, Tooltip, Empty, Tag, Segmented, Radio, Switch } from 'antd';
 import { toast } from '../../../utils/toast';
@@ -216,7 +216,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       return;
     }
     setLoadingMatrices(true);
-    fetch(`${API_BASE_URL}/matrix-configs?page=1&pageSize=200`)
+    fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200`)
       .then(r => r.json())
       .then(json => {
         if (json.success) {
@@ -298,7 +298,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           }))
       );
       if (cells.length === 0) {
-        toast.warning('Ma trận đã chọn không có ô nào yêu cầu số câu.');
         setGenResults([]); setGenQuestions([]);
         return;
       }
@@ -311,7 +310,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       const ids = new Set(res.data.flatMap(r => r.questionIds));
       if (ids.size === 0) {
         setGenQuestions([]);
-        toast.warning('Không tìm được câu hỏi nào phù hợp trong Ngân hàng câu hỏi.');
         return;
       }
       setGenQuestions(await mapBankQuestions(ids));
@@ -385,7 +383,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     for (const group of callGroups) {
       if (aborted) break;
       try {
-        const res = await fetch(`${API_BASE_URL}/generate-questions-batch`, {
+        const res = await fetch(`${API_ORIGIN}/api/generate-questions-batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -396,6 +394,12 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
               grade: atom.grade,
               level: levelToApiString(atom.levelSlug),
               count: atom.soCau,
+              // Chỉ dùng khi AI Service quá 10s không phản hồi — bốc bù ĐÚNG chủ đề/mức độ/loại câu
+              // hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem generate.py::_fallback_from_bank).
+              topicId: atom.donViId,
+              cognitiveLevelId: atom.mucDoId,
+              questionTypeId: atom.loaiCauHoiId,
+              competencyComponentId: atom.nangLucId,
             })),
           }),
         });
@@ -405,6 +409,29 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           aborted = true;
           break;
         }
+        // AI Service quá _AI_TIMEOUT_SECONDS (10s) không phản hồi thì tự bốc bù từ Ngân hàng câu hỏi
+        // (xem generate.py::_fallback_from_bank) — nhóm này không phải AI vừa sinh, phải hiện ĐÚNG
+        // như màn "Theo ngân hàng câu hỏi" (id/code/trạng thái/người tạo thật), không gán id/code giả
+        // kiểu 'AI-N' như buildQuestionFromAi bên dưới.
+        if (data.source === 'bank_fallback') {
+          (data.questions as any[]).forEach((bankQ) => {
+            const atom = group[bankQ.groupIndex];
+            if (!atom) return;
+            const q: Question = {
+              id: bankQ.id, code: bankQ.code, text: bankQ.text, type: bankQ.type, level: bankQ.level,
+              status: bankQ.status, subject: bankQ.subject, grade: bankQ.grade,
+              topicId: bankQ.topicId || atom.donViId, topicName: bankQ.topicName || atom.donViKienThuc || 'Chưa phân loại',
+              subTopicName: bankQ.subTopicName || '',
+              options: bankQ.options, correctAnswer: bankQ.correctAnswer, statements: bankQ.statements,
+              creator: bankQ.creator, createdAt: bankQ.createdAt,
+              nangLucId: atom.nangLucId || undefined,
+            };
+            generated.push(q);
+            foundIdsByKey.get(cellWorkKey(atom))!.push(q.id);
+          });
+          continue;
+        }
+
         (data.questions as any[]).forEach((rawAiQ) => {
           const atom = group[rawAiQ.groupIndex];
           if (!atom) return; // groupIndex lạ (AI trả sai) — bỏ qua thay vì gán nhầm cell.
@@ -551,7 +578,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         q.id !== current.id && !usedIds.has(q.id) && q.type === current.type && q.level === current.level
       );
       if (candidates.length === 0) {
-        toast.warning('Không tìm thấy câu hỏi khác cùng loại/mức độ còn trống trong Ngân hàng câu hỏi.');
         return;
       }
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
@@ -575,7 +601,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setRegeneratingIndex(index);
     try {
-      const res = await fetch(`${API_BASE_URL}/generate-questions`, {
+      const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -589,7 +615,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       });
       const data = await res.json();
       if (!data.success || !data.questions?.length) {
-        toast.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
         return;
       }
       const aiQ = convertAiQuestionMath(data.questions[0]);
@@ -669,7 +694,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/exams`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -706,7 +731,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setSaving(true);
     try {
-      const examRes = await fetch(`${API_BASE_URL}/exams`, {
+      const examRes = await fetch(`${API_ORIGIN}/api/exams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

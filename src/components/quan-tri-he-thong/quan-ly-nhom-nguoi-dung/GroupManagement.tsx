@@ -239,7 +239,6 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
 
   const handleBulkDelete = () => {
     if (selectedGroupIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một nhóm để xóa.');
       return;
     }
 

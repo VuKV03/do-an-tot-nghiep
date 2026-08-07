@@ -369,7 +369,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const handleBulkDelete = () => {
     if (selectedUserIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một tài khoản để xóa.');
       return;
     }
 
@@ -437,7 +436,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       if (res.data.success) {
         await fetchUsers(); // Refresh list
 
-        toast.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
 
         await logSecurityAction(
           `${statusText} tài khoản`,
@@ -519,7 +517,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const handleExportExcel = () => {
     if (filteredUsers.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `NguoiDung_${new Date().toISOString().slice(0, 10)}`;

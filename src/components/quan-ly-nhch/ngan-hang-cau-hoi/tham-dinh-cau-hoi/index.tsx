@@ -129,7 +129,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) {  return; }
     if (!question) return;
     setSubmitting(true);
     setTimeout(() => {
@@ -248,7 +248,7 @@ function BulkReviewModal({ visible, count, onClose, onConfirm }: BulkReviewModal
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) {  return; }
     setSubmitting(true);
     setTimeout(() => {
       onConfirm(verdict, comment);
@@ -506,7 +506,6 @@ export default function ThamDinhCauHoiTab({
 
   const handleBulkReview = () => {
     if (selectedRowKeys.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một câu hỏi để thẩm định!');
       return;
     }
     setIsBulkReviewOpen(true);

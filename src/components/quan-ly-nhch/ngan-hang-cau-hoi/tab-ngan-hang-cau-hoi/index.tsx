@@ -578,9 +578,6 @@ export default function QuestionBankModule({
           selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
         }
         if (res.blocked.length > 0) {
-          toast.warning(
-            `Đã xóa ${res.deletedCount} câu hỏi. Bỏ qua ${res.blocked.length} câu đang thuộc đề thi (vd "${res.blocked[0].examName}") — hãy gỡ khỏi đề trước khi xóa.`
-          );
         } else {
           toast.success(`Đã xóa ${res.deletedCount} câu hỏi khỏi ngân hàng.`);
         }
@@ -810,7 +807,6 @@ export default function QuestionBankModule({
   // Xuất Excel đúng bảng "Kết quả tìm kiếm" đang hiển thị (đã áp dụng bộ lọc tìm kiếm hiện tại).
   const handleExportExcel = () => {
     if (filteredQuestions.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `NganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
@@ -1084,10 +1080,6 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (!selectedTopicKey) {
-                        toast.warning({
-                          title: 'Thông báo',
-                          content: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
-                        });
                         return;
                       }
                       setActiveModalType('single');
@@ -1111,7 +1103,6 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        toast.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
                         return;
                       }
                       setPendingSendReviewQuestion(null);
@@ -1128,7 +1119,6 @@ export default function QuestionBankModule({
                     className="border border-red-600 text-red-650 bg-white rounded hover:border-red-700 hover:text-red-700 hover:bg-red-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        toast.warning('Vui lòng chọn các câu hỏi cần xóa!');
                         return;
                       }
                       setPendingDeleteQuestion(

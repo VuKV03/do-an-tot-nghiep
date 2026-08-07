@@ -253,7 +253,6 @@ export default function DanhMucCapDoTuDuy() {
 
   const handleExportExcel = () => {
     if (filteredData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `CapDoTuDuy_${new Date().toISOString().slice(0, 10)}`;
@@ -388,7 +387,6 @@ export default function DanhMucCapDoTuDuy() {
             } else if (succeeded.length === 0) {
               toast.error(`Không thể xóa ${failed.length} mục: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
             } else {
-              toast.warning(`Đã xóa ${succeeded.length}/${keys.length} mục. ${failed.length} mục không thể xóa: ${failed.map(({ r }) => (r.reason as Error)?.message || 'Lỗi không xác định').join('; ')}`);
             }
             setSelectedRowKeys((prev) => prev.filter((k) => !succeeded.includes(String(k))));
           } else if (selectedRecord) {

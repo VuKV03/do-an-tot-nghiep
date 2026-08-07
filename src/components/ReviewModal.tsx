@@ -35,7 +35,6 @@ export default function ReviewModal({ visible, onClose, question, onApprove, onR
 
   const handleRejectAction = async () => {
     if (!feedback.trim()) {
-      toast.warning('Vui lòng nhập nhận xét / đánh giá lý do từ chối để phản hồi!');
       return;
     }
     setSubmitting('reject');

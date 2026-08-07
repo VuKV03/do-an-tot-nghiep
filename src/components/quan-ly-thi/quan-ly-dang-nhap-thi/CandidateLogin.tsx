@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert, message } from 'antd';
 import { UserOutlined, LockOutlined, ArrowRightOutlined, GlobalOutlined } from '@ant-design/icons';
@@ -16,7 +16,7 @@ export default function CandidateLogin({ onLoginSuccess }: CandidateLoginProps) 
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/exam/portal/auth/login`, {
+      const response = await fetch(`${API_ORIGIN}/api/exam/portal/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

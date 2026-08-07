@@ -127,7 +127,6 @@ const fetchSubjectMatrixConfig = async (
   const typeMap = new Map<string, QuestionTypeAPI>((typesRes.data || []).map(t => [t.id, t]));
 
   if (!subjectConfig) {
-    toast.warning('Môn học chưa được cấu hình (Cấu hình môn học) — vui lòng cấu hình trước khi tạo ma trận.');
     cd.ds_loai_cau_hoi = [];
     return { cd, chuDe, subjectConfig: null };
   }
@@ -548,12 +547,12 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
   // --- Save ---
   const handleSave = async () => {
     setAttemptedSave(true);
-    if (!monHocId) { toast.warning('Vui lòng chọn môn học.'); return; }
-    if (!maMatran.trim()) { toast.warning('Vui lòng nhập mã ma trận.'); return; }
-    if (maMatran.length > MA_MAX_LENGTH) { toast.warning(`Mã ma trận không được vượt quá ${MA_MAX_LENGTH} ký tự.`); return; }
-    if (!tenMatran.trim()) { toast.warning('Vui lòng nhập tên ma trận.'); return; }
-    if (tenMatran.length > TEN_MAX_LENGTH) { toast.warning(`Tên ma trận không được vượt quá ${TEN_MAX_LENGTH} ký tự.`); return; }
-    if (obj.length === 0) { toast.warning('Vui lòng chọn ít nhất 1 tiểu mục chủ đề.'); return; }
+    if (!monHocId) {  return; }
+    if (!maMatran.trim()) {  return; }
+    if (maMatran.length > MA_MAX_LENGTH) {  return; }
+    if (!tenMatran.trim()) {  return; }
+    if (tenMatran.length > TEN_MAX_LENGTH) {  return; }
+    if (obj.length === 0) {  return; }
     setSaving(true);
     let res;
     if (editingId) {

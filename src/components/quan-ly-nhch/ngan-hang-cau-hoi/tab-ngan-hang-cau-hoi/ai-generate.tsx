@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../../config/apiBase';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Form, Select, Button, Tag, Spin, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
 import { toast } from '../../../../utils/toast';
@@ -14,7 +15,6 @@ import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
-import { API_BASE_URL } from '../../../../config/apiConfig';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -323,7 +323,7 @@ export default function AIGenerateQuestionModal({
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
 
-      const res = await fetch(`${API_BASE_URL}/generate-questions`, {
+      const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -524,7 +524,6 @@ export default function AIGenerateQuestionModal({
       toast.success(`Đã duyệt và lưu tất cả ${succeededIds.length} câu hỏi vào hồ sơ chờ thẩm định.`);
       handleClose();
     } else {
-      toast.warning(`Đã lưu ${succeededIds.length} câu hỏi, còn ${failCount} câu bị lỗi — vui lòng thử lại riêng câu đó.`);
     }
   };
 

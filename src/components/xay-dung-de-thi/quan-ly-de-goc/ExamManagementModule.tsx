@@ -1,4 +1,4 @@
-import { API_BASE_URL, BASE_URL } from '../../../config/apiConfig';
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Input,
@@ -137,8 +137,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     setLoading(true);
     try {
       const [resExams, resPkgs, resSubjects] = await Promise.all([
-        fetch(`${API_BASE_URL}/exams`).then(r => r.json()),
-        fetch(`${API_BASE_URL}/exams/packages`).then(r => r.json()),
+        fetch(`${API_ORIGIN}/api/exams`).then(r => r.json()),
+        fetch(`${API_ORIGIN}/api/exams/packages`).then(r => r.json()),
         subjectCategoryApi.list()
       ]);
 
@@ -284,7 +284,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           // nhưng thực chất không xóa được đề nào cả.
           const results = await Promise.all(selectedExamIds.map(async (id) => {
             try {
-              const res = await fetch(`${API_BASE_URL}/exams/${id}`, { method: 'DELETE' });
+              const res = await fetch(`${API_ORIGIN}/api/exams/${id}`, { method: 'DELETE' });
               const json = await res.json().catch(() => null);
               return !!json?.success;
             } catch {
@@ -292,9 +292,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
             }
           }));
           const successCount = results.filter(Boolean).length;
-          const failCount = results.length - successCount;
           if (successCount > 0) toast.success(`Đã xóa thành công ${successCount} đề thi.`);
-          if (failCount > 0) toast.warning(`${failCount} đề thi xóa thất bại — vui lòng thử lại.`);
           setSelectedExamIds([]);
           fetchData();
         } catch {
@@ -318,7 +316,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/exams/${id}`, { method: 'DELETE' });
+          const res = await fetch(`${API_ORIGIN}/api/exams/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -334,7 +332,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleTogglePkgStatus = async (pkg: any) => {
     const nextStatus = pkg.status === 'active' ? 'inactive' : 'active';
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/packages/${pkg.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
@@ -358,7 +356,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/exams/packages/${id}`, { method: 'DELETE' });
+          const res = await fetch(`${API_ORIGIN}/api/exams/packages/${id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.success) {
             toast.success(json.message);
@@ -450,7 +448,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleExportExcel = () => {
     const rows = activeTab === 'exam_roots' ? filteredExamRoots : filteredExamReview;
     if (rows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `DanhSachDeThi_${activeTab === 'exam_roots' ? 'DeGoc' : 'ThamDinh'}_${new Date().toISOString().slice(0, 10)}`;
@@ -468,7 +465,6 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       return e && canEditExam(e.status);
     });
     if (targets.length === 0) {
-      toast.warning('Chỉ đề ở trạng thái "Tạo mới" hoặc "Từ chối" mới gửi thẩm định được.');
       return;
     }
     try {
@@ -486,9 +482,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         }
       }));
       const successCount = results.filter(Boolean).length;
-      const failCount = results.length - successCount;
       if (successCount > 0) toast.success(`Đã gửi thẩm định ${successCount} đề thi.`);
-      if (failCount > 0) toast.warning(`${failCount} đề thi gửi thẩm định thất bại — vui lòng thử lại.`);
     } catch {
       toast.error('Lỗi kết nối khi gửi thẩm định.');
     }
@@ -501,7 +495,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const handleReviewDecision = async (exam: any, status: 'approved' | 'rejected') => {
     setReviewActioning({ id: exam.id, action: status });
     try {
-      const res = await fetch(`${API_BASE_URL}/exams/${exam.id}`, {
+      const res = await fetch(`${API_ORIGIN}/api/exams/${exam.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -543,7 +537,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     try {
       const results = await Promise.all(selectedExamIds.map(async (id) => {
         try {
-          const res = await fetch(`${API_BASE_URL}/exams/${id}`, {
+          const res = await fetch(`${API_ORIGIN}/api/exams/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status }),
@@ -555,10 +549,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         }
       }));
       const successCount = results.filter(Boolean).length;
-      const failCount = results.length - successCount;
       const verb = status === 'approved' ? 'duyệt' : 'từ chối';
       if (successCount > 0) toast.success(`Đã ${verb} ${successCount} đề thi.`);
-      if (failCount > 0) toast.warning(`${failCount} đề thi ${verb} thất bại — vui lòng thử lại.`);
       setSelectedExamIds([]);
       fetchData();
     } finally {

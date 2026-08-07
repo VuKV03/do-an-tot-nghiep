@@ -444,7 +444,6 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
   const handleExportExcel = () => {
     if (tableData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `ThongKeNganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
