@@ -1080,6 +1080,7 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (!selectedTopicKey) {
+                        toast.error('Vui lòng chọn chủ đề/tiểu mục ở sidebar bên trái trước khi thêm mới câu hỏi.');
                         return;
                       }
                       setActiveModalType('single');
