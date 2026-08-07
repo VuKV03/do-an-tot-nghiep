@@ -103,18 +103,13 @@ export default function QuestionBankModule({
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
-  // Ô tìm kiếm chủ đề ở sidebar — chỉ lọc/thu hẹp Cây chủ đề hiện sẵn bên dưới, KHÔNG xổ ra dropdown
-  // danh sách riêng của nó (khác Select showSearch trước đây).
+  // Giá trị lọc chủ đề ở sidebar — chỉ nhận cập nhật (đã debounce 300ms) từ TopicSearchInput, KHÔNG
+  // phải state gõ trực tiếp, nên state này chỉ đổi tối đa 1 lần/300ms dù gõ nhanh, tránh re-render cả
+  // component to (có bảng câu hỏi) này trên mỗi ký tự gõ (xem TopicSearchInput ở trên).
   const [topicSearch, setTopicSearch] = useState('');
-  // Debounce riêng giá trị dùng để LỌC (khác giá trị hiện trong input) — lọc cây đệ quy trên toàn bộ
-  // topicTreeData rồi re-render lại cả Tree là việc tốn, làm mỗi lần gõ 1 ký tự lại chạy ngay khiến ô
-  // input có cảm giác giật/delay nặng. Input vẫn cập nhật ngay (mượt), chỉ việc LỌC bị trì hoãn 300ms
-  // sau khi ngừng gõ.
-  const [debouncedTopicSearch, setDebouncedTopicSearch] = useState('');
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedTopicSearch(topicSearch), 300);
-    return () => clearTimeout(timer);
-  }, [topicSearch]);
+  // Đổi giá trị này để buộc TopicSearchInput remount (xoá trắng ô input) khi reset filter/đổi môn học
+  // — cách gọn hơn so với tự thêm imperative ref để "clear" input con.
+  const [topicSearchResetKey, setTopicSearchResetKey] = useState(0);
 
   // API data for subject/grade dropdowns and topic tree
   const [apiSubjects, setApiSubjects] = useState<{ value: string; label: string }[]>([]);
@@ -412,7 +407,7 @@ export default function QuestionBankModule({
   // dropdown danh sách riêng như Select showSearch trước đây. Giữ cả node khớp tên lẫn tổ tiên/con
   // của nó để không mất ngữ cảnh cây khi đang lọc.
   const filteredTopicTreeData = useMemo(() => {
-    const term = debouncedTopicSearch.trim().toLowerCase();
+    const term = topicSearch.trim().toLowerCase();
     if (!term) return topicTreeData;
     const filterNodes = (nodes: any[]): any[] =>
       nodes.reduce((acc: any[], n: any) => {
@@ -426,7 +421,7 @@ export default function QuestionBankModule({
         return acc;
       }, []);
     return filterNodes(topicTreeData);
-  }, [topicTreeData, debouncedTopicSearch]);
+  }, [topicTreeData, topicSearch]);
 
   // Cây chủ đề luôn hiện đầy đủ (giữ hành vi defaultExpandAll cũ) — nhưng phải chủ động tính lại mỗi
   // khi topicTreeData đổi (đổi môn học/khối lớp), vì defaultExpandAll của antd Tree chỉ tự áp dụng
@@ -529,7 +524,7 @@ export default function QuestionBankModule({
     });
     setSelectedTopicKey(null);
     setTopicSearch('');
-    setDebouncedTopicSearch(''); // reset lọc ngay, không chờ debounce 300ms
+    setTopicSearchResetKey((k) => k + 1); // remount TopicSearchInput để xoá trắng ô input ngay
     toast.info('Đã làm mới bộ lọc.');
   };
 
@@ -933,7 +928,7 @@ export default function QuestionBankModule({
                     setSelectedSubject(val);
                     setSelectedTopicKey(null); // reset topic key
                     setTopicSearch(''); // reset ô lọc chủ đề — cây chủ đề đổi hẳn theo môn học khác
-                    setDebouncedTopicSearch('');
+                    setTopicSearchResetKey((k) => k + 1); // xoá trắng ô input ngay
                   }}
                   options={subjectDropdownOptions}
                   className="w-full text-xs font-bold"
@@ -941,16 +936,8 @@ export default function QuestionBankModule({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tìm kiếm</label>
-                <Input
-                  id="select-topic-search-filter"
-                  allowClear
-                  prefix={<SearchOutlined className="text-slate-400" />}
-                  value={topicSearch}
-                  onChange={(e) => setTopicSearch(e.target.value)}
-                  placeholder="Nhập tên chủ đề để lọc cây bên dưới..."
-                  className="w-full text-xs font-bold"
-                />
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chọn chủ đề</label>
+                <TopicSearchInput key={topicSearchResetKey} onSearch={setTopicSearch} />
               </div>
             </div>
 
@@ -974,7 +961,7 @@ export default function QuestionBankModule({
                   <div className="text-center py-8 text-slate-400 text-xs font-medium">
                     {topicsLoading
                       ? 'Đang tải chủ đề...'
-                      : debouncedTopicSearch.trim()
+                      : topicSearch.trim()
                         ? 'Không tìm thấy chủ đề phù hợp'
                         : 'Chưa có chủ đề đã thẩm định cho môn học này'}
                   </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Image } from 'antd';
 import { toast } from '../utils/toast';
 import 'katex/dist/katex.min.css';
@@ -466,12 +466,14 @@ export function useRichTextCore({ value, onChange }: { value?: string; onChange?
 
       const template = document.createElement('template');
       template.innerHTML = buildFormulaHtml(latex);
-      const formulaNode = template.content.firstElementChild;
-      if (!formulaNode) return;
+      if (!template.content.firstElementChild) return;
       const spaceNode = document.createTextNode(' ');
 
       const frag = document.createDocumentFragment();
-      frag.appendChild(formulaNode);
+      // Lấy TOÀN BỘ node trong template (gồm cả 2 zero-width space "mỏ neo" trước/sau span công
+      // thức do buildFormulaHtml tự bọc) — trước đây chỉ lấy firstElementChild (đúng cái span) nên
+      // vô tình bỏ mất 2 mỏ neo này, khiến gõ tay $...$ vẫn bị lỗi con trỏ dù đã sửa buildFormulaHtml.
+      frag.appendChild(template.content);
       frag.appendChild(spaceNode);
       replaceRange.insertNode(frag);
 
@@ -538,6 +540,25 @@ const btnClass = 'px-1.5 py-0.5 text-[12px] font-bold text-slate-600 hover:bg-sl
 /** Thanh công cụ định dạng — dùng cho cả `RichTextEditor` (1 ô riêng) và `RichTextEditorGroup`
  * (nhiều ô dùng chung 1 thanh, thao tác lên ô đang được focus — xem RichTextEditorGroup.tsx). */
 export function RichTextToolbarUI({ core }: { core: RichTextCore }) {
+  // Ô nhập LaTeX ở popup công thức là 1 textarea BÌNH THƯỜNG (controlled input), nhưng khi dùng
+  // trong RichTextEditorGroup (bảng đáp án — nhiều ô dùng chung 1 thanh công cụ, xem
+  // RichTextEditorGroup.tsx), mỗi lần gõ/xoá còn kéo theo cả 1 lượt cập nhật Context (đẩy `core`
+  // mới nhất lên để thanh công cụ luôn "thấy" đúng state ô đang active) — thêm 1 lượt re-render phụ
+  // ngoài lượt do chính state formulaLatex đổi. Qua lượt re-render phụ đó, trình duyệt (đặc biệt
+  // Chromium) có thể đưa selection về CUỐI chuỗi khi textarea.value bị gán lại dù giá trị giống
+  // nhau — khiến con trỏ "nhảy về cuối" mỗi lần xoá 1 ký tự. Chủ động lưu lại vị trí con trỏ ngay
+  // lúc gõ (trình duyệt luôn tính đúng ở đúng thời điểm này) rồi CƯỠNG BỨC đặt lại sau mỗi lần
+  // formulaLatex đổi, không phụ thuộc trình duyệt tự giữ đúng hay không.
+  const formulaTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const formulaSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = formulaTextareaRef.current;
+    const sel = formulaSelectionRef.current;
+    if (el && sel && document.activeElement === el) {
+      el.setSelectionRange(sel.start, sel.end);
+    }
+  }, [core.formulaLatex]);
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b border-slate-200 bg-slate-50 rounded-t-lg">
@@ -655,12 +676,16 @@ export function RichTextToolbarUI({ core }: { core: RichTextCore }) {
                   {core.editingFormulaElRef.current ? 'Sửa công thức LaTeX' : 'Nhập công thức LaTeX'}
                 </div>
                 <textarea
+                  ref={formulaTextareaRef}
                   autoFocus
                   rows={3}
                   className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-[13px] font-mono outline-none focus:border-blue-500"
                   placeholder="Ví dụ: \frac{a}{b} + \sqrt{x}"
                   value={core.formulaLatex}
-                  onChange={(e) => core.setFormulaLatex(e.target.value)}
+                  onChange={(e) => {
+                    formulaSelectionRef.current = { start: e.target.selectionStart, end: e.target.selectionEnd };
+                    core.setFormulaLatex(e.target.value);
+                  }}
                 />
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {FORMULA_TEMPLATES.map((tpl) => (
