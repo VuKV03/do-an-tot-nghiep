@@ -26,6 +26,6 @@ git push origin develop
 
 git checkout chien
 
-gititigtsdasdsadwerwrwerwer
+gititigtsdasdsadwerwrwerwersasdasd
 
  
