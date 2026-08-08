@@ -305,7 +305,17 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       const json = await res.json();
       if (json.success) {
         toast.success('Đã gửi ma trận đề đi thẩm định thành công!');
-        setActiveTab('evaluation');
+        // Tài khoản không có quyền xem tab "Thẩm định ma trận đề" (vd giáo viên) không có nút tab để
+        // quay lại "Ma trận đề" — nếu vẫn ép activeTab sang 'evaluation' (nội dung tab không có guard
+        // theo quyền, chỉ nút tab bị ẩn), họ sẽ bị kẹt ở màn thẩm định, tự động lọc theo trạng thái
+        // mặc định của tab đó ("Chờ thẩm định") thay vì giữ đúng bộ lọc đang xem ở tab "Ma trận đề".
+        // Chỉ chuyển tab khi tài khoản thực sự có quyền xem tab thẩm định; ngược lại giữ nguyên
+        // tab/bộ lọc hiện tại, chỉ tải lại danh sách để cập nhật trạng thái vừa gửi.
+        if (checkUserPermission(currentUser, 'tab-tham-dinh-ma-tran-de')) {
+          setActiveTab('evaluation');
+        } else {
+          fetchMatrixList(currentPage, pageSize);
+        }
       } else {
         toast.error(json.error || 'Lỗi khi gửi thẩm định.');
       }
@@ -652,7 +662,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table — bọc overflow-x-auto để bảng có scroll ngang riêng thay vì tràn ra ngoài
+                đẩy lệch layout khi màn hình nhỏ hơn minWidth của bảng (các cột co giãn được). */}
+            <div className="overflow-x-auto">
             <table style={{ minWidth: matrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
               {matrixTableColGroup}
               <thead>
@@ -776,6 +788,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
@@ -952,7 +965,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table — bọc overflow-x-auto (xem ghi chú ở bảng "Ma trận đề" phía trên) */}
+            <div className="overflow-x-auto">
             <table style={{ minWidth: evalMatrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
               {evalMatrixTableColGroup}
               <thead>
@@ -1042,6 +1056,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
