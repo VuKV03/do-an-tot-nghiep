@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, ExportOutlined } from '@ant-design/icons';
+import { ExportOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 
@@ -228,23 +228,22 @@ export default function QuestionHistoryModal({
       )
     },
     {
-      title: 'Thao tác',
-      key: 'action-col',
-      align: 'center',
-      width: 80,
-      render: (_: any, record: HistoryRecord) => (
-        <Tooltip title="Xem chi tiết">
-          <Button
-            type="text"
-            icon={<EyeOutlined className="text-blue-600" />}
-            className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 mx-auto"
-            onClick={() =>
-              toast.info(`Xem chi tiết lịch sử #${record.stt} (tính năng đang phát triển)`)
-            }
-            style={{ cursor: 'pointer' }}
-          />
-        </Tooltip>
-      )
+      title: 'Nội dung thẩm định/Từ chối',
+      key: 'reviewComment',
+      ellipsis: true,
+      // Chỉ 2 hành động Đồng ý/Từ chối mới có "Nhận xét/Ghi chú" thật của người thẩm định (nhập ở
+      // popup xác nhận thẩm định — xem tham-dinh-cau-hoi/index.tsx) — backend lưu chung vào cột
+      // `note` cho 2 hành động này (body.comment or default label, xem bank_questions.py::approve/
+      // reject), không có cột riêng như bên lịch sử chủ đề (topics có cột `comment` tách biệt).
+      render: (_: any, record: HistoryRecord) => {
+        const isReview = record.action === 'Đồng ý' || record.action === 'Từ chối';
+        if (!isReview) return <span className="text-slate-300 text-xs">—</span>;
+        return (
+          <Tooltip title={record.description}>
+            <span className="text-slate-700 text-xs">{record.description || '—'}</span>
+          </Tooltip>
+        );
+      }
     }
   ];
 
