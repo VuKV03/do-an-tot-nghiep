@@ -34,6 +34,7 @@ import { rawMenuItems } from './config/menuConfig';
 import AppSidebar from './components/layout/AppSidebar';
 import AppHeader from './components/layout/AppHeader';
 import { ToastContainer } from './utils/toast';
+import { API_ORIGIN } from './config/apiBase';
 
 const { Header, Sider, Content } = Layout;
 
@@ -63,6 +64,31 @@ export default function App() {
     return null;
   });
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
+
+  // Sync latest user profile on page reload (F5) so assignments like subjects update without logout
+  useEffect(() => {
+    const fetchLatestUserInfo = async () => {
+      const cachedUser = localStorage.getItem('user_info');
+      const token = localStorage.getItem('auth_token');
+      if (cachedUser && token) {
+        try {
+          const userObj = JSON.parse(cachedUser);
+          const res = await fetch(`${API_ORIGIN}/api/auth/users`);
+          const data = await res.json();
+          if (data.success && data.data) {
+            const latestUser = data.data.find((u: any) => u.id === userObj.id);
+            if (latestUser) {
+              setCurrentUser(latestUser);
+              localStorage.setItem('user_info', JSON.stringify(latestUser));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to sync latest user info on reload', e);
+        }
+      }
+    };
+    fetchLatestUserInfo();
+  }, []);
 
   // ── Set document title based on port ──
   useEffect(() => {
