@@ -104,11 +104,15 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
   const subjectData = Object.values(subjectMap);
 
   // Compute cognitive level data for the pie chart
+  // Cấp độ tư duy là thang có THỨ TỰ (Nhận biết < Thông hiểu < Vận dụng < Vận dụng cao — độ khó
+  // tăng dần), không phải 4 phạm trù độc lập — nên dùng 1 dải màu tăng dần (sequential ramp, cùng
+  // tông xanh dương thương hiệu #002147/#1d4ed8) thay vì 4 màu rời rạc không liên quan. Nhạt = dễ,
+  // đậm = khó, người xem đọc được ngay ý nghĩa thứ bậc chỉ qua sắc độ.
   const levelCounts = {
-    'nhan_biet': { name: 'Nhận biết', value: 0, color: '#f97316' },
-    'thong_hieu': { name: 'Thông hiểu', value: 0, color: '#2563eb' },
-    'van_dung': { name: 'Vận dụng', value: 0, color: '#7e3af2' },
-    'van_dung_cao': { name: 'Vận dụng cao', value: 0, color: '#ef4444' },
+    'nhan_biet': { name: 'Nhận biết', value: 0, color: '#93c5fd' },
+    'thong_hieu': { name: 'Thông hiểu', value: 0, color: '#3b82f6' },
+    'van_dung': { name: 'Vận dụng', value: 0, color: '#1d4ed8' },
+    'van_dung_cao': { name: 'Vận dụng cao', value: 0, color: '#1e3a8a' },
   };
   questions.forEach(q => {
     if (levelCounts[q.level as keyof typeof levelCounts]) {
@@ -181,29 +185,32 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
           </div>
         </div>
 
-        {/* Card 2: Câu hỏi đã duyệt */}
+        {/* Card 2: Câu hỏi đã duyệt — dùng lục/emerald (thành công) xuyên suốt trang: đây là màu
+            DUY NHẤT mang nghĩa "đã thẩm định/đạt", khớp với cột "Đã duyệt" ở biểu đồ cột bên dưới. */}
         <div
           id="metric-card-approved-questions"
           className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('question-bank')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-violet-600 transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-600 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
               <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Câu hỏi đã duyệt</span>
               <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{questions.filter(q => q.status === 'approved').length.toLocaleString()}</span>
             </div>
-            <div className="w-9 h-9 bg-violet-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-violet-600 transition-all group-hover:bg-violet-600 group-hover:text-white shadow-sm border border-violet-500/20">
+            <div className="w-9 h-9 bg-emerald-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-emerald-600 transition-all group-hover:bg-emerald-600 group-hover:text-white shadow-sm border border-emerald-500/20">
               <AuditOutlined />
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-violet-600 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
             <span>Chất lượng đạt chuẩn</span>
           </div>
         </div>
 
-        {/* Card 3: Cấu hình Ma trận */}
+        {/* Card 3: Cấu hình Ma trận — cùng họ xanh dương thương hiệu (#002147/#1d4ed8) với Card 1 &
+            4: cả 3 đều là số liệu TỔNG/trung tính, không phải trạng thái duyệt — sky là sắc nhạt hơn
+            trong cùng họ blue, không lẫn với lục (đã duyệt)/hổ phách (chờ thẩm định). */}
         <div
           id="metric-card-total-matrices"
           className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
@@ -225,24 +232,26 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
           </div>
         </div>
 
-        {/* Card 4: Tổng số đề đã tạo */}
+        {/* Card 4: Tổng số đề đã tạo — cũng là số liệu tổng/trung tính, nên đổi từ lục (dễ hiểu
+            nhầm là "đã duyệt", trùng nghĩa Card 2) sang chàm/indigo — vẫn họ xanh dương thương hiệu,
+            khác sắc rõ với Card 1 (navy đậm) và Card 3 (sky nhạt) để phân biệt 3 ô tổng với nhau. */}
         <div
           id="metric-card-total-exams"
           className="bg-white/70 backdrop-blur-xl border border-white/80 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-white/80 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('quan-ly-de-thi-goi-de')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
               <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider block">Tổng số đề đã tạo</span>
               <span className="text-xl font-black text-slate-900 tracking-tight block mt-0.5">{totalExamsCount.toLocaleString()} <span className="text-xs font-bold text-slate-500">Đề</span></span>
             </div>
-            <div className="w-9 h-9 bg-emerald-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-emerald-600 transition-all group-hover:bg-emerald-500 group-hover:text-white shadow-sm border border-emerald-500/20">
+            <div className="w-9 h-9 bg-indigo-500/10 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-indigo-600 transition-all group-hover:bg-indigo-600 group-hover:text-white shadow-sm border border-indigo-500/20">
               <GroupOutlined />
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-indigo-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
             <span>Đã đóng gói đề thi</span>
           </div>
         </div>
@@ -268,24 +277,28 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
           </div>
         </div>
 
-        {/* Card 6: Chờ thẩm định (Ma trận) */}
+        {/* Card 6: Chờ thẩm định (Ma trận) — cùng nghĩa "chờ duyệt" như Card 5 nên PHẢI cùng họ màu
+            hổ phách/amber (trước đây dùng đỏ hồng/rose — vốn mang nghĩa "lỗi/từ chối", khiến người
+            xem hiểu nhầm ma trận đang bị từ chối thay vì đang chờ xử lý). Đổi sang orange — vẫn
+            trong dải ấm/cảnh báo như amber, chỉ đậm/lệch tông hơn để phân biệt "Câu hỏi" và "Ma
+            trận" mà không phá vỡ ý nghĩa "đang chờ" chung của cả 2 thẻ. */}
         <div
           id="metric-card-pending-matrices"
-          className="bg-rose-500/10 backdrop-blur-xl border border-rose-300/40 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-rose-500/15 transition-all duration-300 relative overflow-hidden group cursor-pointer"
+          className="bg-orange-500/10 backdrop-blur-xl border border-orange-300/40 rounded-xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:bg-orange-500/15 transition-all duration-300 relative overflow-hidden group cursor-pointer"
           onClick={() => onNavigate('matrix-config', 'evaluation')}
         >
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 transition-all duration-300 group-hover:w-2" />
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 transition-all duration-300 group-hover:w-2" />
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-rose-900/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Ma trận)</span>
-              <span className="text-xl font-black text-rose-950 tracking-tight block mt-0.5">{pendingMatrixFormatted}</span>
+              <span className="text-orange-900/80 font-bold uppercase text-[9px] tracking-wider block">Chờ thẩm định (Ma trận)</span>
+              <span className="text-xl font-black text-orange-950 tracking-tight block mt-0.5">{pendingMatrixFormatted}</span>
             </div>
-            <div className="w-9 h-9 bg-rose-500/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-rose-600 transition-all group-hover:bg-rose-500 group-hover:text-white shadow-sm border border-rose-500/30">
+            <div className="w-9 h-9 bg-orange-500/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base text-orange-600 transition-all group-hover:bg-orange-500 group-hover:text-white shadow-sm border border-orange-500/30">
               <AuditOutlined className="animate-pulse" />
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-rose-700 font-bold">
-            <span className="px-1.5 py-0.5 rounded-md bg-rose-200/70 text-rose-900 text-[9px]">⚠️ Cần duyệt</span>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-orange-700 font-bold">
+            <span className="px-1.5 py-0.5 rounded-md bg-orange-200/70 text-orange-900 text-[9px]">⚠️ Cần duyệt</span>
           </div>
         </div>
 
@@ -344,9 +357,13 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
                     iconType="circle"
                     wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
                   />
+                  {/* Màu 2 cột khớp đúng ngữ nghĩa "đã duyệt"/"chờ duyệt" đang dùng ở thẻ số liệu
+                      phía trên (lục = đã duyệt, hổ phách = chờ duyệt) — trước đây dùng xanh dương
+                      cho "Đã duyệt" trong khi thẻ Card 2 lại dùng tím, hai nơi cùng 1 ý nghĩa nhưng
+                      lệch màu nhau. */}
                   <Bar
                     dataKey="Đã duyệt"
-                    fill="#3b82f6"
+                    fill="#059669"
                     radius={[5, 5, 0, 0]}
                     barSize={32}
                     maxBarSize={40}
@@ -371,7 +388,9 @@ export default function DashboardOverview({ questions, matrices, auditLogs, exam
         >
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/60 bg-white/40">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-purple-600 rounded-full inline-block" />
+              {/* Chấm tiêu đề đổi từ tím sang xanh dương để khớp dải màu sequential mới của pie
+                  chart bên dưới (trước đây tím nhưng biểu đồ lại không có lát cắt nào màu tím). */}
+              <span className="w-1.5 h-4 bg-blue-700 rounded-full inline-block" />
               <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
                 Cấp độ tư duy
               </h3>
