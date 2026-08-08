@@ -280,6 +280,7 @@ export default function App() {
         return (
           <QuestionStatsModule
             questions={questions}
+            currentUser={currentUser}
           />
         );
       case 'quan-ly-de-thi-goi-de':
