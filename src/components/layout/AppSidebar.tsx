@@ -29,10 +29,16 @@ export default function AppSidebar({
       trigger={null}
       collapsible
       collapsed={collapsed}
+      breakpoint="lg"
+      onBreakpoint={(broken) => {
+        if (broken) {
+          setCollapsed(true);
+        }
+      }}
       width={275}
       collapsedWidth={80}
       theme="dark"
-      className="shadow-xl sticky top-0 left-0 h-screen overflow-y-auto"
+      className="shadow-xl sticky top-0 left-0 h-screen overflow-y-auto z-[100]"
       style={{ backgroundColor: '#0f172a' }}
     >
       {/* Brand system Logo / Area */}
@@ -40,8 +46,8 @@ export default function AppSidebar({
         {!collapsed ? (
           <>
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
-                <GlobalOutlined className="text-white text-base animate-pulse" />
+              <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                <img src="/PTIT.png" alt="PTIT Logo" className="w-full h-full object-contain p-1" />
               </div>
               <div className="flex flex-col select-none overflow-hidden text-ellipsis whitespace-nowrap">
                 <strong className="text-white text-xs font-black tracking-widest uppercase">PM QUẢN LÝ NHCH</strong>

@@ -92,7 +92,7 @@ export default function AppHeader({
           {/* Gold national star badge */}
           <span className="text-yellow-400 font-black text-xs">★</span>
         </div>
-        <h1 className="text-white font-extrabold text-xs lg:text-[14px] uppercase tracking-wide leading-none my-0">
+        <h1 className="text-white font-extrabold text-xs lg:text-[14px] uppercase tracking-wide leading-none my-0 max-sm:hidden truncate">
           PM QUẢN LÝ NHCH VÀ XÂY DỰNG ĐỀ THI
         </h1>
       </div>
