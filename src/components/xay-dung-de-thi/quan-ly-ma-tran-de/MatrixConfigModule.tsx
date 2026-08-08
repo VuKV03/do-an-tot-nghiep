@@ -38,7 +38,8 @@ import {
   SlidersOutlined,
   UpOutlined,
   DownOutlined,
-  SendOutlined
+  SendOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { GRADES, TOPICS_TREE } from '../../../data';
@@ -88,6 +89,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // View mode: 'list' | 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
+  // true khi mở CreateMatrixForm từ nút "Xem chi tiết" (chỉ xem, khoá mọi input) — khác hẳn mở từ
+  // nút "Chỉnh sửa" (editingMatrixId vẫn dùng chung để tải đúng dữ liệu ma trận đó).
+  const [matrixReadOnly, setMatrixReadOnly] = useState(false);
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>(initialTab || 'list');
@@ -486,8 +490,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       <CreateMatrixForm
         currentUser={currentUser}
         editingId={editingMatrixId}
+        readOnly={matrixReadOnly}
         onBack={() => {
           setEditingMatrixId(undefined);
+          setMatrixReadOnly(false);
           setViewMode('list');
           fetchMatrixList(1, pageSize);
         }}
@@ -704,6 +710,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
+                            <Tooltip title="Xem chi tiết">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<EyeOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  setEditingMatrixId(row.id);
+                                  setMatrixReadOnly(true);
+                                  setViewMode('create');
+                                }}
+                              />
+                            </Tooltip>
                             {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
                                 định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
                                 nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
@@ -716,6 +735,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                   className="cursor-pointer"
                                   onClick={() => {
                                     setEditingMatrixId(row.id);
+                                    setMatrixReadOnly(false);
                                     setViewMode('create');
                                   }}
                                 />
@@ -991,17 +1011,32 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{row.duration}</td>
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
-                          {hasActionPermission(currentUser, 'matrices.approve') && (
-                            <Tooltip title="Thẩm định">
+                          <Space size={4}>
+                            <Tooltip title="Xem chi tiết">
                               <Button
                                 size="small"
                                 type="text"
-                                icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                icon={<EyeOutlined className="text-slate-500" />}
                                 className="cursor-pointer"
-                                onClick={() => handleSingleReviewClick(row)}
+                                onClick={() => {
+                                  setEditingMatrixId(row.id);
+                                  setMatrixReadOnly(true);
+                                  setViewMode('create');
+                                }}
                               />
                             </Tooltip>
-                          )}
+                            {hasActionPermission(currentUser, 'matrices.approve') && (
+                              <Tooltip title="Thẩm định">
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                  className="cursor-pointer"
+                                  onClick={() => handleSingleReviewClick(row)}
+                                />
+                              </Tooltip>
+                            )}
+                          </Space>
                         </td>
                       </tr>
                     );
