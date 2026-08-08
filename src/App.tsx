@@ -33,7 +33,7 @@ import { getBreadcrumbTitle, getUserInitials, getRoleLabel } from './utils/helpe
 import { rawMenuItems } from './config/menuConfig';
 import AppSidebar from './components/layout/AppSidebar';
 import AppHeader from './components/layout/AppHeader';
-import { ToastContainer } from './utils/toast';
+import { ToastContainer, toast } from './utils/toast';
 import { API_ORIGIN } from './config/apiBase';
 
 const { Header, Sider, Content } = Layout;
@@ -88,6 +88,30 @@ export default function App() {
       }
     };
     fetchLatestUserInfo();
+  }, []);
+
+  // Listen for cross-tab force logout events (e.g. from Admin resetting password)
+  useEffect(() => {
+    try {
+      const bc = new BroadcastChannel('auth_channel');
+      bc.onmessage = (event) => {
+        if (event.data && event.data.type === 'force_logout') {
+          const cachedUser = localStorage.getItem('user_info');
+          if (cachedUser) {
+            const userObj = JSON.parse(cachedUser);
+            if (userObj.id === event.data.userId) {
+              // Target user is us! Log out immediately!
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('user_info');
+              setCurrentUser(null);
+              toast.error('Phiên đăng nhập đã bị vô hiệu hóa do thay đổi mật khẩu hoặc trạng thái từ Quản trị viên. Vui lòng đăng nhập lại.');
+            }
+          }
+        }
+      };
+      return () => bc.close();
+    } catch(e) {}
   }, []);
 
   // ── Set document title based on port ──

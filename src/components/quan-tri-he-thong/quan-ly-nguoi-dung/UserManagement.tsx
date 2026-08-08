@@ -149,6 +149,14 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     }
   };
 
+  const forceLogoutUserLocally = (userId: string) => {
+    try {
+      const bc = new BroadcastChannel('auth_channel');
+      bc.postMessage({ type: 'force_logout', userId });
+      bc.close();
+    } catch(e) {}
+  };
+
   React.useEffect(() => {
     fetchUsers();
     fetchSubjects();
@@ -347,6 +355,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       const res = await axios.delete(`${API_URL}/auth/users/${user.id}`);
       if (res.data.success) {
         await fetchUsers(); // Refresh list
+        forceLogoutUserLocally(user.id);
 
         onAddAuditLog({
           id: `log-sec-${Date.now()}`,
@@ -408,6 +417,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           await Promise.all(selectedUserIds.map(id => axios.delete(`${API_URL}/auth/users/${id}`)));
 
           await fetchUsers(); // Refresh list
+          selectedUserIds.forEach(id => forceLogoutUserLocally(id));
           setSelectedUserIds([]); // Clear selection
 
           toast.success(`Đã xóa thành công ${selectedUserIds.length} tài khoản.`);
@@ -438,7 +448,9 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
       if (res.data.success) {
         await fetchUsers(); // Refresh list
-
+        if (newStatus === 'inactive') {
+          forceLogoutUserLocally(user.id);
+        }
 
         await logSecurityAction(
           `${statusText} tài khoản`,
@@ -466,6 +478,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       });
 
       if (res.data.success) {
+        forceLogoutUserLocally(user.id);
         Modal.success({
           title: 'ĐÃ THIẾT LẬP LẠI MẬT KHẨU TẠM THỜI',
           content: (
