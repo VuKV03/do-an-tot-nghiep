@@ -85,7 +85,7 @@ export default function AppHeader({
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user_info');
           setCurrentUser(null);
-          toast.success('Đăng nhập thành công!');
+          toast.success('Đăng xuất thành công!');
         }
       }
     ]

@@ -1,6 +1,7 @@
 import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState } from 'react';
 import { Form, Input, Button, Tabs, Alert, message, ConfigProvider } from 'antd';
+import { toast } from '../../utils/toast';
 import {
   UserOutlined,
   LockOutlined,
@@ -62,6 +63,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         localStorage.setItem('user_info', JSON.stringify(data.user));
 
         message.success(`Chào mừng ${data.user.fullName} quay trở lại!`);
+        // Toast riêng dùng chung util `toast` (khác `message` của antd) — cùng cặp với
+        // toast.success('Đăng xuất thành công!') ở AppHeader.tsx, để đăng nhập/đăng xuất đều có
+        // thông báo qua đúng 1 kênh toast thống nhất trong toàn hệ thống.
+        toast.success('Đăng nhập thành công!');
         onLoginSuccess(data.user);
       } else {
         setErrorMsg(data.detail || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
