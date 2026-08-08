@@ -264,8 +264,14 @@ export default function QuestionBankModule({
         // Câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI, ModalSinhDeHoanVi.tsx) coi
         // như riêng tư của đề đó, không hiện ở Ngân hàng câu hỏi lẫn tab Thẩm định (dùng chung
         // dbQuestions này) — khác câu hỏi sinh bằng AI ngay tại đây (source 'ai_bank'), vẫn hiện
-        // bình thường.
-        const visibleData = res.data.filter((q) => q.source !== 'ai_exam');
+        // bình thường. Đồng thời loại câu ĐÃ NHÂN BẢN vào 1 đề cụ thể (exam_id có giá trị, line_number
+        // >= 1 — xem exams.py::_duplicate_questions_into_exam) — đây là bản sao RIÊNG của đề đó, không
+        // còn là câu tự do trong Ngân hàng nữa, khớp đúng quy ước "free question" đang dùng ở
+        // useAppState.ts/Thống kê NHCH và mọi endpoint đếm khác (count-by-topic, random-select).
+        // Thiếu điều kiện này khiến tab này đếm dư so với Thống kê NHCH dù cùng bộ lọc.
+        const visibleData = res.data.filter(
+          (q) => q.source !== 'ai_exam' && !q.examId && (q.lineNumber ?? 0) === 0
+        );
         // Map API response to Question type
         const mapped: Question[] = visibleData.map((q) => ({
           id: q.id,
