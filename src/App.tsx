@@ -540,7 +540,6 @@ export default function App() {
 
   return (
     <Layout className="min-h-screen bg-[#f5f7fa] font-sans" id="app-root-layout">
-      <ToastContainer />
       <AppSidebar
         collapsed={collapsed}
         setCollapsed={setCollapsed}
