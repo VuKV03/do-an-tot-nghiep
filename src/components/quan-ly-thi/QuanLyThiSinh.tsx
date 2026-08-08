@@ -23,7 +23,9 @@ import {
   DeleteOutlined,
   SearchOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  UpOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { quanLyThiAdminApi } from '../../services/quanLyThiApi';
@@ -112,6 +114,7 @@ export default function QuanLyThiSinh() {
 
   // Search filter states
   const [searchText, setSearchText] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   const filteredData = useMemo(() => {
     return data.filter(c => {
@@ -363,33 +366,46 @@ export default function QuanLyThiSinh() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
 
-      <Card title={<span className="text-blue-800 font-semibold">Tìm kiếm thông tin</span>} className="shadow-sm rounded-xl">
-        <Row gutter={24} align="bottom">
-          <Col span={8}>
-            <div className="mb-1 text-slate-600">Mã/ tên thí sinh</div>
-            <Input
-              placeholder="Nhập tên, SBD hoặc CCCD"
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              allowClear
-            />
-          </Col>
-          <Col span={24} className="text-center mt-6">
-            <Space>
-              <Button type="primary" className="bg-[#1d4ed8] px-8 rounded-lg shadow-sm font-medium hover:bg-blue-700">
-                Tìm kiếm
-              </Button>
-              <Button
-                className="px-6 rounded-lg font-medium"
-                onClick={() => {
-                  setSearchText('');
-                }}
-              >
-                Đặt lại
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+      <Card
+        title={
+          <span
+            className="flex items-center gap-2 cursor-pointer select-none w-fit text-blue-800 font-semibold"
+            onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+          >
+            Tìm kiếm thông tin
+            {isSearchExpanded ? <UpOutlined className="text-xs" /> : <DownOutlined className="text-xs" />}
+          </span>
+        }
+        className="shadow-sm rounded-xl"
+      >
+        {isSearchExpanded && (
+          <Row gutter={24} align="bottom" className="animate-in fade-in slide-in-from-top-2 duration-300">
+            <Col span={8}>
+              <div className="mb-1 text-slate-600">Mã/ tên thí sinh</div>
+              <Input
+                placeholder="Nhập tên, SBD hoặc CCCD"
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                allowClear
+              />
+            </Col>
+            <Col span={24} className="text-center mt-6">
+              <Space>
+                <Button type="primary" className="bg-[#1d4ed8] px-8 rounded-lg shadow-sm font-medium hover:bg-blue-700">
+                  Tìm kiếm
+                </Button>
+                <Button
+                  className="px-6 rounded-lg font-medium"
+                  onClick={() => {
+                    setSearchText('');
+                  }}
+                >
+                  Đặt lại
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        )}
       </Card>
 
       <Card variant="borderless" style={{ borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>

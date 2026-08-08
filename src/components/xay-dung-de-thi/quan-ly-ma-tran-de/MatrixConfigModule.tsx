@@ -924,10 +924,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             {/* Table Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
-                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold border border-blue-100">
-                  Phân quyền: Hội đồng thẩm định
-                </span>
+                <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm </h3>
+
               </div>
               <div className="flex items-center gap-2">
                 {hasActionPermission(currentUser, 'matrices.approve') && (

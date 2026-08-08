@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Select, Button, DatePicker, Card, TreeSelect, Empty } from 'antd';
 import { SearchOutlined, FileExcelOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Question } from '../../../types';
 import { SUBJECTS } from '../../../data';
 import {
@@ -90,6 +91,7 @@ export default function QuestionStatsModule({ questions, currentUser }: Question
   const [formType, setFormType] = useState<string>('Tất cả');
   const [formCompetency, setFormCompetency] = useState<string>('Tất cả');
   const [formDateRange, setFormDateRange] = useState<any>(null);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   // Applied filters state
   const [appliedFilters, setAppliedFilters] = useState({
@@ -215,11 +217,15 @@ export default function QuestionStatsModule({ questions, currentUser }: Question
     }))
   ];
 
+  // Nhãn khớp đúng quy ước đang dùng ở các màn khác (tab-ngan-hang-cau-hoi/index.tsx,
+  // tham-dinh-cau-hoi/index.tsx: "Đã thẩm định"/"Chờ thẩm định"/"Từ chối") — trước đây dùng nhãn
+  // khác ("Đã duyệt"/"Chờ duyệt") và thiếu hẳn "Từ chối", không đồng bộ giữa các màn.
   const statusOptions = [
     { value: 'Tất cả', label: 'Tất cả' },
-    { value: 'approved', label: 'Đã duyệt' },
-    { value: 'pending', label: 'Chờ duyệt' },
+    { value: 'approved', label: 'Đã thẩm định' },
+    { value: 'pending', label: 'Chờ thẩm định' },
     { value: 'draft', label: 'Tạo mới' },
+    { value: 'rejected', label: 'Từ chối' },
   ];
 
   const creatorOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...Array.from(new Set(questions.map(q => q.creator))).filter(Boolean).map(c => ({ value: c, label: c }))];
@@ -468,10 +474,15 @@ export default function QuestionStatsModule({ questions, currentUser }: Question
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-3">
+        <div
+          className="border-b border-slate-100 bg-slate-50/50 px-5 py-3 flex items-center justify-between cursor-pointer select-none"
+          onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+        >
           <span className="font-semibold text-slate-700">Tìm kiếm thông tin</span>
+          {isSearchExpanded ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
         </div>
-        <div className="p-5">
+        {isSearchExpanded && (
+        <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 mb-6">
             <div>
               <div className="text-xs font-semibold text-slate-600 mb-1.5">Môn thi<span className="text-red-500 ml-0.5">*</span></div>
@@ -582,6 +593,7 @@ export default function QuestionStatsModule({ questions, currentUser }: Question
             </Button>
           </div>
         </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
