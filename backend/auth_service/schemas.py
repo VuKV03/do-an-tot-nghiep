@@ -70,6 +70,7 @@ class UserResponse(BaseModel):
     status: str
     createdAt: str
     groups: Optional[list[UserGroupInfo]] = []
+    passwordVersion: Optional[str] = None
 
     @field_validator('subjects', mode='before')
     def parse_subjects(cls, v):

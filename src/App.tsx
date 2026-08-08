@@ -78,6 +78,17 @@ export default function App() {
           if (data.success && data.data) {
             const latestUser = data.data.find((u: any) => u.id === userObj.id);
             if (latestUser) {
+              if (
+                latestUser.status !== 'active' || 
+                (userObj.passwordVersion && latestUser.passwordVersion && userObj.passwordVersion !== latestUser.passwordVersion)
+              ) {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user_info');
+                setCurrentUser(null);
+                toast.error('Phiên đăng nhập đã hết hạn do thay đổi thông tin xác thực từ Quản trị viên. Vui lòng đăng nhập lại.');
+                return;
+              }
               setCurrentUser(latestUser);
               localStorage.setItem('user_info', JSON.stringify(latestUser));
             }
