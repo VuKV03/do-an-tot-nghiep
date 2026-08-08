@@ -32,7 +32,9 @@ import {
   QuestionCircleFilled,
   MoreOutlined,
   EyeOutlined,
-  FileExcelOutlined
+  FileExcelOutlined,
+  UpOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
@@ -71,6 +73,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchUsername, setSearchUsername] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [searchFullName, setSearchFullName] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -533,8 +536,16 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
       {/* Filters */}
       <div className="bg-white rounded-lg p-5">
-        <h2 className="text-[#1a3b70] font-bold mb-4 text-sm">Tìm kiếm thông tin</h2>
+        <div
+          className="flex items-center gap-2 cursor-pointer select-none w-fit mb-4"
+          onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+        >
+          <h2 className="text-[#1a3b70] font-bold text-sm m-0">Tìm kiếm thông tin</h2>
+          {isSearchExpanded ? <UpOutlined className="text-xs text-[#1a3b70]" /> : <DownOutlined className="text-xs text-[#1a3b70]" />}
+        </div>
 
+        {isSearchExpanded && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mã người dùng/ tên đăng nhập</label>
@@ -580,6 +591,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             Tìm kiếm
           </Button>
         </div>
+        </div>
+        )}
       </div>
 
       {/* Users Table */}
