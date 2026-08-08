@@ -23,7 +23,7 @@ export default function QuestionDetailModal({
       case 'single': return 'TN';
       case 'multiple': return 'TLN';
       case 'true_false': return 'DS';
-      case 'short': return 'TL';
+      case 'short': return 'TLN';
       default: return 'TN';
     }
   };
