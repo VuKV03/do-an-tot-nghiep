@@ -252,7 +252,13 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
   const checkRequestSeqRef = React.useRef(0);
 
   // --- Step 1: Chọn Môn ---
-  const changeMonHoc = async (value: string) => {
+  // Nhận `subjectsList` làm THAM SỐ thay vì đọc qua closure state `fullSubjects` — nếu gọi hàm này
+  // ngay sau setFullSubjects(rawList) trong cùng 1 lượt xử lý (như nhánh tự chọn môn cho tài khoản
+  // bị giới hạn môn bên dưới), closure vẫn còn cầm bản `fullSubjects` CŨ (React setState không đồng
+  // bộ) → selectedSubj tìm không ra → cd/chuDe rỗng, cây chủ đề + bảng ma trận không tải được dù ô
+  // "Môn học" đã hiện đúng tên môn. loadDetail() (chế độ Sửa) vốn đã tránh đúng bẫy này bằng cách
+  // nhận rawList qua tham số — áp dụng lại pattern đó cho luồng Thêm mới.
+  const applyMonHoc = async (value: string, subjectsList: any[]) => {
     setIsChangingSubject(true);
     setCheckedKeys({ checked: [], halfChecked: [] }); setObj([]);
     setMonHocId(value);
@@ -261,7 +267,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
     let chuDe: ChuDeNode[] = [];
     let subjectCfg: SubjectConfigAPI | null = null;
     try {
-      const selectedSubj = fullSubjects.find(s => s.id === value);
+      const selectedSubj = subjectsList.find(s => s.id === value);
       if (selectedSubj) {
         const result = await fetchSubjectMatrixConfig(selectedSubj);
         cd = result.cd;
@@ -279,6 +285,10 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
     setIsChangingSubject(false);
     return { cd, chuDe };
   };
+
+  // Dùng cho <Select onChange> — tại thời điểm người dùng bấm đổi môn, `fullSubjects` chắc chắn đã
+  // là state mới nhất từ lần fetch trước đó (không còn nằm trong cùng lượt setFullSubjects nữa).
+  const changeMonHoc = (value: string) => applyMonHoc(value, fullSubjects);
 
   useEffect(() => {
     const loadDetail = async (subjectsList: any[]) => {
@@ -356,8 +366,9 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
       setMonHocList(list);
       
       if (!editingId && isRestricted && list.length > 0) {
-        setMonHocId(list[0].id);
-        changeMonHoc(list[0].id);
+        // Gọi applyMonHoc(..., rawList) trực tiếp — KHÔNG dùng changeMonHoc(list[0].id) — vì
+        // fullSubjects state (setFullSubjects(rawList) vừa gọi ở trên) chưa kịp cập nhật lúc này.
+        applyMonHoc(list[0].id, rawList);
       }
       
       loadDetail(rawList);

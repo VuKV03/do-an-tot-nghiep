@@ -221,11 +221,29 @@ export default function QuestionHistoryModal({
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (desc: string) => (
-        <Tooltip title={desc}>
-          <span className="text-slate-700 text-xs">{desc}</span>
-        </Tooltip>
-      )
+      // Với 2 hành động Đồng ý/Từ chối, backend chỉ có DUY NHẤT 1 cột `note` — được map vào CẢ 2
+      // cột hiển thị (cột này + "Nội dung thẩm định/Từ chối" bên dưới), nên nếu hiện thẳng `desc`
+      // ở đây sẽ trùng y hệt nội dung nhận xét thẩm định. Đổi sang nhãn mô tả HÀNH ĐỘNG (không phải
+      // nội dung nhận xét) để 2 cột không lặp lại nhau — nhận biết "hàng loạt" qua cụm từ mặc định
+      // backend tự chèn khi thẩm định nhiều câu không kèm ghi chú riêng (xem bulk_review_bank_questions
+      // ở bank_questions.py: `note=body.comment or f"{action_label} thẩm định hàng loạt"`). Nếu người
+      // thẩm định có nhập ghi chú riêng khi duyệt hàng loạt thì không còn dấu hiệu để nhận biết —
+      // khi đó rơi về nhãn đơn lẻ, vẫn không còn trùng nội dung với cột thẩm định.
+      render: (desc: string, record: HistoryRecord) => {
+        const isReview = record.action === 'Đồng ý' || record.action === 'Từ chối';
+        if (isReview) {
+          const isBulk = /hàng loạt/i.test(desc || '');
+          const label = record.action === 'Đồng ý'
+            ? (isBulk ? 'Thẩm định hàng loạt' : 'Thẩm định câu hỏi')
+            : (isBulk ? 'Từ chối hàng loạt' : 'Từ chối câu hỏi');
+          return <span className="text-slate-700 text-xs">{label}</span>;
+        }
+        return (
+          <Tooltip title={desc}>
+            <span className="text-slate-700 text-xs">{desc}</span>
+          </Tooltip>
+        );
+      }
     },
     {
       title: 'Nội dung thẩm định/Từ chối',
