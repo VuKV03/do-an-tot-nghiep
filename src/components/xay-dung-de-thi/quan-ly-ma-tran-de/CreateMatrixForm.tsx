@@ -215,12 +215,15 @@ interface Props {
   onBack: () => void;
   editingId?: string;
   currentUser?: any;
+  /** Chỉ xem, không cho sửa — dùng cho nút "Xem chi tiết" ở MatrixConfigModule.tsx (khác hẳn Edit:
+   * vẫn tải đúng dữ liệu qua editingId nhưng khoá mọi input, ẩn cây chọn chủ đề + nút Lưu). */
+  readOnly?: boolean;
 }
 
 const MA_MAX_LENGTH = 12;
 const TEN_MAX_LENGTH = 255;
 
-export default function CreateMatrixForm({ onBack, editingId, currentUser }: Props) {
+export default function CreateMatrixForm({ onBack, editingId, currentUser, readOnly = false }: Props) {
   // --- State ---
   const [monHocList, setMonHocList] = useState<MonHocOption[]>([]);
   const [fullSubjects, setFullSubjects] = useState<any[]>([]);
@@ -582,13 +585,15 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
         <div className="flex items-center gap-3">
           <Button icon={<ArrowLeftOutlined />} onClick={onBack} className="cursor-pointer" />
           <h2 className="text-[#1a3c8b] font-bold text-base m-0">
-            {editingId ? 'Chỉnh sửa Ma trận đề thi' : 'Thêm mới Ma trận đề thi'}
+            {readOnly ? 'Xem chi tiết Ma trận đề thi' : editingId ? 'Chỉnh sửa Ma trận đề thi' : 'Thêm mới Ma trận đề thi'}
           </h2>
         </div>
-        <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}
-          className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded cursor-pointer">
-          Lưu ma trận
-        </Button>
+        {!readOnly && (
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}
+            className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded cursor-pointer">
+            Lưu ma trận
+          </Button>
+        )}
       </div>
 
       {/* Thông tin chung */}
@@ -598,7 +603,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Môn học <span className="text-red-500">*</span></label>
             <Select placeholder="Chọn môn học" className="w-full text-xs" loading={monHocList.length === 0}
-              value={monHocId} onChange={changeMonHoc} disabled={!!editingId}
+              value={monHocId} onChange={changeMonHoc} disabled={!!editingId || readOnly}
               options={monHocList.map(m => ({ value: m.id, label: m.ten }))} />
           </div>
           <div>
@@ -610,6 +615,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
               onChange={e => setMaMatran(e.target.value)}
               maxLength={MA_MAX_LENGTH}
               status={maMatranError ? 'error' : undefined}
+              disabled={readOnly}
             />
             {maMatranError && <div className="text-red-500 text-[11px] mt-1">{maMatranError}</div>}
           </div>
@@ -622,6 +628,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
               onChange={e => setTenMatran(e.target.value)}
               maxLength={TEN_MAX_LENGTH}
               status={tenMatranError ? 'error' : undefined}
+              disabled={readOnly}
             />
             {tenMatranError && <div className="text-red-500 text-[11px] mt-1">{tenMatranError}</div>}
           </div>
@@ -637,23 +644,26 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
       {monHocId && (
         <Spin spinning={isChangingSubject} description="Đang tải dữ liệu...">
           <div className="flex gap-4" style={{ minHeight: 400 }}>
-            {/* Left: Cây chủ đề */}
-            <div className="bg-white border border-slate-200 rounded-lg shadow-xs" style={{ width: 300, flexShrink: 0 }}>
-              <div className="px-4 py-3 border-b border-slate-200">
-                <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-2">Chọn chủ đề</h3>
-                <Input size="small" placeholder="Tìm kiếm..." prefix={<SearchOutlined className="text-slate-400" />}
-                  className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear />
+            {/* Left: Cây chủ đề — chỉ dùng để CHỌN chủ đề khi tạo/sửa, ẩn hẳn ở chế độ Xem chi tiết
+                (bảng bên phải đã liệt kê đủ mọi chủ đề đang thuộc ma trận, không cần chọn lại). */}
+            {!readOnly && (
+              <div className="bg-white border border-slate-200 rounded-lg shadow-xs" style={{ width: 300, flexShrink: 0 }}>
+                <div className="px-4 py-3 border-b border-slate-200">
+                  <h3 className="text-[#1a3c8b] font-bold text-xs italic m-0 mb-2">Chọn chủ đề</h3>
+                  <Input size="small" placeholder="Tìm kiếm..." prefix={<SearchOutlined className="text-slate-400" />}
+                    className="text-xs" value={searchValue} onChange={e => setSearchValue(e.target.value)} allowClear />
+                </div>
+                <div className="p-3 overflow-y-auto" style={{ maxHeight: 500 }}>
+                  {dataChuDeSelect.length > 0 ? (
+                    <Tree checkable blockNode treeData={treeData}
+                      onCheck={onCheck} checkedKeys={checkedKeys}
+                      className="text-xs" />
+                  ) : (
+                    <Empty description="Chọn môn học để xem chủ đề" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
+                </div>
               </div>
-              <div className="p-3 overflow-y-auto" style={{ maxHeight: 500 }}>
-                {dataChuDeSelect.length > 0 ? (
-                  <Tree checkable blockNode treeData={treeData}
-                    onCheck={onCheck} checkedKeys={checkedKeys}
-                    className="text-xs" />
-                ) : (
-                  <Empty description="Chọn môn học để xem chủ đề" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Right: Bảng ma trận */}
             <div className="bg-white border border-slate-200 rounded-lg shadow-xs flex-1 overflow-hidden">
@@ -739,14 +749,16 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                             <td className="border border-slate-200 px-2 py-1.5 text-left text-slate-700 sticky bg-white z-10" style={{ left: 180, minWidth: 160 }}>
                               <div className="flex items-center justify-between gap-1 group">
                                 <span className="font-medium">{row.don_vi_kien_thuc}</span>
-                                <Button
-                                  type="text"
-                                  danger
-                                  size="small"
-                                  icon={<DeleteOutlined className="text-red-500 text-[10px]" />}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-5 w-5 flex items-center justify-center border border-red-200 bg-red-50 hover:bg-red-100 rounded cursor-pointer shrink-0"
-                                  onClick={() => handleRemoveRow(row.don_vi_id)}
-                                />
+                                {!readOnly && (
+                                  <Button
+                                    type="text"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined className="text-red-500 text-[10px]" />}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-5 w-5 flex items-center justify-center border border-red-200 bg-red-50 hover:bg-red-100 rounded cursor-pointer shrink-0"
+                                    onClick={() => handleRemoveRow(row.don_vi_id)}
+                                  />
+                                )}
                               </div>
                             </td>
                             {caiDat?.ds_dm_thanh_phan_nang_luc.map((nl) =>
@@ -761,6 +773,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser }: Pro
                                   const inputEl = (
                                     <InputNumber size="small" min={0} precision={0} value={cell?.so_cau || null} placeholder="0"
                                       status={isOverPhan ? 'error' : undefined}
+                                      disabled={readOnly}
                                       onChange={v => {
                                         if (ci < 0) return;
                                         handleInputChange(ri, ci, v);

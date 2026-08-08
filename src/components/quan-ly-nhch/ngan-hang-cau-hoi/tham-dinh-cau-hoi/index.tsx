@@ -338,7 +338,6 @@ export default function ThamDinhCauHoiTab({
   onUpdateQuestion,
   onOpenReview,
   apiSubjects = [],
-  apiGrades = [],
   cognitiveLevelOptions = [],
   questionTypeOptions = [],
   allTopicsRaw = [],
@@ -351,7 +350,6 @@ export default function ThamDinhCauHoiTab({
 
   // ── Sidebar state ──────────────────────────────
   const [selectedSubject, setSelectedSubject]     = useState<string>('');
-  const [selectedGrade, setSelectedGrade]         = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey]   = useState<string | null>(null);
   const [topicSearch, setTopicSearch]             = useState('');
 
@@ -393,22 +391,12 @@ export default function ThamDinhCauHoiTab({
     ],
     [apiSubjects]
   );
-  const gradeDropdownOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiGrades.length > 0 ? apiGrades : GRADES)
-    ],
-    [apiGrades]
-  );
-
   const topicTreeData = useMemo(() => {
     if (allTopicsRaw.length === 0) return [];
-    
-    // Filter topics matching selected subject (and optionally grade)
+
+    // Filter topics matching selected subject
     const filtered = allTopicsRaw.filter((t: any) => {
-      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
-      const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
-      return matchSubject && matchGrade;
+      return !selectedSubject || t.subject_name === selectedSubject;
     });
 
     // Only show approved topics (status === 2)
@@ -459,7 +447,7 @@ export default function ThamDinhCauHoiTab({
     };
 
     return filterTree(roots);
-  }, [allTopicsRaw, selectedSubject, selectedGrade, topicSearch]);
+  }, [allTopicsRaw, selectedSubject, topicSearch]);
 
 
   // ── Derived: filtered questions ────────────────
@@ -469,7 +457,6 @@ export default function ThamDinhCauHoiTab({
 
     return relevantQuestions.filter((q) => {
       if (selectedSubject && q.subject !== selectedSubject) return false;
-      if (selectedGrade && q.grade !== selectedGrade) return false;
       if (selectedTopicKey) {
         const isChild = topicTreeData.some((t) =>
           t.children?.some((c) => c.key === q.topicId)
@@ -493,7 +480,7 @@ export default function ThamDinhCauHoiTab({
       }
       return true;
     });
-  }, [questions, selectedSubject, selectedGrade, selectedTopicKey, topicTreeData, applied]);
+  }, [questions, selectedSubject, selectedTopicKey, topicTreeData, applied]);
 
   // ── Handlers ──────────────────────────────────
   const handleSearch = () => {
@@ -708,18 +695,6 @@ export default function ThamDinhCauHoiTab({
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                Khối lớp học
-              </label>
-              <Select
-                id="tham-dinh-select-grade"
-                value={selectedGrade}
-                onChange={setSelectedGrade}
-                options={gradeDropdownOptions}
-                className="w-full text-xs font-bold"
-              />
-            </div>
           </div>
 
           {/* Topic tree */}

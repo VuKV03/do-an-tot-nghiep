@@ -15,14 +15,16 @@ import { toast } from '../../../utils/toast';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { resolveInternalQuestionType } from '../../../utils/questionTypeCategory';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 
 const { RangePicker } = DatePicker;
 
 interface QuestionStatsModuleProps {
   questions: Question[];
+  currentUser?: any;
 }
 
-export default function QuestionStatsModule({ questions }: QuestionStatsModuleProps) {
+export default function QuestionStatsModule({ questions, currentUser }: QuestionStatsModuleProps) {
   const [topicsList, setTopicsList] = useState<TopicAPI[]>([]);
   const [gradesList, setGradesList] = useState<GradeLevelAPI[]>([]);
   const [subjectsList, setSubjectsList] = useState<SubjectCategoryAPI[]>([]);
@@ -45,11 +47,16 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
     subjectCategoryApi.list().then(res => {
       if (res.success) {
-        setSubjectsList(res.data);
-        if (res.data.length > 0) {
-          const firstSubject = res.data[0].id;
-          setFormSubject(firstSubject);
-          setAppliedFilters(prev => ({ ...prev, subject: firstSubject }));
+        // Giáo viên/Tổ trưởng bộ môn chỉ được thấy đúng (các) môn mình phụ trách — giống cách
+        // ExamManagementModule/PackageManagementModule đang áp dụng, không riêng gì Toán.
+        const { filteredSubjects, defaultSubjectId } = getUserSubjectFilter(res.data, currentUser);
+        // getUserSubjectFilter chỉ LỌC (không map/mất field) nhưng khai báo kiểu trả về rút gọn
+        // SubjectItem[] — ép lại đúng SubjectCategoryAPI[] cho khớp field đầy đủ đang dùng ở nơi khác.
+        setSubjectsList(filteredSubjects as SubjectCategoryAPI[]);
+        if (filteredSubjects.length > 0) {
+          const initialSubject = defaultSubjectId || filteredSubjects[0].id;
+          setFormSubject(initialSubject);
+          setAppliedFilters(prev => ({ ...prev, subject: initialSubject }));
         }
       }
     }).catch(console.error);
