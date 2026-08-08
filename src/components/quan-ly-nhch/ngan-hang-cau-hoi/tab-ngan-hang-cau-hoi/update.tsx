@@ -120,8 +120,8 @@ export default function UpdateQuestionModal({
   // còn mang tên giả cũ (dữ liệu tạo trước khi hệ thống lưu người soạn thật).
   const resolvedCreator =
     initialQuestion?.creator &&
-    initialQuestion.creator !== 'Hội đồng Chuyên môn (Tự tạo)' &&
-    initialQuestion.creator !== 'Hội đồng Chuyên môn'
+      initialQuestion.creator !== 'Hội đồng Chuyên môn (Tự tạo)' &&
+      initialQuestion.creator !== 'Hội đồng Chuyên môn'
       ? initialQuestion.creator
       : creatorName || 'Hội đồng Chuyên môn';
 
@@ -245,8 +245,8 @@ export default function UpdateQuestionModal({
         const newAnswers = (initialQuestion.options || []).map((opt, i) => ({
           id: i + 1,
           content: opt,
-          isCorrect: Array.isArray(initialQuestion.correctAnswer) 
-            ? initialQuestion.correctAnswer.includes(opt) 
+          isCorrect: Array.isArray(initialQuestion.correctAnswer)
+            ? initialQuestion.correctAnswer.includes(opt)
             : initialQuestion.correctAnswer === opt,
         }));
         while (newAnswers.length < 4) {
@@ -264,8 +264,8 @@ export default function UpdateQuestionModal({
             level: st?.level || ('nhan_biet' as CognitiveLevel),
             nangLuc: st?.nangLuc || undefined,
             content: st?.content || (initialQuestion.options && initialQuestion.options[i]) || '',
-            isCorrect: st !== undefined 
-              ? st.isCorrect 
+            isCorrect: st !== undefined
+              ? st.isCorrect
               : (initialQuestion.correctAnswer && initialQuestion.correctAnswer[i] === 'True'),
           };
         });
@@ -554,7 +554,7 @@ export default function UpdateQuestionModal({
 
       const q = buildQuestion(values, status);
       const { id: _localId, ...payload } = q;
-      
+
       const apiPayload = {
         ...payload,
         competencyComponentId: q.nangLucId,
@@ -681,11 +681,10 @@ export default function UpdateQuestionModal({
 
                 setQuestionType(to);
               }}
-              className={`flex items-center gap-3 px-5 py-3 text-left transition-all border-l-4 ${
-                questionType === item.value
+              className={`flex items-center gap-3 px-5 py-3 text-left transition-all border-l-4 ${questionType === item.value
                   ? 'bg-white border-l-blue-600 text-blue-700 font-extrabold shadow-sm'
                   : 'border-l-transparent text-slate-600 hover:bg-white hover:text-slate-900 font-bold'
-              }`}
+                }`}
               style={{ cursor: 'pointer' }}
             >
               <span className='text-xl leading-none opacity-80'>
@@ -912,11 +911,10 @@ export default function UpdateQuestionModal({
                               type='button'
                               onClick={() => removeRow(ans.id)}
                               disabled={answers.length <= 2}
-                              className={`text-xl leading-none w-5 flex-shrink-0 transition-all ${
-                                answers.length > 2
+                              className={`text-xl leading-none w-5 flex-shrink-0 transition-all ${answers.length > 2
                                   ? 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600'
                                   : 'opacity-0 pointer-events-none'
-                              }`}
+                                }`}
                               style={{ cursor: answers.length > 2 ? 'pointer' : 'default' }}
                               title='Xóa dòng'
                             >
@@ -956,12 +954,18 @@ export default function UpdateQuestionModal({
                     </span>
                   }
                   name='correctAnswer'
-                  rules={[{ required: true, message: 'Vui lòng nhập đáp án!' }]}
+                  // Khớp ràng buộc ở manual-create.tsx — đáp án Trả lời ngắn chỉ chấp nhận số, dấu
+                  // '-' (số âm) và dấu ',' (phân tách nhiều đáp án/phần thập phân).
+                  normalize={(value: string) => (value || '').replace(/[^0-9,\-]/g, '')}
+                  rules={[
+                    { required: true, message: 'Đáp án chỉ được nhập số, dấu \'-\' và dấu \',\'.' },
+                    { pattern: /^[0-9,\-]+$/, message: 'Đáp án chỉ được nhập số, dấu \'-\' và dấu \',\'.' },
+                  ]}
                   style={{ marginBottom: '8px' }}
                 >
                   <Input.TextArea
                     rows={3}
-                    placeholder='Nhập nội dung đáp án hoặc từ khóa để chấm điểm tự luận...'
+                    placeholder="Chỉ nhập số, dấu '-' và dấu ',' (vd: -12,5)"
                     className='rounded-lg text-base font-medium'
                     style={{ fontSize: '15px' }}
                   />
@@ -1460,14 +1464,14 @@ export default function UpdateQuestionModal({
                           setSubAnswers((prev) =>
                             subQuestionType === 'single'
                               ? prev.map((a) => ({
-                                  ...a,
-                                  isCorrect: a.id === ans.id,
-                                }))
+                                ...a,
+                                isCorrect: a.id === ans.id,
+                              }))
                               : prev.map((a) =>
-                                  a.id === ans.id
-                                    ? { ...a, isCorrect: !a.isCorrect }
-                                    : a,
-                                ),
+                                a.id === ans.id
+                                  ? { ...a, isCorrect: !a.isCorrect }
+                                  : a,
+                              ),
                           )
                         }
                         style={{ transform: 'scale(1.1)' }}
@@ -1518,11 +1522,11 @@ export default function UpdateQuestionModal({
                     prev.map((item) =>
                       item.id === editingSubQuestionId
                         ? {
-                            ...item,
-                            text: values.text,
-                            type: values.type,
-                            link: values.link,
-                          }
+                          ...item,
+                          text: values.text,
+                          type: values.type,
+                          link: values.link,
+                        }
                         : item,
                     ),
                   );
