@@ -63,6 +63,17 @@ export default function AppHeader({
         }
       },
       {
+        key: 'version',
+        label: (
+          <div className="flex flex-col py-1 cursor-default">
+            <span className="text-[10px] text-slate-400">Phiên bản cập nhật:</span>
+            <span className="text-[11px] font-bold text-emerald-600">
+              {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'Bản nội bộ'}
+            </span>
+          </div>
+        ),
+      },
+      {
         type: 'divider' as const
       },
       {

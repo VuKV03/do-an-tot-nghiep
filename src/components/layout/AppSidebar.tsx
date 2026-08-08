@@ -86,16 +86,6 @@ export default function AppSidebar({
         defaultOpenKeys={['xay-dung-de', 'quan-ly-nhch', "quan-tri-danh-muc"]}
         className="font-medium text-xs text-slate-100"
       />
-      
-      {/* Version Note */}
-      <div className="p-3 text-center border-t border-white/[0.08] mt-4 mb-2">
-        <div className={`text-slate-400 font-medium ${collapsed ? 'text-[9px] leading-tight' : 'text-[10px]'}`}>
-          {!collapsed && "Cập nhật lần cuối:"}
-        </div>
-        <div className={`text-emerald-400 font-bold tracking-wide mt-1 ${collapsed ? 'text-[9px] leading-tight' : 'text-xs'}`}>
-          {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'Bản nội bộ'}
-        </div>
-      </div>
     </Sider>
   );
 }
