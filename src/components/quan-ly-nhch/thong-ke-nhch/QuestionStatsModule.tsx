@@ -215,11 +215,15 @@ export default function QuestionStatsModule({ questions, currentUser }: Question
     }))
   ];
 
+  // Nhãn khớp đúng quy ước đang dùng ở các màn khác (tab-ngan-hang-cau-hoi/index.tsx,
+  // tham-dinh-cau-hoi/index.tsx: "Đã thẩm định"/"Chờ thẩm định"/"Từ chối") — trước đây dùng nhãn
+  // khác ("Đã duyệt"/"Chờ duyệt") và thiếu hẳn "Từ chối", không đồng bộ giữa các màn.
   const statusOptions = [
     { value: 'Tất cả', label: 'Tất cả' },
-    { value: 'approved', label: 'Đã duyệt' },
-    { value: 'pending', label: 'Chờ duyệt' },
+    { value: 'approved', label: 'Đã thẩm định' },
+    { value: 'pending', label: 'Chờ thẩm định' },
     { value: 'draft', label: 'Tạo mới' },
+    { value: 'rejected', label: 'Từ chối' },
   ];
 
   const creatorOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...Array.from(new Set(questions.map(q => q.creator))).filter(Boolean).map(c => ({ value: c, label: c }))];

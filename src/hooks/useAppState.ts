@@ -20,7 +20,13 @@ export const useAppState = () => {
           // thống kê NHCH dùng chung state này (xem App.tsx), không được tính luôn các bản sao đã
           // nhân bản vào đề (exam_id khác rỗng), nếu không sẽ đếm trùng/thổi phồng số liệu (xem
           // backend/exam_service/routes/exams.py::_duplicate_questions_into_exam).
-          const freeQuestions = res.data.filter((q: any) => !q.examId && (q.lineNumber ?? 0) === 0);
+          // Đồng thời loại câu 'ai_exam' (sinh cả đề bằng AI — ModalTaoDeTuDong.tsx/ModalSinhDeHoanVi.tsx)
+          // giống hệt cách tab-ngan-hang-cau-hoi/index.tsx đang ẩn — thiếu điều kiện này khiến Thống
+          // kê NHCH và tab Ngân hàng câu hỏi lệch số nhau dù cùng bộ lọc (mỗi nơi trước đây chỉ áp
+          // đúng 1 trong 2 điều kiện, không nơi nào áp đủ cả 2).
+          const freeQuestions = res.data.filter(
+            (q: any) => !q.examId && (q.lineNumber ?? 0) === 0 && q.source !== 'ai_exam'
+          );
           const mappedQuestions: Question[] = freeQuestions.map((q: any) => ({
             id: q.id,
             code: q.code,
