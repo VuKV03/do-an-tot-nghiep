@@ -242,7 +242,12 @@ export default function QuestionBankModule({
       setAllTopicsRaw(topRes.data);
 
       if (subjectOptions.length > 0) {
-        if (isRestricted && subjectOptions.length < 2) {
+        // GV/Tổ trưởng bộ môn (bị giới hạn môn) LUÔN mặc định chọn đúng môn đầu tiên được phân,
+        // dù được phân 1 hay nhiều môn — không còn rơi về "Tất cả" khi có ≥2 môn như trước, tránh
+        // lộ chủ đề/câu hỏi của môn khác không được phân công (xem topicTreeData/filteredQuestions
+        // bên dưới). Chỉ tài khoản KHÔNG bị giới hạn (Admin/Trưởng phòng giáo vụ) mới mặc định
+        // "Tất cả" để xem toàn hệ thống.
+        if (isRestricted) {
           setSelectedSubject(subjectOptions[0].value);
         } else {
           setSelectedSubject('');
@@ -312,13 +317,23 @@ export default function QuestionBankModule({
   const subjectDropdownOptions = useMemo(
     () => {
       const options = [];
-      if (!isSubjectRestricted || apiSubjects.length >= 2) {
+      // Chỉ tài khoản KHÔNG bị giới hạn môn mới thấy "Tất cả" — GV/Tổ trưởng bộ môn (kể cả được
+      // phân từ 2 môn trở lên, vd Lý + Anh) chỉ nên chọn lần lượt từng môn được phân, không có lựa
+      // chọn "Tất cả" gộp chung tất cả môn (kể cả môn không được phân công).
+      if (!isSubjectRestricted) {
         options.push({ value: '', label: 'Tất cả' });
       }
       options.push(...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS)));
       return options;
     },
     [apiSubjects, isSubjectRestricted]
+  );
+
+  // Danh sách tên môn được phép xem — dùng để chặn rò rỉ chủ đề/câu hỏi môn khác ngay cả khi
+  // selectedSubject đang rỗng do dữ liệu apiSubjects chưa tải kịp (đua bất đồng bộ lúc mount).
+  const allowedSubjectNames = useMemo(
+    () => new Set(apiSubjects.map((s) => s.label)),
+    [apiSubjects]
   );
   // Grades dropdown: prefer API data, fallback to static
   const gradeDropdownOptions = useMemo(
@@ -348,7 +363,9 @@ export default function QuestionBankModule({
   const topicTreeData = useMemo(() => {
     // Filter topics matching selected subject (and optionally grade)
     const filtered = allTopicsRaw.filter((t: any) => {
-      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
+      const matchSubject = selectedSubject
+        ? t.subject_name === selectedSubject
+        : (!isSubjectRestricted || allowedSubjectNames.size === 0 || allowedSubjectNames.has(t.subject_name));
       const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
       return matchSubject && matchGrade;
     });
@@ -386,7 +403,7 @@ export default function QuestionBankModule({
     clean(roots);
 
     return roots;
-  }, [allTopicsRaw, selectedSubject, selectedGrade]);
+  }, [allTopicsRaw, selectedSubject, selectedGrade, isSubjectRestricted, allowedSubjectNames]);
 
   // Handle tree node selection
   const handleSelectTopicNode = (selectedKeys: any[], info: any) => {
@@ -451,6 +468,7 @@ export default function QuestionBankModule({
     return dbQuestions.filter((q) => {
       // 1. Filter by subject (skip if no subject selected yet)
       if (selectedSubject && q.subject !== selectedSubject) return false;
+      if (!selectedSubject && isSubjectRestricted && allowedSubjectNames.size > 0 && !allowedSubjectNames.has(q.subject)) return false;
       // 2. Filter by grade (if not empty)
       if (selectedGrade && q.grade !== selectedGrade) return false;
       // 3. Filter by selected topic (tree node) if any is selected
@@ -488,7 +506,7 @@ export default function QuestionBankModule({
 
       return true;
     });
-  }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData]);
+  }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData, isSubjectRestricted, allowedSubjectNames]);
 
   // Kết quả lọc thay đổi (tìm kiếm mới, đổi bộ lọc...) — quay về trang 1 để tránh đứng ở 1 trang
   // trống nếu tập kết quả mới ít hơn.
