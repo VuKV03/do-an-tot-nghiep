@@ -35,6 +35,7 @@ interface ThamDinhCauHoiProps {
   onUpdateQuestion: (q: Question) => void;
   onOpenReview: (q: Question) => void;
   apiSubjects?: { value: string; label: string }[];
+  isSubjectRestricted?: boolean;
   apiGrades?: { value: string; label: string }[];
   cognitiveLevelOptions?: { value: CognitiveLevel; label: string }[];
   questionTypeOptions?: { value: QuestionType; label: string }[];
@@ -338,6 +339,7 @@ export default function ThamDinhCauHoiTab({
   onUpdateQuestion,
   onOpenReview,
   apiSubjects = [],
+  isSubjectRestricted = false,
   cognitiveLevelOptions = [],
   questionTypeOptions = [],
   allTopicsRaw = [],
@@ -349,9 +351,22 @@ export default function ThamDinhCauHoiTab({
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
-  const [selectedSubject, setSelectedSubject]     = useState<string>('');
+  // Bỏ hẳn lựa chọn "Tất cả" ở dropdown Môn học — luôn mặc định chọn sẵn môn đầu tiên mà tài khoản
+  // được liên quan (apiSubjects đã bị getUserSubjectFilter lọc sẵn ở component cha: Tổ trưởng/GV bộ
+  // môn chỉ thấy đúng (các) môn mình phụ trách, Admin/Trưởng phòng giáo vụ thấy toàn bộ danh mục môn).
+  const [selectedSubject, setSelectedSubject]     = useState<string>(
+    apiSubjects.length > 0 ? apiSubjects[0].value : ''
+  );
   const [selectedTopicKey, setSelectedTopicKey]   = useState<string | null>(null);
   const [topicSearch, setTopicSearch]             = useState('');
+
+  // apiSubjects tải bất đồng bộ từ API nên có thể rỗng ở lần render đầu (trước khi component cha
+  // fetch xong) — effect này đảm bảo môn học vẫn được chọn đúng khi dữ liệu về sau đó.
+  React.useEffect(() => {
+    if (apiSubjects.length > 0 && !selectedSubject) {
+      setSelectedSubject(apiSubjects[0].value);
+    }
+  }, [apiSubjects]);
 
   // ── Filter inputs ──────────────────────────────
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -384,19 +399,31 @@ export default function ThamDinhCauHoiTab({
   const [isBulkReviewOpen, setIsBulkReviewOpen] = useState(false);
 
   // ── Derived: topic tree ────────────────────────
+  // Không còn lựa chọn "Tất cả" — dropdown chỉ liệt kê đúng (các) môn tài khoản được liên quan
+  // (apiSubjects, đã lọc theo getUserSubjectFilter ở component cha).
   const subjectDropdownOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiSubjects.length > 0 ? apiSubjects : SUBJECTS)
-    ],
+    () => (apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS)),
+    [apiSubjects, isSubjectRestricted]
+  );
+
+  // Danh sách tên môn được phép xem — dùng để chặn rò rỉ chủ đề môn khác ngay cả khi selectedSubject
+  // đang rỗng ("Tất cả") do dữ liệu apiSubjects chưa tải kịp hoặc do lỗi state ở nơi khác.
+  const allowedSubjectNames = useMemo(
+    () => new Set(apiSubjects.map((s) => s.label)),
     [apiSubjects]
   );
+
   const topicTreeData = useMemo(() => {
     if (allTopicsRaw.length === 0) return [];
 
-    // Filter topics matching selected subject
+    // Filter topics matching selected subject — khi chưa chọn môn cụ thể ("Tất cả"), vẫn phải giới
+    // hạn trong tập môn được phép xem nếu tài khoản đang bị giới hạn môn (isSubjectRestricted).
     const filtered = allTopicsRaw.filter((t: any) => {
-      return !selectedSubject || t.subject_name === selectedSubject;
+      if (selectedSubject) return t.subject_name === selectedSubject;
+      if (isSubjectRestricted && allowedSubjectNames.size > 0) {
+        return allowedSubjectNames.has(t.subject_name);
+      }
+      return true;
     });
 
     // Only show approved topics (status === 2)
@@ -447,7 +474,7 @@ export default function ThamDinhCauHoiTab({
     };
 
     return filterTree(roots);
-  }, [allTopicsRaw, selectedSubject, topicSearch]);
+  }, [allTopicsRaw, selectedSubject, topicSearch, isSubjectRestricted, allowedSubjectNames]);
 
 
   // ── Derived: filtered questions ────────────────
@@ -457,6 +484,7 @@ export default function ThamDinhCauHoiTab({
 
     return relevantQuestions.filter((q) => {
       if (selectedSubject && q.subject !== selectedSubject) return false;
+      if (!selectedSubject && isSubjectRestricted && allowedSubjectNames.size > 0 && !allowedSubjectNames.has(q.subject)) return false;
       if (selectedTopicKey) {
         const isChild = topicTreeData.some((t) =>
           t.children?.some((c) => c.key === q.topicId)
@@ -480,7 +508,7 @@ export default function ThamDinhCauHoiTab({
       }
       return true;
     });
-  }, [questions, selectedSubject, selectedTopicKey, topicTreeData, applied]);
+  }, [questions, selectedSubject, selectedTopicKey, topicTreeData, applied, isSubjectRestricted, allowedSubjectNames]);
 
   // ── Handlers ──────────────────────────────────
   const handleSearch = () => {

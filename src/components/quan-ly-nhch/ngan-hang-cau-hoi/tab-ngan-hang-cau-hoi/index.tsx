@@ -1429,6 +1429,7 @@ export default function QuestionBankModule({
           onUpdateQuestion={onUpdateQuestion}
           onOpenReview={handleOpenReviewInternal}
           apiSubjects={apiSubjects}
+          isSubjectRestricted={isSubjectRestricted}
           apiGrades={apiGrades}
           cognitiveLevelOptions={cognitiveLevelFilterOptions}
           questionTypeOptions={questionTypeFilterOptions}
