@@ -649,7 +649,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         onClick: () => handleSendReview([exam.id])
       });
     }
-    if (hasActionPermission(currentUser, 'exams.manage')) {
+    // Xem lịch sử chỉ nên yêu cầu quyền quản lý HOẶC quyền thẩm định — Tổ trưởng bộ môn thường chỉ
+    // được cấp 'exams.approve' (không có 'exams.manage'), trước đây bị chặn xem "Lịch sử chỉnh
+    // sửa" dù họ là người trực tiếp thẩm định đề.
+    if (hasAnyPermission(currentUser, ['exams.manage', 'exams.approve'])) {
       items.push({
         key: 'history',
         label: 'Lịch sử chỉnh sửa',
