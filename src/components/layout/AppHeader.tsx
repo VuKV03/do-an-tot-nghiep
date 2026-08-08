@@ -85,7 +85,7 @@ export default function AppHeader({
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user_info');
           setCurrentUser(null);
-          toast.success('Bạn đã đăng xuất tài khoản một cách an toàn!');
+          toast.success('Đăng nhập thành công!');
         }
       }
     ]
@@ -125,8 +125,8 @@ export default function AppHeader({
                 {currentUser?.fullName || currentUser?.username}
               </span>
               <span className="text-[10px] text-slate-400 font-bold block leading-none truncate max-w-[120px]" title={currentUser?.groups?.map(g => g.name).join(', ') || getRoleLabel(currentUser?.role)}>
-                {currentUser?.groups && currentUser.groups.length > 0 
-                  ? currentUser.groups.map(g => g.name).join(', ') 
+                {currentUser?.groups && currentUser.groups.length > 0
+                  ? currentUser.groups.map(g => g.name).join(', ')
                   : getRoleLabel(currentUser?.role)}
               </span>
             </div>
