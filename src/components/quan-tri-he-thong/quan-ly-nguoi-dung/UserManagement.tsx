@@ -151,6 +151,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const forceLogoutUserLocally = (userId: string) => {
     try {
+      localStorage.setItem('force_logout_' + userId, Date.now().toString());
       const bc = new BroadcastChannel('auth_channel');
       bc.postMessage({ type: 'force_logout', userId });
       bc.close();

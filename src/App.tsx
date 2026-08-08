@@ -90,28 +90,49 @@ export default function App() {
     fetchLatestUserInfo();
   }, []);
 
-  // Listen for cross-tab force logout events (e.g. from Admin resetting password)
+  // Listen for cross-tab force logout events and persistent F5 logout (from Admin)
   useEffect(() => {
+    const checkForceLogout = () => {
+      const cachedUser = localStorage.getItem('user_info');
+      if (cachedUser) {
+        try {
+          const userObj = JSON.parse(cachedUser);
+          const forceLogoutKey = 'force_logout_' + userObj.id;
+          if (localStorage.getItem(forceLogoutKey)) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_info');
+            localStorage.removeItem(forceLogoutKey);
+            setCurrentUser(null);
+            toast.error('Phiên đăng nhập đã bị vô hiệu hóa do thay đổi thông tin từ Quản trị viên. Vui lòng đăng nhập lại.');
+          }
+        } catch (e) {}
+      }
+    };
+
+    checkForceLogout(); // Check on mount (handles F5)
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('force_logout_')) {
+        checkForceLogout();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
     try {
       const bc = new BroadcastChannel('auth_channel');
       bc.onmessage = (event) => {
         if (event.data && event.data.type === 'force_logout') {
-          const cachedUser = localStorage.getItem('user_info');
-          if (cachedUser) {
-            const userObj = JSON.parse(cachedUser);
-            if (userObj.id === event.data.userId) {
-              // Target user is us! Log out immediately!
-              localStorage.removeItem('auth_token');
-              localStorage.removeItem('refresh_token');
-              localStorage.removeItem('user_info');
-              setCurrentUser(null);
-              toast.error('Phiên đăng nhập đã bị vô hiệu hóa do thay đổi mật khẩu hoặc trạng thái từ Quản trị viên. Vui lòng đăng nhập lại.');
-            }
-          }
+          checkForceLogout();
         }
       };
-      return () => bc.close();
-    } catch(e) {}
+      return () => {
+        bc.close();
+        window.removeEventListener('storage', handleStorage);
+      };
+    } catch(e) {
+      return () => window.removeEventListener('storage', handleStorage);
+    }
   }, []);
 
   // ── Set document title based on port ──
