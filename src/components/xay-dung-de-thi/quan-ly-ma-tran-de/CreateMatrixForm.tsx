@@ -16,7 +16,7 @@ import {
   apiSaveMaTran,
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
-} from './mockData';
+} from './matrixApi';
 import {
   subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi,
   subjectConfigApi, type TopicAPI, type SubjectConfigAPI, type QuestionTypeAPI,

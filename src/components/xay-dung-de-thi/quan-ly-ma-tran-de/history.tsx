@@ -12,7 +12,7 @@ import {
 import { toast } from '../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
 import { ExportOutlined } from '@ant-design/icons';
-import { apiGetMatrixHistory, MatrixHistoryAPI } from './mockData';
+import { apiGetMatrixHistory, MatrixHistoryAPI } from './matrixApi';
 
 // ─────────────────────────────────────────────
 // Types — cùng khuôn với QuestionHistoryModal (ngan-hang-cau-hoi/history.tsx), nhưng nguồn dữ liệu
