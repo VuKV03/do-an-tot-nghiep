@@ -10,7 +10,7 @@ import {
   type QuestionTypeAPI, type CognitiveLevelAPI,
 } from '../../../services/danhMucApi';
 import { mapCognitiveLevelRecord } from '../../../utils/cognitiveLevel';
-import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/mockData';
+import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/matrixApi';
 import ExamContentDisplay from './ExamContentDisplay';
 import RichTextEditor from '../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../RichTextEditorGroup';

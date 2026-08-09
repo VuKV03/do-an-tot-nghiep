@@ -16,7 +16,7 @@ import {
   apiSaveMaTran,
   apiGetMatrixConfigDetail, apiUpdateMaTran,
   MonHocOption, CaiDatMaTran, ChuDeNode, MaTranData, ItemMaTranData,
-} from './mockData';
+} from './matrixApi';
 import {
   subjectCategoryApi, topicsApi, competencyComponentApi, cognitiveLevelApi, questionTypeApi, bankQuestionApi,
   subjectConfigApi, type TopicAPI, type SubjectConfigAPI, type QuestionTypeAPI,
@@ -568,11 +568,14 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
     if (tenMatran.length > TEN_MAX_LENGTH) {  return; }
     if (obj.length === 0) {  return; }
     setSaving(true);
+    // Người soạn thật — dùng để ghi log lịch sử ("Thêm mới"/"Sửa" ở matrix_histories), khớp quy ước
+    // creator/actor ở manual-create.tsx (Ngân hàng câu hỏi).
+    const actor = currentUser?.fullName || currentUser?.username;
     let res;
     if (editingId) {
-      res = await apiUpdateMaTran(editingId, { subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+      res = await apiUpdateMaTran(editingId, { subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj, actor });
     } else {
-      res = await apiSaveMaTran({ subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj });
+      res = await apiSaveMaTran({ subject_id: monHocId, ma: maMatran, ten: tenMatran, ds_cau_truc: obj, actor });
     }
     setSaving(false);
     if (res.success) {

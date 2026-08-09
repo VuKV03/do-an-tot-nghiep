@@ -8,7 +8,7 @@ import { Question } from '../../../types';
 import {
   bankQuestionApi, questionApi,
 } from '../../../services/danhMucApi';
-import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/mockData';
+import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/matrixApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';

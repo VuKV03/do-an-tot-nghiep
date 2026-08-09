@@ -39,11 +39,13 @@ import {
   UpOutlined,
   DownOutlined,
   SendOutlined,
-  EyeOutlined
+  EyeOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
+import MatrixHistoryModal from './history';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
@@ -144,6 +146,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const [reviewNotes, setReviewNotes] = useState('');
   const [isBatchReview, setIsBatchReview] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Lịch sử ma trận — dùng chung cho cả 2 tab (Ma trận đề / Thẩm định ma trận đề), giống cách
+  // QuestionHistoryModal dùng chung cho cả tab Ngân hàng câu hỏi/Thẩm định câu hỏi.
+  const [historyMatrix, setHistoryMatrix] = useState<{ id: string; name: string; code: string } | null>(null);
 
   // === API-driven table state ===
   interface MatrixTableDataRow {
@@ -299,7 +305,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'pending',
-          ids: [id]
+          ids: [id],
+          actor: currentUser?.fullName || currentUser?.username
         })
       });
       const json = await res.json();
@@ -465,7 +472,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         body: JSON.stringify({
           status: reviewStatus,
           ids: targetIds,
-          notes: reviewNotes
+          notes: reviewNotes,
+          actor: currentUser?.fullName || currentUser?.username
         })
       });
       const json = await res.json();
@@ -764,6 +772,18 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                 />
                               </Tooltip>
                             )}
+                            {/* Lịch sử — không gắn điều kiện quyền, giống quy ước ở Ngân hàng câu hỏi
+                                (tab-ngan-hang-cau-hoi/index.tsx, tham-dinh-cau-hoi/index.tsx): hễ vào
+                                được tab là xem được lịch sử, không phân biệt vai trò. */}
+                            <Tooltip title="Lịch sử">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<HistoryOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
+                              />
+                            </Tooltip>
                             {hasActionPermission(currentUser, 'matrices.manage') && (
                               <Popconfirm
                                 title="Xóa ma trận này?"
@@ -1048,6 +1068,15 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                 />
                               </Tooltip>
                             )}
+                            <Tooltip title="Lịch sử">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<HistoryOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
+                              />
+                            </Tooltip>
                           </Space>
                         </td>
                       </tr>
@@ -1186,6 +1215,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           </div>
         </div>
       </Modal>
+
+      {/* Lịch sử ma trận — dùng chung cho cả 2 tab (xem nút "Lịch sử" ở mỗi hàng bảng phía trên) */}
+      <MatrixHistoryModal matrix={historyMatrix} onClose={() => setHistoryMatrix(null)} />
     </div>
   );
 }

@@ -215,3 +215,28 @@ export async function apiUpdateMaTran(id: string, payload: any): Promise<{ succe
   }
 }
 
+// ------------------------------------------
+// Lịch sử chỉnh sửa/thẩm định ma trận (matrix_histories) — khớp shape BankQuestionHistoryAPI
+// (danhMucApi.ts) nhưng có thêm `comment` (nhận xét thật của người thẩm định khi Đồng ý/Từ chối,
+// tách riêng khỏi `note` mô tả hành động — xem backend/exam_service/models.py::MatrixHistory).
+export interface MatrixHistoryAPI {
+  id: string;
+  matrix_id: string;
+  action: string;
+  actor: string | null;
+  timestamp: string;
+  note: string;
+  comment: string | null;
+}
+
+/** Lấy lịch sử chỉnh sửa/thẩm định thật của 1 ma trận đề */
+export async function apiGetMatrixHistory(id: string): Promise<{ success: boolean; count?: number; data?: MatrixHistoryAPI[]; message?: string }> {
+  try {
+    const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}/history`);
+    return await res.json();
+  } catch (err) {
+    console.error('apiGetMatrixHistory error:', err);
+    return { success: false, message: 'Lỗi kết nối API khi lấy lịch sử ma trận.' };
+  }
+}
+
