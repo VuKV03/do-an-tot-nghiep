@@ -83,6 +83,24 @@ class QuestionHistoryListResponse(BaseModel):
     data: List[QuestionHistoryResponse]
 
 
+class MatrixHistoryResponse(BaseModel):
+    id: str
+    matrix_id: str
+    action: str
+    actor: Optional[str] = None
+    timestamp: str
+    note: str
+    comment: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class MatrixHistoryListResponse(BaseModel):
+    success: bool = True
+    count: int
+    data: List[MatrixHistoryResponse]
+
+
 # ─── Exam Schemas ────────────────────────────────────────────────────
 class ExamCreate(BaseModel):
     name: str

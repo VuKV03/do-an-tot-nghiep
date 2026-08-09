@@ -153,6 +153,26 @@ class MatrixConfig(Base):
     structure = Column(Text)  # JSON string of ds_cau_truc array
 
 
+# ─── Lịch sử ma trận đề (matrix_histories) ───────────────────────────
+# Mirrors topic_histories/question_histories — cùng bộ action ('Thêm mới', 'Sửa', 'Gửi thẩm định',
+# 'Đồng ý', 'Từ chối') để màn "Lịch sử" ở Quản lý ma trận đề hiển thị đồng nhất với Ngân hàng câu hỏi.
+class MatrixHistory(Base):
+    __tablename__ = "matrix_histories"
+
+    id = Column(String(36), primary_key=True)
+    matrix_id = Column(
+        String(255), ForeignKey("matrix_configs.id", ondelete="CASCADE"), nullable=False
+    )
+    actor = Column(String(255), nullable=True)
+    action = Column(String(50), nullable=False)
+    timestamp = Column(String(50), nullable=False)
+    note = Column(Text, default="")
+    # Nhận xét thật của người thẩm định khi Đồng ý/Từ chối (khớp comment ở topic_histories) — tách
+    # riêng khỏi `note` (mô tả hành động) để cột "Nội dung thẩm định/Từ chối" ở màn Lịch sử không lấy
+    # nhầm nội dung.
+    comment = Column(Text, nullable=True)
+
+
 # ─── Danh mục môn học (SubjectCategory) ──────────────────────────────
 class SubjectCategory(Base):
     __tablename__ = "subject_categories"
