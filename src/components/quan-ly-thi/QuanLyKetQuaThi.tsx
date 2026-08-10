@@ -47,7 +47,7 @@ export default function QuanLyKetQuaThi() {
     setLoadingPackages(true);
     try {
       // Lấy danh sách gói đề từ exam_service
-      const res = await fetch(`${API_ORIGIN}/api/exam/packages`);
+      const res = await fetch(`${API_ORIGIN}/api/exams/packages`);
       if (res.ok) {
         const data = await res.json();
         const packagesListRaw = data.data || data; // Handle both wrapped and unwrapped arrays

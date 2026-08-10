@@ -119,10 +119,15 @@ async def proxy_exams(request: Request, path: str = ""):
 
 @app.api_route("/api/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/packages", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/packages/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams_fallback(request: Request, path: str = ""):
     """Backward compatible exam route."""
     # Handle packages sub-route
-    if path.startswith("packages"):
+    if request.url.path.startswith("/api/exam/packages"):
+        pkg_path = request.url.path[len("/api/exam/packages"):]
+        request.scope["path"] = f"/packages{pkg_path}" if pkg_path else "/packages/"
+    elif path.startswith("packages"):
         pkg_path = path[len("packages"):]
         request.scope["path"] = f"/packages/{pkg_path.lstrip('/')}" if pkg_path else "/packages/"
     else:
