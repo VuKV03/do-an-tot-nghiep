@@ -601,6 +601,10 @@ export default function QuanLyThiSinh() {
             ? `Bạn có chắc chắn muốn xóa bản ghi có tên thí sinh "${candidateToDelete.fullName}"?`
             : `Bạn có chắc chắn muốn xóa ${selectedRowKeys.length} bản ghi thí sinh?`
           }
+          <br />
+          <span className="text-sm text-red-500 italic">
+            (Lưu ý: Thao tác xóa này có thể xóa cả lịch sử làm bài và toàn bộ kết quả thi của thí sinh)
+          </span>
         </p>
       </Modal>
 

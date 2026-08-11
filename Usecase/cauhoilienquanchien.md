@@ -1,0 +1,200 @@
+# 🎓 BỘ CÂU HỎI PHẢN BỆN VÀ CÂU TRẢ LỜI CHI TIẾT BẢO VỆ ĐỒ ÁN
+**Sinh viên thực hiện:** Nguyễn Văn Chiến  
+**Tên đề tài:** Quản lý và Sinh đề thi AI v2  
+**Vị trí phụ trách:** Quản lý người dùng, Quản lý nhóm & Phân quyền (RBAC), Thống kê ngân hàng câu hỏi, Quản lý thí sinh, Quản lý kết quả thi, Thi trực tuyến.
+
+---
+
+## 🏛️ PHẦN I: BỘ CÂU HỎI PHẢN BỆN TRỰC TIẾP TỪ GIẢNG VIÊN (MOCK DEFENSE QA)
+
+---
+
+### 1️⃣ Câu hỏi 1 (Về Bảo mật Session & JWT Invalidation):
+> **Giáo viên hỏi:** *"Em dùng Token JWT để xác thực người dùng. Giả sử tài khoản Giảng viên A bị phát hiện lộ mật khẩu, Admin thực hiện khóa tài khoản đó trên màn hình Quản lý người dùng. Nhưng lúc này Giảng viên A đang đăng nhập ở một máy tính khác và vẫn giữ chuỗi `access_token` chưa hết hạn. **Hệ thống của em xử lý làm sao để ngăn chặn ngay lập tức người đó không tiếp tục thao tác được nữa?** Em hãy chỉ ra đoạn code/middleware xử lý việc này."*
+
+#### 💡 Câu trả lời chi tiết:
+- **Nguyên lý xử lý:** Vì Token JWT cơ bản mang tính chất Stateless (không lưu trạng thái ở server), nếu không có cơ chế hủy token thì Token cũ vẫn hợp lệ cho đến khi hết hạn (exp). Hệ thống của em giải quyết vấn đề này bằng mô hình **Server-Side Token Revocation / Session Invalidation**:
+  1. Trong Bảng `Users` ở Cơ sở dữ liệu, em bổ sung 1 trường tên là `token_version` (hoặc `status`, `password_updated_at`) với giá trị khởi tạo là `1`.
+  2. Khi sinh `access_token` tại thời điểm Đăng nhập, thông tin `token_version` (ví dụ: `v: 1`) được đóng gói trực tiếp vào Payload của JWT.
+  3. Khi Admin thực hiện **Khóa tài khoản** hoặc **Reset mật khẩu** cho Giảng viên A, Backend ngay lập tức cập nhật trường `token_version` trong DB tăng lên 1 (ví dụ từ `1` thành `2`) hoặc cập nhật `status = 'LOCKED'`.
+  4. Mọi API Request từ máy tính của Giảng viên A gửi lên đều phải đi qua **Authentication Middleware**. Tại đây, Middleware giải mã JWT lấy `user_id` và `token_version` trong payload, sau đó truy vấn nhanh DB (hoặc Cache Redis):
+     - **Nếu `user_status == 'LOCKED'` hoặc `jwt_payload.token_version < db_user.token_version`:** Middleware lập tức reject request, trả về mã HTTP `401 Unauthorized` kèm thông báo *"Tài khoản đã bị khóa hoặc phiên làm bài đã bị hủy"*.
+     - Client (Frontend) nhận mã 401 sẽ tự động xóa token trong LocalStorage/Cookie và điều hướng người dùng văng ra màn hình Đăng nhập.
+
+---
+
+### 2️⃣ Câu hỏi 2 (Về Phân quyền RBAC & Chống Bypass Frontend):
+> **Giáo viên hỏi:** *"Hệ thống của em quảng bá là có phân quyền động RBAC. Giả sử Thầy/Cô dùng công cụ F12 (DevTools) để sửa giao diện Frontend, cố tình cho hiển thị lại các nút bấm 'Xóa câu hỏi' hoặc 'Tạo ca thi' mà tài khoản của Thầy/Cô không được phép. **Backend của em sẽ phát hiện và chặn hành vi này bằng cách nào?** Mã lỗi HTTP trả về là gì?"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Nguyên lý xử lý:**
+  - **Frontend (UI Layer):** Ẩn/Hiện nút bấm hoặc Menu chỉ mang tính chất **Tối ưu trải nghiệm người dùng (UX)**, giúp người dùng không nhìn thấy các tính năng mình không có quyền. Frontend **không được coi là một lớp bảo mật**.
+  - **Backend (Security Layer):** Mọi hành động kích hoạt từ nút bấm (dù bị can thiệp F12) đều phải gửi 1 HTTP Request (POST, PUT, DELETE...) tới API tương ứng ở Backend.
+  - **Cơ chế chặn ở Backend:**
+    1. Tất cả các Route bảo mật đều được gắn **Authorization Middleware** kèm theo mã quyền yêu cầu. Ví dụ: Route DELETE `/api/questions/:id` yêu cầu quyền `QUESTION_DELETE`.
+    2. Khi Request đến, Middleware lấy `user_id` từ Token, truy vấn bảng `User_Roles` và `Role_Permissions` để lấy tập hợp tất cả các `permission_code` mà User đó thực sự sở hữu dưới Database.
+    3. Middleware thực hiện hàm so sánh: `user_permissions.includes('QUESTION_DELETE')`.
+    4. **Kết quả:** Nếu không tồn tại quyền `QUESTION_DELETE`, Backend ngắt tiến trình xử lý ngay lập tức, trả về mã lỗi HTTP `403 Forbidden` cùng JSON phản hồi: `{"detail": "Bạn không có quyền thực hiện thao tác xóa câu hỏi!"}`. Do đó, việc sửa giao diện Frontend hoàn toàn bất lực.
+
+---
+
+### 3️⃣ Câu hỏi 3 (Về Thống kê Ngân hàng câu hỏi & Tối ưu Dữ liệu lớn):
+> **Giáo viên hỏi:** *"Khi ngân hàng câu hỏi của trường tăng lên 50.000 câu hỏi với hàng trăm môn học, mỗi lần mở trang Dashboard Thống kê, hệ thống có bị treo hoặc load chậm không? **Em đã dùng những kỹ thuật gì ở Database và Backend để tối ưu tốc độ tính toán các biểu đồ thống kê này?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Các kỹ thuật tối ưu được áp dụng:**
+  1. **Tối ưu chỉ mục Database (Database Indexing):** Đánh B-Tree Index cho các trường thường xuyên tham gia vào mệnh đề `WHERE` và `GROUP BY` như: `subject_id`, `topic_id`, `difficulty_level`, `status`. Điều này giúp DB tìm kiếm và gom nhóm dữ liệu trong thời gian $O(\log N)$ thay vì quét toàn bộ bảng (Full Table Scan).
+  2. **Thực thi Aggregation Query trực tiếp tại Database:** Không bao giờ kéo 50.000 bản ghi về Server Backend rồi dùng vòng lặp `for/filter` để đếm. Thay vào đó, gửi câu lệnh Gom nhóm tối ưu (`SELECT subject_id, difficulty, COUNT(*) FROM questions GROUP BY subject_id, difficulty`) để Database Engine thực thi tính toán và chỉ trả về kết quả tổng hợp dạng JSON cực nhỏ (vài KB).
+  3. **Cơ chế Caching (Bộ nhớ đệm Redis / In-memory Cache):** Các số liệu thống kê tổng quan (Dashboard) không biến động từng giây. Backend lưu kết quả tính toán vào Cache với thời gian sống `TTL = 5 - 10 phút`. Khi người dùng mở trang Thống kê, Backend lấy ngay từ Cache trả về dưới 10ms mà không cần truy vấn lại Database. Khi có sự kiện Thêm/Sửa/Xóa câu hỏi, hệ thống sẽ xóa cache (Invalidate Cache) để tính lại ở lần request tiếp theo.
+
+---
+
+### 4️⃣ Câu hỏi 4 (Về Import Thí sinh & Quản lý Transaction File Excel):
+> **Giáo viên hỏi:** *"Khi cán bộ coi thi Import danh sách 500 thí sinh từ file Excel vào hệ thống, giả sử đến dòng thứ 250 thì bị trùng Số báo danh (SBD) hoặc sai định dạng Email. **Hệ thống của em sẽ xử lý Transaction như thế nào? Bỏ qua dòng lỗi đó hay hủy bỏ (Rollback) toàn bộ file?** Làm sao người dùng biết dòng nào bị lỗi để sửa?"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Quy trình xử lý Import qua 3 giai đoạn của hệ thống:**
+  1. **Giai đoạn 1 - Validate & In-Memory Check (Chưa ghi vào DB):**
+     - Đọc file Excel thành mảng dữ liệu JSON bằng thư viện (như `SheetJS`/`pandas`).
+     - Duyệt qua từng dòng kiểm tra tính hợp lệ về cú pháp: Cột Họ tên không rỗng, Email đúng regex, SBD không để trống.
+     - Kiểm tra trùng SBD/Email nội bộ ngay trong chính file Excel tải lên.
+  2. **Giai đoạn 2 - Database Transaction Management (Ghi dữ liệu an toàn):**
+     - Mở một **Database Transaction** (`BEGIN TRANSACTION`).
+     - Thực hiện kiểm tra trùng SBD/Email với dữ liệu đã có trong Database.
+     - **Chính sách xử lý lỗi:** Hệ thống hỗ trợ chế độ **Atomic Transaction (All-or-Nothing)** nhằm đảm bảo tính toàn vẹn dữ liệu. Nếu phát hiện bất kỳ lỗi nào (dù ở dòng 250), toàn bộ Transaction sẽ bị hủy bỏ ngay lập tức (`ROLLBACK TRANSACTION`). Không có dữ liệu rác hay dữ liệu bán phần nào được lưu vào DB.
+  3. **Giai đoạn 3 - Báo cáo lỗi chi tiết (Error Reporting):**
+     - Hệ thống thu thập danh sách tất cả các dòng vi phạm và trả về Client danh sách lỗi có cấu trúc:
+       - *Dòng 250: Trùng Số Báo Danh "SBD12345" với thí sinh Nguyễn Văn A đã có trong hệ thống.*
+       - *Dòng 310: Định dạng Email "abc@" không hợp lệ.*
+     - Giao diện hiển thị bảng danh sách các dòng bị lỗi để Cán bộ coi thi chỉnh sửa trực tiếp file Excel và tải lên lại.
+
+---
+
+### 5️⃣ Câu hỏi 5 (Về Chấm lại bài thi - Re-grading Result Management):
+> **Giáo viên hỏi:** *"Sau khi ca thi kết thúc và đã có bảng điểm, nếu phát hiện ra 1 câu hỏi trong ngân hàng câu hỏi bị nhập sai đáp án gốc dẫn đến chấm sai cho hàng loạt thí sinh. **Hệ thống của em có hỗ trợ chấm lại (Re-grade) không? Quy trình tính toán lại điểm số diễn ra như thế nào?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Hệ thống có hỗ trợ chức năng Chấm lại (Re-grade / Recalculate Exam Results):**
+- **Quy trình tính toán lại điểm số diễn ra như sau:**
+  1. **Bước 1 - Cập nhật đáp án chuẩn:** Giáo viên/Admin vào phân hệ Quản lý câu hỏi, điều chỉnh lại đáp án đúng chính xác cho câu hỏi bị sai và lưu lại.
+  2. **Bước 2 - Kích hoạt tiến trình Chấm lại ca thi:** Tại giao diện Quản lý kết quả thi (`QuanLyKetQuaThi.tsx`), Quản trị viên chọn Ca thi cần chấm lại và ấn nút *"Chấm lại toàn bộ ca thi"*.
+  3. **Bước 3 - Backend Re-grading Logic:**
+     - Backend truy vấn danh sách tất cả bài thi (`ExamResults`) thuộc Ca thi đó.
+     - Duyệt qua từng bài làm của thí sinh (lịch sử các câu trả lời `selected_options` đã được lưu trữ vĩnh viễn trong chi tiết bài thi `exam_submission_details`).
+     - Chạy lại hàm tính điểm tự động `autoGrade()` với bộ đáp án chuẩn mới nhất của đề thi.
+     - Tính lại: Tổng điểm, Số câu đúng, Số câu sai.
+  4. **Bước 4 - Cập nhật & Lưu vết (Audit Log):** Cập nhật điểm mới vào bảng `ExamResults`, đồng thời ghi vết lịch sử `updated_at` và lý do chấm lại vào System Log để phục vụ công tác thanh tra/phúc khảo.
+
+---
+
+### 6️⃣ Câu hỏi 6 (Về Thi trực tuyến, Đồng bộ thời gian & Chống Gian lận):
+> **Giáo viên hỏi:** *"Về chức năng Thi trực tuyến, em hãy trả lời 2 ý:*  
+> *- a) Làm sao em đảm bảo đếm ngược thời gian thi chính xác nếu sinh viên cố tình chỉnh lùi giờ trên máy tính cá nhân?*  
+> *- b) Nếu sinh viên bị rớt mạng hoàn toàn trong 3 phút rồi có lại, hoặc vô tình ấn phím F5 / Ctrl+R, làm sao bài thi không bị mất đáp án đã chọn và đồng hồ vẫn chạy đúng?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Trả lời ý a) - Xử lý Đồng bộ thời gian Server (Server-Side Time Sync):**
+  - Đồng hồ đếm ngược **tuyệt đối không dựa vào thời gian hệ thống của máy tính Client (`new Date()`)**.
+  - Khi thí sinh bắt đầu làm bài, Server lưu vết `server_start_time` và `duration_minutes`. Server tính mốc thời gian kết thúc cố định: `server_end_time = server_start_time + duration_minutes`.
+  - Mỗi khi Render hoặc đếm ngược ở Frontend, thời gian còn lại được tính bằng: `remaining_time = server_end_time - current_server_time`.
+  - Định kỳ (hoặc khi sync đáp án), Client nhận lại `current_server_time` từ phản hồi API của Server để hiệu chỉnh lại đồng hồ đếm ngược trên màn hình. Do đó, dù thí sinh có chỉnh lùi giờ trên Windows/Mac bao nhiêu tùy thích thì đồng hồ thi vẫn đếm ngược chính xác theo giờ Server.
+
+- **Trả lời ý b) - Khôi phục bài làm & Bảo toàn trạng thái thi khi mất mạng / F5:**
+  - **Bảo toàn đáp án (Dual-layer Auto-Save):**
+    1. *Layer 1 (Tức thì ở Client):* Ngay khi thí sinh bấm chọn một đáp án, đáp án đó được ghi ngay vào `localStorage` của trình duyệt theo cấu trúc key: `exam_draft_{candidate_id}_{exam_id}`. Khi F5 hoặc rớt mạng mở lại, ứng dụng lấy ngay từ `localStorage` để hiển thị lại đầy đủ các câu đã chọn.
+    2. *Layer 2 (Định kỳ lên Server):* Song song đó, có một tiến trình ngầm gửi API `POST /api/exam/save-draft` lên Server mỗi 10-15 giây. Nên dù có chuyển sang máy tính khác đăng nhập lại, bài làm vẫn được khôi phục từ bản lưu trên Server.
+  - **Khôi phục đếm ngược:** Khi trang web bị tải lại (F5), Frontend gửi API lấy thông tin ca thi hiện tại. Server trả về mốc `server_end_time`. Frontend tiếp tục đếm ngược từ khoảng thời gian còn lại chính xác mà không bị đứt đoạn hay reset lại từ đầu.
+
+---
+
+### 7️⃣ Câu hỏi 7 (Về Tải cao Concurrency & Race Condition khi Nộp bài thi):
+> **Giáo viên hỏi:** *"Giả sử trong một ca thi có 1.000 thí sinh cùng bấm nút 'Nộp bài' ở những giây cuối cùng. **Server của em làm sao để chống treo/sập (Crash/Overload) và xử lý không bị xung đột (Race condition) khi ghi nhận điểm số vào Database?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Kỹ thuật chống quá tải & Race condition khi Nộp bài đồng thời:**
+  1. **Hàng chờ xử lý bất đồng bộ (Asynchronous Task Queue):** API tiếp nhận Nộp bài không thực hiện các tác vụ nặng (như tính toán điểm chi tiết, tạo PDF) đồng bộ trên main thread. API chỉ nhanh chóng nhận Payload, cập nhật trạng thái `status = 'SUBMITTED'` vào DB (vài ms) rồi trả phản hồi thành công ngay cho Client. Quá trình tính điểm nâng cao được đẩy vào Message Queue (như RabbitMQ / Redis Streams / Celery Task Worker) để xử lý tuần tự dưới background.
+  2. **Connection Pooling & Non-blocking I/O:** Sử dụng Web Server bất đồng bộ (Node.js Event Loop / FastAPI AsyncIO) kết hợp với Database Connection Pool (ví dụ: max 50-100 connections). Điều này cho phép hàng ngàn kết nối I/O cùng tồn tại mà không làm tràn RAM Server.
+  3. **Chống Nộp bài trùng lặp (Idempotency & Lock):** Để tránh trường hợp Thí sinh double-click nút Nộp bài hoặc mạng lag làm gửi 2 request trùng nhau:
+     - Tại DB, thiết lập ràng buộc duy nhất (`UNIQUE Constraint`) trên cặp `(candidate_id, exam_id)`.
+     - Sử dụng Redis Distributed Lock (`Redlock`) hoặc Idempotency Key theo `submission_id`. Nếu có request thứ 2 gửi đến khi request 1 đang xử lý, hệ thống sẽ bỏ qua ngay request thứ 2.
+
+---
+
+### 8️⃣ Câu hỏi 8 (Về Phân quyền Dữ liệu theo phạm vi / Row-Level Data Authorization):
+> **Giáo viên hỏi:** *"Trong hệ thống, cả Giảng viên A và Giảng viên B đều có quyền 'Xem kết quả thi' (`VIEW_EXAM_RESULT`). **Làm sao em đảm bảo Giảng viên A chỉ xem được kết quả thi của lớp/môn học do Giảng viên A phụ trách, mà không xem được kết quả thi thuộc môn của Giảng viên B?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Phân biệt giữa RBAC (Role-Based) và ABAC (Attribute-Based / Row-Level Security):**
+  - RBAC kiểm tra xem Giảng viên A có quyền `VIEW_EXAM_RESULT` hay không.
+  - Tuy nhiên, để lọc đúng dữ liệu thuộc sở hữu của Giảng viên A, hệ thống áp dụng **Row-Level Data Scoping (Phân quyền dữ liệu theo dòng)** ở lớp truy vấn Backend.
+- **Cách thực thi trong Code Backend:**
+  1. Mỗi tài khoản Giảng viên được liên kết với danh sách `assigned_subject_ids` (hoặc `class_ids`) trong bảng phân công giảng dạy.
+  2. Khi Giảng viên A gọi API `GET /api/exam-results`, Controller lấy `current_user_id` từ JWT token.
+  3. Thay vì truy vấn `SELECT * FROM exam_results`, Backend tự động bổ sung điều kiện lọc dữ liệu bắt buộc (Data Scoping Clause):
+     `WHERE subject_id IN (SELECT subject_id FROM teacher_subjects WHERE teacher_id = current_user_id)`
+  4. Nếu là Admin (`user_role == 'ADMIN'`), điều kiện lọc này sẽ được bỏ qua để xem toàn bộ hệ thống. Do đó, Giảng viên A tuyệt đối không thể truy cập hay xem trộm kết quả thi môn của Giảng viên B.
+
+---
+
+### 9️⃣ Câu hỏi 9 (Về Cấp quyền thi lại & Bảo toàn Dữ liệu / Soft Delete & Audit Log):
+> **Giáo viên hỏi:** *"Khi thí sinh gặp sự cố bất khả kháng (máy hỏng) và Admin bấm nút 'Cấp quyền Thi lại' trên màn hình Quản lý thí sinh. **Dữ liệu bài thi cũ của thí sinh đó được xóa hẳn khỏi Database hay ẩn đi? Tại sao không nên xóa cứng (`HARD DELETE`) dữ liệu trong hệ thống giáo dục?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Chính sách xử lý Dữ liệu bài thi khi Cấp quyền Thi lại:**
+  - **Tối kỵ Xóa cứng (Hard Delete):** Trong các hệ thống Giáo dục & Đào tạo, dữ liệu bài làm và điểm số mang tính pháp lý cao, tuyệt đối **không bao giờ được sử dụng lệnh `DELETE FROM`** để xóa vĩnh viễn bản ghi khỏi Database. Việc xóa cứng sẽ làm mất lịch sử đối soát khi có thanh tra hoặc khiếu nại của thí sinh.
+- **Giải pháp áp dụng (Soft Delete & Versioning & Audit Log):**
+  1. **Xóa mềm (Soft Delete / Status Update):** Khi Admin bấm nút *"Cấp quyền Thi lại"*, hệ thống cập nhật trường `is_cancelled = True` hoặc `status = 'RESET_FOR_RETEST'` trên bản ghi bài thi cũ.
+  2. **Đánh phiên bản bài thi (Attempt Version):** Mỗi lượt thi của thí sinh ở một môn học có trường `attempt_number` (Lần thi 1, Lần thi 2). Bản ghi thi lại sẽ là `attempt_number = 2`.
+  3. **Ghi vết lịch sử (Audit Log Trail):** Hệ thống tự động ghi 1 bản ghi vào bảng `System_Audit_Logs` chứa thông tin: `admin_id` người duyệt thi lại, `candidate_id`, `reason` (lý do cho thi lại), `timestamp` thực hiện.
+  4. Khi tính toán bảng điểm chính thức, câu lệnh SQL sẽ tự động lọc `WHERE is_cancelled = False AND is_latest = True`.
+
+---
+
+### 🔟 Câu hỏi 10 (Về Thuật toán Hoán vị Đề thi & Đối chiếu Chấm điểm):
+> **Giáo viên hỏi:** *"Hệ thống của em tạo đề thi hoán vị cho từng thí sinh. **Nếu Thí sinh A chọn đáp án B cho Câu 1, nhưng ở đề của Thí sinh B thì Câu 1 đó lại nằm ở vị trí Câu 15 và đáp án B lại nằm ở vị trí C. Làm sao hệ thống đối chiếu đáp án chính xác khi chấm điểm?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Cấu trúc lưu trữ Đề thi Hoán vị (Permutation Structure):**
+  - Hệ thống **không bao giờ** chấm điểm dựa trên thứ tự hiển thị giao diện (như "Câu 1 chọn B", "Câu 2 chọn A").
+  - Mọi câu hỏi trong Ngân hàng đều có một `question_id` cố định (UUID/Int), và mỗi phương án trả lời đều có một `option_id` cố định.
+- **Cách thức hoạt động:**
+  1. **Khi Sinh đề hoán vị cho Thí sinh:** Backend tạo ra một bản đồ ánh xạ (Mapping Schema) đảo thứ tự hiển thị nhưng **giữ nguyên ID gốc**:
+     - *Thí sinh A:* Câu hiển thị 1 -> `question_id: 105`. Các lựa chọn: Pos A (`option_id: 1`), Pos B (`option_id: 2`), Pos C (`option_id: 3`).
+     - *Thí sinh B:* Câu hiển thị 15 -> `question_id: 105`. Các lựa chọn: Pos A (`option_id: 3`), Pos B (`option_id: 1`), Pos C (`option_id: 2`).
+  2. **Khi Thí sinh chọn đáp án & Nộp bài:** Payload gửi về Backend lưu trữ chính xác ID của lựa chọn: `{ question_id: 105, selected_option_id: 2 }`.
+  3. **Khi Chấm điểm (Auto-Grading):** Backend chỉ cần so sánh `selected_option_id` của thí sinh với `correct_option_id` của `question_id: 105` lưu trong Database. Việc câu hỏi nằm ở vị trí thứ mấy hay chữ cái A/B/C/D hiển thị ở đâu hoàn toàn không ảnh hưởng đến độ chính xác của thuật toán chấm điểm.
+
+---
+
+### 1️⃣1️⃣ Câu hỏi 11 (Về Tối ưu Bộ nhớ RAM khi Xuất Báo cáo Excel Dung lượng lớn):
+> **Giáo viên hỏi:** *"Khi xuất báo cáo bảng điểm cho một ca thi lên đến 5.000 thí sinh ra file Excel/PDF, nếu backend tạo toàn bộ file trong bộ nhớ RAM trước khi gửi về client thì có nguy cơ bị **Out-Of-Memory (OOM)**. **Em đã tối ưu quá trình xuất file báo cáo này như thế nào?**"*
+
+#### 💡 Câu trả lời chi tiết:
+- **Các kỹ thuật giải quyết bài toán OOM khi Xuất file dữ liệu lớn:**
+  1. **Truy vấn dữ liệu dạng Con trỏ / Chunking (Cursor & Pagination Query):** Thay vì nạp toàn bộ 5.000 bản ghi bài thi vào RAM bằng `SELECT *` (`results.fetchall()`), Backend sử dụng `Server-Side Cursor` hoặc phân trang ngầm để đọc từng lô (ví dụ 500 bản ghi/lần).
+  2. **Sử dụng Stream Response (HTTP Chunked Transfer Encoding):**
+     - Thay vì tạo toàn bộ file `.xlsx` trong bộ nhớ RAM rồi mới gửi HTTP Response về Client, Backend kết hợp thư viện hỗ trợ Stream (như `exceljs` Stream Writer / Python `StreamingResponse`).
+     - File Excel được ghi và đẩy trực tiếp thành các đoạn dữ liệu nhỏ (chunks) qua kết nối HTTP Stream về trình duyệt Client.
+  3. **Tối ưu giải phóng bộ nhớ (Garbage Collection):** Sau khi ghi xong mỗi chunk dữ liệu, các biến tạm thời lập tức được giải phóng bộ nhớ. Kỹ thuật này giúp dung lượng RAM của Server duy trì ở mức thấp cố định (vài chục MB) dù xuất báo cáo cho 5.000 hay 100.000 thí sinh.
+
+---
+
+## 📌 PHẦN II: TỔNG HỢP CÂU HỎI & ĐÁP ÁN BỔ TRỢ THEO CHUYÊN ĐỀ
+
+### 📁 Chuyên đề 1: Quản lý người dùng & Phân quyền RBAC
+* **Câu hỏi:** Phân biệt Role và Permission?
+* **Đáp án:** `Permission` (Quyền hạn) là các đơn vị hành động nhỏ nhất (Ví dụ: `CREATE_USER`, `DELETE_QUESTION`). `Role` (Vai trò) là một tập hợp gom nhóm nhiều Permission lại với nhau (Ví dụ: Role "Giảng viên" chứa `CREATE_QUESTION`, `EDIT_QUESTION`, `VIEW_RESULT`). User được gán Role sẽ thừa hưởng toàn bộ Permission nằm trong Role đó.
+
+### 📁 Chuyên đề 2: Quản lý thí sinh & Import dữ liệu
+* **Câu hỏi:** Làm sao để tạo Số báo danh (SBD) tự động không bao giờ bị trùng trong môi trường nhiều người cùng bấm tạo một lúc (Concurrency)?
+* **Đáp án:** Sử dụng chuỗi định dạng tiền tố + số tự tăng managed bởi Database Sequence hoặc UUID v4 / Mã băm duy nhất. Đối với cơ sở dữ liệu quan hệ, thiết lập ràng buộc `UNIQUE` trên cột `sbd`. Trong code backend, sử dụng cơ chế `Locking` (Optimistic/Pessimistic Lock) hoặc xử lý `Catch Unique Constraint Violation` để retry sinh SBD khác nếu có xung đột trùng lặp.
+
+### 📁 Chuyên đề 3: Thi trực tuyến & Cơ chế Giám sát Anti-Cheat
+* **Câu hỏi:** Em thu thập hành vi gian lận của thí sinh bằng những sự kiện (Events) nào trong JavaScript?
+* **Đáp án:**
+  - Sự kiện chuyển Tab / Ẩn trình duyệt: `document.addEventListener('visibilitychange', ...)`
+  - Sự kiện Mất tiêu điểm cửa sổ: `window.addEventListener('blur', ...)`
+  - Chặn menu chuột phải: `window.addEventListener('contextmenu', e => e.preventDefault())`
+  - Chặn phím tắt DevTools / Copy: `window.addEventListener('keydown', e => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault() })`
+  - Mọi vi phạm được lưu số lần `violation_count` và gửi về Server để Cán bộ coi thi theo dõi trên màn hình giám sát thời gian thực.
