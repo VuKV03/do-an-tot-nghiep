@@ -1,4 +1,4 @@
-# SmartTest — Hệ thống Quản lý Sinh đề thi ứng dụng AI
+# Hệ thống Quản lý Sinh đề thi ứng dụng AI
 
 Đồ án tốt nghiệp: nền tảng quản lý ngân hàng câu hỏi, ma trận đề thi và sinh đề thi tự động bằng AI (Google Gemini), gồm frontend React (Admin + Portal) và backend theo kiến trúc microservices (FastAPI).
 
