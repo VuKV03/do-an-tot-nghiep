@@ -555,7 +555,6 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
     if (maMatran.length > MA_MAX_LENGTH) { return; }
     if (!tenMatran.trim()) { return; }
     if (tenMatran.length > TEN_MAX_LENGTH) { return; }
-    if (obj.length === 0) { return; }
     setSaving(true);
     // Người soạn thật — dùng để ghi log lịch sử ("Thêm mới"/"Sửa" ở matrix_histories), khớp quy ước
     // creator/actor ở manual-create.tsx (Ngân hàng câu hỏi).
