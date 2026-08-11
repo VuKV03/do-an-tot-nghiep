@@ -14,3 +14,13 @@ venv/
 .venv/
 .temp-agent/
 CLAUDE.md
+
+# Office / document files (reports, slides, notes) - not meant for the repo
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+*.pdf
+~$*
