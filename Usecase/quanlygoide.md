@@ -1,191 +1,191 @@
-# Tài liệu Đặc tả: Quản lý Gói Đề (Package Management)
+# Tài liệu Đặc tả: Quản lý Gói đề dành cho Trưởng phòng giáo vụ (Exam Package Management)
 
 ## 1. Bảng Use Case chức năng
 
-*Bảng 2.4. Bảng usecase chức năng quản lý gói đề*
+*Bảng 2.4. Bảng usecase chức năng quản lý gói đề của Trưởng phòng giáo vụ*
 
-| Tên Use case       | Tác nhân                    | Giao dịch                                                                                                                   | Độ phức tạp |
-| :------------------ | :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :-------------- |
-| Quản lý gói đề | Giáo viên, Quản trị viên |                                                                                                                              | Phức tạp      |
-|                     |                               | Giáo viên có thể tạo và gửi duyệt gói đề. Hệ thống cập nhật trạng thái gói đề chờ duyệt                |                 |
-|                     |                               | Quản trị viên có thể phê duyệt gói đề. Hệ thống cập nhật trạng thái gói đề đã duyệt                    |                 |
-|                     |                               | Quản trị viên có thể từ chối gói đề. Hệ thống cập nhật trạng thái gói đề bị từ chối                    |                 |
-|                     |                               | Quản trị viên có thể xuất bản gói đề. Hệ thống cập nhật trạng thái gói đề sang đang hoạt động         |                 |
-|                     |                               | Quản trị viên có thể ngừng xuất bản gói đề. Hệ thống cập nhật trạng thái gói đề sang ngưng hoạt động |                 |
-|                     |                               | Người dùng có thể tra cứu danh sách gói đề. Hệ thống hiển thị kết quả tra cứu gói đề                     |                 |
-|                     |                               | Người dùng có thể xem chi tiết mã đề hoán vị. Hệ thống hiển thị chi tiết nội dung mã đề                  |                 |
-|                     |                               | Người dùng có thể xuất file Word đề thi. Hệ thống tạo và tải xuống file Word đề thi                          |                 |
-|                     |                               | Quản trị viên có thể xóa gói đề. Hệ thống xóa gói đề                                                          |                 |
+| Tên Use case           | Tác nhân                    | Giao dịch                                                                                                              | Độ phức tạp |
+| :---------------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :-------------- |
+| **Quản lý gói đề**      | **Trưởng phòng giáo vụ (TPGV)** |                                                                                                                         | Phức tạp        |
+|                         |                               | Trưởng phòng giáo vụ xem danh sách và tìm kiếm các gói đề thi trên hệ thống (gói đề được tạo tự động ngay khi sinh hoán vị từ đề gốc). Hệ thống hiển thị danh sách. |                 |
+|                         |                               | Trưởng phòng giáo vụ xem chi tiết cấu trúc gói đề (danh sách các đề thi hoán vị thuộc gói). Hệ thống hiển thị chi tiết. |                 |
+|                         |                               | Trưởng phòng giáo vụ thực hiện Phát thi gói đề (Publish) để mang đi thi trực tiếp mà không cần qua khâu thẩm định. Hệ thống đổi trạng thái gói đề sang "active". |                 |
+|                         |                               | Trưởng phòng giáo vụ thực hiện Tắt phát thi gói đề (Unpublish). Hệ thống đổi trạng thái sang "inactive".                |                 |
+|                         |                               | Trưởng phòng giáo vụ chọn xuất file Word đề thi/đáp án. Hệ thống kết xuất dữ liệu và tải xuống tệp tin Word (.docx).     |                 |
 
-## 2. Biểu đồ Use Case (Use Case Diagram)
+---
 
-**Mô tả:** Biểu đồ Use Case thể hiện sự tương tác của hai tác nhân chính (Giáo viên và Quản trị viên) với hệ thống trong quy trình quản lý gói đề thi. Các chức năng bao gồm xem danh sách, xem chi tiết mã đề hoán vị, thẩm định (duyệt/từ chối), xuất bản, xuất file Word đề thi và xóa gói đề.
+**Mô tả:** Biểu đồ mô tả sự tương tác của Trưởng phòng giáo vụ (TPGV) đối với phân hệ quản lý gói đề thi. Gói đề thi được hệ thống tự động khởi tạo ngay khi người dùng thực hiện sinh hoán vị đề thi ở màn hình quản lý đề gốc. TPGV có quyền xem danh sách gói đề này và mang đi phát thi ngay mà không cần qua khâu thẩm định.
 
-**Mục tiêu:** Cung cấp cái nhìn tổng thể về phân quyền và các thao tác nghiệp vụ, giúp định hình rõ vai trò của Giáo viên (tạo và đề xuất) và Quản trị viên (kiểm duyệt và điều phối trạng thái) trong hệ thống.
+**Mục tiêu:** Thể hiện rõ vai trò điều phối kỳ thi của Trưởng phòng giáo vụ trong việc đưa các gói đề thi tự động sinh từ đề gốc vào hoạt động chính thức (Publish) hoặc đóng gói thi sau khi hoàn tất (Unpublish).
 
 ```plantuml
 @startuml
-title Biểu đồ Use Case: Quản lý gói đề
+title Biểu đồ Use Case: Quản lý gói đề (Trưởng phòng giáo vụ)
 
 left to right direction
 skinparam packageStyle rectangle
 
-actor "Giáo viên" as GV
-actor "Quản trị viên" as Admin
+actor "Trưởng phòng giáo vụ" as TPGV
 
-rectangle "Chức năng: Quản lý gói đề" {
+rectangle "Phân hệ: Quản lý gói đề (TPGV)" {
   usecase "Quản lý gói đề" as MainUC
-  usecase "Xem / Tìm kiếm danh sách gói đề" as UC_Xem
-  usecase "Xem chi tiết mã đề hoán vị" as UC_ChiTiet
-  usecase "Thẩm định (Duyệt/Từ chối) gói đề" as UC_Duyet
-  usecase "Xuất bản gói đề" as UC_XuatBan
-  usecase "Xuất file Word đề thi" as UC_XuatFile
-  usecase "Xóa gói đề" as UC_Xoa
+  usecase "Xem danh sách và tìm kiếm" as UC_Xem
+  usecase "Xem chi tiết gói đề" as UC_ChiTiet
+  usecase "Phát thi gói đề (Publish)" as UC_Publish
+  usecase "Tắt phát thi gói đề (Unpublish)" as UC_Unpublish
+  usecase "Xuất file Word đề thi" as UC_ExportWord
 
-  MainUC <.. UC_Xem : <<extend>>
-  MainUC <.. UC_ChiTiet : <<extend>>
-  MainUC <.. UC_Duyet : <<extend>>
-  MainUC <.. UC_XuatBan : <<extend>>
-  MainUC <.. UC_XuatFile : <<extend>>
-  MainUC <.. UC_Xoa : <<extend>>
+  UC_Xem ..> MainUC : <<extend>>
+  UC_ChiTiet ..> MainUC : <<extend>>
+  UC_Publish ..> MainUC : <<extend>>
+  UC_Unpublish ..> MainUC : <<extend>>
+  UC_ExportWord ..> MainUC : <<extend>>
 }
 
-GV --> MainUC
-Admin --> MainUC
-
-note bottom of MainUC
-  * Giáo viên: Tạo gói đề (chưa duyệt), xem danh sách và xuất file.
-  * Quản trị viên: Thẩm định (duyệt/từ chối), xuất bản gói đề và xóa.
-end note
+TPGV --> MainUC
 @enduml
 ```
+
+---
 
 ## 3. Biểu đồ Trình tự chức năng (Sequence Diagram)
 
-**Mô tả:** Biểu đồ trình diễn chi tiết quy trình giao tiếp giữa Quản trị viên, giao diện người dùng, tầng Service và Cơ sở dữ liệu trong nghiệp vụ Thẩm định và Xuất bản gói đề. Quá trình bao gồm tải dữ liệu chi tiết, thực hiện thao tác phê duyệt hoặc từ chối, và cập nhật trạng thái gói đề sang hoạt động (xuất bản).
-
-**Mục tiêu:** Làm rõ luồng xử lý kỹ thuật và vòng đời trạng thái của gói đề ở tầng hệ thống, đảm bảo quy trình kiểm duyệt diễn ra minh bạch, lưu trữ kết quả chính xác và phản hồi trực quan.
-
-*Biểu đồ trình tự mô tả nghiệp vụ **Thẩm định và Xuất bản gói đề**.*
+**Mô tả:** Biểu đồ trình tự mô tả quy trình tương tác của Trưởng phòng giáo vụ đối với các gói đề thi đã được tạo tự động từ bước sinh hoán vị ở màn hình quản lý đề gốc. TPGV thực hiện phát thi/tắt phát thi trực tiếp và kết xuất file Word đề thi mà không cần qua khâu phê duyệt.
 
 ```plantuml
 @startuml
-title Biểu đồ trình tự: Thẩm định và Xuất bản gói đề
+title Biểu đồ trình tự: Quy trình Quản lý gói đề (Trưởng phòng giáo vụ)
 
-actor "Quản trị viên" as Admin
-participant "Giao diện danh sách gói đề\n(Package List View)" as View
-participant "Giao diện chi tiết gói đề\n(Exam Content Display)" as Detail
-participant "PackageService\n(Xử lý nghiệp vụ)" as Service
-database "Database\n(ExamPackages)" as DB
+actor "Trưởng phòng giáo vụ" as TPGV
+participant "Giao diện Gói đề\n(Package View)" as View
+participant "PackageService\n(API Xử lý)" as Service
+database "Database\n(Packages)" as DB
 
-== Khởi tạo thẩm định ==
-Admin -> View : Chọn "Xem chi tiết" gói đề chờ duyệt
-View -> Service : Lấy chi tiết gói đề và các mã đề hoán vị
-Service -> DB : Truy vấn gói đề và danh sách mã đề
-DB --> Service : Trả về dữ liệu
-Service --> View : Trả về dữ liệu chi tiết
-View -> Detail : Hiển thị form chi tiết và nội dung các mã đề
+== 1. Tra cứu và Xem chi tiết gói đề ==
+TPGV -> View : Tìm kiếm / Lọc danh sách gói đề
+View -> Service : GET /api/packages?search={keyword}
+activate Service
+Service -> DB : Lấy danh sách gói đề thi
+activate DB
+DB --> Service : Danh sách gói đề (JSON)
+deactivate DB
+Service --> View : Phản hồi danh sách gói đề
+deactivate Service
+View --> TPGV : Hiển thị bảng danh sách gói đề
 
-== Thẩm định gói đề ==
-alt Thẩm định Đạt
-    Admin -> Detail : Chọn "Phê duyệt gói đề"
-    Detail -> Service : Gửi yêu cầu cập nhật trạng thái (Approved)
-    Service -> DB : Lưu trạng thái gói đề = 'Approved'
-    DB --> Service : Phản hồi thành công
-    Service --> Detail : Trả về kết quả thành công
-    Detail --> Admin : Hiển thị thông báo "Phê duyệt thành công"
-else Thẩm định Không Đạt
-    Admin -> Detail : Chọn "Từ chối gói đề"
-    Detail -> Service : Gửi yêu cầu cập nhật trạng thái (Rejected) kèm lý do
-    Service -> DB : Lưu trạng thái gói đề = 'Rejected'
-    DB --> Service : Phản hồi thành công
-    Service --> Detail : Trả về kết quả thành công
-    Detail --> Admin : Hiển thị thông báo "Đã từ chối gói đề"
-end
+TPGV -> View : Chọn một gói đề để xem chi tiết
+View --> TPGV : Hiển thị chi tiết cấu trúc gói đề (danh sách các đề hoán vị)
 
-== Xuất bản gói đề (Nếu đã duyệt) ==
-Admin -> View : Chọn nút "Xuất bản" trên gói đề đã duyệt
-View -> Service : Gửi yêu cầu xuất bản
-Service -> DB : Cập nhật trạng thái = 'Active'
-DB --> Service : Phản hồi thành công
-Service --> View : Trả về kết quả thành công
-View --> Admin : Hiển thị thông báo "Xuất bản gói đề thành công"
+== 2. Phát thi / Tắt phát thi gói đề ==
+TPGV -> View : Nhấn nút "Phát thi"
+View -> Service : POST /api/packages/{id}/publish
+activate Service
+Service -> DB : Cập nhật trạng thái gói đề hiện tại = 'active'
+activate DB
+DB --> Service : Cập nhật thành công
+deactivate DB
+Service --> View : Phản hồi trạng thái thành công (200 OK)
+deactivate Service
+View --> TPGV : Cập nhật trạng thái "Hoạt động" và thông báo thành công
+
+TPGV -> View : Nhấn nút "Tắt phát thi"
+View -> Service : POST /api/packages/{id}/unpublish
+activate Service
+Service -> DB : Cập nhật trạng thái gói đề = 'inactive'
+activate DB
+DB --> Service : Cập nhật thành công
+deactivate DB
+Service --> View : Phản hồi thành công (200 OK)
+deactivate Service
+View --> TPGV : Cập nhật trạng thái "Ngưng hoạt động" và thông báo thành công
+
+== 3. Xuất file Word đề thi ==
+TPGV -> View : Nhấn nút "Xuất Word"
+View -> Service : GET /api/packages/{id}/export-word
+activate Service
+Service -> DB : Truy xuất thông tin đề thi hoán vị
+activate DB
+DB --> Service : Trả về dữ liệu đề thi
+deactivate DB
+Service -> Service : Khởi tạo tiện ích WordExport và dựng file .docx
+Service --> View : Phản hồi file Word đính kèm
+deactivate Service
+View --> TPGV : Tự động tải xuống file Word (.docx) đề thi
 @enduml
 ```
 
+---
+
 ## 4. Biểu đồ Hoạt động (Activity Diagram)
+
+**Mô tả:** Biểu đồ hoạt động mô tả tiến trình lựa chọn của Trưởng phòng giáo vụ khi truy cập giao diện quản lý gói đề, phân nhánh qua các thao tác phát thi (Publish), dừng thi (Unpublish) và tải tệp tin đề thi về máy.
 
 ```plantuml
 @startuml
-title Biểu đồ hoạt động: Thẩm định và Xuất bản gói đề
+title Biểu đồ hoạt động: Quy trình Quản lý gói đề (Trưởng phòng giáo vụ)
 
-|Quản trị viên|
+|Trưởng phòng giáo vụ|
 start
-:Truy cập chức năng "Quản lý gói đề";
-:Chọn một gói đề ở trạng thái "Chờ duyệt";
+:Truy cập phân hệ "Quản lý gói đề";
+:Nhập từ khóa để tìm kiếm và xem danh sách gói đề;
 
 |Hệ thống|
-:Truy vấn chi tiết gói đề và các mã đề hoán vị;
-:Hiển thị giao diện chi tiết nội dung gói đề;
+:Hiển thị danh sách gói đề thi tương ứng;
 
-|Quản trị viên|
-:Xem và kiểm tra nội dung các mã đề;
+|Trưởng phòng giáo vụ|
+:Chọn danh sách gói đề cụ thể để quản lý;
 
-if (Nội dung đạt yêu cầu?) then (Đạt)
-  :Nhấn "Phê duyệt";
+split
+  :Nhấn nút "Phát thi";
   |Hệ thống|
-  :Lưu trạng thái gói đề là "Đã duyệt";
-  :Hiển thị thông báo thành công;
-  
-  |Quản trị viên|
-  if (Tiến hành tổ chức thi?) then (Có)
-    :Nhấn nút "Xuất bản";
-    |Hệ thống|
-    :Lưu trạng thái gói đề là "Đang hoạt động (Active)";
-    :Cập nhật danh sách đề trên cổng thi trực tuyến;
-    :Hiển thị thông báo "Xuất bản thành công";
-  else (Không)
-    :Giữ ở trạng thái "Đã duyệt";
-  endif
-
-else (Không đạt)
-  |Quản trị viên|
-  :Nhấn "Từ chối" và nhập lý do;
+  :Cập nhật trạng thái gói đề = "active";
+  :Kích hoạt gói đề trên cổng thi của thí sinh;
+  :Hiển thị thông báo "Phát thi gói đề thành công";
+split again
+  |Trưởng phòng giáo vụ|
+  :Nhấn nút "Tắt phát thi";
   |Hệ thống|
-  :Lưu trạng thái gói đề là "Bị từ chối";
-  :Gửi thông báo cho Giáo viên tạo đề;
-  :Hiển thị thông báo đã từ chối;
-endif
+  :Cập nhật trạng thái gói đề = "inactive";
+  :Gỡ gói đề khỏi cổng thi của thí sinh;
+  :Hiển thị thông báo "Tắt phát thi gói đề thành công";
+split again
+  |Trưởng phòng giáo vụ|
+  :Nhấn nút "Xuất Word";
+  |Hệ thống|
+  :Truy vấn cấu trúc gói đề và đề thi hoán vị;
+  :Kết xuất dữ liệu đề hoán vị thành file Word (.docx);
+  :Tải xuống file Word đề thi về máy người dùng;
+endsplit
 
-|Quản trị viên|
-:Quan sát thông báo kết quả;
-:Kết thúc thao tác;
+|Trưởng phòng giáo vụ|
 stop
 @enduml
 ```
 
+---
+
 ## 5. Biểu đồ Trạng thái (State Diagram)
+
+**Mô tả:** Biểu đồ trạng thái mô tả vòng đời của một Gói đề thi dưới sự quản lý của Trưởng phòng giáo vụ. Gói đề thi được tự động tạo và đưa vào trạng thái ngưng phát thi (inactive) ngay khi sinh hoán vị từ đề gốc, sau đó TPGV có thể phát thi (active) trực tiếp mà không cần duyệt.
 
 ```plantuml
 @startuml
-title Biểu đồ trạng thái tổng quát: Gói đề thi
+title Biểu đồ trạng thái: Vòng đời của Gói đề thi
 
-state "Draft (Nháp)" as Draft
-state "Pending (Chờ duyệt)" as Pending
-state "Approved (Đã duyệt)" as Approved
-state "Rejected (Bị từ chối)" as Rejected
-state "Active (Đang hoạt động)" as Active
-state "Inactive (Ngừng hoạt động)" as Inactive
+skinparam state {
+  BackgroundColor LightBlue
+  BorderColor Blue
+}
 
-[*] --> Draft : Giáo viên tạo mới
-Draft --> Pending : Giáo viên gửi thẩm định
-Pending --> Approved : Quản trị viên duyệt "Đạt"
-Pending --> Rejected : Quản trị viên duyệt "Không đạt"
-Rejected --> Draft : Giáo viên chỉnh sửa lại
-Approved --> Active : Quản trị viên chọn "Xuất bản"
-Active --> Inactive : Hết hạn thi / Hủy xuất bản
-Inactive --> Active : Kích hoạt lại
-Draft --> [*] : Xóa gói đề
-Rejected --> [*] : Xóa gói đề
+[*] --> inactive : Khởi tạo/nhập gói đề thi
+
+state active as "Đang phát thi\n(active)"
+state inactive as "Ngưng phát thi\n(inactive)"
+
+inactive --> active : TPGV phát thi (Publish)
+active --> inactive : TPGV tắt phát thi (Unpublish)
+
+inactive --> [*] : Xóa gói đề
 @enduml
 ```
