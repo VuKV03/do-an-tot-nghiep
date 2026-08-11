@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, ConfigProvider, Table, Input, Select, DatePicker, Button, Spin } from 'antd';
 import { toast } from '../../../../utils/toast';
-import { Eye } from 'lucide-react';
 import { FileExcelOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChuDeType } from './index';
@@ -32,9 +31,6 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [loading, setLoading] = useState(false);
   const [rawData, setRawData] = useState<HistoryRecordType[]>([]);
-  // Bản ghi lịch sử đang xem chi tiết — nút "Xem chi tiết" trước đây không gắn onClick nên bấm
-  // không có tác dụng gì.
-  const [detailRecord, setDetailRecord] = useState<HistoryRecordType | null>(null);
 
   // Filters
   const [searchNoiDung, setSearchNoiDung] = useState('');
@@ -98,11 +94,11 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
     { header: 'Người thực hiện', accessor: row => row.actor, width: 22 },
     { header: 'Thời gian thực hiện', accessor: row => row.timestamp ? new Date(row.timestamp).toLocaleString('vi-VN') : '', width: 20, align: 'center' },
     { header: 'Nội dung thực hiện', accessor: row => row.note, width: 50 },
+    { header: 'Nội dung thẩm định/Từ chối', accessor: row => row.comment || '', width: 50 },
   ];
 
   const handleExportExcel = () => {
     if (filteredData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `LichSuChuDe_${new Date().toISOString().slice(0, 10)}`;
@@ -138,18 +134,14 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
       key: 'note',
     },
     {
-      title: 'Thao tác',
-      key: 'action',
-      align: 'center',
-      width: 100,
-      render: (_, row) => (
-        <Button
-          type="text"
-          icon={<Eye size={16} className="text-blue-600" />}
-          className="bg-blue-50 hover:bg-blue-100 flex items-center justify-center p-2 rounded-md mx-auto"
-          title="Xem chi tiết"
-          onClick={() => setDetailRecord(row)}
-        />
+      title: 'Nội dung thẩm định/Từ chối',
+      dataIndex: 'comment',
+      key: 'comment',
+      // Chỉ 2 hành động Đồng ý/Từ chối mới có nhận xét thật (nhập ở popup xác nhận thẩm định —
+      // xem tham-dinh-chu-de/index.tsx) — backend lưu riêng cột `comment`, "Thêm mới"/"Sửa"/"Gửi
+      // thẩm định" luôn rỗng/null (xem topics.py::approve/reject).
+      render: (comment: string | null | undefined) => (
+        <span className={comment ? 'text-slate-700' : 'text-slate-300'}>{comment || '—'}</span>
       ),
     },
   ];
@@ -278,65 +270,6 @@ export default function LichSuChuDeModal({ open, onClose, record }: LichSuChuDeM
             </Button>
           </div>
         </div>
-      </Modal>
-
-      {/* Chi tiết 1 dòng lịch sử */}
-      <Modal
-        title={
-          <span className="text-slate-800 font-bold text-[15px] tracking-wide">
-            Chi tiết lịch sử
-          </span>
-        }
-        open={!!detailRecord}
-        onCancel={() => setDetailRecord(null)}
-        centered
-        width={480}
-        footer={
-          <div className="flex justify-center">
-            <Button
-              onClick={() => setDetailRecord(null)}
-              className="rounded border border-blue-600 text-blue-600 font-bold text-xs px-6 h-8 flex items-center justify-center hover:bg-blue-50 transition-colors"
-            >
-              Đóng
-            </Button>
-          </div>
-        }
-      >
-        {detailRecord && (
-          <div className="flex flex-col gap-3 text-sm py-1">
-            {record && (
-              <div>
-                <div className="text-gray-500 text-xs mb-0.5">Chủ đề</div>
-                <div className="font-medium text-slate-800">{record.Ten} <span className="text-gray-400 font-normal">({record.Ma})</span></div>
-              </div>
-            )}
-            <div>
-              <div className="text-gray-500 text-xs mb-0.5">Loại thao tác</div>
-              <div className="font-medium text-slate-800">{detailRecord.action}</div>
-            </div>
-            <div>
-              <div className="text-gray-500 text-xs mb-0.5">Người thực hiện</div>
-              <div className="font-medium text-slate-800">{detailRecord.actor}</div>
-            </div>
-            <div>
-              <div className="text-gray-500 text-xs mb-0.5">Thời gian thực hiện</div>
-              <div className="font-medium text-slate-800">
-                {detailRecord.timestamp ? new Date(detailRecord.timestamp).toLocaleString('vi-VN') : ''}
-              </div>
-            </div>
-            <div>
-              <div className="text-gray-500 text-xs mb-0.5">Nội dung thực hiện</div>
-              <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.note}</div>
-            </div>
-            {/* Chỉ có ở hành động Đồng ý/Từ chối — "Thêm mới"/"Sửa"/"Gửi thẩm định" không có nhận xét. */}
-            {detailRecord.comment && (
-              <div>
-                <div className="text-gray-500 text-xs mb-0.5">Nhận xét</div>
-                <div className="font-medium text-slate-800 whitespace-pre-wrap">{detailRecord.comment}</div>
-              </div>
-            )}
-          </div>
-        )}
       </Modal>
     </ConfigProvider>
   );

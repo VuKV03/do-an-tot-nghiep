@@ -35,6 +35,7 @@ interface ThamDinhCauHoiProps {
   onUpdateQuestion: (q: Question) => void;
   onOpenReview: (q: Question) => void;
   apiSubjects?: { value: string; label: string }[];
+  isSubjectRestricted?: boolean;
   apiGrades?: { value: string; label: string }[];
   cognitiveLevelOptions?: { value: CognitiveLevel; label: string }[];
   questionTypeOptions?: { value: QuestionType; label: string }[];
@@ -55,7 +56,7 @@ function getQuestionTypeLabel(type: QuestionType): string {
     case 'single':     return 'TN';
     case 'multiple':   return 'TLN';
     case 'true_false': return 'DS';
-    case 'short':      return 'TL';
+    case 'short':      return 'TLN';
     default:           return 'TN';
   }
 }
@@ -92,7 +93,7 @@ function StatusBadge({ status }: { status: QuestionStatus }) {
       );
     case 'pending':
       return (
-        <span className="inline-block px-2.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 font-bold text-[10px] whitespace-nowrap">
+        <span className="inline-block px-2.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 font-bold text-[10px] whitespace-nowrap">
           Chờ thẩm định
         </span>
       );
@@ -129,7 +130,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) {  return; }
     if (!question) return;
     setSubmitting(true);
     setTimeout(() => {
@@ -150,8 +151,7 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
     <Modal
       open={!!question}
       onCancel={handleCancel}
-      footer={null}
-      width={720}
+      width={640}
       title={
         <div className="flex items-center gap-2">
           <FileTextOutlined className="text-blue-600" />
@@ -160,8 +160,19 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
           </span>
         </div>
       }
+      footer={[
+        <Button key="cancel" onClick={handleCancel} className="rounded font-semibold text-xs">Hủy</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={submitting}
+          onClick={handleSubmit}
+          className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
+        >
+          Xác nhận thẩm định
+        </Button>,
+      ]}
       destroyOnHidden
-      styles={{ body: { padding: '20px 24px 8px' } }}
     >
       {/* Question info */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4 space-y-3">
@@ -204,10 +215,10 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
         <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Kết quả thẩm định</div>
         <Radio.Group value={verdict} onChange={(e) => setVerdict(e.target.value)} className="flex gap-4">
           <Radio value="approve">
-            <span className="text-emerald-700 font-bold text-xs">✅ Đồng ý / Thông qua</span>
+            <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
           </Radio>
           <Radio value="reject">
-            <span className="text-rose-600 font-bold text-xs">❌ Từ chối</span>
+            <span className="text-rose-600 font-bold text-xs">Từ chối</span>
           </Radio>
         </Radio.Group>
         <div>
@@ -220,22 +231,6 @@ function ReviewDetailModal({ question, onClose, onApprove, onReject }: ReviewDet
             className="text-xs rounded border-slate-300"
           />
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="flex justify-end gap-2 pt-2 pb-1">
-        <Button onClick={handleCancel} className="text-xs font-bold border-slate-300 h-9 px-6 rounded cursor-pointer" style={{ cursor: 'pointer' }}>
-          Huỷ
-        </Button>
-        <Button
-          type="primary"
-          loading={submitting}
-          onClick={handleSubmit}
-          className="bg-[#1a4f9c] text-white font-bold text-xs h-9 px-8 rounded cursor-pointer"
-          style={{ cursor: 'pointer' }}
-        >
-          Xác nhận thẩm định
-        </Button>
       </div>
     </Modal>
   );
@@ -254,7 +249,7 @@ function BulkReviewModal({ visible, count, onClose, onConfirm }: BulkReviewModal
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = () => {
-    if (!verdict) { toast.warning('Vui lòng chọn kết quả thẩm định!'); return; }
+    if (!verdict) {  return; }
     setSubmitting(true);
     setTimeout(() => {
       onConfirm(verdict, comment);
@@ -344,7 +339,7 @@ export default function ThamDinhCauHoiTab({
   onUpdateQuestion,
   onOpenReview,
   apiSubjects = [],
-  apiGrades = [],
+  isSubjectRestricted = false,
   cognitiveLevelOptions = [],
   questionTypeOptions = [],
   allTopicsRaw = [],
@@ -356,20 +351,34 @@ export default function ThamDinhCauHoiTab({
 }: ThamDinhCauHoiProps) {
 
   // ── Sidebar state ──────────────────────────────
-  const [selectedSubject, setSelectedSubject]     = useState<string>('');
-  const [selectedGrade, setSelectedGrade]         = useState<string>('');
+  // Bỏ hẳn lựa chọn "Tất cả" ở dropdown Môn học — luôn mặc định chọn sẵn môn đầu tiên mà tài khoản
+  // được liên quan (apiSubjects đã bị getUserSubjectFilter lọc sẵn ở component cha: Tổ trưởng/GV bộ
+  // môn chỉ thấy đúng (các) môn mình phụ trách, Admin/Trưởng phòng giáo vụ thấy toàn bộ danh mục môn).
+  const [selectedSubject, setSelectedSubject]     = useState<string>(
+    apiSubjects.length > 0 ? apiSubjects[0].value : ''
+  );
   const [selectedTopicKey, setSelectedTopicKey]   = useState<string | null>(null);
   const [topicSearch, setTopicSearch]             = useState('');
+
+  // apiSubjects tải bất đồng bộ từ API nên có thể rỗng ở lần render đầu (trước khi component cha
+  // fetch xong) — effect này đảm bảo môn học vẫn được chọn đúng khi dữ liệu về sau đó.
+  React.useEffect(() => {
+    if (apiSubjects.length > 0 && !selectedSubject) {
+      setSelectedSubject(apiSubjects[0].value);
+    }
+  }, [apiSubjects]);
 
   // ── Filter inputs ──────────────────────────────
   const [filterKeyword, setFilterKeyword] = useState('');
   const [filterGrades, setFilterGrades]   = useState<string[]>([]);
   const [filterType, setFilterType]       = useState<QuestionType | 'all'>('all');
   const [filterLevel, setFilterLevel]     = useState<CognitiveLevel | 'all'>('all');
-  // Mặc định "Tất cả" — hiện đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ
-  // chối, draft đã bị loại từ base filter ở filteredQuestions bên dưới), trước đây mặc định lọc
-  // cứng "pending" khiến câu đã thẩm định xong biến mất khỏi tab này.
-  const [filterStatus, setFilterStatus]   = useState<QuestionStatus | 'all'>('all');
+  // Mặc định "Chờ thẩm định" — đồng bộ với các màn thẩm định khác (vd examReviewStatus ở
+  // ExamManagementModule.tsx: ưu tiên hiện việc cần xử lý trước). Vẫn đổi được sang "Tất cả"/khác —
+  // dropdown vẫn đủ cả 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối, draft đã
+  // bị loại từ base filter ở filteredQuestions bên dưới), không phải quay lại lọc cứng "pending" như
+  // trước khi có comment cũ ở đây.
+  const [filterStatus, setFilterStatus]   = useState<QuestionStatus | 'all'>('pending');
   const [filterDates, setFilterDates]     = useState<any>(null);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
 
@@ -379,7 +388,7 @@ export default function ThamDinhCauHoiTab({
     grades:  [] as string[],
     type:    'all' as QuestionType | 'all',
     level:   'all' as CognitiveLevel | 'all',
-    status:  'all' as QuestionStatus | 'all',
+    status:  'pending' as QuestionStatus | 'all',
     dates:   null as any
   });
 
@@ -390,29 +399,31 @@ export default function ThamDinhCauHoiTab({
   const [isBulkReviewOpen, setIsBulkReviewOpen] = useState(false);
 
   // ── Derived: topic tree ────────────────────────
+  // Không còn lựa chọn "Tất cả" — dropdown chỉ liệt kê đúng (các) môn tài khoản được liên quan
+  // (apiSubjects, đã lọc theo getUserSubjectFilter ở component cha).
   const subjectDropdownOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiSubjects.length > 0 ? apiSubjects : SUBJECTS)
-    ],
-    [apiSubjects]
+    () => (apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS)),
+    [apiSubjects, isSubjectRestricted]
   );
-  const gradeDropdownOptions = useMemo(
-    () => [
-      { value: '', label: 'Tất cả' },
-      ...(apiGrades.length > 0 ? apiGrades : GRADES)
-    ],
-    [apiGrades]
+
+  // Danh sách tên môn được phép xem — dùng để chặn rò rỉ chủ đề môn khác ngay cả khi selectedSubject
+  // đang rỗng ("Tất cả") do dữ liệu apiSubjects chưa tải kịp hoặc do lỗi state ở nơi khác.
+  const allowedSubjectNames = useMemo(
+    () => new Set(apiSubjects.map((s) => s.label)),
+    [apiSubjects]
   );
 
   const topicTreeData = useMemo(() => {
     if (allTopicsRaw.length === 0) return [];
-    
-    // Filter topics matching selected subject (and optionally grade)
+
+    // Filter topics matching selected subject — khi chưa chọn môn cụ thể ("Tất cả"), vẫn phải giới
+    // hạn trong tập môn được phép xem nếu tài khoản đang bị giới hạn môn (isSubjectRestricted).
     const filtered = allTopicsRaw.filter((t: any) => {
-      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
-      const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
-      return matchSubject && matchGrade;
+      if (selectedSubject) return t.subject_name === selectedSubject;
+      if (isSubjectRestricted && allowedSubjectNames.size > 0) {
+        return allowedSubjectNames.has(t.subject_name);
+      }
+      return true;
     });
 
     // Only show approved topics (status === 2)
@@ -463,7 +474,7 @@ export default function ThamDinhCauHoiTab({
     };
 
     return filterTree(roots);
-  }, [allTopicsRaw, selectedSubject, selectedGrade, topicSearch]);
+  }, [allTopicsRaw, selectedSubject, topicSearch, isSubjectRestricted, allowedSubjectNames]);
 
 
   // ── Derived: filtered questions ────────────────
@@ -473,7 +484,7 @@ export default function ThamDinhCauHoiTab({
 
     return relevantQuestions.filter((q) => {
       if (selectedSubject && q.subject !== selectedSubject) return false;
-      if (selectedGrade && q.grade !== selectedGrade) return false;
+      if (!selectedSubject && isSubjectRestricted && allowedSubjectNames.size > 0 && !allowedSubjectNames.has(q.subject)) return false;
       if (selectedTopicKey) {
         const isChild = topicTreeData.some((t) =>
           t.children?.some((c) => c.key === q.topicId)
@@ -497,7 +508,7 @@ export default function ThamDinhCauHoiTab({
       }
       return true;
     });
-  }, [questions, selectedSubject, selectedGrade, selectedTopicKey, topicTreeData, applied]);
+  }, [questions, selectedSubject, selectedTopicKey, topicTreeData, applied, isSubjectRestricted, allowedSubjectNames]);
 
   // ── Handlers ──────────────────────────────────
   const handleSearch = () => {
@@ -512,7 +523,6 @@ export default function ThamDinhCauHoiTab({
 
   const handleBulkReview = () => {
     if (selectedRowKeys.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một câu hỏi để thẩm định!');
       return;
     }
     setIsBulkReviewOpen(true);
@@ -633,7 +643,12 @@ export default function ThamDinhCauHoiTab({
       width: 120,
       align: 'center',
       render: (_: any, record: Question) => {
-        const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+        // Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm
+        // định"/"Đã thẩm định" coi như đã chốt, không cho sửa nữa (khớp quy ước canEditQuestion ở
+        // tab-ngan-hang-cau-hoi/index.tsx). Trên thực tế tab này chỉ hiển thị câu pending/approved/
+        // rejected (xem filteredQuestions ở trên, draft bị loại từ base filter) nên "Tạo mới" ở đây
+        // không bao giờ khớp — chỉ "Từ chối" thực sự cho hiện nút sửa.
+        const canEditQuestion = record.status === 'draft' || record.status === 'rejected';
         return (
           <div className="flex items-center justify-center gap-1.5">
             <Tooltip title="Thẩm định chi tiết">
@@ -708,18 +723,6 @@ export default function ThamDinhCauHoiTab({
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                Khối lớp học
-              </label>
-              <Select
-                id="tham-dinh-select-grade"
-                value={selectedGrade}
-                onChange={setSelectedGrade}
-                options={gradeDropdownOptions}
-                className="w-full text-xs font-bold"
-              />
-            </div>
           </div>
 
           {/* Topic tree */}

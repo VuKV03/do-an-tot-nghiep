@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { API_ORIGIN } from '../../../../config/apiBase';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Form, Select, Button, Tag, Spin, Tooltip, Input, InputNumber, Checkbox, Radio } from 'antd';
 import { toast } from '../../../../utils/toast';
 import { ThunderboltOutlined, CheckCircleOutlined, LoadingOutlined, EditOutlined } from '@ant-design/icons';
@@ -8,12 +9,15 @@ import {
   subjectCategoryApi,
   competencyComponentApi,
   questionTypeApi,
+  cognitiveLevelApi,
   type QuestionTypeAPI,
+  type CognitiveLevelAPI,
 } from '../../../../services/danhMucApi.ts';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
+import { mapCognitiveLevelRecord } from '../../../../utils/cognitiveLevel';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -44,12 +48,12 @@ const LEVEL_OPTIONS: { value: CognitiveLevel; label: string }[] = [
   { value: 'van_dung_cao', label: 'Vận dụng cao' },
 ];
 
-/** Tỉ lệ độ khó gửi cho AI service theo cấp độ tư duy người dùng chọn */
-const LEVEL_TO_PERCENT: Record<CognitiveLevel, { easyPercent: number; mediumPercent: number; hardPercent: number }> = {
-  nhan_biet: { easyPercent: 100, mediumPercent: 0, hardPercent: 0 },
-  thong_hieu: { easyPercent: 0, mediumPercent: 100, hardPercent: 0 },
-  van_dung: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
-  van_dung_cao: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
+/** Cấp độ tư duy người dùng chọn -> mức độ gửi cho AI service (khớp backend/ai_service/schemas.py::GenerateQuestionsRequest.level) */
+const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_hard'> = {
+  nhan_biet: 'easy',
+  thong_hieu: 'medium',
+  van_dung: 'hard',
+  van_dung_cao: 'very_hard',
 };
 
 /** Xây cây chủ đề (chỉ chủ đề đã duyệt) lọc theo môn học + khối lớp đang chọn trong modal */
@@ -102,6 +106,10 @@ export default function AIGenerateQuestionModal({
 
   const [competencyOptions, setCompetencyOptions] = useState<{ value: string; label: string }[]>([]);
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
+  // ID thật của danh mục cognitive_levels (khác LEVEL_OPTIONS chỉ là slug/label tĩnh) — chỉ dùng để
+  // gửi kèm request AI, giúp backend bốc bù đúng mức độ từ Ngân hàng câu hỏi khi Gemini quá giờ
+  // (xem triggerAIQuestionGeneration và backend/ai_service/routes/generate.py::_fallback_from_bank).
+  const [cognitiveLevels, setCognitiveLevels] = useState<CognitiveLevelAPI[]>([]);
 
   const [aiGenerating, setAiGenerating] = useState(false);
   /** Danh sách câu hỏi AI vừa đề xuất — có thể sinh nhiều câu 1 lần (trường "Số lượng câu hỏi tạo") */
@@ -112,6 +120,8 @@ export default function AIGenerateQuestionModal({
   const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   /** Đang chạy thao tác "Duyệt tất cả" — khoá toàn bộ thao tác khác trong lúc lưu tuần tự từng câu */
   const [acceptingAll, setAcceptingAll] = useState(false);
+  /** Controller của request /api/generate-questions đang chạy — abort khi đóng popup giữa chừng */
+  const generateAbortRef = useRef<AbortController | null>(null);
 
   const topicTreeData = useMemo(
     () => buildTopicTree(allTopicsRaw, selectedSubject, selectedGrade),
@@ -182,6 +192,13 @@ export default function AIGenerateQuestionModal({
     loadQuestionTypes();
   }, [open, form]);
 
+  // Tải danh mục "Cấp độ tư duy" thật mỗi khi mở modal — chỉ để lấy ID gửi kèm request AI (xem
+  // khai báo state cognitiveLevels ở trên), không đổi options hiển thị (vẫn dùng LEVEL_OPTIONS).
+  useEffect(() => {
+    if (!open) return;
+    cognitiveLevelApi.list().then((res) => setCognitiveLevels(res.data || [])).catch(() => setCognitiveLevels([]));
+  }, [open]);
+
   useEffect(() => {
     async function loadCompetencyOptions() {
       try {
@@ -206,6 +223,11 @@ export default function AIGenerateQuestionModal({
   }, [open, selectedSubject]);
 
   const handleClose = () => {
+    // Đóng popup giữa lúc AI đang sinh câu hỏi thì ngắt luôn request /api/generate-questions
+    // đang chạy dở, tránh tốn quota/thời gian cho 1 kết quả không còn ai chờ nhận nữa.
+    generateAbortRef.current?.abort();
+    generateAbortRef.current = null;
+    setAiGenerating(false);
     onClose();
     form.resetFields();
     setAiSuggestedQuestions([]);
@@ -286,7 +308,14 @@ export default function AIGenerateQuestionModal({
     let values: any;
     try {
       values = await form.validateFields();
-    } catch {
+    } catch (err: any) {
+      // Trường "Số lượng câu hỏi tạo" vượt quá MAX_GENERATE_COUNT (hoặc bỏ trống) đã có viền đỏ +
+      // thông báo inline từ Form.Item rule — toast thêm ở đây để người dùng thấy ngay lý do chặn
+      // sinh mà không cần nhìn xuống form.
+      const soLuongError = err?.errorFields?.find((f: any) => f.name?.[0] === 'soLuong');
+      if (soLuongError?.errors?.[0]) {
+        toast.error(soLuongError.errors[0]);
+      }
       return;
     }
 
@@ -299,28 +328,73 @@ export default function AIGenerateQuestionModal({
     setAiSuggestedQuestions([]);
     setEditingIds(new Set());
 
+    const controller = new AbortController();
+    generateAbortRef.current = controller;
+
     try {
       const selectedTypeRecord = questionTypes.find((qt) => qt.id === values.type);
       const questionType: QuestionType = selectedTypeRecord
         ? resolveInternalQuestionType(selectedTypeRecord)
         : 'single';
+      const topicId = values.tieuMuc || values.chuDe || '';
+      // LEVEL_OPTIONS chỉ là slug/label tĩnh, không có ID thật — tra ngược qua danh mục
+      // cognitive_levels đã tải (cognitiveLevels) để lấy đúng ID gửi kèm cho backend.
+      const cognitiveLevelId = cognitiveLevels.find(
+        (cl) => mapCognitiveLevelRecord(cl) === values.level,
+      )?.id;
 
-      const res = await fetch('/api/generate-questions', {
+      const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           subject: values.subject,
           grade: values.grade,
           topic: subTopicLabel ? `${topicLabel} - ${subTopicLabel}` : topicLabel,
           count: values.soLuong || 1,
           type: questionType,
-          ...LEVEL_TO_PERCENT[values.level as CognitiveLevel],
+          level: LEVEL_TO_API[values.level as CognitiveLevel],
+          // Chỉ dùng khi AI Service quá giờ (_AI_TIMEOUT_SECONDS) không phản hồi — bốc bù ĐÚNG chủ
+          // đề/mức độ/loại câu hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem
+          // backend/ai_service/routes/generate.py::_fallback_from_bank).
+          topicId,
+          cognitiveLevelId,
+          questionTypeId: values.type,
+          competencyComponentId: values.nangLuc,
         }),
       });
       const data = await res.json();
 
       if (!data.success || !data.questions?.length) {
         throw new Error(data.error || data.detail || 'AI không trả về câu hỏi nào.');
+      }
+
+      // AI Service quá giờ thì tự bốc bù từ Ngân hàng câu hỏi (xem _fallback_from_bank) — nhóm này
+      // không phải AI vừa sinh, phải hiện ĐÚNG field thật (id/code/trạng thái/người tạo) của bản ghi
+      // Ngân hàng, không gán id/code giả kiểu 'q-ai-...' như nhánh AI sinh thật bên dưới.
+      if (data.source === 'bank_fallback') {
+        const fallbackList: Question[] = data.questions.map((bankQ: any) => ({
+          id: bankQ.id,
+          code: bankQ.code,
+          text: bankQ.text,
+          type: bankQ.type,
+          level: bankQ.level,
+          status: bankQ.status,
+          subject: bankQ.subject,
+          grade: bankQ.grade,
+          topicId: bankQ.topicId || topicId,
+          topicName: bankQ.topicName || topicLabel,
+          subTopicName: bankQ.subTopicName || subTopicLabel,
+          options: bankQ.options,
+          correctAnswer: bankQ.correctAnswer,
+          statements: bankQ.statements,
+          nangLucId: values.nangLuc,
+          creator: bankQ.creator,
+          createdAt: bankQ.createdAt,
+        }));
+        setAiSuggestedQuestions(fallbackList);
+        toast.info(`AI phản hồi quá chậm — đã bốc bù ${fallbackList.length} câu từ Ngân hàng câu hỏi thay AI.`);
+        return;
       }
 
       const generatedList: Question[] = data.questions.map((rawAiQ: any, i: number) => {
@@ -381,18 +455,47 @@ export default function AIGenerateQuestionModal({
       setAiSuggestedQuestions(generatedList);
       toast.success(`AI hoàn tất đề xuất ${generatedList.length} câu hỏi chất lượng cao!`);
     } catch (err: any) {
+      // Bị abort do người dùng đóng popup giữa chừng (xem handleClose, đã tự reset state ở đó) —
+      // không phải lỗi thật, bỏ qua toast và không ghi đè lại state đã reset.
+      if (err?.name === 'AbortError') return;
       toast.error(err?.message || 'Lỗi kết nối AI Gateway. Vui lòng kiểm tra dịch vụ AI đã khởi động.');
     } finally {
-      setAiGenerating(false);
+      if (generateAbortRef.current === controller) {
+        generateAbortRef.current = null;
+        setAiGenerating(false);
+      }
     }
+  };
+
+  /** Tìm index các đáp án/lựa chọn trùng nội dung với nhau (so sánh text thuần, bỏ qua HTML/khoảng
+   * trắng thừa/hoa-thường) trong 1 câu hỏi — dùng chung cho cả 'single' (options) và 'true_false'
+   * (statements, đọc content qua accessor riêng). */
+  const findDuplicateOptionIndexes = (contents: string[]): Set<number> => {
+    const seen = new Map<string, number[]>();
+    contents.forEach((content, idx) => {
+      const norm = stripHtmlToText(content).trim().toLowerCase();
+      if (!norm) return;
+      seen.set(norm, [...(seen.get(norm) ?? []), idx]);
+    });
+    const dup = new Set<number>();
+    seen.forEach((idxs) => {
+      if (idxs.length > 1) idxs.forEach((i) => dup.add(i));
+    });
+    return dup;
   };
 
   // Trắc nghiệm đơn — người dùng có thể sửa nội dung đáp án đúng thành rỗng lúc chỉnh sửa trước khi
   // lưu (vd xoá trắng nội dung phương án đang được đánh dấu đúng); phải chặn lại chứ không để lưu
-  // xuống DB với correctAnswer rỗng.
+  // xuống DB với correctAnswer rỗng. Đồng thời chặn luôn đáp án/ý trả lời trùng nội dung với nhau.
   const validateQuestionAnswer = (q: Question): string | null => {
     if (q.type === 'single' && !stripHtmlToText(String(q.correctAnswer || '')).trim()) {
       return `Câu hỏi ${q.code} chưa có đáp án đúng, vui lòng chọn và nhập đáp án trước khi lưu!`;
+    }
+    if (q.type === 'single' && findDuplicateOptionIndexes(q.options || []).size > 0) {
+      return `Câu hỏi ${q.code} có các đáp án trùng nội dung với nhau, vui lòng sửa lại!`;
+    }
+    if (q.type === 'true_false' && findDuplicateOptionIndexes((q.statements || []).map((st) => st.content)).size > 0) {
+      return `Câu hỏi ${q.code} có các ý trả lời trùng nội dung với nhau, vui lòng sửa lại!`;
     }
     return null;
   };
@@ -476,7 +579,6 @@ export default function AIGenerateQuestionModal({
       toast.success(`Đã duyệt và lưu tất cả ${succeededIds.length} câu hỏi vào hồ sơ chờ thẩm định.`);
       handleClose();
     } else {
-      toast.warning(`Đã lưu ${succeededIds.length} câu hỏi, còn ${failCount} câu bị lỗi — vui lòng thử lại riêng câu đó.`);
     }
   };
 
@@ -602,10 +704,21 @@ export default function AIGenerateQuestionModal({
             <Form.Item
               label={<span className="text-[12px] font-bold text-slate-600">Số lượng câu hỏi tạo <span className="text-red-500">*</span></span>}
               name="soLuong"
-              rules={[{ required: true, message: 'Vui lòng nhập số lượng câu hỏi!' }]}
+              rules={[
+                { required: true, message: 'Vui lòng nhập số lượng câu hỏi!' },
+                {
+                  validator: (_, value) =>
+                    value > MAX_GENERATE_COUNT
+                      ? Promise.reject(new Error(`Chỉ được sinh tối đa ${MAX_GENERATE_COUNT} câu/lần!`))
+                      : Promise.resolve(),
+                },
+              ]}
               style={{ marginBottom: 4 }}
             >
-              <InputNumber size="middle" min={1} max={MAX_GENERATE_COUNT} className="w-full" placeholder={`Tối đa ${MAX_GENERATE_COUNT}`} />
+              {/* Cố tình KHÔNG đặt prop `max` — InputNumber sẽ tự âm thầm kẹp giá trị nhập về
+                  MAX_GENERATE_COUNT thay vì báo lỗi, khiến người dùng tưởng đã nhập 20 nhưng hệ
+                  thống lặng lẽ sinh 15. Để rule validator ở trên báo lỗi + viền đỏ + chặn sinh. */}
+              <InputNumber size="middle" min={1} className="w-full" placeholder={`Tối đa ${MAX_GENERATE_COUNT}`} />
             </Form.Item>
           </Form>
         </div>
@@ -668,6 +781,12 @@ export default function AIGenerateQuestionModal({
               const qid = aiSuggestedQuestion.id;
               const isEditingPreview = editingIds.has(qid);
               const busy = acceptingIds.has(qid) || acceptingAll;
+              const duplicateOptionIndexes =
+                aiSuggestedQuestion.type === 'single'
+                  ? findDuplicateOptionIndexes(aiSuggestedQuestion.options || [])
+                  : aiSuggestedQuestion.type === 'true_false'
+                    ? findDuplicateOptionIndexes((aiSuggestedQuestion.statements || []).map((st) => st.content))
+                    : new Set<number>();
 
               return (
                 <RichTextGroupProvider key={qid}>
@@ -713,7 +832,7 @@ export default function AIGenerateQuestionModal({
                                 onChange={(html) => updateSuggestedOption(qid, idx, html)}
                                 placeholder={`Phương án ${String.fromCharCode(65 + idx)}`}
                                 minHeight={36}
-                                className="flex-1 text-xs"
+                                className={`flex-1 text-xs ${duplicateOptionIndexes.has(idx) ? '!border-red-500 !ring-1 !ring-red-200' : ''}`}
                               />
                             </div>
                           ))}
@@ -746,7 +865,7 @@ export default function AIGenerateQuestionModal({
                                 onChange={(html) => updateSuggestedStatementContent(qid, idx, html)}
                                 placeholder="Nội dung ý"
                                 minHeight={36}
-                                className="flex-1 text-xs"
+                                className={`flex-1 text-xs ${duplicateOptionIndexes.has(idx) ? '!border-red-500 !ring-1 !ring-red-200' : ''}`}
                               />
                               <Checkbox
                                 checked={st.isCorrect}

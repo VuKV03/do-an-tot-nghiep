@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState } from 'react';
 import { Modal, Button, Input } from 'antd';
 import { toast } from '../../utils/toast';
@@ -27,7 +28,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onClose, currentU
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}/password`, {
+      const response = await fetch(`${API_ORIGIN}/api/auth/users/${currentUser?.id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

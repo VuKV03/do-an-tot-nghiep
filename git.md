@@ -12,7 +12,7 @@ git push
 
 **B3: pull nhánh develop về nhánh cá nhân**
 
-git pull origin develop 
+git pull origin develop
 
 **B4: merge vào nhánh develop khi code xong bat dau merge code**
 
@@ -26,4 +26,4 @@ git push origin develop
 
 git checkout chien
 
- 
+gititigtsdasdsqweweq

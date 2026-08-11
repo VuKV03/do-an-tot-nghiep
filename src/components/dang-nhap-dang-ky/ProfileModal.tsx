@@ -1,8 +1,11 @@
+import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Avatar, Input, Tooltip } from 'antd';
 import { toast } from '../../utils/toast';
 import { UserOutlined } from '@ant-design/icons';
 import { SystemUser } from '../../types';
+import { SUBJECTS } from '../../data';
+import { subjectCategoryApi, SubjectCategoryAPI } from '../../services/danhMucApi';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -24,6 +27,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ fullName: '', email: '' });
   const [saving, setSaving] = useState(false);
+  const [subjectsList, setSubjectsList] = useState<SubjectCategoryAPI[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchSubjects = async () => {
+        try {
+          const res = await subjectCategoryApi.list();
+          if (res.success && res.data) {
+            setSubjectsList(res.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch subjects:', error);
+        }
+      };
+      fetchSubjects();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && currentUser) {
@@ -44,7 +64,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     setSaving(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/auth/users/${currentUser?.id}`, {
+      const response = await fetch(`${API_ORIGIN}/api/auth/users/${currentUser?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -153,6 +173,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
               <div className="flex justify-between border-b pb-1.5 border-dashed">
                 <span className="text-slate-400">Email:</span>
                 <strong className="text-slate-800">{currentUser?.email || 'Chưa cập nhật'}</strong>
+              </div>
+              <div className="flex justify-between border-b pb-1.5 border-dashed">
+                <span className="text-slate-400">Môn học phụ trách:</span>
+                <strong className="text-slate-800">
+                  {(() => {
+                    const sub = currentUser?.subjects || currentUser?.subject;
+                    const getSubjectName = (id: string) => {
+                      const subjectFromApi = subjectsList.find(s => s.id === id);
+                      if (subjectFromApi) return subjectFromApi.name;
+                      
+                      const subject = SUBJECTS.find(s => String(s.value) === String(id) || (s as any).id === id);
+                      return subject ? subject.label : id;
+                    };
+                    if (Array.isArray(sub)) return sub.length > 0 ? sub.map(getSubjectName).join(', ') : 'Chưa cập nhật';
+                    return sub ? getSubjectName(sub) : 'Chưa cập nhật';
+                  })()}
+                </strong>
               </div>
               <div className="flex flex-col gap-1.5 pt-1.5">
                 <span className="text-slate-400">Quyền truy cập & Nhóm:</span>

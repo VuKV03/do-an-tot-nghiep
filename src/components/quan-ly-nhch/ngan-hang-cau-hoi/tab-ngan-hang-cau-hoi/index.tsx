@@ -38,6 +38,34 @@ import { SUBJECTS, GRADES } from '../../../../data';
 import { topicsApi, subjectCategoryApi, gradeLevelApi, bankQuestionApi, cognitiveLevelApi, questionTypeApi } from '../../../../services/danhMucApi';
 import { checkUserPermission } from '../../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../../utils/subjectUtils';
+import { API_BASE_URL } from '../../../../config/apiConfig';
+
+/**
+ * Ô tìm kiếm chủ đề — tách riêng khỏi `QuestionBankModule` để state gõ-từng-ký-tự chỉ khiến CHÍNH
+ * component nhỏ này re-render, không kéo theo re-render toàn bộ `QuestionBankModule` (component rất
+ * to, có cả bảng câu hỏi hàng trăm dòng bên dưới) — đây mới là nguyên nhân delay thật khi gõ, debounce
+ * chỉ trì hoãn việc LỌC cây, không tránh được việc re-render cả cây component cha trên mỗi ký tự gõ.
+ * `onSearch` chỉ được gọi (và làm cha re-render) sau 300ms ngừng gõ, không phải mỗi ký tự.
+ */
+function TopicSearchInput({ onSearch }: { onSearch: (value: string) => void }) {
+  const [value, setValue] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => onSearch(value), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <Input
+      id="select-topic-search-filter"
+      allowClear
+      prefix={<SearchOutlined className="text-slate-400" />}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder="Nhập tên chủ đề để lọc cây bên dưới..."
+      className="w-full text-xs font-bold"
+    />
+  );
+}
 
 interface QuestionBankModuleProps {
   onAddQuestion?: (q: Question) => void;
@@ -75,6 +103,13 @@ export default function QuestionBankModule({
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
+  // Giá trị lọc chủ đề ở sidebar — chỉ nhận cập nhật (đã debounce 300ms) từ TopicSearchInput, KHÔNG
+  // phải state gõ trực tiếp, nên state này chỉ đổi tối đa 1 lần/300ms dù gõ nhanh, tránh re-render cả
+  // component to (có bảng câu hỏi) này trên mỗi ký tự gõ (xem TopicSearchInput ở trên).
+  const [topicSearch, setTopicSearch] = useState('');
+  // Đổi giá trị này để buộc TopicSearchInput remount (xoá trắng ô input) khi reset filter/đổi môn học
+  // — cách gọn hơn so với tự thêm imperative ref để "clear" input con.
+  const [topicSearchResetKey, setTopicSearchResetKey] = useState(0);
 
   // API data for subject/grade dropdowns and topic tree
   const [apiSubjects, setApiSubjects] = useState<{ value: string; label: string }[]>([]);
@@ -110,8 +145,7 @@ export default function QuestionBankModule({
   const [creatorFilterOptions, setCreatorFilterOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    const authApiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
-    fetch(`${authApiUrl}/auth/users`)
+    fetch(`${API_BASE_URL}/auth/users`)
       .then((res) => res.json())
       .then((json) => {
         if (!json.success || !Array.isArray(json.data)) return;
@@ -208,7 +242,12 @@ export default function QuestionBankModule({
       setAllTopicsRaw(topRes.data);
 
       if (subjectOptions.length > 0) {
-        if (isRestricted && subjectOptions.length < 2) {
+        // GV/Tổ trưởng bộ môn (bị giới hạn môn) LUÔN mặc định chọn đúng môn đầu tiên được phân,
+        // dù được phân 1 hay nhiều môn — không còn rơi về "Tất cả" khi có ≥2 môn như trước, tránh
+        // lộ chủ đề/câu hỏi của môn khác không được phân công (xem topicTreeData/filteredQuestions
+        // bên dưới). Chỉ tài khoản KHÔNG bị giới hạn (Admin/Trưởng phòng giáo vụ) mới mặc định
+        // "Tất cả" để xem toàn hệ thống.
+        if (isRestricted) {
           setSelectedSubject(subjectOptions[0].value);
         } else {
           setSelectedSubject('');
@@ -230,8 +269,14 @@ export default function QuestionBankModule({
         // Câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI, ModalSinhDeHoanVi.tsx) coi
         // như riêng tư của đề đó, không hiện ở Ngân hàng câu hỏi lẫn tab Thẩm định (dùng chung
         // dbQuestions này) — khác câu hỏi sinh bằng AI ngay tại đây (source 'ai_bank'), vẫn hiện
-        // bình thường.
-        const visibleData = res.data.filter((q) => q.source !== 'ai_exam');
+        // bình thường. Đồng thời loại câu ĐÃ NHÂN BẢN vào 1 đề cụ thể (exam_id có giá trị, line_number
+        // >= 1 — xem exams.py::_duplicate_questions_into_exam) — đây là bản sao RIÊNG của đề đó, không
+        // còn là câu tự do trong Ngân hàng nữa, khớp đúng quy ước "free question" đang dùng ở
+        // useAppState.ts/Thống kê NHCH và mọi endpoint đếm khác (count-by-topic, random-select).
+        // Thiếu điều kiện này khiến tab này đếm dư so với Thống kê NHCH dù cùng bộ lọc.
+        const visibleData = res.data.filter(
+          (q) => q.source !== 'ai_exam' && !q.examId && (q.lineNumber ?? 0) === 0
+        );
         // Map API response to Question type
         const mapped: Question[] = visibleData.map((q) => ({
           id: q.id,
@@ -272,13 +317,23 @@ export default function QuestionBankModule({
   const subjectDropdownOptions = useMemo(
     () => {
       const options = [];
-      if (!isSubjectRestricted || apiSubjects.length >= 2) {
+      // Chỉ tài khoản KHÔNG bị giới hạn môn mới thấy "Tất cả" — GV/Tổ trưởng bộ môn (kể cả được
+      // phân từ 2 môn trở lên, vd Lý + Anh) chỉ nên chọn lần lượt từng môn được phân, không có lựa
+      // chọn "Tất cả" gộp chung tất cả môn (kể cả môn không được phân công).
+      if (!isSubjectRestricted) {
         options.push({ value: '', label: 'Tất cả' });
       }
       options.push(...(apiSubjects.length > 0 ? apiSubjects : (isSubjectRestricted ? [] : SUBJECTS)));
       return options;
     },
     [apiSubjects, isSubjectRestricted]
+  );
+
+  // Danh sách tên môn được phép xem — dùng để chặn rò rỉ chủ đề/câu hỏi môn khác ngay cả khi
+  // selectedSubject đang rỗng do dữ liệu apiSubjects chưa tải kịp (đua bất đồng bộ lúc mount).
+  const allowedSubjectNames = useMemo(
+    () => new Set(apiSubjects.map((s) => s.label)),
+    [apiSubjects]
   );
   // Grades dropdown: prefer API data, fallback to static
   const gradeDropdownOptions = useMemo(
@@ -308,7 +363,9 @@ export default function QuestionBankModule({
   const topicTreeData = useMemo(() => {
     // Filter topics matching selected subject (and optionally grade)
     const filtered = allTopicsRaw.filter((t: any) => {
-      const matchSubject = !selectedSubject || t.subject_name === selectedSubject;
+      const matchSubject = selectedSubject
+        ? t.subject_name === selectedSubject
+        : (!isSubjectRestricted || allowedSubjectNames.size === 0 || allowedSubjectNames.has(t.subject_name));
       const matchGrade = !selectedGrade || t.grade_name === selectedGrade;
       return matchSubject && matchGrade;
     });
@@ -346,7 +403,7 @@ export default function QuestionBankModule({
     clean(roots);
 
     return roots;
-  }, [allTopicsRaw, selectedSubject, selectedGrade]);
+  }, [allTopicsRaw, selectedSubject, selectedGrade, isSubjectRestricted, allowedSubjectNames]);
 
   // Handle tree node selection
   const handleSelectTopicNode = (selectedKeys: any[], info: any) => {
@@ -357,9 +414,8 @@ export default function QuestionBankModule({
     }
   };
 
-  // Danh sách chủ đề dạng phẳng cho ô tìm kiếm "Chọn chủ đề" (autocomplete) — lấy đúng từ
-  // topicTreeData (đã lọc theo môn học/khối lớp đang chọn) để luôn khớp với cây chủ đề hiển thị bên
-  // dưới. Nhãn ghép theo đường dẫn cha > con để phân biệt các tiểu mục trùng tên ở chủ đề khác nhau.
+  // Danh sách chủ đề dạng phẳng — chỉ dùng để tính treeExpandedKeys (mở hết cây), KHÔNG còn dùng
+  // làm nguồn cho dropdown riêng của ô tìm kiếm nữa (xem topicSearch/filteredTopicTreeData bên dưới).
   const topicSearchOptions = useMemo(() => {
     const flatten = (nodes: any[], parentPath: string[] = []): { value: string; label: string }[] =>
       nodes.flatMap((n) => {
@@ -369,6 +425,26 @@ export default function QuestionBankModule({
       });
     return flatten(topicTreeData);
   }, [topicTreeData]);
+
+  // Ô "Chọn chủ đề" chỉ để LỌC cây chủ đề hiện sẵn bên dưới (Cây chủ đề môn học) khi gõ — không mở
+  // dropdown danh sách riêng như Select showSearch trước đây. Giữ cả node khớp tên lẫn tổ tiên/con
+  // của nó để không mất ngữ cảnh cây khi đang lọc.
+  const filteredTopicTreeData = useMemo(() => {
+    const term = topicSearch.trim().toLowerCase();
+    if (!term) return topicTreeData;
+    const filterNodes = (nodes: any[]): any[] =>
+      nodes.reduce((acc: any[], n: any) => {
+        const ownMatch = String(n.title).toLowerCase().includes(term);
+        const matchedChildren = n.children ? filterNodes(n.children) : [];
+        if (ownMatch) {
+          acc.push(n); // Tên khớp — giữ nguyên cả nhánh con, không lọc tiếp bên trong.
+        } else if (matchedChildren.length > 0) {
+          acc.push({ ...n, children: matchedChildren });
+        }
+        return acc;
+      }, []);
+    return filterNodes(topicTreeData);
+  }, [topicTreeData, topicSearch]);
 
   // Cây chủ đề luôn hiện đầy đủ (giữ hành vi defaultExpandAll cũ) — nhưng phải chủ động tính lại mỗi
   // khi topicTreeData đổi (đổi môn học/khối lớp), vì defaultExpandAll của antd Tree chỉ tự áp dụng
@@ -392,6 +468,7 @@ export default function QuestionBankModule({
     return dbQuestions.filter((q) => {
       // 1. Filter by subject (skip if no subject selected yet)
       if (selectedSubject && q.subject !== selectedSubject) return false;
+      if (!selectedSubject && isSubjectRestricted && allowedSubjectNames.size > 0 && !allowedSubjectNames.has(q.subject)) return false;
       // 2. Filter by grade (if not empty)
       if (selectedGrade && q.grade !== selectedGrade) return false;
       // 3. Filter by selected topic (tree node) if any is selected
@@ -429,7 +506,7 @@ export default function QuestionBankModule({
 
       return true;
     });
-  }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData]);
+  }, [dbQuestions, selectedSubject, selectedGrade, selectedTopicKey, appliedFilters, topicTreeData, isSubjectRestricted, allowedSubjectNames]);
 
   // Kết quả lọc thay đổi (tìm kiếm mới, đổi bộ lọc...) — quay về trang 1 để tránh đứng ở 1 trang
   // trống nếu tập kết quả mới ít hơn.
@@ -470,6 +547,8 @@ export default function QuestionBankModule({
       dateRange: null
     });
     setSelectedTopicKey(null);
+    setTopicSearch('');
+    setTopicSearchResetKey((k) => k + 1); // remount TopicSearchInput để xoá trắng ô input ngay
     toast.info('Đã làm mới bộ lọc.');
   };
 
@@ -478,7 +557,7 @@ export default function QuestionBankModule({
       case 'single': return 'TN';
       case 'multiple': return 'TLN';
       case 'true_false': return 'DS';
-      case 'short': return 'TL';
+      case 'short': return 'TLN';
       default: return 'TN';
     }
   };
@@ -578,9 +657,6 @@ export default function QuestionBankModule({
           selectedRowKeys.forEach((key) => onDeleteQuestion?.(key as string));
         }
         if (res.blocked.length > 0) {
-          toast.warning(
-            `Đã xóa ${res.deletedCount} câu hỏi. Bỏ qua ${res.blocked.length} câu đang thuộc đề thi (vd "${res.blocked[0].examName}") — hãy gỡ khỏi đề trước khi xóa.`
-          );
         } else {
           toast.success(`Đã xóa ${res.deletedCount} câu hỏi khỏi ngân hàng.`);
         }
@@ -668,35 +744,40 @@ export default function QuestionBankModule({
       case 'pending': return 'Chờ thẩm định';
       case 'rejected': return 'Từ chối';
       case 'draft':
-      default: return 'Lưu nháp';
+      default: return 'Tạo mới';
     }
   };
+
+  // Base dùng chung cho cả 4 trạng thái — width cố định + căn giữa để viền bao quanh bằng nhau bất
+  // kể độ dài chữ (trước đây span tự co theo nội dung, "Chờ thẩm định" dài hơn hẳn "Tạo mới"/"Từ
+  // chối" nhìn lệch hàng). 96px đủ rộng cho nhãn dài nhất ("Chờ thẩm định") ở cỡ chữ text-[10px].
+  const QUESTION_STATUS_BADGE_BASE = "inline-flex items-center justify-center w-24 py-0.5 rounded border font-bold text-[10px] text-center";
 
   const renderQuestionStatusBadge = (status: QuestionStatus) => {
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-emerald-300 bg-emerald-50 text-emerald-700`}>
             Đã thẩm định
           </span>
         );
       case 'pending':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-blue-350 bg-blue-50 text-blue-700 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-amber-300 bg-amber-50 text-amber-700`}>
             Chờ thẩm định
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-rose-300 bg-rose-50 text-rose-600 font-bold text-[10px]">
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-rose-300 bg-rose-50 text-rose-600`}>
             Từ chối
           </span>
         );
       case 'draft':
       default:
         return (
-          <span className="inline-block px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-700 font-bold text-[10px]">
-            Lưu nháp
+          <span className={`${QUESTION_STATUS_BADGE_BASE} border-slate-300 bg-slate-50 text-slate-700`}>
+            Tạo mới
           </span>
         );
     }
@@ -704,7 +785,9 @@ export default function QuestionBankModule({
 
   const renderQuestionActions = (record: Question) => {
     const canSendReview = record.status === 'draft' || record.status === 'rejected';
-    const canEditQuestion = record.status === 'draft' || record.status === 'pending';
+    // Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm định) — "Chờ thẩm định"/"Đã
+    // thẩm định" coi như đã chốt, không cho sửa nữa (ẩn hẳn nút thay vì chỉ disable).
+    const canEditQuestion = record.status === 'draft' || record.status === 'rejected';
     const showEye = record.status === 'pending' || record.status === 'approved' || record.status === 'rejected';
 
     const menuItems: MenuProps['items'] = [];
@@ -803,7 +886,6 @@ export default function QuestionBankModule({
   // Xuất Excel đúng bảng "Kết quả tìm kiếm" đang hiển thị (đã áp dụng bộ lọc tìm kiếm hiện tại).
   const handleExportExcel = () => {
     if (filteredQuestions.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `NganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
@@ -869,6 +951,8 @@ export default function QuestionBankModule({
                   onChange={(val) => {
                     setSelectedSubject(val);
                     setSelectedTopicKey(null); // reset topic key
+                    setTopicSearch(''); // reset ô lọc chủ đề — cây chủ đề đổi hẳn theo môn học khác
+                    setTopicSearchResetKey((k) => k + 1); // xoá trắng ô input ngay
                   }}
                   options={subjectDropdownOptions}
                   className="w-full text-xs font-bold"
@@ -877,22 +961,7 @@ export default function QuestionBankModule({
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chọn chủ đề</label>
-                <Select
-                  id="select-topic-search-filter"
-                  showSearch={{
-                    optionFilterProp: 'label',
-                    filterOption: (input, option) =>
-                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                  }}
-                  allowClear
-                  value={selectedTopicKey || undefined}
-                  onChange={(val) => setSelectedTopicKey(val || null)}
-                  onClear={() => setSelectedTopicKey(null)}
-                  options={topicSearchOptions}
-                  placeholder="Nhập tên chủ đề để tìm kiếm..."
-                  notFoundContent="Không tìm thấy chủ đề phù hợp"
-                  className="w-full text-xs font-bold"
-                />
+                <TopicSearchInput key={topicSearchResetKey} onSearch={setTopicSearch} />
               </div>
             </div>
 
@@ -900,7 +969,7 @@ export default function QuestionBankModule({
             <div className="flex-1 mt-4 overflow-y-auto pr-1">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cây chủ đề môn học</label>
               <Spin spinning={topicsLoading} size="small">
-                {topicTreeData.length > 0 ? (
+                {filteredTopicTreeData.length > 0 ? (
                   <Tree
                     ref={topicTreeRef}
                     showLine={{ showLeafIcon: false }}
@@ -908,13 +977,17 @@ export default function QuestionBankModule({
                     expandedKeys={treeExpandedKeys}
                     onExpand={(keys) => setTreeExpandedKeys(keys)}
                     onSelect={handleSelectTopicNode}
-                    treeData={topicTreeData}
+                    treeData={filteredTopicTreeData}
                     selectedKeys={selectedTopicKey ? [selectedTopicKey] : []}
                     className="text-xs font-medium text-slate-700 bg-transparent"
                   />
                 ) : (
                   <div className="text-center py-8 text-slate-400 text-xs font-medium">
-                    {topicsLoading ? 'Đang tải chủ đề...' : 'Chưa có chủ đề đã thẩm định cho môn học này'}
+                    {topicsLoading
+                      ? 'Đang tải chủ đề...'
+                      : topicSearch.trim()
+                        ? 'Không tìm thấy chủ đề phù hợp'
+                        : 'Chưa có chủ đề đã thẩm định cho môn học này'}
                   </div>
                 )}
               </Spin>
@@ -1009,7 +1082,8 @@ export default function QuestionBankModule({
                           { value: 'all', label: 'Tất cả' },
                           { value: 'approved', label: 'Đã thẩm định' },
                           { value: 'pending', label: 'Chờ thẩm định' },
-                          { value: 'draft', label: 'Lưu nháp' }
+                          { value: 'draft', label: 'Tạo mới' },
+                          { value: 'rejected', label: 'Từ chối' }
                         ]}
                       />
                     </div>
@@ -1024,6 +1098,11 @@ export default function QuestionBankModule({
                         className="w-full text-xs font-medium"
                         options={[
                           { value: 'all', label: 'Tất cả' },
+                          // Câu hỏi sinh bằng AI (ai-generate.tsx, source 'ai_bank') luôn lưu
+                          // creator='AI' — xem base object ở triggerAIQuestionGeneration — khác hẳn
+                          // tài khoản người dùng thật nên không nằm trong creatorFilterOptions (lấy
+                          // từ /auth/users), phải khai báo tay cho khớp đúng giá trị đang lưu.
+                          { value: 'AI', label: 'AI' },
                           ...creatorFilterOptions,
                         ]}
                       />
@@ -1077,10 +1156,7 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (!selectedTopicKey) {
-                        toast.warning({
-                          title: 'Thông báo',
-                          content: 'Vui lòng chọn tiểu mục chủ đề trước khi thêm mới',
-                        });
+                        toast.error('Vui lòng chọn chủ đề/tiểu mục ở sidebar bên trái trước khi thêm mới câu hỏi.');
                         return;
                       }
                       setActiveModalType('single');
@@ -1104,7 +1180,6 @@ export default function QuestionBankModule({
                     className="border border-blue-600 text-blue-600 bg-white rounded hover:border-blue-700 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        toast.warning('Vui lòng chọn các câu hỏi cần gửi thẩm định!');
                         return;
                       }
                       setPendingSendReviewQuestion(null);
@@ -1121,7 +1196,6 @@ export default function QuestionBankModule({
                     className="border border-red-600 text-red-650 bg-white rounded hover:border-red-700 hover:text-red-700 hover:bg-red-50 font-bold text-xs px-4 h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => {
                       if (selectedRowKeys.length === 0) {
-                        toast.warning('Vui lòng chọn các câu hỏi cần xóa!');
                         return;
                       }
                       setPendingDeleteQuestion(
@@ -1373,6 +1447,7 @@ export default function QuestionBankModule({
           onUpdateQuestion={onUpdateQuestion}
           onOpenReview={handleOpenReviewInternal}
           apiSubjects={apiSubjects}
+          isSubjectRestricted={isSubjectRestricted}
           apiGrades={apiGrades}
           cognitiveLevelOptions={cognitiveLevelFilterOptions}
           questionTypeOptions={questionTypeFilterOptions}

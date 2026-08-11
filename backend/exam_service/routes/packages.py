@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Package, PackageExam
+from backend.exam_service.models import Exam, Package, PackageExam, Question
 from backend.exam_service.schemas import (
     PackageCreate, PackageUpdate, PackageResponse, PackageListResponse,
 )
@@ -44,6 +44,7 @@ def _build_package_response(p: Package, exam_ids: list[str]) -> PackageResponse:
         createdAt=p.createdAt,
         description=p.description or "",
         matrix_id=p.matrix_id,
+        is_show_result=p.is_show_result if p.is_show_result is not None else True,
     )
 
 
@@ -92,8 +93,9 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         name=body.name,
         subject=body.subject,
         grade=body.grade,
-        # "pending" ngay khi tạo — mirror cách exams.py đặt status="pending" lúc tạo đề thi, để
-        # gói đề mới hiện diện ngay trong tab "Thẩm định/phản biện gói đề" không cần bước gửi riêng.
+        # Gói đề không có bước thẩm định riêng — chỉ 3 trạng thái xuất phát từ vòng đời "cho thi":
+        # "pending" (Chờ thi, mặc định khi tạo) -> "active" (Đang thi, publish_package) -> "inactive"
+        # (Ngừng thi, unpublish_package). Xem PackageManagementModule.tsx::getPackageStatusTag.
         status="pending",
         examsCount=len(exam_ids),
         downloadsCount=0,
@@ -101,6 +103,7 @@ async def create_package(body: PackageCreate, db: AsyncSession = Depends(get_db)
         createdAt=now,
         description=body.description or "",
         matrix_id=body.matrix_id,
+        is_show_result=body.is_show_result,
     )
     db.add(package)
     try:
@@ -185,13 +188,24 @@ async def update_package(pkg_id: str, body: PackageUpdate, db: AsyncSession = De
 
 @router.delete("/{pkg_id}")
 async def delete_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
-    """Xóa gói đề thi."""
+    """Xóa gói đề thi — xóa luôn các đề HOÁN VỊ trong gói (và câu hỏi riêng của chúng, vốn chỉ tồn
+    tại để phục vụ gói này — xem ModalSinhDeHoanVi.tsx), nhưng GIỮ LẠI đề GỐC (examIds[0]/position=0
+    — xem comment ở Package.exam_links trong models.py) vì đề gốc có thể đang dùng độc lập ở tab
+    "Đề gốc" hoặc dùng để sinh gói hoán vị khác sau này."""
     result = await db.execute(select(Package).where(Package.id == pkg_id))
     package = result.scalar_one_or_none()
     if not package:
         raise HTTPException(status_code=404, detail="Không phát hiện gói đề thi tương thích để xóa.")
 
     name = package.name
+    links_result = await db.execute(
+        select(PackageExam.exam_id).where(PackageExam.package_id == pkg_id).order_by(PackageExam.position)
+    )
+    variant_exam_ids = list(links_result.scalars().all())[1:]  # [0] luôn là đề gốc
+    if variant_exam_ids:
+        await db.execute(delete(Question).where(Question.exam_id.in_(variant_exam_ids)))
+        await db.execute(delete(Exam).where(Exam.id.in_(variant_exam_ids)))
+
     await db.delete(package)
     await db.commit()
     return {"success": True, "message": f'Đã xóa thành công gói đề: "{name}"'}
@@ -205,21 +219,7 @@ async def publish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
     if not package:
         raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi yêu cầu.")
 
-    # Kiểm tra xem Môn thi của gói đề này đã có gói nào đang "active" chưa
-    active_result = await db.execute(
-        select(Package).where(
-            Package.subject == package.subject,
-            Package.status == "active",
-            Package.id != pkg_id
-        )
-    )
-    active_package = active_result.scalar_one_or_none()
-    if active_package:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Môn {package.subject} đang có Gói đề {active_package.name} được phát. Vui lòng tắt Gói đề đó trước."
-        )
-
+    # Cho phép phát thi nhiều gói đề của cùng 1 môn thi đồng thời.
     package.status = "active"
     await db.commit()
     await db.refresh(package)

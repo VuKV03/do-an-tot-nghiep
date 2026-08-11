@@ -1,5 +1,7 @@
+import { API_ORIGIN } from '../../config/apiBase';
 import React, { useState } from 'react';
 import { Form, Input, Button, Tabs, Alert, message, ConfigProvider } from 'antd';
+import { toast } from '../../utils/toast';
 import {
   UserOutlined,
   LockOutlined,
@@ -41,7 +43,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${API_ORIGIN}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,6 +63,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         localStorage.setItem('user_info', JSON.stringify(data.user));
 
         message.success(`Chào mừng ${data.user.fullName} quay trở lại!`);
+        // Toast riêng dùng chung util `toast` (khác `message` của antd) — cùng cặp với
+        // toast.success('Đăng xuất thành công!') ở AppHeader.tsx, để đăng nhập/đăng xuất đều có
+        // thông báo qua đúng 1 kênh toast thống nhất trong toàn hệ thống.
+        toast.success('Đăng nhập thành công!');
         onLoginSuccess(data.user);
       } else {
         setErrorMsg(data.detail || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
@@ -77,7 +83,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch(`${API_ORIGIN}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,28 +287,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               />
             </ConfigProvider>
           </div>
-
-          {/* Quick Demo Access Bar */}
-          {activeTab === 'login' && (
-            <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-wider">
-                <TeamOutlined className="text-blue-400" />
-                <span>Trợ lý đăng nhập nhanh cho Kiểm thử</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {demoAccounts.map((account) => (
-                  <button
-                    key={account.username}
-                    onClick={() => handleDemoClick(account)}
-                    className="flex-1 min-w-[120px] text-left p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all duration-150 cursor-pointer"
-                  >
-                    <div className="text-white text-[10px] font-extrabold truncate">{account.username}</div>
-                    <div className="text-[9px] text-slate-400 truncate mt-0.5">{account.role === 'admin' ? 'Quản trị' : account.role === 'teacher' ? 'Giáo viên' : 'Thẩm định'}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

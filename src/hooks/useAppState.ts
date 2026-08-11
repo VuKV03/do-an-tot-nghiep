@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../config/apiBase';
 import { useState, useEffect } from 'react';
 import { toast } from '../utils/toast';
 import { Question, MatrixConfig, AuditLog } from '../types';
@@ -15,7 +16,18 @@ export const useAppState = () => {
       try {
         const res = await bankQuestionApi.list();
         if (res.success && res.data) {
-          const mappedQuestions: Question[] = res.data.map((q: any) => ({
+          // Chỉ đếm câu hỏi TỰ DO trong Ngân hàng (exam_id rỗng, line_number = 0) — bảng tổng quan/
+          // thống kê NHCH dùng chung state này (xem App.tsx), không được tính luôn các bản sao đã
+          // nhân bản vào đề (exam_id khác rỗng), nếu không sẽ đếm trùng/thổi phồng số liệu (xem
+          // backend/exam_service/routes/exams.py::_duplicate_questions_into_exam).
+          // Đồng thời loại câu 'ai_exam' (sinh cả đề bằng AI — ModalTaoDeTuDong.tsx/ModalSinhDeHoanVi.tsx)
+          // giống hệt cách tab-ngan-hang-cau-hoi/index.tsx đang ẩn — thiếu điều kiện này khiến Thống
+          // kê NHCH và tab Ngân hàng câu hỏi lệch số nhau dù cùng bộ lọc (mỗi nơi trước đây chỉ áp
+          // đúng 1 trong 2 điều kiện, không nơi nào áp đủ cả 2).
+          const freeQuestions = res.data.filter(
+            (q: any) => !q.examId && (q.lineNumber ?? 0) === 0 && q.source !== 'ai_exam'
+          );
+          const mappedQuestions: Question[] = freeQuestions.map((q: any) => ({
             id: q.id,
             code: q.code,
             text: q.text,
@@ -74,7 +86,7 @@ export const useAppState = () => {
 
     const fetchMatrices = async () => {
       try {
-        const res = await fetch('/api/matrix-configs?page=1&pageSize=1000');
+        const res = await fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=1000`);
         const data = await res.json();
         if (data.data) {
           const mappedMatrices = data.data.map((m: any) => ({
@@ -99,7 +111,7 @@ export const useAppState = () => {
 
     const fetchExams = async () => {
       try {
-        const res = await fetch('/api/exams');
+        const res = await fetch(`${API_ORIGIN}/api/exams`);
         const data = await res.json();
         if (data.data) {
           setExams(data.data);

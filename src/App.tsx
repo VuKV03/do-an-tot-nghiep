@@ -18,7 +18,6 @@ import QuestionStatsModule from './components/quan-ly-nhch/thong-ke-nhch/Questio
 import ReviewModal from './components/ReviewModal';
 import SystemAdminModule from './components/quan-tri-he-thong/SystemAdminModule';
 import CategoryAdminModule from './components/CategoryAdminModule';
-import ExamPackageModule from './components/ExamPackageModule';
 import ExamManagementModule from './components/xay-dung-de-thi/quan-ly-de-goc/ExamManagementModule';
 import PackageManagementModule from './components/xay-dung-de-thi/quan-ly-goi-de/PackageManagementModule';
 import QuanLyThiSinh from './components/quan-ly-thi/QuanLyThiSinh';
@@ -34,12 +33,13 @@ import { getBreadcrumbTitle, getUserInitials, getRoleLabel } from './utils/helpe
 import { rawMenuItems } from './config/menuConfig';
 import AppSidebar from './components/layout/AppSidebar';
 import AppHeader from './components/layout/AppHeader';
-import { ToastContainer } from './utils/toast';
+import { ToastContainer, toast } from './utils/toast';
+import { API_ORIGIN } from './config/apiBase';
 
 const { Header, Sider, Content } = Layout;
 
 export default function App() {
-  const isPortalPort = window.location.port === '5174';
+  const isPortalPort = window.location.port === '5174' || window.location.hostname.startsWith('thi.');
 
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenuKey, setActiveMenuKey] = useState<string>(() => {
@@ -64,6 +64,87 @@ export default function App() {
     return null;
   });
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
+
+  // Sync latest user profile on page reload (F5) so assignments like subjects update without logout
+  useEffect(() => {
+    const fetchLatestUserInfo = async () => {
+      const cachedUser = localStorage.getItem('user_info');
+      const token = localStorage.getItem('auth_token');
+      if (cachedUser && token) {
+        try {
+          const userObj = JSON.parse(cachedUser);
+          const res = await fetch(`${API_ORIGIN}/api/auth/users`);
+          const data = await res.json();
+          if (data.success && data.data) {
+            const latestUser = data.data.find((u: any) => u.id === userObj.id);
+            if (latestUser) {
+              if (
+                latestUser.status !== 'active' || 
+                (userObj.passwordVersion && latestUser.passwordVersion && userObj.passwordVersion !== latestUser.passwordVersion)
+              ) {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user_info');
+                setCurrentUser(null);
+                toast.error('Phiên đăng nhập đã hết hạn do thay đổi thông tin xác thực từ Quản trị viên. Vui lòng đăng nhập lại.');
+                return;
+              }
+              setCurrentUser(latestUser);
+              localStorage.setItem('user_info', JSON.stringify(latestUser));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to sync latest user info on reload', e);
+        }
+      }
+    };
+    fetchLatestUserInfo();
+  }, []);
+
+  // Listen for cross-tab force logout events and persistent F5 logout (from Admin)
+  useEffect(() => {
+    const checkForceLogout = () => {
+      const cachedUser = localStorage.getItem('user_info');
+      if (cachedUser) {
+        try {
+          const userObj = JSON.parse(cachedUser);
+          const forceLogoutKey = 'force_logout_' + userObj.id;
+          if (localStorage.getItem(forceLogoutKey)) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_info');
+            localStorage.removeItem(forceLogoutKey);
+            setCurrentUser(null);
+            toast.error('Phiên đăng nhập đã bị vô hiệu hóa do thay đổi thông tin từ Quản trị viên. Vui lòng đăng nhập lại.');
+          }
+        } catch (e) {}
+      }
+    };
+
+    checkForceLogout(); // Check on mount (handles F5)
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('force_logout_')) {
+        checkForceLogout();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    try {
+      const bc = new BroadcastChannel('auth_channel');
+      bc.onmessage = (event) => {
+        if (event.data && event.data.type === 'force_logout') {
+          checkForceLogout();
+        }
+      };
+      return () => {
+        bc.close();
+        window.removeEventListener('storage', handleStorage);
+      };
+    } catch(e) {
+      return () => window.removeEventListener('storage', handleStorage);
+    }
+  }, []);
 
   // ── Set document title based on port ──
   useEffect(() => {
@@ -281,6 +362,7 @@ export default function App() {
         return (
           <QuestionStatsModule
             questions={questions}
+            currentUser={currentUser}
           />
         );
       case 'quan-ly-de-thi-goi-de':
@@ -293,7 +375,6 @@ export default function App() {
       case 'quan-ly-goi-de':
         return (
           <PackageManagementModule
-            initialTab={targetSubTab as 'list' | 'review'}
             currentUser={currentUser}
           />
         );
@@ -459,7 +540,6 @@ export default function App() {
 
   return (
     <Layout className="min-h-screen bg-[#f5f7fa] font-sans" id="app-root-layout">
-      <ToastContainer />
       <AppSidebar
         collapsed={collapsed}
         setCollapsed={setCollapsed}
@@ -483,15 +563,17 @@ export default function App() {
         {/* Dynamic viewport container */}
         <Content className="p-6 overflow-y-auto flex-1 flex flex-col space-y-4" id="app-viewport-container">
 
-          {/* Custom functional breadcrumbs */}
-          <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
-            <Breadcrumb
-              className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
-              items={
-                getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
-              }
-            />
-          </div>
+          {/* Custom functional breadcrumbs - hidden on dashboard */}
+          {activeMenuKey !== 'dashboard' && (
+            <div className="flex items-center justify-between shrink-0" id="breadcrumbs-bar-container">
+              <Breadcrumb
+                className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+                items={
+                  getBreadcrumbTitle(activeMenuKey).split(/\s*\/\s*/).map(title => ({ title }))
+                }
+              />
+            </div>
+          )}
 
           {/* Yielded workspace content active view */}
           <div className="flex-1" id="main-content-yield-view">

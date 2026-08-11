@@ -1,12 +1,13 @@
 /**
  * danhMucApi.ts
  * Centralized API service for all 5 category tables.
- * Base URL: http://localhost:8001
+ * Base URL: xem src/config/apiBase.ts (đổi qua VITE_APP_API_URL, mặc định domain online).
  */
 
 import type { Question, QuestionType, CognitiveLevel } from '../types';
+import { API_ORIGIN } from '../config/apiBase';
 
-const BASE_URL = 'http://localhost:8001';
+const BASE_URL = API_ORIGIN;
 
 // ─── Generic helpers ───────────────────────────────────────────────────────
 

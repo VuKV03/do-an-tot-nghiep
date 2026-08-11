@@ -24,6 +24,13 @@ class User(Base):
     status = Column(String(50), default="active")  # Trạng thái tài khoản (vd: active, inactive, locked)
     createdAt = Column(String(100), nullable=False)  # Thời gian tạo tài khoản
 
+    @property
+    def passwordVersion(self) -> str:
+        # Lấy 10 ký tự cuối của chuỗi băm mật khẩu làm phiên bản mật khẩu
+        if self.password_hash:
+            return self.password_hash[-10:]
+        return ""
+
 class UserGroupMember(Base):
     __tablename__ = "user_group_members"
 

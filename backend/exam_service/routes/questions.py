@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
+# pyrefly: ignore [missing-import]
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from sqlalchemy import func
 from backend.exam_service.models import Exam, Question, SubjectCategory, GradeLevel, CognitiveLevel, QuestionType, Topic, CompetencyComponent, QuestionHistory, SOURCE_TO_INT
@@ -162,7 +164,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         if comp_result.scalar_one_or_none():
             competency_component_id = body.competencyComponentId
 
-    question_id = f"q-{int(time.time() * 1000)}"
+    question_id = f"q-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     question = Question(
         id=question_id,
         code=f"Q-{str(int(time.time()))[-6:].upper()}",
@@ -177,7 +179,7 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         type_id=question_type.id,
         competency_component_id=competency_component_id,
         exam_id=body.examId,
-        line_number=body.lineNumber or 1,
+        line_number=body.lineNumber or 0,
         status=_status_to_int(body.status),
         status_ai=SOURCE_TO_INT.get(body.source or 'manual', 0),
         approved_note="",
@@ -232,7 +234,8 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
             level_id=question.level_id,
             type_id=question.type_id,
             competency_component_id=question.competency_component_id,
-            line_number=question.line_number or 1,
+            # KHÔNG dùng "or 1" — line_number=0 (câu tự do, chưa thuộc đề) là giá trị FALSY hợp lệ.
+            line_number=question.line_number if question.line_number is not None else 0,
             status=question.status or 0,
             status_ai=question.status_ai or 0,
             approved_note=question.approved_note or "",
@@ -371,78 +374,93 @@ async def create_questions_bulk(body: QuestionBulkCreate, db: AsyncSession = Dep
     history_objs: list[QuestionHistory] = []
     errors: list[dict] = []
 
-    for idx, item in enumerate(body.items):
-        subject = await _resolve_subject(db, subject_cache, item.subject)
-        grade = await _resolve_grade(db, grade_cache, item.grade)
-        if not subject or not grade:
-            errors.append({"index": idx, "detail": "Không tìm thấy môn học hoặc khối lớp tương ứng trong danh mục."})
-            continue
+    try:
+        for idx, item in enumerate(body.items):
+            subject = await _resolve_subject(db, subject_cache, item.subject)
+            grade = await _resolve_grade(db, grade_cache, item.grade)
+            if not subject or not grade:
+                errors.append({"index": idx, "detail": "Không tìm thấy môn học hoặc khối lớp tương ứng trong danh mục."})
+                continue
 
-        level = await _resolve_level(db, level_cache, item.level)
-        question_type = await _resolve_type(db, type_cache, item.type)
-        if not level or not question_type:
-            errors.append({"index": idx, "detail": "Không tìm thấy cấp độ tư duy hoặc loại câu hỏi tương ứng trong danh mục."})
-            continue
+            level = await _resolve_level(db, level_cache, item.level)
+            question_type = await _resolve_type(db, type_cache, item.type)
+            if not level or not question_type:
+                errors.append({"index": idx, "detail": "Không tìm thấy cấp độ tư duy hoặc loại câu hỏi tương ứng trong danh mục."})
+                continue
 
-        topic = await _resolve_topic(db, topic_cache, item.topicId, item.topicName, item.subTopicName)
-        competency_component_id = item.competencyComponentId if (item.competencyComponentId and await _resolve_competency(db, competency_cache, item.competencyComponentId)) else None
+            topic = await _resolve_topic(db, topic_cache, item.topicId, item.topicName, item.subTopicName)
+            competency_component_id = item.competencyComponentId if (item.competencyComponentId and await _resolve_competency(db, competency_cache, item.competencyComponentId)) else None
 
-        question_id = f"q-{int(time.time() * 1000)}-{idx}"
-        question = Question(
-            id=question_id,
-            code=f"Q-{str(int(time.time()))[-6:].upper()}{idx}",
-            content=item.text,
-            options=_as_json(item.options),
-            correct_answer=_as_json(item.correctAnswer),
-            topic_id=topic.id if topic else None,
-            parent_id=topic.parent_id if topic else None,
-            subject_id=subject.id,
-            grade_id=grade.id,
-            level_id=level.id,
-            type_id=question_type.id,
-            competency_component_id=competency_component_id,
-            exam_id=item.examId,
-            line_number=item.lineNumber or 1,
-            status=_status_to_int(item.status),
-            status_ai=SOURCE_TO_INT.get(item.source or 'manual', 0),
-            approved_note="",
-            statements=_as_json(item.statements),
-            created_by=item.creator,
-            created_at=_now(),
-        )
-        db.add(question)
-        created_questions.append(question)
-
-        history_obj = QuestionHistory(
-            id=str(uuid.uuid4()),
-            question_id=question.id,
-            actor=item.creator or _DEFAULT_ACTOR,
-            action="Thêm mới",
-            timestamp=_now(),
-            note=f"Thêm mới câu hỏi mã {question.code}",
-        )
-        db.add(history_obj)
-        history_objs.append(history_obj)
-
-    if not created_questions:
-        raise HTTPException(status_code=400, detail={"message": "Không tạo được câu hỏi nào.", "errors": errors})
-
-    await db.commit()
-    for q in created_questions:
-        await db.refresh(q)
-
-    # Cập nhật lại totalQuestions cho từng đề có câu hỏi vừa thêm (đếm 1 lần/đề thay vì 1 lần/câu).
-    exam_ids = {q.exam_id for q in created_questions if q.exam_id}
-    for exam_id in exam_ids:
-        exam_result = await db.execute(select(Exam).where(Exam.id == exam_id))
-        exam_obj = exam_result.scalar_one_or_none()
-        if exam_obj:
-            count_result = await db.execute(
-                select(func.count()).select_from(Question).where(Question.exam_id == exam_id)
+            # uuid hậu tố — mốc mili-giây + idx không đủ duy nhất khi nhiều đề (vd nhiều đề hoán vị)
+            # cùng gọi bulk-create SONG SONG, mỗi lệnh gọi tự đếm idx từ 0 riêng nên dễ trùng
+            # "q-{ts}-{idx}" giữa 2 đề khác nhau rơi vào cùng mili-giây với cùng idx.
+            question_id = f"q-{int(time.time() * 1000)}-{idx}-{uuid.uuid4().hex[:6]}"
+            question = Question(
+                id=question_id,
+                code=f"Q-{str(int(time.time()))[-6:].upper()}{idx}",
+                content=item.text,
+                options=_as_json(item.options),
+                correct_answer=_as_json(item.correctAnswer),
+                topic_id=topic.id if topic else None,
+                parent_id=topic.parent_id if topic else None,
+                subject_id=subject.id,
+                grade_id=grade.id,
+                level_id=level.id,
+                type_id=question_type.id,
+                competency_component_id=competency_component_id,
+                exam_id=item.examId,
+                line_number=item.lineNumber or 0,
+                status=_status_to_int(item.status),
+                status_ai=SOURCE_TO_INT.get(item.source or 'manual', 0),
+                approved_note="",
+                statements=_as_json(item.statements),
+                created_by=item.creator,
+                created_at=_now(),
             )
-            exam_obj.totalQuestions = count_result.scalar_one()
-    if exam_ids:
+            db.add(question)
+            created_questions.append(question)
+
+            history_obj = QuestionHistory(
+                id=str(uuid.uuid4()),
+                question_id=question.id,
+                actor=item.creator or _DEFAULT_ACTOR,
+                action="Thêm mới",
+                timestamp=_now(),
+                note=f"Thêm mới câu hỏi mã {question.code}",
+            )
+            db.add(history_obj)
+            history_objs.append(history_obj)
+
+        if not created_questions:
+            raise HTTPException(status_code=400, detail={"message": "Không tạo được câu hỏi nào.", "errors": errors})
+
         await db.commit()
+        for q in created_questions:
+            await db.refresh(q)
+
+        # Cập nhật lại totalQuestions cho từng đề có câu hỏi vừa thêm (đếm 1 lần/đề thay vì 1 lần/câu).
+        exam_ids = {q.exam_id for q in created_questions if q.exam_id}
+        for exam_id in exam_ids:
+            exam_result = await db.execute(select(Exam).where(Exam.id == exam_id))
+            exam_obj = exam_result.scalar_one_or_none()
+            if exam_obj:
+                count_result = await db.execute(
+                    select(func.count()).select_from(Question).where(Question.exam_id == exam_id)
+                )
+                exam_obj.totalQuestions = count_result.scalar_one()
+        if exam_ids:
+            await db.commit()
+    except (OperationalError, IntegrityError) as e:
+        # Trước đây không bắt — 1 lần rớt kết nối CSDL giữa chừng (rất hay gặp khi nhiều đề hoán vị
+        # cùng tạo câu hỏi song song, mỗi lệnh giữ 1 connection nhiều giây) làm lộ nguyên lỗi driver
+        # thô ra ngoài dưới dạng 500 không rõ nghĩa, đồng thời khiến đề vừa tạo (ở request POST /exams
+        # riêng, đã thành công trước đó) bị rỗng câu hỏi vĩnh viễn vì FE coi request này là thất bại
+        # hoàn toàn — không có gì tự retry. Trả 503 rõ ràng để FE có thể phân biệt và tự thử lại.
+        await db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Mất kết nối cơ sở dữ liệu khi đang tạo câu hỏi hàng loạt — vui lòng thử lại.",
+        )
 
     return {
         "success": True,

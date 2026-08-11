@@ -4,7 +4,7 @@ import { toast } from '../../../utils/toast';
 import { AuditLog } from '../../../types';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+import { API_BASE_URL as API_URL } from '../../../config/apiConfig';
 // import các component modal và hằng số
 import PermissionsModal from './modals/PermissionsModal';
 import AddEditGroupModal from './modals/AddEditGroupModal';
@@ -239,7 +239,6 @@ export default function GroupManagement({ onAddAuditLog, setSecurityLogs }: Grou
 
   const handleBulkDelete = () => {
     if (selectedGroupIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một nhóm để xóa.');
       return;
     }
 

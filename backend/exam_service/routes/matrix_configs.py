@@ -4,6 +4,7 @@ Handles: GET /matrix-configs, POST /matrix-configs, DELETE /matrix-configs, DELE
 """
 import json
 import time
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -17,9 +18,16 @@ from sqlalchemy import select, delete, or_, and_, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import MatrixConfig, SubjectCategory
+from backend.exam_service.models import MatrixConfig, SubjectCategory, MatrixHistory
+from backend.exam_service.schemas import MatrixHistoryResponse, MatrixHistoryListResponse
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
+
+_DEFAULT_ACTOR = "Hội đồng Chuyên môn"
+
+
+def _now() -> str:
+    return datetime.utcnow().isoformat() + "Z"
 
 
 # ─── Pydantic Schemas ───────────────────────────────────────────────
@@ -28,6 +36,9 @@ class MatrixConfigCreate(BaseModel):
     ma: Optional[str] = None
     ten: str
     ds_cau_truc: List[dict]
+    # Người thực hiện thật (Họ và tên đang đăng nhập) — dùng để ghi log lịch sử, khớp quy ước
+    # actor ở bank_questions.py/topics.py.
+    actor: Optional[str] = None
 
 
 async def _get_subject_or_400(db: AsyncSession, subject_id: str) -> SubjectCategory:
@@ -77,7 +88,7 @@ async def list_matrix_configs(
 
     if status and status != "all":
         # Tab "Thẩm định ma trận đề" cần lọc gộp 3 trạng thái (Chờ thẩm định/Đã thẩm định/Từ chối,
-        # loại trừ "new"/Nháp — chưa từng gửi thẩm định) — hỗ trợ danh sách phân tách bởi dấu phẩy
+        # loại trừ "new"/Tạo mới — chưa từng gửi thẩm định) — hỗ trợ danh sách phân tách bởi dấu phẩy
         # (vd "pending,approved,rejected"), vẫn tương thích tra đúng 1 giá trị như tab "Ma trận đề".
         status_list = [s.strip() for s in status.split(",") if s.strip()]
         if len(status_list) > 1:
@@ -170,6 +181,16 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
     )
 
     db.add(new_config)
+
+    db.add(MatrixHistory(
+        id=str(uuid.uuid4()),
+        matrix_id=new_config.id,
+        actor=body.actor or _DEFAULT_ACTOR,
+        action="Thêm mới",
+        timestamp=_now(),
+        note=f"Thêm mới ma trận đề mã {matrix_code}",
+    ))
+
     await db.commit()
 
     return {
@@ -259,6 +280,18 @@ class MatrixConfigUpdateStatus(BaseModel):
     status: str
     ids: List[str]
     notes: Optional[str] = None
+    actor: Optional[str] = None
+
+
+# Đúng 1 endpoint này được tái dùng cho cả 3 hành động — "Gửi thẩm định" (MatrixConfigModule.tsx::
+# handleSendToEvaluation, status='pending') VÀ "Đồng ý"/"Từ chối" (handleSaveReview, status='approved'
+# /'rejected') — nên nhãn hành động lịch sử phải suy ra từ giá trị status đích, không có sẵn action
+# rời rạc như bulk-review bên bank_questions.py.
+_STATUS_TO_ACTION = {
+    "pending": "Gửi thẩm định",
+    "approved": "Đồng ý",
+    "rejected": "Từ chối",
+}
 
 
 @router.put("/status")
@@ -266,12 +299,26 @@ async def update_matrix_configs_status(body: MatrixConfigUpdateStatus, db: Async
     """Cập nhật trạng thái thẩm định cho một hoặc nhiều ma trận đề."""
     if not body.ids:
         raise HTTPException(status_code=400, detail="Không có ma trận nào được chọn.")
-    
+
+    action_label = _STATUS_TO_ACTION.get(body.status, "Sửa")
+    is_review_verdict = body.status in ("approved", "rejected")
+
     for mid in body.ids:
         result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == mid))
         config = result.scalar_one_or_none()
         if config:
             config.status = body.status
+            db.add(MatrixHistory(
+                id=str(uuid.uuid4()),
+                matrix_id=config.id,
+                actor=body.actor or _DEFAULT_ACTOR,
+                action=action_label,
+                timestamp=_now(),
+                note=body.notes or f"{action_label} ma trận đề mã {config.code}",
+                # Chỉ Đồng ý/Từ chối mới có "nhận xét thẩm định" thật — Gửi thẩm định không có khái
+                # niệm nhận xét nên để trống, tránh cột "Nội dung thẩm định/Từ chối" hiện sai dữ liệu.
+                comment=(body.notes or "") if is_review_verdict else None,
+            ))
 
     await db.commit()
     return {
@@ -313,6 +360,15 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
     config.totalQuestions = total_questions
     config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
 
+    db.add(MatrixHistory(
+        id=str(uuid.uuid4()),
+        matrix_id=config.id,
+        actor=body.actor or _DEFAULT_ACTOR,
+        action="Sửa",
+        timestamp=_now(),
+        note=f"Cập nhật ma trận đề mã {config.code}",
+    ))
+
     await db.commit()
 
     return {
@@ -328,3 +384,29 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             "totalQuestions": config.totalQuestions
         }
     }
+
+
+@router.get("/{config_id}/history", response_model=MatrixHistoryListResponse)
+async def get_matrix_config_history(config_id: str, db: AsyncSession = Depends(get_db)):
+    """Lấy lịch sử chỉnh sửa/thẩm định thật của 1 ma trận đề (bảng matrix_histories)."""
+    stmt = (
+        select(MatrixHistory)
+        .where(MatrixHistory.matrix_id == config_id)
+        .order_by(MatrixHistory.timestamp.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    data = [
+        MatrixHistoryResponse(
+            id=r.id,
+            matrix_id=r.matrix_id,
+            action=r.action,
+            actor=r.actor,
+            timestamp=r.timestamp,
+            note=r.note,
+            comment=r.comment,
+        )
+        for r in rows
+    ]
+    return MatrixHistoryListResponse(success=True, count=len(data), data=data)

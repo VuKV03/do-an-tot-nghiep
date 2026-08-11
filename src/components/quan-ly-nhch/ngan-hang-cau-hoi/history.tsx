@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, ExportOutlined } from '@ant-design/icons';
+import { ExportOutlined } from '@ant-design/icons';
 import { Question } from '../../../types';
 import { bankQuestionApi } from '../../../services/danhMucApi';
 
@@ -221,30 +221,47 @@ export default function QuestionHistoryModal({
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (desc: string) => (
-        <Tooltip title={desc}>
-          <span className="text-slate-700 text-xs">{desc}</span>
-        </Tooltip>
-      )
+      // Với 2 hành động Đồng ý/Từ chối, backend chỉ có DUY NHẤT 1 cột `note` — được map vào CẢ 2
+      // cột hiển thị (cột này + "Nội dung thẩm định/Từ chối" bên dưới), nên nếu hiện thẳng `desc`
+      // ở đây sẽ trùng y hệt nội dung nhận xét thẩm định. Đổi sang nhãn mô tả HÀNH ĐỘNG (không phải
+      // nội dung nhận xét) để 2 cột không lặp lại nhau — nhận biết "hàng loạt" qua cụm từ mặc định
+      // backend tự chèn khi thẩm định nhiều câu không kèm ghi chú riêng (xem bulk_review_bank_questions
+      // ở bank_questions.py: `note=body.comment or f"{action_label} thẩm định hàng loạt"`). Nếu người
+      // thẩm định có nhập ghi chú riêng khi duyệt hàng loạt thì không còn dấu hiệu để nhận biết —
+      // khi đó rơi về nhãn đơn lẻ, vẫn không còn trùng nội dung với cột thẩm định.
+      render: (desc: string, record: HistoryRecord) => {
+        const isReview = record.action === 'Đồng ý' || record.action === 'Từ chối';
+        if (isReview) {
+          const isBulk = /hàng loạt/i.test(desc || '');
+          const label = record.action === 'Đồng ý'
+            ? (isBulk ? 'Thẩm định hàng loạt' : 'Thẩm định câu hỏi')
+            : (isBulk ? 'Từ chối hàng loạt' : 'Từ chối câu hỏi');
+          return <span className="text-slate-700 text-xs">{label}</span>;
+        }
+        return (
+          <Tooltip title={desc}>
+            <span className="text-slate-700 text-xs">{desc}</span>
+          </Tooltip>
+        );
+      }
     },
     {
-      title: 'Thao tác',
-      key: 'action-col',
-      align: 'center',
-      width: 80,
-      render: (_: any, record: HistoryRecord) => (
-        <Tooltip title="Xem chi tiết">
-          <Button
-            type="text"
-            icon={<EyeOutlined className="text-blue-600" />}
-            className="flex items-center justify-center w-7 h-7 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 mx-auto"
-            onClick={() =>
-              toast.info(`Xem chi tiết lịch sử #${record.stt} (tính năng đang phát triển)`)
-            }
-            style={{ cursor: 'pointer' }}
-          />
-        </Tooltip>
-      )
+      title: 'Nội dung thẩm định/Từ chối',
+      key: 'reviewComment',
+      ellipsis: true,
+      // Chỉ 2 hành động Đồng ý/Từ chối mới có "Nhận xét/Ghi chú" thật của người thẩm định (nhập ở
+      // popup xác nhận thẩm định — xem tham-dinh-cau-hoi/index.tsx) — backend lưu chung vào cột
+      // `note` cho 2 hành động này (body.comment or default label, xem bank_questions.py::approve/
+      // reject), không có cột riêng như bên lịch sử chủ đề (topics có cột `comment` tách biệt).
+      render: (_: any, record: HistoryRecord) => {
+        const isReview = record.action === 'Đồng ý' || record.action === 'Từ chối';
+        if (!isReview) return <span className="text-slate-300 text-xs">—</span>;
+        return (
+          <Tooltip title={record.description}>
+            <span className="text-slate-700 text-xs">{record.description || '—'}</span>
+          </Tooltip>
+        );
+      }
     }
   ];
 

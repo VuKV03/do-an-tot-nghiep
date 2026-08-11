@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SmartTest - API Gateway",
+    title="NHCH - API Gateway",
     description="Central reverse proxy routing requests to microservices.",
     version="2.0.0",
     lifespan=lifespan,
@@ -119,10 +119,15 @@ async def proxy_exams(request: Request, path: str = ""):
 
 @app.api_route("/api/exams", methods=["GET", "POST", "PUT", "DELETE"])
 @app.api_route("/api/exams/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/packages", methods=["GET", "POST", "PUT", "DELETE"])
+@app.api_route("/api/exam/packages/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_exams_fallback(request: Request, path: str = ""):
     """Backward compatible exam route."""
     # Handle packages sub-route
-    if path.startswith("packages"):
+    if request.url.path.startswith("/api/exam/packages"):
+        pkg_path = request.url.path[len("/api/exam/packages"):]
+        request.scope["path"] = f"/packages{pkg_path}" if pkg_path else "/packages/"
+    elif path.startswith("packages"):
         pkg_path = path[len("packages"):]
         request.scope["path"] = f"/packages/{pkg_path.lstrip('/')}" if pkg_path else "/packages/"
     else:
@@ -130,13 +135,36 @@ async def proxy_exams_fallback(request: Request, path: str = ""):
     return await proxy_request(request, SERVICE_MAP["exam"])
 
 
-# ─── Route: Matrix Configs ──────────────────────────────────────────
-@app.api_route("/api/matrix-configs", methods=["GET", "POST", "PUT", "DELETE"])
-@app.api_route("/api/matrix-configs/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_matrix_configs(request: Request, path: str = ""):
-    """Forward matrix config requests to Exam Service."""
-    request.scope["path"] = f"/matrix-configs/{path}" if path else "/matrix-configs/"
-    return await proxy_request(request, SERVICE_MAP["exam"])
+# ─── Route: Exam Service Additional Resources ───────────────────────
+EXAM_RESOURCES = [
+    "matrix-configs",
+    "subject-categories",
+    "subject-configs",
+    "cognitive-levels",
+    "question-types",
+    "competency-components",
+    "grade-levels",
+    "topics",
+    "questions",
+    "bank-questions",
+    "packages"
+]
+
+def make_proxy_route(resource_name: str):
+    @app.api_route(f"/api/{resource_name}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/api/{resource_name}/{{path:path}}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/{resource_name}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.api_route(f"/{resource_name}/{{path:path}}", methods=["GET", "POST", "PUT", "DELETE"])
+    async def proxy_resource(request: Request, path: str = ""):
+        req_path = request.scope.get("path", request.url.path)
+        if req_path.startswith(f"/api/{resource_name}"):
+            request.scope["path"] = f"/{resource_name}/{path}" if path else f"/{resource_name}/"
+        elif req_path.startswith(f"/{resource_name}"):
+            request.scope["path"] = f"/{resource_name}/{path}" if path else f"/{resource_name}/"
+        return await proxy_request(request, SERVICE_MAP["exam"])
+
+for res in EXAM_RESOURCES:
+    make_proxy_route(res)
 
 
 # ─── Route: AI Service ──────────────────────────────────────────────

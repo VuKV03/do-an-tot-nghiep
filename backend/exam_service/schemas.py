@@ -21,7 +21,7 @@ class QuestionBase(BaseModel):
     level_id: Optional[str] = None
     type_id: Optional[str] = None
     competency_component_id: Optional[str] = None
-    line_number: Optional[int] = 1
+    line_number: Optional[int] = 0
     status: Optional[int] = 0
     status_ai: Optional[int] = 0
     approved_note: Optional[str] = ""
@@ -51,7 +51,7 @@ class QuestionManualCreate(BaseModel):
     creator: Optional[str] = None
     createdAt: Optional[str] = None
     status: Optional[Literal['draft', 'pending', 'approved']] = 'draft'
-    lineNumber: Optional[int] = 1
+    lineNumber: Optional[int] = 0
     examId: Optional[str] = None
     # Nguồn gốc câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" (ModalTaoDeTuDong.tsx > Theo AI,
     # ModalSinhDeHoanVi.tsx) khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi, KHÁC với câu hỏi
@@ -81,6 +81,24 @@ class QuestionHistoryListResponse(BaseModel):
     success: bool = True
     count: int
     data: List[QuestionHistoryResponse]
+
+
+class MatrixHistoryResponse(BaseModel):
+    id: str
+    matrix_id: str
+    action: str
+    actor: Optional[str] = None
+    timestamp: str
+    note: str
+    comment: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class MatrixHistoryListResponse(BaseModel):
+    success: bool = True
+    count: int
+    data: List[MatrixHistoryResponse]
 
 
 # ─── Exam Schemas ────────────────────────────────────────────────────
@@ -154,6 +172,7 @@ class PackageCreate(BaseModel):
     description: Optional[str] = ""
     # Chỉ dùng để gắn nhãn/lọc gói đề (không ảnh hưởng logic sinh đề hoán vị)
     matrix_id: Optional[str] = None
+    is_show_result: Optional[bool] = True
 
 
 class PackageUpdate(BaseModel):
@@ -167,6 +186,7 @@ class PackageUpdate(BaseModel):
     accessType: Optional[str] = None
     description: Optional[str] = None
     matrix_id: Optional[str] = None
+    is_show_result: Optional[bool] = None
 
 
 class PackageResponse(BaseModel):
@@ -183,6 +203,7 @@ class PackageResponse(BaseModel):
     createdAt: str
     description: str
     matrix_id: Optional[str] = None
+    is_show_result: bool
 
     model_config = {"from_attributes": True}
 

@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Input,
@@ -12,7 +13,8 @@ import {
   Steps,
   Popconfirm,
   Space,
-  Empty
+  Empty,
+  Radio
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import {
@@ -36,11 +38,14 @@ import {
   SlidersOutlined,
   UpOutlined,
   DownOutlined,
-  SendOutlined
+  SendOutlined,
+  EyeOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { MatrixConfig, MatrixRow, Question, SubjectOption, GradeOption, TopicNode } from '../../../types';
 import { GRADES, TOPICS_TREE } from '../../../data';
 import CreateMatrixForm from './CreateMatrixForm';
+import MatrixHistoryModal from './history';
 import { subjectCategoryApi } from '../../../services/danhMucApi.ts';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
@@ -86,6 +91,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // View mode: 'list' | 'create'
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [editingMatrixId, setEditingMatrixId] = useState<string | undefined>(undefined);
+  // true khi mở CreateMatrixForm từ nút "Xem chi tiết" (chỉ xem, khoá mọi input) — khác hẳn mở từ
+  // nút "Chỉnh sửa" (editingMatrixId vẫn dùng chung để tải đúng dữ liệu ma trận đó).
+  const [matrixReadOnly, setMatrixReadOnly] = useState(false);
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<'list' | 'evaluation'>(initialTab || 'list');
@@ -119,6 +127,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const [evalIsSearchExpanded, setEvalIsSearchExpanded] = useState(true);
   const [evalSearchText, setEvalSearchText] = useState('');
   const [evalFilterSubject, setEvalFilterSubject] = useState<string>('all');
+  // Mặc định lọc sẵn "Chờ thẩm định" (đúng trọng tâm của tab thẩm định — ưu tiên xem việc cần xử lý
+  // trước), nhưng vẫn đổi được sang "Tất cả"/"Đã thẩm định"/"Từ chối" — khớp quy ước searchStatus ở
+  // tham-dinh-chu-de/index.tsx. "Tạo mới" không có trong lựa chọn vì tab này vốn không hiển thị.
+  const [evalFilterStatus, setEvalFilterStatus] = useState<string>('pending');
 
   const [evalTableData, setEvalTableData] = useState<MatrixTableDataRow[]>([]);
   const [evalTableTotal, setEvalTableTotal] = useState(0);
@@ -134,6 +146,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const [reviewNotes, setReviewNotes] = useState('');
   const [isBatchReview, setIsBatchReview] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Lịch sử ma trận — dùng chung cho cả 2 tab (Ma trận đề / Thẩm định ma trận đề), giống cách
+  // QuestionHistoryModal dùng chung cho cả tab Ngân hàng câu hỏi/Thẩm định câu hỏi.
+  const [historyMatrix, setHistoryMatrix] = useState<{ id: string; name: string; code: string } | null>(null);
 
   // === API-driven table state ===
   interface MatrixTableDataRow {
@@ -168,7 +184,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       if (filterSubject !== 'all') params.set('subject_id', filterSubject);
       if (filterStatus !== 'all') params.set('status', filterStatus);
 
-      const res = await fetch(`/api/matrix-configs?${params.toString()}`);
+      const res = await fetch(`${API_ORIGIN}/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setTableData(json.data);
@@ -191,11 +207,12 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       params.set('pageSize', String(size));
       if (evalSearchText.trim()) params.set('search', evalSearchText.trim());
       if (evalFilterSubject !== 'all') params.set('subject_id', evalFilterSubject);
-      // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
-      // lọc cứng "pending", ẩn mất các ma trận đã thẩm định xong (approved/rejected) khỏi tab này.
-      params.set('status', 'pending,approved,rejected');
+      // "Tất cả" ở tab này vẫn chỉ hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm
+      // định/Từ chối) — "Tạo mới" (chưa từng gửi) không thuộc phạm vi tab này. Chọn 1 trạng thái cụ
+      // thể thì thu hẹp lại đúng trạng thái đó.
+      params.set('status', evalFilterStatus === 'all' ? 'pending,approved,rejected' : evalFilterStatus);
 
-      const res = await fetch(`/api/matrix-configs?${params.toString()}`);
+      const res = await fetch(`${API_ORIGIN}/api/matrix-configs?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setEvalTableData(json.data);
@@ -230,7 +247,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // Handle batch delete
   const handleBatchDelete = async () => {
     if (selectedRowIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất 1 bản ghi để xóa.');
       return;
     }
     Modal.confirm({
@@ -242,7 +258,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       centered: true,
       onOk: async () => {
         try {
-          const res = await fetch('/api/matrix-configs', {
+          const res = await fetch(`${API_ORIGIN}/api/matrix-configs`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: selectedRowIds }),
@@ -266,7 +282,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const handleDeleteRow = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/matrix-configs/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
         toast.success(json.message);
@@ -284,18 +300,29 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   // Handle single row send to evaluation
   const handleSendToEvaluation = async (id: string) => {
     try {
-      const res = await fetch('/api/matrix-configs/status', {
+      const res = await fetch(`${API_ORIGIN}/api/matrix-configs/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'pending',
-          ids: [id]
+          ids: [id],
+          actor: currentUser?.fullName || currentUser?.username
         })
       });
       const json = await res.json();
       if (json.success) {
         toast.success('Đã gửi ma trận đề đi thẩm định thành công!');
-        setActiveTab('evaluation');
+        // Tài khoản không có quyền xem tab "Thẩm định ma trận đề" (vd giáo viên) không có nút tab để
+        // quay lại "Ma trận đề" — nếu vẫn ép activeTab sang 'evaluation' (nội dung tab không có guard
+        // theo quyền, chỉ nút tab bị ẩn), họ sẽ bị kẹt ở màn thẩm định, tự động lọc theo trạng thái
+        // mặc định của tab đó ("Chờ thẩm định") thay vì giữ đúng bộ lọc đang xem ở tab "Ma trận đề".
+        // Chỉ chuyển tab khi tài khoản thực sự có quyền xem tab thẩm định; ngược lại giữ nguyên
+        // tab/bộ lọc hiện tại, chỉ tải lại danh sách để cập nhật trạng thái vừa gửi.
+        if (checkUserPermission(currentUser, 'tab-tham-dinh-ma-tran-de')) {
+          setActiveTab('evaluation');
+        } else {
+          fetchMatrixList(currentPage, pageSize);
+        }
       } else {
         toast.error(json.error || 'Lỗi khi gửi thẩm định.');
       }
@@ -347,7 +374,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
   const STATUS_TAG_LABELS: Record<string, string> = {
     approved: "Đã thẩm định",
     rejected: "Từ chối",
-    new: "Nháp",
+    new: "Tạo mới",
     pending: "Chờ thẩm định",
   };
   const renderStatusTag = (status: string) => (
@@ -409,7 +436,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
   const handleExportExcel = () => {
     if (sortedEvalData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất file.');
       return;
     }
     const fileName = `ThamDinhMaTranDe_${new Date().toISOString().slice(0, 10)}`;
@@ -419,7 +445,6 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
   const handleBatchReviewClick = () => {
     if (evalSelectedRowIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất 1 ma trận để thẩm định.');
       return;
     }
     setIsBatchReview(true);
@@ -441,13 +466,14 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
     setReviewSubmitting(true);
     const targetIds = isBatchReview ? evalSelectedRowIds : [reviewTargetRecord?.id].filter(Boolean) as string[];
     try {
-      const res = await fetch('/api/matrix-configs/status', {
+      const res = await fetch(`${API_ORIGIN}/api/matrix-configs/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: reviewStatus,
           ids: targetIds,
-          notes: reviewNotes
+          notes: reviewNotes,
+          actor: currentUser?.fullName || currentUser?.username
         })
       });
       const json = await res.json();
@@ -482,8 +508,10 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
       <CreateMatrixForm
         currentUser={currentUser}
         editingId={editingMatrixId}
+        readOnly={matrixReadOnly}
         onBack={() => {
           setEditingMatrixId(undefined);
+          setMatrixReadOnly(false);
           setViewMode('list');
           fetchMatrixList(1, pageSize);
         }}
@@ -589,7 +617,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         { value: 'approved', label: 'Đã thẩm định' },
                         { value: 'pending', label: 'Chờ thẩm định' },
                         { value: 'rejected', label: 'Từ chối' },
-                        { value: 'new', label: 'Nháp' }
+                        { value: 'new', label: 'Tạo mới' }
                       ]}
                     />
                   </div>
@@ -642,7 +670,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table — bọc overflow-x-auto để bảng có scroll ngang riêng thay vì tràn ra ngoài
+                đẩy lệch layout khi màn hình nhỏ hơn minWidth của bảng (các cột co giãn được). */}
+            <div className="overflow-x-auto">
             <table style={{ minWidth: matrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
               {matrixTableColGroup}
               <thead>
@@ -700,7 +730,23 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
                           <Space size={4}>
-                            {hasActionPermission(currentUser, 'matrices.manage') && (
+                            <Tooltip title="Xem chi tiết">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<EyeOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  setEditingMatrixId(row.id);
+                                  setMatrixReadOnly(true);
+                                  setViewMode('create');
+                                }}
+                              />
+                            </Tooltip>
+                            {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
+                                định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
+                                nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
+                            {(row.status === 'new' || row.status === 'rejected') && hasActionPermission(currentUser, 'matrices.manage') && (
                               <Tooltip title="Chỉnh sửa">
                                 <Button
                                   size="small"
@@ -709,6 +755,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                   className="cursor-pointer"
                                   onClick={() => {
                                     setEditingMatrixId(row.id);
+                                    setMatrixReadOnly(false);
                                     setViewMode('create');
                                   }}
                                 />
@@ -725,6 +772,18 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                                 />
                               </Tooltip>
                             )}
+                            {/* Lịch sử — không gắn điều kiện quyền, giống quy ước ở Ngân hàng câu hỏi
+                                (tab-ngan-hang-cau-hoi/index.tsx, tham-dinh-cau-hoi/index.tsx): hễ vào
+                                được tab là xem được lịch sử, không phân biệt vai trò. */}
+                            <Tooltip title="Lịch sử">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<HistoryOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
+                              />
+                            </Tooltip>
                             {hasActionPermission(currentUser, 'matrices.manage') && (
                               <Popconfirm
                                 title="Xóa ma trận này?"
@@ -749,6 +808,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
@@ -828,7 +888,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
             {evalIsSearchExpanded && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   {/* Tên ma trận */}
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Tên ma trận</label>
@@ -859,6 +919,22 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                       ]}
                     />
                   </div>
+
+                  {/* Trạng thái */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Trạng thái</label>
+                    <Select
+                      value={evalFilterStatus}
+                      onChange={setEvalFilterStatus}
+                      className="w-full text-xs"
+                      options={[
+                        { value: 'all', label: 'Tất cả' },
+                        { value: 'pending', label: 'Chờ thẩm định' },
+                        { value: 'approved', label: 'Đã thẩm định' },
+                        { value: 'rejected', label: 'Từ chối' },
+                      ]}
+                    />
+                  </div>
                 </div>
 
                 {/* Tìm kiếm button */}
@@ -881,10 +957,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             {/* Table Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm</h3>
-                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold border border-blue-100">
-                  Phân quyền: Hội đồng thẩm định
-                </span>
+                <h3 className="text-[#1a3c8b] font-bold text-sm italic m-0">Kết quả tìm kiếm </h3>
+
               </div>
               <div className="flex items-center gap-2">
                 {hasActionPermission(currentUser, 'matrices.approve') && (
@@ -911,7 +985,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table — bọc overflow-x-auto (xem ghi chú ở bảng "Ma trận đề" phía trên) */}
+            <div className="overflow-x-auto">
             <table style={{ minWidth: evalMatrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
               {evalMatrixTableColGroup}
               <thead>
@@ -968,17 +1043,41 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                         <td className="py-3 px-3 text-center">{row.duration}</td>
                         <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
                         <td className="py-3 px-3 text-center">
-                          {hasActionPermission(currentUser, 'matrices.approve') && (
-                            <Tooltip title="Thẩm định">
+                          <Space size={4}>
+                            <Tooltip title="Xem chi tiết">
                               <Button
                                 size="small"
                                 type="text"
-                                icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                icon={<EyeOutlined className="text-slate-500" />}
                                 className="cursor-pointer"
-                                onClick={() => handleSingleReviewClick(row)}
+                                onClick={() => {
+                                  setEditingMatrixId(row.id);
+                                  setMatrixReadOnly(true);
+                                  setViewMode('create');
+                                }}
                               />
                             </Tooltip>
-                          )}
+                            {hasActionPermission(currentUser, 'matrices.approve') && (
+                              <Tooltip title="Thẩm định">
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                  className="cursor-pointer"
+                                  onClick={() => handleSingleReviewClick(row)}
+                                />
+                              </Tooltip>
+                            )}
+                            <Tooltip title="Lịch sử">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<HistoryOutlined className="text-slate-500" />}
+                                className="cursor-pointer"
+                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
+                              />
+                            </Tooltip>
+                          </Space>
                         </td>
                       </tr>
                     );
@@ -986,6 +1085,7 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-slate-500">
@@ -1048,14 +1148,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
         </div>
       )}
 
-      {/* Review Confirmation Modal */}
+      {/* Review Confirmation Modal — khớp UI chuẩn dùng chung cho mọi modal thẩm định trong dự án
+          (icon FileTextOutlined xanh + tiêu đề, khung thông tin xám nhạt, Radio.Group Đồng ý/Từ
+          chối, ô nhận xét, footer Hủy/Xác nhận) — xem tham-dinh-cau-hoi/index.tsx::ReviewDetailModal,
+          ExamManagementModule.tsx, tham-dinh-chu-de/review.tsx. */}
       <Modal
         title={
-          <div className="flex items-center gap-2 text-[#1a3c8b] font-bold text-sm italic">
-            <CheckCircleOutlined className="text-[#2c3e9e]" />
-            {isBatchReview
-              ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
-              : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-600" />
+            <span className="text-[#002147] font-black text-sm tracking-tight">
+              {isBatchReview
+                ? `Thẩm định đồng thời ${evalSelectedRowIds.length} ma trận đề`
+                : `Thẩm định ma trận đề thi: ${reviewTargetRecord?.name || ''}`}
+            </span>
           </div>
         }
         open={isReviewModalOpen}
@@ -1087,37 +1192,19 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">Kết quả thẩm định</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="approved"
-                  checked={reviewStatus === 'approved'}
-                  onChange={() => setReviewStatus('approved')}
-                  className="accent-[#2c3e9e] cursor-pointer"
-                />
-                Đồng ý thông qua (Đã thẩm định)
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="review-status"
-                  value="rejected"
-                  checked={reviewStatus === 'rejected'}
-                  onChange={() => setReviewStatus('rejected')}
-                  className="accent-red-600 cursor-pointer"
-                />
-                Từ chối thông qua
-              </label>
-            </div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Kết quả thẩm định</div>
+            <Radio.Group value={reviewStatus} onChange={e => setReviewStatus(e.target.value)} className="flex gap-4">
+              <Radio value="approved">
+                <span className="text-emerald-700 font-bold text-xs">Đồng ý / Thông qua</span>
+              </Radio>
+              <Radio value="rejected">
+                <span className="text-rose-600 font-bold text-xs">Từ chối</span>
+              </Radio>
+            </Radio.Group>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Ý kiến thẩm định / Nhận xét phản biện
-            </label>
+            <div className="text-[11px] font-bold text-slate-500 mb-1">Nhận xét / Ghi chú (tuỳ chọn)</div>
             <Input.TextArea
               rows={4}
               placeholder="Nhập nội dung nhận xét chi tiết..."
@@ -1128,6 +1215,9 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
           </div>
         </div>
       </Modal>
+
+      {/* Lịch sử ma trận — dùng chung cho cả 2 tab (xem nút "Lịch sử" ở mỗi hàng bảng phía trên) */}
+      <MatrixHistoryModal matrix={historyMatrix} onClose={() => setHistoryMatrix(null)} />
     </div>
   );
 }

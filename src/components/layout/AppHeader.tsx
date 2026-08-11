@@ -63,6 +63,17 @@ export default function AppHeader({
         }
       },
       {
+        key: 'version',
+        label: (
+          <div className="flex flex-col py-1 cursor-default">
+            <span className="text-[10px] text-slate-400">Phiên bản cập nhật:</span>
+            <span className="text-[11px] font-bold text-emerald-600">
+              {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'Bản nội bộ'}
+            </span>
+          </div>
+        ),
+      },
+      {
         type: 'divider' as const
       },
       {
@@ -74,7 +85,7 @@ export default function AppHeader({
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user_info');
           setCurrentUser(null);
-          toast.success('Bạn đã đăng xuất tài khoản một cách an toàn!');
+          toast.success('Đăng xuất thành công!');
         }
       }
     ]
@@ -92,7 +103,7 @@ export default function AppHeader({
           {/* Gold national star badge */}
           <span className="text-yellow-400 font-black text-xs">★</span>
         </div>
-        <h1 className="text-white font-extrabold text-xs lg:text-[14px] uppercase tracking-wide leading-none my-0">
+        <h1 className="text-white font-extrabold text-xs lg:text-[14px] uppercase tracking-wide leading-none my-0 max-sm:hidden truncate">
           PM QUẢN LÝ NHCH VÀ XÂY DỰNG ĐỀ THI
         </h1>
       </div>
@@ -114,8 +125,8 @@ export default function AppHeader({
                 {currentUser?.fullName || currentUser?.username}
               </span>
               <span className="text-[10px] text-slate-400 font-bold block leading-none truncate max-w-[120px]" title={currentUser?.groups?.map(g => g.name).join(', ') || getRoleLabel(currentUser?.role)}>
-                {currentUser?.groups && currentUser.groups.length > 0 
-                  ? currentUser.groups.map(g => g.name).join(', ') 
+                {currentUser?.groups && currentUser.groups.length > 0
+                  ? currentUser.groups.map(g => g.name).join(', ')
                   : getRoleLabel(currentUser?.role)}
               </span>
             </div>

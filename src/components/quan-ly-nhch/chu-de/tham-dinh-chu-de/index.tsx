@@ -94,7 +94,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const [searchParent, setSearchParent] = useState('Tất cả');
   // Mặc định lọc sẵn "Chờ thẩm định" (đúng trọng tâm của tab thẩm định — ưu tiên xem việc cần xử
   // lý trước), nhưng vẫn đổi được sang "Tất cả"/"Đã thẩm định"/"Từ chối" bình thường — base filter ở
-  // filteredTree bên dưới đã hỗ trợ đủ cả 3 trạng thái (chỉ loại trừ "Lưu nháp"/draft), dropdown này
+  // filteredTree bên dưới đã hỗ trợ đủ cả 3 trạng thái (chỉ loại trừ "Tạo mới"/draft), dropdown này
   // chỉ quyết định giá trị CHỌN SẴN lúc mở tab, không giới hạn lựa chọn của người dùng.
   const [searchStatus, setSearchStatus] = useState('Chờ thẩm định');
   const [filterDates, setFilterDates] = useState<any>(null);
@@ -153,7 +153,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
 
   const handleOpenReviewMultiple = () => {
     if (selectedRowKeys.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một chủ đề để thẩm định');
       return;
     }
     setIsMultipleAction(true);
@@ -281,8 +280,8 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
     }));
 
     const filteredFlat = mapped.filter((item) => {
-      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Lưu nháp) không thuộc phạm vi
-      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Lưu nháp" và
+      // Chủ đề/tiểu mục chưa từng gửi thẩm định (status 0 - Tạo mới) không thuộc phạm vi
+      // tab này. Nếu chỉ tiểu mục con được gửi, chủ đề cha vẫn ở trạng thái "Tạo mới" và
       // không được hiển thị/gộp vào đây.
       if (item.TrangThai === 'draft') return false;
 
@@ -376,7 +375,7 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
       case 'approved': return 'Đã thẩm định';
       case 'rejected': return 'Từ chối';
       case 'pending': return 'Chờ thẩm định';
-      default: return 'Lưu nháp';
+      default: return 'Tạo mới';
     }
   };
 
@@ -405,7 +404,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
   const handleExportExcel = () => {
     const rows = flattenThamDinh(filteredTree);
     if (rows.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `ThamDinhChuDe_${new Date().toISOString().slice(0, 10)}`;
@@ -642,11 +640,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                   const ids = getSubTopicIdsRecursive([selectedRecord.Id]);
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
                   const hasChildren = ids.length > 1;
-                  toast.warning(
-                    hasChildren
-                      ? `Từ chối chủ đề "${selectedRecord.Ten}" và các tiểu mục bên trong!`
-                      : `Từ chối chủ đề: "${selectedRecord.Ten}"!`
-                  );
                   fetchData();
                 } catch (e: any) {
                   toast.error(e.message || 'Không thể từ chối chủ đề!');
@@ -673,7 +666,6 @@ export default function ThamDinhChuDeMain({ currentUser }: ThamDinhChuDeMainProp
                 try {
                   const ids = getSubTopicIdsRecursive(selectedRowKeys.map(k => k.toString()));
                   await Promise.all(ids.map(id => topicsApi.reject(id, comment, actorName)));
-                  toast.warning('Từ chối các chủ đề được chọn!');
                   setSelectedRowKeys([]);
                   fetchData();
                 } catch (e: any) {

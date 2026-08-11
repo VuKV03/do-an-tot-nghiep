@@ -26,12 +26,20 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Zero-width space — "mỏ neo" text vô hình đặt ngay trước/sau khối contenteditable="false" (xem
+ * buildFormulaHtml). Không có neo này, trình duyệt tính Range/Selection sát biên 1 khối non-editable
+ * rất không ổn định — cụ thể: Backspace xoá ký tự ngay sau công thức LaTeX khiến con trỏ bị "rơi" về
+ * cuối cả ô soạn thảo thay vì đứng đúng chỗ, vì trình duyệt không tìm được vị trí Text hợp lệ ngay sát
+ * khối non-editable để đặt caret. Vô hình, không ảnh hưởng nội dung hiển thị hay khi xuất Word. */
+const ZWSP = String.fromCharCode(0x200b);
+
 /** Dựng thẻ HTML cho 1 công thức để chèn vào editor: khối không-chỉnh-sửa-trực-tiếp (giống 1 "ký tự"
- * đặc biệt), giữ nguyên mã LaTeX gốc trong data-latex để có thể mở lại chỉnh sửa sau này. */
+ * đặc biệt), giữ nguyên mã LaTeX gốc trong data-latex để có thể mở lại chỉnh sửa sau này. Bọc thêm
+ * ZWSP trước/sau — xem giải thích ở khai báo ZWSP. */
 export function buildFormulaHtml(latex: string): string {
   const encoded = encodeURIComponent(latex);
   const rendered = renderLatexToHtml(latex);
-  return `<span class="${FORMULA_CLASS}" contenteditable="false" data-latex="${encoded}">${rendered}</span>`;
+  return `${ZWSP}<span class="${FORMULA_CLASS}" contenteditable="false" data-latex="${encoded}">${rendered}</span>${ZWSP}`;
 }
 
 /** Tìm phần tử công thức gần nhất bao quanh 1 node (vd: node được click) */

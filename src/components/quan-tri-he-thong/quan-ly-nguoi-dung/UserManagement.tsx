@@ -32,7 +32,9 @@ import {
   QuestionCircleFilled,
   MoreOutlined,
   EyeOutlined,
-  FileExcelOutlined
+  FileExcelOutlined,
+  UpOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { SystemUser, AuditLog } from '../../../types';
 import axios from 'axios';
@@ -41,7 +43,7 @@ import { subjectCategoryApi, type SubjectCategoryAPI } from '../../../services/d
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api';
+import { API_BASE_URL as API_URL } from '../../../config/apiConfig';
 
 interface UserGroup {
   id: string;
@@ -71,6 +73,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchUsername, setSearchUsername] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [searchFullName, setSearchFullName] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -144,6 +147,15 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
     } catch (err) {
       console.error('Error fetching groups:', err);
     }
+  };
+
+  const forceLogoutUserLocally = (userId: string) => {
+    try {
+      localStorage.setItem('force_logout_' + userId, Date.now().toString());
+      const bc = new BroadcastChannel('auth_channel');
+      bc.postMessage({ type: 'force_logout', userId });
+      bc.close();
+    } catch(e) {}
   };
 
   React.useEffect(() => {
@@ -344,6 +356,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       const res = await axios.delete(`${API_URL}/auth/users/${user.id}`);
       if (res.data.success) {
         await fetchUsers(); // Refresh list
+        forceLogoutUserLocally(user.id);
 
         onAddAuditLog({
           id: `log-sec-${Date.now()}`,
@@ -369,7 +382,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const handleBulkDelete = () => {
     if (selectedUserIds.length === 0) {
-      toast.warning('Vui lòng chọn ít nhất một tài khoản để xóa.');
       return;
     }
 
@@ -406,6 +418,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
           await Promise.all(selectedUserIds.map(id => axios.delete(`${API_URL}/auth/users/${id}`)));
 
           await fetchUsers(); // Refresh list
+          selectedUserIds.forEach(id => forceLogoutUserLocally(id));
           setSelectedUserIds([]); // Clear selection
 
           toast.success(`Đã xóa thành công ${selectedUserIds.length} tài khoản.`);
@@ -436,8 +449,9 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
       if (res.data.success) {
         await fetchUsers(); // Refresh list
-
-        toast.warning(`Đã chuyển trạng thái tài khoản của ${user.fullName} sang: ${statusText}`);
+        if (newStatus === 'inactive') {
+          forceLogoutUserLocally(user.id);
+        }
 
         await logSecurityAction(
           `${statusText} tài khoản`,
@@ -465,6 +479,7 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       });
 
       if (res.data.success) {
+        forceLogoutUserLocally(user.id);
         Modal.success({
           title: 'ĐÃ THIẾT LẬP LẠI MẬT KHẨU TẠM THỜI',
           content: (
@@ -519,7 +534,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
   const handleExportExcel = () => {
     if (filteredUsers.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `NguoiDung_${new Date().toISOString().slice(0, 10)}`;
@@ -536,8 +550,16 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
 
       {/* Filters */}
       <div className="bg-white rounded-lg p-5">
-        <h2 className="text-[#1a3b70] font-bold mb-4 text-sm">Tìm kiếm thông tin</h2>
+        <div
+          className="flex items-center gap-2 cursor-pointer select-none w-fit mb-4"
+          onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+        >
+          <h2 className="text-[#1a3b70] font-bold text-sm m-0">Tìm kiếm thông tin</h2>
+          {isSearchExpanded ? <UpOutlined className="text-xs text-[#1a3b70]" /> : <DownOutlined className="text-xs text-[#1a3b70]" />}
+        </div>
 
+        {isSearchExpanded && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mã người dùng/ tên đăng nhập</label>
@@ -583,6 +605,8 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
             Tìm kiếm
           </Button>
         </div>
+        </div>
+        )}
       </div>
 
       {/* Users Table */}
@@ -811,14 +835,6 @@ export default function UserManagement({ onAddAuditLog, setSecurityLogs }: UserM
       </div>
 
       {/* Foot disclaimer memo */}
-      <Alert
-        type="info"
-        title={
-          <span className="text-[11px] leading-relaxed block text-slate-600 font-medium select-none">
-            📍 <strong>Mẹo quản trị:</strong> Mật khẩu tài khoản tạo mới sẽ mặc định tuân thủ theo <strong>Chính sách an toàn bảo mật</strong> đang kích hoạt. Hãy chuyển sang tab <strong>Chính sách</strong> để tăng cường các tiêu chuẩn chống mã độc.
-          </span>
-        }
-      />
       {/* ============================================================== */}
       {/* DIALOGS: USER CREATE / EDIT FORM MODAL                         */}
       {/* ============================================================== */}

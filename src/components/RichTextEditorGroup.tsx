@@ -85,10 +85,20 @@ export function RichTextGroupCell({
   const core = useRichTextCore({ value, onChange });
   const { activeCore, setActiveCore } = useRichTextGroupContext();
 
-  // Ô đang được focus phải luôn đẩy phiên bản core mới nhất của chính nó lên context ở mỗi lần
-  // render (không chỉ lúc focus) — vì các nút trên thanh công cụ dùng chung (vd: mở bảng chọn số
+  // Ô đang được focus phải đẩy phiên bản core mới nhất của chính nó lên context mỗi khi state RIÊNG
+  // của ô đổi (không chỉ lúc focus) — vì các nút trên thanh công cụ dùng chung (vd: mở bảng chọn số
   // dòng/cột, mở popup công thức) làm thay đổi state RIÊNG của ô này, khiến ô này re-render với
   // core mới, nhưng context vẫn giữ core "cũ" từ lần focus nếu không chủ động cập nhật lại.
+  //
+  // PHẢI khai báo dependency array đúng bằng các state thật sự có thể đổi trong `core`, KHÔNG được
+  // để effect chạy vô điều kiện mỗi render (không tham số) như trước — vì `core` là 1 object LITERAL
+  // mới hoàn toàn ở mỗi lần gọi useRichTextCore(), nên setActiveCore(core) luôn bị coi là "đổi giá
+  // trị" (khác reference) dù state bên trong không đổi gì, khiến Provider re-render → context đổi →
+  // chính ô này re-render lại (vì cũng đọc context) → effect chạy lại → setActiveCore(core mới) →
+  // ... lặp vô hạn ("Maximum update depth exceeded"), và giữa cơn lặp đó DOM ô nhập LaTeX (autoFocus
+  // textarea trong popup) bị re-render dồn dập làm MẤT vị trí con trỏ đang gõ/xoá — chính là bug
+  // "xoá 1 ký tự trong ô LaTeX thì con trỏ nhảy về cuối" khi dùng công thức trong bảng đáp án (ô
+  // "Nội dung câu hỏi" đứng riêng không dùng context này nên không gặp lỗi).
   //
   // `|| core.showFormulaPicker` là bắt buộc, không phải tùy chọn: popup công thức có <textarea
   // autoFocus> bên trong, nên vừa mở popup là nó CƯỚP focus khỏi ô contentEditable này ngay lập
@@ -103,7 +113,11 @@ export function RichTextGroupCell({
     if (core.isFocusedRef.current || core.showFormulaPicker) {
       setActiveCore(core);
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    core.showFormulaPicker, core.formulaLatex, core.attachments,
+    core.showTablePicker, core.hoverCell, core.isInTable, core.showSymbolPicker, core.isProcessingImage,
+  ]);
 
   const isActive = activeCore === core;
 

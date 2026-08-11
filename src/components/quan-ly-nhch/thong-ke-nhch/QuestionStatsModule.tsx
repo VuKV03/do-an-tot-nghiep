@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Select, Button, DatePicker, Card, TreeSelect, Empty } from 'antd';
 import { SearchOutlined, FileExcelOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Question } from '../../../types';
 import { SUBJECTS } from '../../../data';
 import {
@@ -15,14 +16,16 @@ import { toast } from '../../../utils/toast';
 import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { resolveInternalQuestionType } from '../../../utils/questionTypeCategory';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 
 const { RangePicker } = DatePicker;
 
 interface QuestionStatsModuleProps {
   questions: Question[];
+  currentUser?: any;
 }
 
-export default function QuestionStatsModule({ questions }: QuestionStatsModuleProps) {
+export default function QuestionStatsModule({ questions, currentUser }: QuestionStatsModuleProps) {
   const [topicsList, setTopicsList] = useState<TopicAPI[]>([]);
   const [gradesList, setGradesList] = useState<GradeLevelAPI[]>([]);
   const [subjectsList, setSubjectsList] = useState<SubjectCategoryAPI[]>([]);
@@ -45,11 +48,16 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
     subjectCategoryApi.list().then(res => {
       if (res.success) {
-        setSubjectsList(res.data);
-        if (res.data.length > 0) {
-          const firstSubject = res.data[0].id;
-          setFormSubject(firstSubject);
-          setAppliedFilters(prev => ({ ...prev, subject: firstSubject }));
+        // Giáo viên/Tổ trưởng bộ môn chỉ được thấy đúng (các) môn mình phụ trách — giống cách
+        // ExamManagementModule/PackageManagementModule đang áp dụng, không riêng gì Toán.
+        const { filteredSubjects, defaultSubjectId } = getUserSubjectFilter(res.data, currentUser);
+        // getUserSubjectFilter chỉ LỌC (không map/mất field) nhưng khai báo kiểu trả về rút gọn
+        // SubjectItem[] — ép lại đúng SubjectCategoryAPI[] cho khớp field đầy đủ đang dùng ở nơi khác.
+        setSubjectsList(filteredSubjects as SubjectCategoryAPI[]);
+        if (filteredSubjects.length > 0) {
+          const initialSubject = defaultSubjectId || filteredSubjects[0].id;
+          setFormSubject(initialSubject);
+          setAppliedFilters(prev => ({ ...prev, subject: initialSubject }));
         }
       }
     }).catch(console.error);
@@ -83,6 +91,7 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
   const [formType, setFormType] = useState<string>('Tất cả');
   const [formCompetency, setFormCompetency] = useState<string>('Tất cả');
   const [formDateRange, setFormDateRange] = useState<any>(null);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   // Applied filters state
   const [appliedFilters, setAppliedFilters] = useState({
@@ -208,11 +217,15 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
     }))
   ];
 
+  // Nhãn khớp đúng quy ước đang dùng ở các màn khác (tab-ngan-hang-cau-hoi/index.tsx,
+  // tham-dinh-cau-hoi/index.tsx: "Đã thẩm định"/"Chờ thẩm định"/"Từ chối") — trước đây dùng nhãn
+  // khác ("Đã duyệt"/"Chờ duyệt") và thiếu hẳn "Từ chối", không đồng bộ giữa các màn.
   const statusOptions = [
     { value: 'Tất cả', label: 'Tất cả' },
-    { value: 'approved', label: 'Đã duyệt' },
-    { value: 'pending', label: 'Chờ duyệt' },
-    { value: 'draft', label: 'Bản nháp' },
+    { value: 'approved', label: 'Đã thẩm định' },
+    { value: 'pending', label: 'Chờ thẩm định' },
+    { value: 'draft', label: 'Tạo mới' },
+    { value: 'rejected', label: 'Từ chối' },
   ];
 
   const creatorOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...Array.from(new Set(questions.map(q => q.creator))).filter(Boolean).map(c => ({ value: c, label: c }))];
@@ -444,7 +457,6 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
 
   const handleExportExcel = () => {
     if (tableData.length === 0) {
-      toast.warning('Không có dữ liệu để xuất Excel.');
       return;
     }
     const fileName = `ThongKeNganHangCauHoi_${new Date().toISOString().slice(0, 10)}`;
@@ -462,10 +474,15 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-3">
+        <div
+          className="border-b border-slate-100 bg-slate-50/50 px-5 py-3 flex items-center justify-between cursor-pointer select-none"
+          onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+        >
           <span className="font-semibold text-slate-700">Tìm kiếm thông tin</span>
+          {isSearchExpanded ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
         </div>
-        <div className="p-5">
+        {isSearchExpanded && (
+        <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 mb-6">
             <div>
               <div className="text-xs font-semibold text-slate-600 mb-1.5">Môn thi<span className="text-red-500 ml-0.5">*</span></div>
@@ -576,6 +593,7 @@ export default function QuestionStatsModule({ questions }: QuestionStatsModulePr
             </Button>
           </div>
         </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

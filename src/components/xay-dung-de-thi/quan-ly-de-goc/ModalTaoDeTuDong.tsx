@@ -1,3 +1,4 @@
+import { API_ORIGIN } from '../../../config/apiBase';
 import { useState, useEffect } from 'react';
 import { Modal, Button, Select, Input, Steps, Spin, Tooltip, Empty, Tag, Segmented, Radio, Switch } from 'antd';
 import { toast } from '../../../utils/toast';
@@ -9,7 +10,7 @@ import {
   type QuestionTypeAPI, type CognitiveLevelAPI,
 } from '../../../services/danhMucApi';
 import { mapCognitiveLevelRecord } from '../../../utils/cognitiveLevel';
-import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/mockData';
+import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/matrixApi';
 import ExamContentDisplay from './ExamContentDisplay';
 import RichTextEditor from '../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../RichTextEditorGroup';
@@ -114,13 +115,13 @@ const buildCallGroups = (items: CellWork[]): CellWork[][] => {
 // nào để người dùng chọn nữa — dùng nhãn cố định này cho cột "grade" (bắt buộc, not null) của exams.
 const EXAM_GRADE_LABEL = 'THPT';
 
-// Tỉ lệ độ khó gửi cho AI service ứng với 1 mức độ tư duy cụ thể (ép 100% về đúng mức đó, để câu
-// AI sinh khớp đúng ô mức-độ mà ma trận yêu cầu — giống cách "Ngân hàng câu hỏi" > Sinh bằng AI làm).
-const LEVEL_PERCENT: Record<CognitiveLevel, { easyPercent: number; mediumPercent: number; hardPercent: number }> = {
-  nhan_biet: { easyPercent: 100, mediumPercent: 0, hardPercent: 0 },
-  thong_hieu: { easyPercent: 0, mediumPercent: 100, hardPercent: 0 },
-  van_dung: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
-  van_dung_cao: { easyPercent: 0, mediumPercent: 0, hardPercent: 100 },
+// Mức độ tư duy cụ thể gửi cho AI service (khớp backend/ai_service/schemas.py::GenerateQuestionsRequest.level),
+// để câu AI sinh khớp đúng ô mức-độ mà ma trận yêu cầu — giống cách "Ngân hàng câu hỏi" > Sinh bằng AI làm.
+const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_hard'> = {
+  nhan_biet: 'easy',
+  thong_hieu: 'medium',
+  van_dung: 'hard',
+  van_dung_cao: 'very_hard',
 };
 
 /** Map 1 bản ghi question_types về loại mà AI service hỗ trợ sinh (khớp backend/ai_service/routes/generate.py) */
@@ -215,7 +216,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       return;
     }
     setLoadingMatrices(true);
-    fetch('/api/matrix-configs?page=1&pageSize=200')
+    fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200`)
       .then(r => r.json())
       .then(json => {
         if (json.success) {
@@ -297,7 +298,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           }))
       );
       if (cells.length === 0) {
-        toast.warning('Ma trận đã chọn không có ô nào yêu cầu số câu.');
         setGenResults([]); setGenQuestions([]);
         return;
       }
@@ -310,7 +310,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       const ids = new Set(res.data.flatMap(r => r.questionIds));
       if (ids.size === 0) {
         setGenQuestions([]);
-        toast.warning('Không tìm được câu hỏi nào phù hợp trong Ngân hàng câu hỏi.');
         return;
       }
       setGenQuestions(await mapBankQuestions(ids));
@@ -384,7 +383,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     for (const group of callGroups) {
       if (aborted) break;
       try {
-        const res = await fetch('/api/generate-questions-batch', {
+        const res = await fetch(`${API_ORIGIN}/api/generate-questions-batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -395,6 +394,12 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
               grade: atom.grade,
               level: levelToApiString(atom.levelSlug),
               count: atom.soCau,
+              // Chỉ dùng khi AI Service quá 10s không phản hồi — bốc bù ĐÚNG chủ đề/mức độ/loại câu
+              // hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem generate.py::_fallback_from_bank).
+              topicId: atom.donViId,
+              cognitiveLevelId: atom.mucDoId,
+              questionTypeId: atom.loaiCauHoiId,
+              competencyComponentId: atom.nangLucId,
             })),
           }),
         });
@@ -404,6 +409,29 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           aborted = true;
           break;
         }
+        // AI Service quá _AI_TIMEOUT_SECONDS (10s) không phản hồi thì tự bốc bù từ Ngân hàng câu hỏi
+        // (xem generate.py::_fallback_from_bank) — nhóm này không phải AI vừa sinh, phải hiện ĐÚNG
+        // như màn "Theo ngân hàng câu hỏi" (id/code/trạng thái/người tạo thật), không gán id/code giả
+        // kiểu 'AI-N' như buildQuestionFromAi bên dưới.
+        if (data.source === 'bank_fallback') {
+          (data.questions as any[]).forEach((bankQ) => {
+            const atom = group[bankQ.groupIndex];
+            if (!atom) return;
+            const q: Question = {
+              id: bankQ.id, code: bankQ.code, text: bankQ.text, type: bankQ.type, level: bankQ.level,
+              status: bankQ.status, subject: bankQ.subject, grade: bankQ.grade,
+              topicId: bankQ.topicId || atom.donViId, topicName: bankQ.topicName || atom.donViKienThuc || 'Chưa phân loại',
+              subTopicName: bankQ.subTopicName || '',
+              options: bankQ.options, correctAnswer: bankQ.correctAnswer, statements: bankQ.statements,
+              creator: bankQ.creator, createdAt: bankQ.createdAt,
+              nangLucId: atom.nangLucId || undefined,
+            };
+            generated.push(q);
+            foundIdsByKey.get(cellWorkKey(atom))!.push(q.id);
+          });
+          continue;
+        }
+
         (data.questions as any[]).forEach((rawAiQ) => {
           const atom = group[rawAiQ.groupIndex];
           if (!atom) return; // groupIndex lạ (AI trả sai) — bỏ qua thay vì gán nhầm cell.
@@ -446,7 +474,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   // ĐÚNG cấu trúc ma trận đã chọn (mỗi ô: tiểu mục × mức độ × loại câu hỏi × số câu), thay cho "Cấu
   // hình môn học" (Phần I/II/III) trước đây — ma trận mới là nguồn cấu hình sinh đề duy nhất.
   // Tối ưu số lần gọi AI (đỡ tốn token/quota):
-  // - Ép đúng 1 mức độ tư duy của ô đó qua easy/medium/hardPercent thay vì để AI tự trộn.
+  // - Ép đúng 1 mức độ tư duy của ô đó qua field 'level' thay vì để AI tự trộn.
   // - Chia batch tối đa 15 câu/lần gọi (giới hạn cứng của ai_service/routes/generate.py).
   // - Chạy 3 phiên ĐỘC LẬP song song theo loại câu hỏi (Phần I/II/III), mỗi phiên khoá 1 key API
   //   riêng ở backend — 1 phiên hết quota không còn kéo sập cả 3 như trước, và tổng request/phút
@@ -550,7 +578,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         q.id !== current.id && !usedIds.has(q.id) && q.type === current.type && q.level === current.level
       );
       if (candidates.length === 0) {
-        toast.warning('Không tìm thấy câu hỏi khác cùng loại/mức độ còn trống trong Ngân hàng câu hỏi.');
         return;
       }
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
@@ -574,7 +601,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setRegeneratingIndex(index);
     try {
-      const res = await fetch('/api/generate-questions', {
+      const res = await fetch(`${API_ORIGIN}/api/generate-questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -583,12 +610,11 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           topic: current.topicName || 'Kiến thức tổng hợp',
           count: 1,
           type: current.type,
-          ...LEVEL_PERCENT[current.level],
+          level: LEVEL_TO_API[current.level],
         }),
       });
       const data = await res.json();
       if (!data.success || !data.questions?.length) {
-        toast.warning(data.error || data.detail || 'AI không sinh được câu hỏi thay thế, vui lòng thử lại.');
         return;
       }
       const aiQ = convertAiQuestionMath(data.questions[0]);
@@ -668,7 +694,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/exams', {
+      const res = await fetch(`${API_ORIGIN}/api/exams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -705,7 +731,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     if (!selectedSubject) return;
     setSaving(true);
     try {
-      const examRes = await fetch('/api/exams', {
+      const examRes = await fetch(`${API_ORIGIN}/api/exams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -726,9 +752,19 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
       // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
       // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
+      // lineNumber = vị trí (1-based) TRONG PHẠM VI PHẦN của câu hỏi — đánh số lại từ 1 ở MỖI Phần,
+      // giống hệt cách ModalSinhDeHoanVi.tsx tính cho đề hoán vị (backend mặc định line_number=0 khi
+      // không truyền, vi phạm bất biến "câu đã thuộc 1 đề phải >= 1" nếu bỏ trống ở đây).
+      const partCounters = new Map<string, number>();
+      const lineNumbers = genQuestions.map((q) => {
+        const key = q.type || 'other';
+        const next = (partCounters.get(key) || 0) + 1;
+        partCounters.set(key, next);
+        return next;
+      });
       // 1 request duy nhất cho toàn bộ câu hỏi thay vì lặp `await` tuần tự từng câu (trước đây rất
       // chậm — mỗi câu 1 round-trip DB cloud riêng) — xem questionApi.createBulk.
-      await questionApi.createBulk(genQuestions.map((q) => ({
+      await questionApi.createBulk(genQuestions.map((q, qi) => ({
         text: q.text,
         type: q.type,
         level: q.level,
@@ -744,6 +780,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         examId: newExamId,
         creator: q.creator,
         competencyComponentId: q.nangLucId,
+        lineNumber: lineNumbers[qi],
         // 'ai_exam' — sinh cả đề bằng AI, ẩn khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn câu hỏi
         // (khác 'ai_bank' — sinh bằng AI ngay trong màn Ngân hàng câu hỏi, vẫn hiện bình thường).
         source: 'ai_exam',

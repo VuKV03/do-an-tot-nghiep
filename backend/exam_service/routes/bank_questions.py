@@ -31,6 +31,7 @@ from backend.exam_service.models import (
     CompetencyComponent,
     QuestionHistory,
     INT_TO_SOURCE,
+    SOURCE_TO_INT,
 )
 from backend.exam_service.schemas import QuestionHistoryResponse, QuestionHistoryListResponse
 
@@ -247,7 +248,10 @@ async def list_bank_questions(db: AsyncSession = Depends(get_db)):
             "examId": q.exam_id,
             "feedback": q.approved_note or "",
             "statements": stmts,
-            "lineNumber": q.line_number or 1,
+            # KHÔNG dùng "or 1" — line_number=0 (câu tự do, chưa thuộc đề) là giá trị FALSY hợp lệ,
+            # "or 1" sẽ âm thầm biến nó thành 1 và làm hỏng bộ lọc "chỉ chọn câu line_number=0" ở
+            # ModalChonCauHoi.tsx/random_select_questions.
+            "lineNumber": q.line_number if q.line_number is not None else 0,
             # Nguồn gốc câu hỏi (manual/ai_bank/ai_exam) — xem comment ở Question.status_ai trong
             # models.py. FE dùng để ẩn câu hỏi "ai_exam" khỏi Ngân hàng câu hỏi/Thẩm định/picker.
             "source": INT_TO_SOURCE.get(q.status_ai or 0, "manual"),
@@ -277,6 +281,11 @@ async def count_bank_questions_by_topic(
         )
         .where(Question.topic_id.in_(ids))
         .where(Question.status == status)
+        # Chỉ đếm câu tự do trong Ngân hàng câu hỏi (chưa gắn vào đề nào) — câu đã thuộc 1 đề
+        # (exam_id NOT NULL, line_number >= 1, xem comment ở Question.line_number trong models.py)
+        # không được tính vào số câu khả dụng để soạn ma trận, nếu không tổng sẽ bị đếm dư.
+        .where(Question.exam_id.is_(None))
+        .where(Question.line_number == 0)
         .group_by(Question.topic_id, Question.level_id, Question.type_id, Question.competency_component_id)
     )
     result = await db.execute(stmt)
@@ -324,7 +333,21 @@ async def random_select_questions(body: RandomSelectRequest, db: AsyncSession = 
             })
             continue
 
-        conditions = [Question.topic_id == cell.don_vi_id, Question.status == body.status]
+        conditions = [
+            Question.topic_id == cell.don_vi_id,
+            Question.status == body.status,
+            # Loại câu hỏi "sinh cả đề bằng AI" (ma trận đề / đề hoán vị) — cùng điều kiện ẩn
+            # đang áp dụng ở tab Ngân hàng câu hỏi (q.source !== 'ai_exam'), tránh random-select
+            # âm thầm bốc phải câu hỏi vốn không hiển thị/kiểm soát được ở Ngân hàng câu hỏi.
+            # status_ai có thể NULL với dữ liệu cũ (chưa từng backfill) nên phải cho phép NULL
+            # đi qua, chứ "!= 2" thuần SQL sẽ loại luôn NULL (unknown), làm mất câu hỏi cũ hợp lệ.
+            or_(Question.status_ai.is_(None), Question.status_ai != SOURCE_TO_INT["ai_exam"]),
+            # Chỉ chọn câu TỰ DO trong Ngân hàng (chưa nhân bản vào đề nào) — câu đã thuộc 1 đề
+            # (exam_id NOT NULL, line_number >= 1) là bản sao RIÊNG của đề đó (xem
+            # exams.py::_duplicate_questions_into_exam), không được bốc lại cho đề khác.
+            Question.exam_id.is_(None),
+            Question.line_number == 0,
+        ]
         if cell.muc_do_id:
             conditions.append(Question.level_id == cell.muc_do_id)
         if cell.loai_cau_hoi_id:
@@ -442,7 +465,7 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
         competency_component_id=competency_component_id,
         exam_id=exam_id,
         status=status_int,
-        line_number=1,
+        line_number=0,
         statements=statements_str,
         created_by=body.creator,
         created_at=_now(),

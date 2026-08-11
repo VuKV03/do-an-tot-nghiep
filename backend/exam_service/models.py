@@ -59,7 +59,11 @@ class Question(Base):
     # Optional relation to exams (to maintain compatibility)
     exam_id = Column(String(255), ForeignKey("exams.id", ondelete="CASCADE"), nullable=True)
     
-    line_number = Column(Integer, default=1)
+    # 0 = câu tự do trong Ngân hàng câu hỏi (chưa/không thuộc đề nào cụ thể) — mặc định khi TẠO MỚI
+    # câu hỏi (thủ công/AI). Câu đã thuộc 1 đề (exam_id NOT NULL) LUÔN có line_number >= 1, đánh theo
+    # đúng vị trí trong đề (reset về 1 ở mỗi Phần I/II/III — xem _renumber_exam_questions ở
+    # routes/exams.py và compareByPartAndLineNumber ở utils/examParts.ts, 2 nơi PHẢI cùng quy ước).
+    line_number = Column(Integer, default=0)
     status = Column(Integer, default=0)
     # Tái sử dụng cột này (trước đây tồn tại nhưng không được đọc/ghi có ý nghĩa gì) làm cờ NGUỒN GỐC
     # câu hỏi — dùng để ẩn câu hỏi "sinh cả đề bằng AI" khỏi Ngân hàng câu hỏi/Thẩm định/picker chọn
@@ -99,6 +103,7 @@ class Package(Base):
     accessType = Column(String(50), default="standard")
     createdAt = Column(String(100), nullable=False)
     description = Column(Text, default="")
+    is_show_result = Column(Boolean, default=True)
     # Ma trận đề dùng để lọc/gắn nhãn gói đề (không ảnh hưởng logic sinh đề hoán vị) — có FK thật, xem
     # comment ở matrix_configs.subject_id về lý do các FK thêm sau khi bảng đã tồn tại cần migration
     # ALTER TABLE ADD CONSTRAINT riêng (backend/exam_service/main.py), không tự có chỉ nhờ khai báo ở đây.
@@ -146,6 +151,26 @@ class MatrixConfig(Base):
     status = Column(String(50), default="new")
     createdAt = Column(String(100), nullable=False)
     structure = Column(Text)  # JSON string of ds_cau_truc array
+
+
+# ─── Lịch sử ma trận đề (matrix_histories) ───────────────────────────
+# Mirrors topic_histories/question_histories — cùng bộ action ('Thêm mới', 'Sửa', 'Gửi thẩm định',
+# 'Đồng ý', 'Từ chối') để màn "Lịch sử" ở Quản lý ma trận đề hiển thị đồng nhất với Ngân hàng câu hỏi.
+class MatrixHistory(Base):
+    __tablename__ = "matrix_histories"
+
+    id = Column(String(36), primary_key=True)
+    matrix_id = Column(
+        String(255), ForeignKey("matrix_configs.id", ondelete="CASCADE"), nullable=False
+    )
+    actor = Column(String(255), nullable=True)
+    action = Column(String(50), nullable=False)
+    timestamp = Column(String(50), nullable=False)
+    note = Column(Text, default="")
+    # Nhận xét thật của người thẩm định khi Đồng ý/Từ chối (khớp comment ở topic_histories) — tách
+    # riêng khỏi `note` (mô tả hành động) để cột "Nội dung thẩm định/Từ chối" ở màn Lịch sử không lấy
+    # nhầm nội dung.
+    comment = Column(Text, nullable=True)
 
 
 # ─── Danh mục môn học (SubjectCategory) ──────────────────────────────
