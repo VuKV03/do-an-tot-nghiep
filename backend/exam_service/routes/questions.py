@@ -3,6 +3,7 @@ Question creation routes — bảng questions
 POST /questions/
 """
 import json
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -52,6 +53,40 @@ def _status_to_int(status: str | None) -> int:
     if status == 'pending':
         return 1
     return 0
+
+
+_TAG_RE = re.compile(r"<[^>]*>")
+
+
+def _has_real_content(value: str | None) -> bool:
+    """Bóc tag HTML thô (nội dung đáp án soạn qua RichTextGroupCell có thể là HTML rỗng kiểu
+    "<p><br></p>") rồi kiểm tra còn ký tự nào không — dùng để chặn đáp án "trắc nghiệm 4 đáp án"
+    nhưng thực chất bỏ trống lọt xuống DB (xem _validate_single_choice_options)."""
+    if not value:
+        return False
+    return bool(_TAG_RE.sub("", value).strip())
+
+
+def _validate_single_choice_options(type_key: str, options: list | None) -> None:
+    """Chặn cứng việc lưu câu "Trắc nghiệm 1 lựa chọn" (single) khi thiếu đáp án — trước đây FE
+    (manual-create.tsx/update.tsx::validateSingleAnswer) chỉ kiểm tra đáp án ĐÚNG có nội dung, để
+    trống các đáp án còn lại (B/C/D) vẫn lưu được, và BE không có guard nào cả (nhận thẳng
+    `options` rồi lưu, kể cả rỗng/thiếu). Chỉ áp dụng cho type 'single' — các loại khác (Đúng/Sai,
+    tự luận, câu hỏi nhóm) có cấu trúc đáp án khác, không kiểm tra ở đây."""
+    if type_key != "single":
+        return
+    opts = options or []
+    if len(opts) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Câu hỏi trắc nghiệm phải có ít nhất 2 đáp án.",
+        )
+    for i, opt in enumerate(opts):
+        if not _has_real_content(opt if isinstance(opt, str) else str(opt)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Đáp án {chr(65 + i)} đang trống nội dung — vui lòng nhập đủ nội dung cho mọi đáp án.",
+            )
 
 
 @router.post("/", status_code=201)
@@ -121,6 +156,8 @@ async def create_question(body: QuestionManualCreate, db: AsyncSession = Depends
         raise HTTPException(status_code=400, detail="Không tìm thấy môn học hoặc khối lớp tương ứng trong danh mục.")
     if not level or not question_type:
         raise HTTPException(status_code=400, detail="Không tìm thấy cấp độ tư duy hoặc loại câu hỏi tương ứng trong danh mục.")
+
+    _validate_single_choice_options(type_key, body.options)
 
     topic_id = None
     parent_id = None

@@ -352,13 +352,21 @@ export default function CreateQuestionModal({
     return true;
   };
 
-  // Trắc nghiệm đơn — phải chọn đúng 1 đáp án đúng VÀ đáp án đó phải có nội dung, tránh trường hợp
-  // để nguyên đáp án A (mặc định isCorrect=true) trống nội dung trong khi các đáp án khác đã điền,
-  // dẫn tới lưu câu hỏi với correctAnswer rỗng mà không ai hay biết.
+  // Trắc nghiệm đơn — TẤT CẢ đáp án (A/B/C/D...) đều phải có nội dung, không chỉ riêng đáp án đúng.
+  // Trước đây chỉ kiểm tra đáp án ĐÚNG có nội dung, nên để trống các đáp án còn lại (B/C/D) vẫn lưu
+  // được bình thường — buildQuestion() lại filter(Boolean) nên câu hỏi lưu xuống DB có thể chỉ còn
+  // đúng 1 lựa chọn dù giao diện hiện đủ 4 ô, sai hẳn bản chất "trắc nghiệm 4 đáp án".
   const validateSingleAnswer = (): boolean => {
+    for (let i = 0; i < answers.length; i++) {
+      const a = answers[i];
+      if (!a.content || !stripHtmlToText(a.content).trim()) {
+        toast.error(`Vui lòng nhập nội dung cho đáp án ${String.fromCharCode(65 + i)}!`);
+        return false;
+      }
+    }
     const correct = answers.find((a) => a.isCorrect);
-    if (!correct || !stripHtmlToText(correct.content).trim()) {
-      toast.error('Vui lòng nhập nội dung đáp án đúng cho câu hỏi!');
+    if (!correct) {
+      toast.error('Vui lòng chọn đáp án đúng cho câu hỏi!');
       return false;
     }
     if (duplicateAnswerIds.size > 0) {
