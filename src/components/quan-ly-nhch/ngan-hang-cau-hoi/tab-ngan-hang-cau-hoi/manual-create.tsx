@@ -882,6 +882,7 @@ export default function CreateQuestionModal({
                   rules={[
                     { required: true, message: 'Đáp án chỉ chứa ký tự số, dấu \'-\' và \',\'' },
                     { pattern: /^[0-9,\-]+$/, message: 'Đáp án chỉ được nhập số, dấu \'-\' và dấu \',\'.' },
+                    { max: 4, message: 'Đáp án không được nhập quá 4 ký tự!' },
                   ]}
                   style={{ marginBottom: '8px' }}
                 >

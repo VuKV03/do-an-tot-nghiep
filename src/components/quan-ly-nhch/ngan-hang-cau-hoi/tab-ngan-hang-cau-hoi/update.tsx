@@ -968,6 +968,7 @@ export default function UpdateQuestionModal({
                   rules={[
                     { required: true, message: 'Đáp án chỉ được nhập số, dấu \'-\' và dấu \',\'.' },
                     { pattern: /^[0-9,\-]+$/, message: 'Đáp án chỉ được nhập số, dấu \'-\' và dấu \',\'.' },
+                    { max: 4, message: 'Đáp án không được nhập quá 4 ký tự!' },
                   ]}
                   style={{ marginBottom: '8px' }}
                 >
