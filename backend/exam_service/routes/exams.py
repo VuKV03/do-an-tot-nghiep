@@ -16,7 +16,7 @@ from sqlalchemy import select, delete, text, update
 from sqlalchemy.exc import IntegrityError
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory, Package, PackageExam
+from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory, Package, PackageExam, MatrixConfig
 # Tái dùng _map_type (đã xử lý đủ alias code cũ/mới, tiếng Việt có dấu) để nhóm câu hỏi theo Phần
 # I/II/III khi đánh lại line_number — PHẢI khớp đúng cách bank_questions.py tự map, tránh 2 nơi suy
 # luận Phần khác nhau cho cùng 1 câu hỏi.
@@ -229,9 +229,61 @@ async def list_exams(db: AsyncSession = Depends(get_db)):
     return ExamListResponse(success=True, count=len(data), data=data)
 
 
+async def _get_approved_matrix_or_400(db: AsyncSession, matrix_id: str) -> MatrixConfig:
+    """Chặn cứng việc sinh/lưu đề từ 1 ma trận CHƯA "Đã thẩm định" (status khác 'approved': 'new'/
+    'pending'/'rejected') — trước đây màn "Thêm mới tự động theo ma trận" (ModalTaoDeTuDong.tsx) liệt
+    kê MỌI ma trận không lọc theo trạng thái thẩm định, nên có thể sinh đề từ ma trận còn đang nháp
+    hoặc vừa bị Từ chối. Đây là lớp chặn ở server, độc lập với việc FE có lọc đúng hay không (áp dụng
+    cho cả 2 nguồn sinh đề — "Theo ngân hàng câu hỏi" lẫn "Theo AI" — miễn có matrix_id gửi lên)."""
+    result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == matrix_id))
+    matrix = result.scalar_one_or_none()
+    if not matrix:
+        raise HTTPException(status_code=400, detail="Không tìm thấy ma trận đề đã chọn.")
+    if matrix.status != "approved":
+        _STATUS_LABEL = {"new": "Tạo mới", "pending": "Chờ thẩm định", "rejected": "Từ chối"}
+        label = _STATUS_LABEL.get(matrix.status, matrix.status)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Ma trận đề mã {matrix.code} chưa được thẩm định (trạng thái hiện tại: {label}) — "
+                "chỉ được dùng để sinh đề sau khi ma trận đã \"Đã thẩm định\"."
+            ),
+        )
+    return matrix
+
+
+def _validate_matrix_question_count(matrix: MatrixConfig, question_count: int) -> None:
+    """Chặn cứng việc tạo đề "Theo ma trận đề" (nguồn Ngân hàng câu hỏi, không dùng AI) khi số câu
+    thực nhận được ít hơn ma trận yêu cầu — trước đây FE (ModalTaoDeTuDong.tsx) chỉ tô vàng cảnh báo
+    mềm "N ô chưa đủ số câu yêu cầu" nhưng vẫn cho lưu, và BE nhận thẳng questionIds mà không đối
+    chiếu lại với ma trận. Đây là lớp chặn thứ 2 ở server — phòng khi NHCH thay đổi (bị xoá câu, đổi
+    trạng thái duyệt...) giữa lúc FE sinh đề và lúc bấm Lưu, hoặc khi gọi API trực tiếp bỏ qua FE.
+    Mỗi ô của ma trận giới hạn LIMIT so_cau khi random-select nên số câu nhận về không thể VƯỢT tổng
+    yêu cầu của ma trận — so sánh tổng số câu là đủ để phát hiện thiếu, không cần đối chiếu từng ô.
+    """
+    if matrix.totalQuestions is None:
+        return
+    if question_count != matrix.totalQuestions:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Ngân hàng câu hỏi không đủ câu cho ma trận đề mã {matrix.code}: "
+                f"chỉ nhận được {question_count}/{matrix.totalQuestions} câu. "
+                "Vui lòng bổ sung thêm câu hỏi vào Ngân hàng câu hỏi rồi sinh lại đề."
+            ),
+        )
+
+
 @router.post("/", status_code=201)
 async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
     """Tạo đề thi mới."""
+    # Có matrix_id (sinh theo ma trận đề — cả nguồn NHCH lẫn AI) → ma trận PHẢI đã "Đã thẩm định",
+    # rồi mới đối chiếu số câu thực nhận (chỉ áp dụng khi có questionIds — nguồn NHCH, không phải AI).
+    if body.matrix_id:
+        matrix = await _get_approved_matrix_or_400(db, body.matrix_id)
+        if body.questionIds:
+            _validate_matrix_question_count(matrix, len(body.questionIds))
+
     # Thêm hậu tố ngẫu nhiên — chỉ dùng mốc mili-giây (int(time.time()*1000)) không đủ duy nhất khi
     # nhiều request tạo đề chạy SONG SONG (vd sinh hàng loạt đề hoán vị qua Promise.all ở
     # ModalSinhDeHoanVi.tsx), dễ trùng id giữa 2 request rơi vào cùng 1 mili-giây, gây lỗi
@@ -262,43 +314,48 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
     )
     db.add(exam)
 
+    # TOÀN BỘ phần ghi DB (kể cả các flush() trung gian) phải nằm trong CÙNG 1 try/except IntegrityError
+    # — trước đây try/except chỉ bọc quanh db.commit() ở cuối, nhưng khi có questionIds thì chính
+    # db.flush() đầu tiên (đẩy INSERT của `exam`, cần có TRƯỚC khi insert Question tham chiếu FK) mới
+    # là nơi UNIQUE constraint exams.code thực sự vỡ, nên lỗi thoát ra NGOÀI try/except ở dưới, lọt
+    # nguyên lỗi SQL thô (pymysql.err.IntegrityError) ra ngoài dưới dạng 500 thay vì thông báo dễ hiểu.
     questions: list[Question] = []
-    if body.questionIds:
-        # exam phải tồn tại thật trong DB TRƯỚC khi insert các Question mới tham chiếu tới nó (FK
-        # questions.exam_id -> exams.id) — flush() đẩy câu INSERT của exam đi ngay trong transaction
-        # hiện tại (chưa commit), giống pattern packages.py::create_package.
-        await db.flush()
-        # Nhân bản các câu hỏi ĐÃ CÓ SẴN trong Ngân hàng câu hỏi thành bản ghi RIÊNG của đề này —
-        # KHÔNG di chuyển/gắn trực tiếp bản gốc như trước đây (xem _duplicate_questions_into_exam).
-        created, _skipped = await _duplicate_questions_into_exam(db, exam_id, body.questionIds)
-        await db.flush()
-        final_order = [created[qid].id for qid in body.questionIds if qid in created]
-        await _renumber_exam_questions(db, exam_id, final_order)
-    else:
-        for i, q in enumerate(body.questions or []):
-            question = Question(
-                id=f"q-{int(time.time() * 1000)}-{i}",
-                exam_id=exam_id,
-                code=q.code or f"Q-{str(int(time.time()))[-6:].upper()}-{i}",
-                content=q.content,
-                options=q.options,
-                correct_answer=q.correct_answer,
-                topic_id=q.topic_id,
-                parent_id=q.parent_id,
-                subject_id=q.subject_id,
-                grade_id=q.grade_id,
-                level_id=q.level_id,
-                type_id=q.type_id,
-                competency_component_id=q.competency_component_id,
-                line_number=q.line_number or (i + 1),
-                status=q.status or 0,
-                status_ai=q.status_ai or 0,
-                approved_note=q.approved_note or "",
-            )
-            db.add(question)
-            questions.append(question)
-
     try:
+        if body.questionIds:
+            # exam phải tồn tại thật trong DB TRƯỚC khi insert các Question mới tham chiếu tới nó (FK
+            # questions.exam_id -> exams.id) — flush() đẩy câu INSERT của exam đi ngay trong transaction
+            # hiện tại (chưa commit), giống pattern packages.py::create_package.
+            await db.flush()
+            # Nhân bản các câu hỏi ĐÃ CÓ SẴN trong Ngân hàng câu hỏi thành bản ghi RIÊNG của đề này —
+            # KHÔNG di chuyển/gắn trực tiếp bản gốc như trước đây (xem _duplicate_questions_into_exam).
+            created, _skipped = await _duplicate_questions_into_exam(db, exam_id, body.questionIds)
+            await db.flush()
+            final_order = [created[qid].id for qid in body.questionIds if qid in created]
+            await _renumber_exam_questions(db, exam_id, final_order)
+        else:
+            for i, q in enumerate(body.questions or []):
+                question = Question(
+                    id=f"q-{int(time.time() * 1000)}-{i}",
+                    exam_id=exam_id,
+                    code=q.code or f"Q-{str(int(time.time()))[-6:].upper()}-{i}",
+                    content=q.content,
+                    options=q.options,
+                    correct_answer=q.correct_answer,
+                    topic_id=q.topic_id,
+                    parent_id=q.parent_id,
+                    subject_id=q.subject_id,
+                    grade_id=q.grade_id,
+                    level_id=q.level_id,
+                    type_id=q.type_id,
+                    competency_component_id=q.competency_component_id,
+                    line_number=q.line_number or (i + 1),
+                    status=q.status or 0,
+                    status_ai=q.status_ai or 0,
+                    approved_note=q.approved_note or "",
+                )
+                db.add(question)
+                questions.append(question)
+
         await db.commit()
     except IntegrityError as e:
         # Rollback trước khi raise — nếu không session ở trạng thái lỗi sẽ làm hỏng luôn request kế

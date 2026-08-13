@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from backend.shared.database import get_db
 from backend.exam_service.models import Topic, SubjectCategory, GradeLevel, TopicHistory
-from backend.exam_service.reference_guard import assert_topic_deletable
+from backend.exam_service.reference_guard import assert_topic_deletable, assert_topic_rejectable
 from backend.exam_service.schemas import (
     TopicCreate, TopicUpdate,
     TopicResponse, TopicListResponse,
@@ -337,7 +337,9 @@ async def reject_topic(item_id: str, body: TopicReviewRequest, db: AsyncSession 
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy chủ đề.")
-    
+
+    await assert_topic_rejectable(db, obj)
+
     actor = body.actor or _DEFAULT_ACTOR
     obj.status = 3  # 3: Từ chối
     obj.approved_by = actor

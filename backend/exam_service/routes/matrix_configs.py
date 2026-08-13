@@ -18,7 +18,7 @@ from sqlalchemy import select, delete, or_, and_, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import MatrixConfig, SubjectCategory, MatrixHistory
+from backend.exam_service.models import MatrixConfig, SubjectCategory, SubjectConfig, MatrixHistory
 from backend.exam_service.schemas import MatrixHistoryResponse, MatrixHistoryListResponse
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
@@ -53,6 +53,67 @@ async def _get_subject_or_400(db: AsyncSession, subject_id: str) -> SubjectCateg
 
 class BatchDeleteRequest(BaseModel):
     ids: List[str]
+
+
+_DEFAULT_DURATION = 90  # Dùng khi môn học chưa có Cấu hình môn học (subject_configs) hoặc chưa set "time".
+
+
+async def _validate_and_get_subject_config(
+    db: AsyncSession,
+    subject_id: str,
+    ds_cau_truc: List[dict],
+    total_questions: int,
+    total_score: float,
+) -> Optional[SubjectConfig]:
+    """Chặn cứng việc lưu ma trận nếu số câu/tỷ lệ điểm/thời gian làm bài không khớp Cấu hình môn học
+    (subject_configs) — trước đây FE chỉ tô đỏ ô vượt ngưỡng (CreateMatrixForm.tsx: isOverPhan/isOver)
+    nhưng vẫn cho lưu bình thường, nên dữ liệu sai lệch với cấu hình vẫn lọt xuống DB. Chỉ áp dụng khi
+    môn học đã có Cấu hình môn học thật — chưa cấu hình thì bỏ qua, không chặn. Trả về cfg (hoặc None)
+    để nơi gọi lấy luôn `time` áp cho `duration` của ma trận, tránh phải truy vấn lại lần 2."""
+    result = await db.execute(select(SubjectConfig).where(SubjectConfig.subject_id == subject_id))
+    cfg = result.scalar_one_or_none()
+    if not cfg:
+        return None
+
+    errors: List[str] = []
+
+    # Tổng số câu nhập cho từng Phần (P1/P2/P3), gộp theo loai_cau_hoi_id, so với số câu tối đa cho
+    # phép của phần đó = p{n}_to - p{n}_from + 1 (đúng công thức FE dùng để hiện "so_luong_cau").
+    parts = [
+        ("Phần 1", cfg.type_id_p1, cfg.p1_from, cfg.p1_to),
+        ("Phần 2", cfg.type_id_p2, cfg.p2_from, cfg.p2_to),
+        ("Phần 3", cfg.type_id_p3, cfg.p3_from, cfg.p3_to),
+    ]
+    so_cau_theo_loai: dict = {}
+    for row in ds_cau_truc:
+        for cell in row.get("ds_loai_cau_hoi", []):
+            type_id = cell.get("loai_cau_hoi_id")
+            if not type_id:
+                continue
+            so_cau_theo_loai[type_id] = so_cau_theo_loai.get(type_id, 0) + (cell.get("so_cau") or 0)
+
+    for label, type_id, p_from, p_to in parts:
+        if not type_id or p_from is None or p_to is None or p_to < p_from:
+            continue
+        allowed = p_to - p_from + 1
+        actual = so_cau_theo_loai.get(type_id, 0)
+        if actual != allowed:
+            errors.append(f"{label}: đã nhập {actual} câu, cấu hình môn học yêu cầu đúng {allowed} câu.")
+
+    if cfg.questions_number is not None and total_questions != cfg.questions_number:
+        errors.append(
+            f"Tổng số câu ({total_questions}) không khớp Cấu hình môn học (yêu cầu {cfg.questions_number} câu)."
+        )
+
+    if cfg.scale is not None and round(total_score, 2) != round(float(cfg.scale), 2):
+        errors.append(
+            f"Tổng điểm/tỷ lệ ({total_score:g}) không khớp thang điểm Cấu hình môn học ({cfg.scale})."
+        )
+
+    if errors:
+        raise HTTPException(status_code=400, detail=" ".join(errors))
+
+    return cfg
 
 
 # ─── Routes ─────────────────────────────────────────────────────────
@@ -153,6 +214,8 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
             total_score += so_cau * diem
 
     subject = await _get_subject_or_400(db, body.subject_id)
+    subject_cfg = await _validate_and_get_subject_config(db, subject.id, body.ds_cau_truc, total_questions, total_score)
+    duration = subject_cfg.time if (subject_cfg and subject_cfg.time) else _DEFAULT_DURATION
 
     matrix_id = f"mtr-{int(time.time() * 1000)}"
 
@@ -174,7 +237,7 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
         subject_id=subject.id,
         totalScore=total_score,
         totalQuestions=total_questions,
-        duration=90, # Default duration in minutes
+        duration=duration,
         status="new",
         createdAt=now,
         structure=json.dumps(body.ds_cau_truc, ensure_ascii=False)
@@ -204,6 +267,7 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
             "subject": subject.name,
             "totalScore": new_config.totalScore,
             "totalQuestions": new_config.totalQuestions,
+            "duration": new_config.duration,
             "createdAt": new_config.createdAt
         }
     }
@@ -269,6 +333,7 @@ async def get_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
             "subject": subject_name or "",
             "totalScore": config.totalScore,
             "totalQuestions": config.totalQuestions,
+            "duration": config.duration,
             "status": config.status,
             "createdAt": config.createdAt,
             "ds_cau_truc": ds_cau_truc
@@ -350,6 +415,7 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             total_score += so_cau * diem
 
     subject = await _get_subject_or_400(db, body.subject_id)
+    subject_cfg = await _validate_and_get_subject_config(db, subject.id, body.ds_cau_truc, total_questions, total_score)
 
     # Update fields
     config.name = body.ten
@@ -358,6 +424,7 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
     config.subject_id = subject.id
     config.totalScore = total_score
     config.totalQuestions = total_questions
+    config.duration = subject_cfg.time if (subject_cfg and subject_cfg.time) else config.duration
     config.structure = json.dumps(body.ds_cau_truc, ensure_ascii=False)
 
     db.add(MatrixHistory(
@@ -381,7 +448,8 @@ async def update_matrix_config(config_id: str, body: MatrixConfigCreate, db: Asy
             "subjectId": config.subject_id,
             "subject": subject.name,
             "totalScore": config.totalScore,
-            "totalQuestions": config.totalQuestions
+            "totalQuestions": config.totalQuestions,
+            "duration": config.duration
         }
     }
 

@@ -216,7 +216,11 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       return;
     }
     setLoadingMatrices(true);
-    fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200`)
+    // Chỉ lấy ma trận đã "Đã thẩm định" (status=approved) — ma trận "Tạo mới"/"Chờ thẩm định"/"Từ
+    // chối" chưa được Hội đồng Chuyên môn chốt nội dung, không được phép dùng để sinh đề (dù sinh
+    // theo Ngân hàng câu hỏi hay theo AI). Lọc ngay ở query BE thay vì lọc client-side để không lộ
+    // ma trận chưa duyệt ra danh sách chọn dù chỉ trong giây lát.
+    fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200&status=approved`)
       .then(r => r.json())
       .then(json => {
         if (json.success) {
@@ -692,6 +696,16 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const handleSaveMatrixExam = async () => {
     if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
+    // Chặn lưu khi Ngân hàng câu hỏi không đủ câu cho ma trận (found < requested ở ≥1 ô) — trước đây
+    // chỉ tô vàng cảnh báo mềm (Tag "⚠ N ô chưa đủ số câu yêu cầu") nhưng vẫn cho lưu đề thiếu câu so
+    // với ma trận. Giờ chặn cứng ngay ở FE, và BE (create_exam) cũng tự đối chiếu lại tổng số câu với
+    // matrix_id làm lớp chặn thứ 2 (phòng trường hợp NHCH thay đổi giữa lúc sinh và lúc bấm Lưu).
+    if (isUnderfilled) {
+      toast.error(
+        `Ngân hàng câu hỏi không đủ câu cho ${underfilledCount} ô của ma trận (mới có ${totalFound}/${totalRequested} câu) — vui lòng bổ sung thêm câu hỏi vào Ngân hàng câu hỏi rồi bấm "Sinh lại".`
+      );
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${API_ORIGIN}/api/exams`, {
@@ -709,11 +723,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         }),
       });
       const json = await res.json();
-      if (json.success) {
+      if (res.ok && json.success) {
         toast.success('Đã tạo đề thi tự động thành công!');
         onSuccess();
       } else {
-        toast.error(json.error || json.message || 'Lỗi khi lưu đề thi.');
+        // Lỗi 400 từ FastAPI HTTPException (vd _validate_matrix_question_count) trả về {"detail": "..."},
+        // không có success/error/message — phải đọc cả detail thì mới hiện đúng lý do BE từ chối lưu.
+        toast.error(json.detail || json.error || json.message || 'Lỗi khi lưu đề thi.');
       }
     } catch {
       toast.error('Lỗi kết nối khi lưu đề thi.');
@@ -741,11 +757,16 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           grade: EXAM_GRADE_LABEL,
           duration: selectedMatrix?.duration || 90,
           source: 'ai',
+          // Trước đây KHÔNG gửi matrix_id ở nguồn "Theo AI" — đề sinh bằng AI vẫn dựa theo cấu trúc
+          // ma trận (Bước 1 dùng chung cho cả 2 nguồn) nhưng không ghi lại liên kết, khiến BE không
+          // chặn được việc dùng ma trận CHƯA thẩm định để sinh đề qua đường này (xem _get_approved_matrix_or_400
+          // ở exams.py — chỉ áp dụng khi có matrix_id).
+          matrix_id: selectedMatrixId,
         }),
       });
       const examJson = await examRes.json();
       if (!examJson.success) {
-        toast.error(examJson.error || examJson.message || 'Lỗi khi tạo đề thi.');
+        toast.error(examJson.detail || examJson.error || examJson.message || 'Lỗi khi tạo đề thi.');
         return;
       }
       const newExamId = examJson.data.id;
@@ -885,7 +906,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
                     {loadingMatrices ? (
                       <div className="py-8 text-center"><Spin /></div>
                     ) : matrices.length === 0 ? (
-                      <Empty description="Chưa có ma trận đề nào cho môn này — vui lòng tạo ma trận trước." />
+                      <Empty description="Môn này chưa có ma trận đề nào đã được thẩm định — vui lòng tạo/gửi thẩm định ma trận trước." />
                     ) : (
                       <div className="border border-slate-200 rounded divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 420 }}>
                         {matrices.map((m) => (

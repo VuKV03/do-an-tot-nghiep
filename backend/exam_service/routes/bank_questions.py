@@ -34,6 +34,9 @@ from backend.exam_service.models import (
     SOURCE_TO_INT,
 )
 from backend.exam_service.schemas import QuestionHistoryResponse, QuestionHistoryListResponse
+# Dùng lại đúng 1 hàm kiểm tra "trắc nghiệm 1 lựa chọn phải đủ đáp án" ở questions.py — tránh viết
+# trùng logic ở 2 nơi (POST /questions/ và POST|PUT /bank-questions/ đều có thể tạo/sửa câu single).
+from backend.exam_service.routes.questions import _validate_single_choice_options
 
 router = APIRouter(prefix="/bank-questions", tags=["Bank Questions"])
 
@@ -426,6 +429,8 @@ async def create_bank_question(body: BankQuestionCreate, db: AsyncSession = Depe
     type_res = await db.execute(type_stmt)
     qtype = type_res.scalar_one_or_none()
 
+    _validate_single_choice_options(body.type, body.options)
+
     # Get exam_id
     exam_id = body.examId
     if not exam_id:
@@ -552,6 +557,16 @@ async def update_bank_question(question_id: str, body: BankQuestionUpdate, db: A
             question.topic_id = topic.id
             question.parent_id = topic.parent_id
     if body.options is not None:
+        # Xác định loại câu hỏi HIỆU LỰC sau khi áp update này — nếu request không đổi `type`, phải
+        # tra lại loại ĐANG có của câu hỏi (qua type_id vừa cập nhật ở trên hoặc giữ nguyên), tránh
+        # bỏ sót kiểm tra chỉ vì FE không gửi lại field `type` trong lần sửa đáp án.
+        effective_type_key = body.type
+        if effective_type_key is None and question.type_id:
+            qtype_res = await db.execute(select(QuestionType).where(QuestionType.id == question.type_id))
+            current_qtype = qtype_res.scalar_one_or_none()
+            if current_qtype and (current_qtype.code or "").strip().upper() in ("TN", "SINGLE"):
+                effective_type_key = "single"
+        _validate_single_choice_options(effective_type_key, body.options)
         question.options = json.dumps(body.options, ensure_ascii=False)
     if body.correctAnswer is not None:
         question.correct_answer = json.dumps(body.correctAnswer, ensure_ascii=False) if isinstance(body.correctAnswer, list) else str(body.correctAnswer)
