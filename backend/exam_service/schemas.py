@@ -150,6 +150,13 @@ class ExamResponse(BaseModel):
     description: str
     source: str
     matrix_id: Optional[str] = None
+    # Tên ma trận thật (JOIN theo matrix_id), None nếu đề không sinh từ ma trận nào — trước đây FE tự
+    # bịa "Ma trận đề 01" khi thiếu dữ liệu, giờ trả None để FE hiện đúng "—"/"Không có ma trận".
+    matrixName: Optional[str] = None
+    # Điểm tối đa của đề: lấy từ matrix.totalScore (đã tính = Σ so_cau × diem lúc lưu ma trận) nếu đề
+    # sinh theo ma trận, hoặc thang điểm (scale) trong Cấu hình môn học của đúng môn nếu không có ma
+    # trận — không còn hardcode "10.00" cho mọi đề như trước.
+    totalScore: float = 10.0
     questions: List[QuestionResponse]
 
     model_config = {"from_attributes": True}

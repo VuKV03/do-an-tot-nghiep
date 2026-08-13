@@ -16,7 +16,10 @@ from sqlalchemy import select, delete, text, update
 from sqlalchemy.exc import IntegrityError
 
 from backend.shared.database import get_db
-from backend.exam_service.models import Exam, Question, QuestionType, QuestionHistory, Package, PackageExam, MatrixConfig
+from backend.exam_service.models import (
+    Exam, Question, QuestionType, QuestionHistory, Package, PackageExam, MatrixConfig,
+    SubjectConfig, SubjectCategory,
+)
 # Tái dùng _map_type (đã xử lý đủ alias code cũ/mới, tiếng Việt có dấu) để nhóm câu hỏi theo Phần
 # I/II/III khi đánh lại line_number — PHẢI khớp đúng cách bank_questions.py tự map, tránh 2 nơi suy
 # luận Phần khác nhau cho cùng 1 câu hỏi.
@@ -65,7 +68,128 @@ def _parse_options(options_str: str | None) -> list[str]:
         return []
 
 
-def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
+def _points_per_question_by_type(cfg: SubjectConfig, type_by_id: dict[str, QuestionType]) -> dict[str, float]:
+    """Suy ra điểm/1 câu đúng cho từng loại câu hỏi (type_id) theo Cấu hình môn học — dùng để tính
+    "Tổng điểm" của đề THỦ CÔNG (không có ma trận, xem _resolve_matrix_name_and_score) bằng đúng công
+    thức Σ điểm từng câu THẬT đang có trong đề, thay vì gán chung 1 con số (scale) bất kể đề đó chọn
+    bao nhiêu câu mỗi loại — khớp đúng cách "Cấu hình môn học" (quan-ly-danh-muc) định nghĩa điểm.
+    Câu Đúng/Sai (type code 'DS'/'true_false') dùng points_for_4_correct_idea_pN (điểm khi đúng cả 4
+    ý — mức điểm TỐI ĐA/câu, giống hệt cách matrix tự tính diem cho DS — xem CreateMatrixForm.tsx::
+    buildPart: `diem: toNum(ideaPoints[3])`), các loại còn lại dùng points_for_a_correct_answers_pN.
+    """
+    points_by_type: dict[str, float] = {}
+    for type_id, pts_normal, pts_ds_full in (
+        (cfg.type_id_p1, cfg.points_for_a_correct_answers_p1, cfg.points_for_4_correct_idea_p1),
+        (cfg.type_id_p2, cfg.points_for_a_correct_answers_p2, cfg.points_for_4_correct_idea_p2),
+        (cfg.type_id_p3, cfg.points_for_a_correct_answers_p3, cfg.points_for_4_correct_idea_p3),
+    ):
+        if not type_id:
+            continue
+        is_ds = _map_type(type_by_id[type_id].code) == "true_false" if type_id in type_by_id else False
+        pts = pts_ds_full if is_ds else pts_normal
+        if pts is not None:
+            points_by_type[type_id] = float(pts)
+    return points_by_type
+
+
+def _resolve_matrix_name_and_score(
+    matrix: MatrixConfig | None,
+    questions: list[Question],
+    points_by_type: dict[str, float],
+    scale: float | None,
+) -> tuple[str | None, float]:
+    """Suy ra tên ma trận + điểm tối đa THẬT của 1 đề — không còn hardcode "Ma trận đề 01"/"10.00" như
+    trước (ExamManagementModule.tsx: row.matrixName || 'Ma trận đề 01', row.totalScore || '10.00').
+    - Có ma trận (exam.matrix_id khớp 1 bản ghi thật): dùng đúng tên + totalScore đã tính sẵn của ma
+      trận đó (Σ so_cau × diem lúc lưu ma trận — xem matrix_configs.py::create_matrix_config).
+    - Không có ma trận (đề thủ công/AI-config): không có "tên ma trận" nào để hiện (trả None, FE tự
+      hiện "—"). Điểm tối đa tính TRỰC TIẾP theo các câu THẬT đang có trong đề (Σ điểm/câu theo loại,
+      xem _points_per_question_by_type) — trước đây gán thẳng `scale` (vd luôn 10 dù đề chỉ chọn vài
+      câu) không phản ánh đúng số câu thực tế đã chọn, nên KHÔNG "hợp lý" như người dùng phản ánh.
+    - Không tính được theo câu (thiếu Cấu hình môn học/câu chưa gắn đúng loại) → fallback về `scale`
+      (thang điểm khai báo trong Cấu hình môn học), rồi mới tới mặc định 10.0 nếu hoàn toàn thiếu cấu hình.
+    """
+    if matrix:
+        return matrix.name, float(matrix.totalScore or 10.0)
+    if points_by_type and questions:
+        computed = sum(points_by_type.get(q.type_id, 0.0) for q in questions if q.type_id)
+        if computed > 0:
+            return None, computed
+    return None, float(scale) if scale else 10.0
+
+
+async def _load_matrix_and_scoring_lookups(
+    db: AsyncSession,
+) -> tuple[dict[str, MatrixConfig], dict[str, dict[str, float]], dict[str, float]]:
+    """Tải sẵn 1 lần toàn bộ ma trận + cách tính điểm/câu + thang điểm theo môn — dùng cho list_exams
+    (nhiều đề cùng lúc) để tránh N+1 query (mỗi đề lại tự truy vấn riêng)."""
+    matrix_result = await db.execute(select(MatrixConfig))
+    matrix_by_id = {m.id: m for m in matrix_result.scalars().all()}
+
+    cfg_result = await db.execute(
+        select(SubjectCategory.name, SubjectConfig)
+        .join(SubjectConfig, SubjectConfig.subject_id == SubjectCategory.id)
+    )
+    cfg_rows = cfg_result.all()
+
+    type_ids = {tid for _, cfg in cfg_rows for tid in (cfg.type_id_p1, cfg.type_id_p2, cfg.type_id_p3) if tid}
+    type_by_id: dict[str, QuestionType] = {}
+    if type_ids:
+        types_result = await db.execute(select(QuestionType).where(QuestionType.id.in_(type_ids)))
+        type_by_id = {t.id: t for t in types_result.scalars().all()}
+
+    points_by_type_by_subject: dict[str, dict[str, float]] = {}
+    scale_by_subject: dict[str, float] = {}
+    for name, cfg in cfg_rows:
+        pts_map = _points_per_question_by_type(cfg, type_by_id)
+        if pts_map:
+            points_by_type_by_subject[name] = pts_map
+        if cfg.scale is not None:
+            scale_by_subject[name] = float(cfg.scale)
+    return matrix_by_id, points_by_type_by_subject, scale_by_subject
+
+
+async def _get_matrix_name_and_score(
+    db: AsyncSession, exam: Exam, questions: list[Question],
+) -> tuple[str | None, float]:
+    """Bản đơn lẻ của _load_matrix_and_scoring_lookups — dùng ở create/update 1 đề, không cần tải cả
+    danh sách ma trận/môn học chỉ để suy ra thông tin của đúng 1 đề."""
+    matrix: MatrixConfig | None = None
+    if exam.matrix_id:
+        result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == exam.matrix_id))
+        matrix = result.scalar_one_or_none()
+    if matrix:
+        return _resolve_matrix_name_and_score(matrix, questions, {}, None)
+
+    # KHÔNG dùng scalar_one_or_none() — subject_categories.name và subject_configs.subject_id đều
+    # KHÔNG có ràng buộc unique (chỉ subject_categories.code là unique), nên JOIN này có thể khớp hơn
+    # 1 dòng và làm scalar_one_or_none() raise MultipleResultsFound (500) — vỡ NGAY cả luồng tạo đề
+    # thủ công bình thường (ModalDeRiengLe.tsx: luôn không có matrix_id nên luôn rơi vào nhánh này).
+    # .limit(1) + .first() lấy đại 1 kết quả khớp thay vì đòi hỏi phải khớp duy nhất.
+    cfg_result = await db.execute(
+        select(SubjectConfig)
+        .join(SubjectCategory, SubjectConfig.subject_id == SubjectCategory.id)
+        .where(SubjectCategory.name == exam.subject)
+        .limit(1)
+    )
+    cfg = cfg_result.scalars().first()
+    if not cfg:
+        return _resolve_matrix_name_and_score(None, questions, {}, None)
+
+    type_ids = [t for t in (cfg.type_id_p1, cfg.type_id_p2, cfg.type_id_p3) if t]
+    type_by_id: dict[str, QuestionType] = {}
+    if type_ids:
+        types_result = await db.execute(select(QuestionType).where(QuestionType.id.in_(type_ids)))
+        type_by_id = {t.id: t for t in types_result.scalars().all()}
+
+    points_by_type = _points_per_question_by_type(cfg, type_by_id)
+    scale = float(cfg.scale) if cfg.scale is not None else None
+    return _resolve_matrix_name_and_score(None, questions, points_by_type, scale)
+
+
+def _build_exam_response(
+    exam: Exam, questions: list[Question], matrix_name: str | None = None, total_score: float = 10.0,
+) -> ExamResponse:
     return ExamResponse(
         id=exam.id,
         code=exam.code,
@@ -81,6 +205,8 @@ def _build_exam_response(exam: Exam, questions: list[Question]) -> ExamResponse:
         description=exam.description or "",
         source=exam.source or "manual",
         matrix_id=exam.matrix_id,
+        matrixName=matrix_name,
+        totalScore=total_score,
         questions=[
             QuestionResponse(
                 id=q.id,
@@ -222,10 +348,15 @@ async def list_exams(db: AsyncSession = Depends(get_db)):
         if q.exam_id:
             questions_by_exam.setdefault(q.exam_id, []).append(q)
 
-    data = [
-        _build_exam_response(e, questions_by_exam.get(e.id, []))
-        for e in exams
-    ]
+    matrix_by_id, points_by_type_by_subject, scale_by_subject = await _load_matrix_and_scoring_lookups(db)
+    data = []
+    for e in exams:
+        qs = questions_by_exam.get(e.id, [])
+        matrix_name, total_score = _resolve_matrix_name_and_score(
+            matrix_by_id.get(e.matrix_id) if e.matrix_id else None, qs,
+            points_by_type_by_subject.get(e.subject, {}), scale_by_subject.get(e.subject),
+        )
+        data.append(_build_exam_response(e, qs, matrix_name, total_score))
     return ExamListResponse(success=True, count=len(data), data=data)
 
 
@@ -378,10 +509,11 @@ async def create_exam(body: ExamCreate, db: AsyncSession = Depends(get_db)):
     exam.totalQuestions = len(questions)
     await db.commit()
 
+    matrix_name, total_score = await _get_matrix_name_and_score(db, exam, questions)
     return {
         "success": True,
         "message": "Khởi tạo đề thi thành công!",
-        "data": _build_exam_response(exam, questions),
+        "data": _build_exam_response(exam, questions, matrix_name, total_score),
     }
 
 
@@ -460,10 +592,11 @@ async def update_exam(exam_id: str, body: ExamUpdate, db: AsyncSession = Depends
         exam.totalQuestions = len(questions)
         await db.commit()
 
+    matrix_name, total_score = await _get_matrix_name_and_score(db, exam, list(questions))
     return {
         "success": True,
         "message": "Đã cập nhật thông tin đề thi thành công!",
-        "data": _build_exam_response(exam, list(questions)),
+        "data": _build_exam_response(exam, list(questions), matrix_name, total_score),
     }
 
 

@@ -176,9 +176,10 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         : e.subject === examSubject;
       const matchesGrade = examGrade === 'all' || e.grade === examGrade;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
-      return isVariant && matchesSearch && matchesSubject && matchesGrade && matchesStatus;
+      const matchesMatrix = examMatrix === 'all' || e.matrix_id === examMatrix;
+      return isVariant && matchesSearch && matchesSubject && matchesGrade && matchesStatus && matchesMatrix;
     });
-  }, [exams, examSearch, examSubject, examGrade, examStatus]);
+  }, [exams, examSearch, examSubject, examGrade, examStatus, examMatrix]);
 
   // Đề hoán vị (tạo từ ModalSinhDeHoanVi) CŨNG lưu source='ai' giống hệt đề gốc sinh bằng AI
   // (ModalTaoDeTuDong > "Theo AI") — 2 trường hợp này không phân biệt được bằng `source`. Cách duy
@@ -203,9 +204,21 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         ? (!isSubjectRestricted || subjects.some(s => s.name === e.subject))
         : e.subject === examSubject;
       const matchesStatus = examStatus === 'all' || e.status === examStatus;
-      return isRoot && matchesSearch && matchesSubject && matchesStatus;
+      const matchesMatrix = examMatrix === 'all' || e.matrix_id === examMatrix;
+      return isRoot && matchesSearch && matchesSubject && matchesStatus && matchesMatrix;
     });
-  }, [exams, variantExamIds, examSearch, examSubject, examStatus]);
+  }, [exams, variantExamIds, examSearch, examSubject, examStatus, examMatrix]);
+
+  // Danh sách ma trận thật để đổ vào bộ lọc "Ma trận đề thi" — suy trực tiếp từ các đề đang có (chỉ
+  // liệt kê ma trận THỰC SỰ đang được dùng bởi ít nhất 1 đề), thay vì 2 lựa chọn giả cứng cố định
+  // trước đây ("Ma trận đề 01"/"02") mà bản thân bộ lọc còn không hề tác động tới kết quả lọc.
+  const matrixFilterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    exams.forEach(e => {
+      if (e.matrix_id && !seen.has(e.matrix_id)) seen.set(e.matrix_id, e.matrixName || e.matrix_id);
+    });
+    return Array.from(seen, ([value, label]) => ({ value, label }));
+  }, [exams]);
 
   const filteredExamReview = useMemo(() => {
     // Hiện đủ 3 trạng thái đã gửi thẩm định (Chờ thẩm định/Đã thẩm định/Từ chối) — trước đây chỉ
@@ -436,8 +449,8 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     { header: 'Mã đề', accessor: row => row.code, width: 16 },
     { header: 'Tên đề thi', accessor: row => row.name, width: 32 },
     { header: 'Môn học', accessor: row => row.subject, width: 14 },
-    { header: 'Ma trận đề', accessor: row => row.matrixName || 'Ma trận đề 01', width: 16 },
-    { header: 'Tổng điểm', accessor: row => row.totalScore || '10.00', width: 10, align: 'center' },
+    { header: 'Ma trận đề', accessor: row => row.matrixName || '—', width: 16 },
+    { header: 'Tổng điểm', accessor: row => (row.totalScore ?? 10).toFixed(2), width: 10, align: 'center' },
     { header: 'Số câu hỏi', accessor: row => row.totalQuestions || 0, width: 10, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => row.duration || 90, width: 14, align: 'center' },
     { header: 'Ngày tạo', accessor: row => (row.createdAt ? row.createdAt.slice(0, 10) : ''), width: 12 },
@@ -758,7 +771,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                   value={examMatrix}
                   onChange={setExamMatrix}
                   className="w-full text-[14px]"
-                  options={[{ value: 'all', label: 'Tất cả' }, { value: 'ma-tran-01', label: 'Ma trận đề 01' }, { value: 'ma-tran-02', label: 'Ma trận đề 02' }]}
+                  options={[{ value: 'all', label: 'Tất cả' }, ...matrixFilterOptions]}
                 />
               </div>
               <div>
@@ -991,11 +1004,11 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                       <TruncatedText text={row.description || ''} className="text-[14px] text-black" />
                     </td>
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={row.subject} className="text-black text-[14px]" /></td>
-                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.matrixName || 'Ma trận đề 01'} className="text-[14px] text-black" /></td>
-                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.totalScore || '10.00'} className="text-[14px] text-black" /></td>
+                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.matrixName || '—'} className="text-[14px] text-black" /></td>
+                    <td className="py-2.5 px-3 text-center"><TruncatedText text={(row.totalScore ?? 10).toFixed(2)} className="text-[14px] text-black" /></td>
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={row.totalQuestions || 0} className="text-black text-[14px]" /></td>
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={row.duration || 90} className="text-[14px] text-black" /></td>
-                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.createdAt ? row.createdAt.slice(0, 10) : '20/10/2006'} className="text-[14px] text-black" /></td>
+                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.createdAt ? row.createdAt.slice(0, 10) : ''} className="text-[14px] text-black" /></td>
                     <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
                     <td className="py-2.5 px-3 text-center">
                       <Space size={2}>
