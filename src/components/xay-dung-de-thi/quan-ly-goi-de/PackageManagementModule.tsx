@@ -41,6 +41,7 @@ import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
 import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
+import { formatDateDMY } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -423,7 +424,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     { header: 'Tổng số đề', accessor: row => row.examsCount || 0, width: 12, align: 'center' },
     { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
-    { header: 'Ngày tạo', accessor: row => row.createdAt ? row.createdAt.slice(0, 10) : '', width: 14, align: 'center' },
+    { header: 'Ngày tạo', accessor: row => formatDateDMY(row.createdAt), width: 14, align: 'center' },
     { header: 'Trạng thái', accessor: row => getPackageStatusLabel(row.status), width: 16, align: 'center' },
   ];
 
@@ -491,6 +492,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                   size="small"
                   className="w-full"
                   placeholder={['Bắt đầu', 'Kết thúc']}
+                  format="DD-MM-YYYY"
                   value={dateRange}
                   onChange={v => setDateRange(v as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
                 />
@@ -601,7 +603,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                       <td className="py-2.5 px-3 text-center font-bold text-[11px]">{row.examsCount || 0}</td>
                       <td className="py-2.5 px-3 text-center text-[11px]">{stats.totalQuestions}</td>
                       <td className="py-2.5 px-3 text-center font-semibold text-[11px]">{stats.duration}</td>
-                      <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</td>
+                      <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{formatDateDMY(row.createdAt)}</td>
                       <td className="py-2.5 px-3 text-center">{getPackageStatusTag(row.status)}</td>
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
