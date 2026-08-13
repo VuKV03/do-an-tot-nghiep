@@ -9,6 +9,7 @@ hình dạng cũ nên frontend không cần đổi gì.
 """
 import time
 from datetime import datetime
+from typing import Optional
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException
 # pyrefly: ignore [missing-import]
@@ -23,7 +24,7 @@ from sqlalchemy.orm import selectinload
 from backend.shared.database import get_db
 from backend.exam_service.models import Exam, Package, PackageExam, Question
 from backend.exam_service.schemas import (
-    PackageCreate, PackageUpdate, PackageResponse, PackageListResponse,
+    PackageCreate, PackageUpdate, PackageResponse, PackageListResponse, PublishPackageRequest,
 )
 
 router = APIRouter(prefix="/packages", tags=["Packages"])
@@ -212,8 +213,11 @@ async def delete_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{pkg_id}/publish")
-async def publish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
-    """Phát thi một gói đề (chuyển sang Active)."""
+async def publish_package(
+    pkg_id: str, body: Optional[PublishPackageRequest] = None, db: AsyncSession = Depends(get_db)
+):
+    """Phát thi một gói đề (chuyển sang Active). `body.is_show_result` (nếu có) được chọn ngay ở popup
+    "Cho thi" (PackageManagementModule.tsx) — không truyền (None) thì giữ nguyên giá trị cũ của gói."""
     result = await db.execute(select(Package).where(Package.id == pkg_id))
     package = result.scalar_one_or_none()
     if not package:
@@ -221,6 +225,8 @@ async def publish_package(pkg_id: str, db: AsyncSession = Depends(get_db)):
 
     # Cho phép phát thi nhiều gói đề của cùng 1 môn thi đồng thời.
     package.status = "active"
+    if body is not None and body.is_show_result is not None:
+        package.is_show_result = body.is_show_result
     await db.commit()
     await db.refresh(package)
 

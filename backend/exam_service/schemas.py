@@ -189,6 +189,13 @@ class PackageUpdate(BaseModel):
     is_show_result: Optional[bool] = None
 
 
+class PublishPackageRequest(BaseModel):
+    # Cho phép chọn ngay lúc "Cho thi" xem có hiển thị đáp án cho học sinh sau khi nộp bài hay không
+    # (PackageManagementModule.tsx: popup "Cho xem đáp án sau khi nộp bài" khi bấm icon Cho thi) —
+    # None = giữ nguyên giá trị is_show_result hiện có của gói (không đổi gì).
+    is_show_result: Optional[bool] = None
+
+
 class PackageResponse(BaseModel):
     id: str
     code: str
