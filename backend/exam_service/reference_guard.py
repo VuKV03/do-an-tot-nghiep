@@ -106,6 +106,26 @@ async def assert_topic_deletable(db: AsyncSession, topic: Topic) -> list[str]:
     return subtree_ids
 
 
+async def assert_topic_rejectable(db: AsyncSession, topic: Topic) -> None:
+    """Chặn việc "thẩm định lại" một chủ đề đã Đã thẩm định (status=2) thành Từ chối nếu chủ đề đó
+    đang có câu hỏi trong ngân hàng tham chiếu tới — tránh làm "mồ côi" các câu hỏi đã dùng chủ đề
+    này (vẫn hiển thị bình thường ở Ngân hàng câu hỏi/đề thi nhưng chủ đề gốc lại bị coi là chưa hợp
+    lệ). Không áp dụng cho chủ đề đang ở trạng thái Chờ thẩm định (status=1) — đó là luồng từ chối
+    bình thường lần đầu, không phải "duyệt lại".
+    """
+    if topic.status != 2:
+        return
+    n = await _count(db, Question.topic_id, topic.id)
+    if n:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f'Không thể từ chối chủ đề "{topic.name}" vì chủ đề đã được thẩm định trước đó và '
+                f'đang có {n} câu hỏi sử dụng. Vui lòng gỡ bỏ liên kết câu hỏi trước khi từ chối lại.'
+            ),
+        )
+
+
 async def assert_cognitive_level_deletable(db: AsyncSession, level: CognitiveLevel) -> None:
     reasons: list[str] = []
     n = await _count(db, Question.level_id, level.id)
