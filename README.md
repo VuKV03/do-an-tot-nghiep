@@ -133,3 +133,5 @@ Xem chi tiết cấu hình tại [docker-compose.yml](docker-compose.yml) và [D
 
 - Tài liệu báo cáo, slide bảo vệ đồ án được lưu trữ riêng, không đưa lên repository (xem [.gitignore](.gitignore)).
 - Từng service backend có README riêng trong thư mục tương ứng (`backend/<service>/README.md`).
+
+SIuu
