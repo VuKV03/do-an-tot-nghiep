@@ -519,9 +519,10 @@ export default function QuanLyThiSinh() {
                 <Form.Item
                   label="Số CCCD/ Hộ chiếu"
                   name="cccd"
-                  getValueFromEvent={(e) => e.target.value.replace(/[^0-9]/g, '')}
+                  getValueFromEvent={(e) => e.target.value.replace(/[^0-9]/g, '').slice(0, 12)}
                   rules={[
-                    { pattern: /^[0-9]*$/, message: 'Chỉ được nhập số' }
+                    { pattern: /^[0-9]*$/, message: 'Chỉ được nhập số' },
+                    { max: 12, message: 'Số CCCD/ Hộ chiếu không được vượt quá 12 ký tự' }
                   ]}
                 >
                   <Input placeholder="Nhập số CCCD" maxLength={12} />
