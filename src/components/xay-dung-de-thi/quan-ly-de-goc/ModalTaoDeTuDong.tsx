@@ -15,11 +15,13 @@ import ExamContentDisplay from './ExamContentDisplay';
 import RichTextEditor from '../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../RichTextEditorGroup';
 import { convertAiQuestionMath } from '../../../utils/mathFormula';
+import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 
 interface ModalTaoDeTuDongProps {
   open: boolean;
   onCancel: () => void;
   onSuccess: () => void;
+  currentUser?: any;
 }
 
 type SourceMode = 'matrix' | 'ai_config';
@@ -119,7 +121,7 @@ function resolveAiSupportedType(qt: QuestionTypeAPI | undefined): 'single' | 'tr
   return null;
 }
 
-export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTaoDeTuDongProps) {
+export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUser }: ModalTaoDeTuDongProps) {
   const [step, setStep] = useState(0);
   const [sourceMode, setSourceMode] = useState<SourceMode>('matrix');
 
@@ -168,7 +170,17 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     setGenResults([]); setGenQuestions([]); setExamName(''); setExamCode('');
     setRegeneratingIndex(null); setEditingIndex(null); setEditingDraft(null);
     setPendingByType({ single: [], true_false: [], short: [] }); setResumingType(null);
-    subjectCategoryApi.list().then(res => setSubjects((res.data || []).filter(s => s.is_active))).catch(() => toast.error('Không tải được danh sách môn học.'));
+    subjectCategoryApi.list()
+      .then(res => {
+        const active = (res.data || []).filter(s => s.is_active);
+        // Giáo viên/Tổ trưởng bộ môn: chỉ hiện + mặc định chọn (các) môn học được gắn cho họ — Tổ
+        // trưởng phụ trách nhiều môn vẫn thấy đủ option để đổi, chỉ ưu tiên môn đầu tiên làm mặc định.
+        // Admin/Trưởng phòng giáo vụ: thấy toàn bộ, không ép mặc định.
+        const { filteredSubjects, defaultSubjectId } = getUserSubjectFilter(active, currentUser);
+        setSubjects(filteredSubjects as SubjectCategoryAPI[]);
+        setSelectedSubjectId(defaultSubjectId);
+      })
+      .catch(() => toast.error('Không tải được danh sách môn học.'));
     questionTypeApi.list().then(res => setQuestionTypes(res.data || [])).catch(() => setQuestionTypes([]));
     cognitiveLevelApi.list().then(res => setCognitiveLevels(res.data || [])).catch(() => setCognitiveLevels([]));
   }, [open]);

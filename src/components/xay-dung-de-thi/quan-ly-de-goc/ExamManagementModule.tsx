@@ -1206,6 +1206,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           setIsTuDongMoiOpen(false);
           fetchData();
         }}
+        currentUser={currentUser}
       />
 
       <ModalSinhDeHoanVi
