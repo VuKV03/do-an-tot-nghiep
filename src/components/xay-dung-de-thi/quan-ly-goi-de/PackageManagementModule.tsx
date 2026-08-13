@@ -14,6 +14,7 @@ import {
   Popconfirm,
   Pagination,
   Tabs,
+  Radio,
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import {
@@ -27,8 +28,6 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   EyeInvisibleOutlined,
-  LockOutlined,
-  UnlockOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
@@ -79,7 +78,13 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
 
   // Trạng thái đang thao tác 1 gói đề cụ thể (per-row) — tránh 1 boolean chung khiến spinner
   // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (cho thi/tắt phát/xóa).
-  const [actioning, setActioning] = useState<{ id: string; kind: 'publish' | 'unpublish' | 'delete' | 'toggle_result' } | null>(null);
+  const [actioning, setActioning] = useState<{ id: string; kind: 'publish' | 'unpublish' | 'delete' } | null>(null);
+
+  // Gói đề đang chờ xác nhận "Cho thi" — popup yêu cầu chọn có cho xem đáp án sau khi nộp bài hay
+  // không NGAY LÚC phát thi (thay cho icon khoá/mở khoá riêng trước đây, gộp 2 thao tác cho thi +
+  // cấu hình hiển thị kết quả thành 1 bước duy nhất).
+  const [publishingPkg, setPublishingPkg] = useState<any | null>(null);
+  const [publishShowResult, setPublishShowResult] = useState(true);
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
@@ -210,15 +215,18 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
 
-  const handlePublishPackage = async (pkg: any) => {
+  const handlePublishPackage = async (pkg: any, showResult: boolean) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {
       const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}/publish`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_show_result: showResult }),
       });
       const json = await res.json();
       if (json.success) {
         toast.success(json.message || `Đã cho thi gói đề "${pkg.name}".`);
+        setPublishingPkg(null);
         fetchData();
       } else {
         toast.error(json.detail || json.error || 'Lỗi khi cho thi gói đề.');
@@ -245,28 +253,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
       }
     } catch {
       toast.error('Lỗi kết nối khi tắt cho thi gói đề.');
-    } finally {
-      setActioning(null);
-    }
-  };
-
-  const handleToggleShowResult = async (pkg: any) => {
-    setActioning({ id: pkg.id, kind: 'toggle_result' });
-    try {
-      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_show_result: !pkg.is_show_result }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(`Đã ${!pkg.is_show_result ? 'bật' : 'tắt'} hiển thị kết quả cho gói đề "${pkg.name}".`);
-        fetchData();
-      } else {
-        toast.error(json.error || 'Lỗi khi cập nhật trạng thái hiển thị kết quả.');
-      }
-    } catch {
-      toast.error('Lỗi kết nối khi cập nhật trạng thái hiển thị kết quả.');
     } finally {
       setActioning(null);
     }
@@ -620,19 +606,17 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
                           {row.status !== 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
-                            <Popconfirm
-                              title={`Cho thi gói đề "${row.name}"?`}
-                              okText="Cho thi" cancelText="Hủy"
-                              onConfirm={() => handlePublishPackage(row)}
-                            >
-                              <Tooltip title="Cho thi">
-                                <Button
-                                  size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer"
-                                  loading={actioning?.id === row.id && actioning.kind === 'publish'}
-                                  disabled={actioning !== null && actioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
+                            <Tooltip title="Cho thi">
+                              <Button
+                                size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer"
+                                loading={actioning?.id === row.id && actioning.kind === 'publish'}
+                                disabled={actioning !== null && actioning.id !== row.id}
+                                onClick={() => {
+                                  setPublishShowResult(row.is_show_result ?? true);
+                                  setPublishingPkg(row);
+                                }}
+                              />
+                            </Tooltip>
                           )}
                           {row.status === 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
@@ -653,24 +637,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                               onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
-                          {hasActionPermission(currentUser, 'exams.manage') && (
-                            <Popconfirm
-                              title={`Bạn muốn ${row.is_show_result ? 'ẩn' : 'hiển thị'} kết quả cho học sinh?`}
-                              okText="Đồng ý" cancelText="Hủy"
-                              onConfirm={() => handleToggleShowResult(row)}
-                            >
-                              <Tooltip title={row.is_show_result ? "Đang cho xem kết quả bài làm (Nhấn để ẩn)" : "Đang ẩn kết quả bài làm (Nhấn để cho xem)"}>
-                                <Button
-                                  size="small"
-                                  type="text"
-                                  icon={row.is_show_result ? <UnlockOutlined className="text-green-600" /> : <LockOutlined className="text-red-500" />}
-                                  className="cursor-pointer"
-                                  loading={actioning?.id === row.id && actioning.kind === 'toggle_result'}
-                                  disabled={actioning !== null && actioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                          )}
                           {hasActionPermission(currentUser, 'exams.export') && (
                             <Tooltip title="Tải gói đề thi">
                               <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
@@ -783,6 +749,47 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
         }}
         targetLabel={pendingExport?.label}
       />
+
+      {/* Popup xác nhận "Cho thi" — gộp luôn lựa chọn có cho xem đáp án sau khi nộp bài hay không,
+          thay cho icon khoá/mở khoá riêng trước đây (PackageUpdate PUT is_show_result đổi lúc nào
+          cũng được, nay chỉ còn hỏi đúng lúc phát thi cho gọn thao tác). */}
+      <Modal
+        title={<span className="font-extrabold uppercase text-[12px] text-slate-800">Cho thi gói đề</span>}
+        open={publishingPkg !== null}
+        onCancel={() => setPublishingPkg(null)}
+        centered
+        footer={[
+          <Button key="cancel" onClick={() => setPublishingPkg(null)} className="rounded font-semibold text-xs">
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            loading={actioning?.id === publishingPkg?.id && actioning?.kind === 'publish'}
+            onClick={() => publishingPkg && handlePublishPackage(publishingPkg, publishShowResult)}
+            className="bg-[#2c3e9e] border-transparent rounded font-semibold text-xs"
+          >
+            Cho thi
+          </Button>,
+        ]}
+      >
+        {publishingPkg && (
+          <div className="pt-1 text-xs">
+            <div className="text-slate-600 mb-3">
+              Bạn muốn cho thi gói đề <strong>{publishingPkg.name}</strong> ({publishingPkg.code})?
+            </div>
+            <div className="text-xs font-semibold text-slate-700 mb-2">Cho xem đáp án sau khi nộp bài</div>
+            <Radio.Group
+              value={publishShowResult}
+              onChange={(e) => setPublishShowResult(e.target.value)}
+              className="text-xs"
+            >
+              <Radio value={true}>Có</Radio>
+              <Radio value={false}>Không</Radio>
+            </Radio.Group>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
