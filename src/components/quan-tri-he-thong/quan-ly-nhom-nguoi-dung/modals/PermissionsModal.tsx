@@ -108,12 +108,12 @@ export default function PermissionsModal({
 
     const data: TreeDataNode[] = buildTree(MENU_STRUCTURE);
 
-    if (unmappedPermissions.length > 0) {
-      data.push({
-        title: 'Quyền khác (Hệ thống)',
-        key: 'other_permissions'
-      });
-    }
+    // if (unmappedPermissions.length > 0) {
+    //   data.push({
+    //     title: 'Quyền khác (Hệ thống)',
+    //     key: 'other_permissions'
+    //   });
+    // }
 
     return data;
   }, [unmappedPermissions]);
