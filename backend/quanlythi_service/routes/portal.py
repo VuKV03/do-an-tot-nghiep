@@ -332,7 +332,10 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     total_correct = 0
     total_questions = 0
     detailed_results = []
-    
+    # Điểm tối đa THẬT của đề — mặc định 10 (khớp công thức tính score khi chưa có Cấu hình môn học),
+    # được ghi đè bằng đúng thang điểm (scale) trong Cấu hình môn học nếu tìm được bên dưới.
+    max_score = 10.0
+
     if exam_result.exam_id:
         # Find subject config
         subject_cat_result = await db.execute(
@@ -508,6 +511,11 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
 
         if config:
             exam_result.score = round(total_score, 2)
+            # Lấy đúng thang điểm (scale) trong Cấu hình môn học — khớp cách ma trận đề/đề thủ công
+            # cũng dùng cùng nguồn này (xem exams.py::_get_matrix_name_and_score). Chưa cấu hình scale
+            # thì giữ nguyên mặc định 10.0 đã gán ở trên.
+            if config.scale is not None:
+                max_score = float(config.scale)
         else:
             exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
             
@@ -536,6 +544,7 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         "submitted_at": exam_result.submitted_at,
         "is_show_result": is_show_result,
         "score": exam_result.score,
+        "max_score": max_score,
         "total_correct": exam_result.total_correct,
         "total_questions": exam_result.total_questions
     }
