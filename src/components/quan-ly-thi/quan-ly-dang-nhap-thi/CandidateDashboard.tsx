@@ -183,22 +183,20 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                 <button
                   type="button"
                   onClick={() => changeTheme('classic')}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    theme === 'classic'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${theme === 'classic'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   <AppstoreOutlined /> Cổ điển
                 </button>
                 <button
                   type="button"
                   onClick={() => changeTheme('glass')}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    (theme as string) === 'glass'
-                      ? 'bg-gradient-to-r from-amber-400 to-purple-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${(theme as string) === 'glass'
+                    ? 'bg-gradient-to-r from-amber-400 to-purple-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   <StarOutlined className="text-amber-400" /> Glass 3D
                 </button>
@@ -244,26 +242,24 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                   >
                     {/* Top Accent Stripe */}
                     <div
-                      className={`h-1.5 w-full ${
-                        sub.status === 'submitted'
-                          ? 'bg-[#10b981]'
-                          : sub.status === 'in_progress'
+                      className={`h-1.5 w-full ${sub.status === 'submitted'
+                        ? 'bg-[#10b981]'
+                        : sub.status === 'in_progress'
                           ? 'bg-amber-500'
                           : 'bg-blue-600'
-                      }`}
+                        }`}
                     ></div>
 
                     <div className="p-5 sm:p-6 flex flex-col flex-1">
                       {/* Icon & Status Pill */}
                       <div className="flex justify-between items-start mb-4">
                         <div
-                          className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${
-                            sub.status === 'submitted'
-                              ? 'bg-emerald-50 text-emerald-600'
-                              : sub.status === 'in_progress'
+                          className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${sub.status === 'submitted'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : sub.status === 'in_progress'
                               ? 'bg-amber-50 text-amber-600'
                               : 'bg-blue-50 text-blue-600'
-                          }`}
+                            }`}
                         >
                           <BookOutlined />
                         </div>
@@ -336,18 +332,17 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                           <button
                             onClick={() => handleStart(sub.subject)}
                             disabled={startingSubject === sub.subject}
-                            className={`w-full py-2.5 text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer border-none flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-                              sub.status === 'in_progress'
-                                ? 'bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-500/20'
-                                : 'bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20'
-                            }`}
+                            className={`w-full py-2.5 text-white font-bold rounded-xl text-xs sm:text-sm cursor-pointer border-none flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${sub.status === 'in_progress'
+                              ? 'bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-500/20'
+                              : 'bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20'
+                              }`}
                           >
                             <PlayCircleOutlined />
                             {startingSubject === sub.subject
                               ? 'ĐANG TẢI...'
                               : sub.status === 'in_progress'
-                              ? 'TIẾP TỤC THI'
-                              : 'VÀO THI'}
+                                ? 'TIẾP TỤC THI'
+                                : 'VÀO THI'}
                           </button>
                         )}
                       </div>
@@ -401,22 +396,20 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                 <button
                   type="button"
                   onClick={() => changeTheme('classic')}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    (theme as string) === 'classic'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-white/70 hover:text-white'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${(theme as string) === 'classic'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-white/70 hover:text-white'
+                    }`}
                 >
                   <AppstoreOutlined /> Cổ điển
                 </button>
                 <button
                   type="button"
                   onClick={() => changeTheme('glass')}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    theme === 'glass'
-                      ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/30'
-                      : 'text-white/70 hover:text-white'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${theme === 'glass'
+                    ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/30'
+                    : 'text-white/70 hover:text-white'
+                    }`}
                 >
                   <StarOutlined className="text-amber-300" /> Glass 3D
                 </button>
@@ -462,26 +455,24 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                   >
                     {/* Top Glow Accent Stripe */}
                     <div
-                      className={`h-1.5 w-full ${
-                        sub.status === 'submitted'
-                          ? 'bg-gradient-to-r from-emerald-400 to-teal-300 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
-                          : sub.status === 'in_progress'
+                      className={`h-1.5 w-full ${sub.status === 'submitted'
+                        ? 'bg-gradient-to-r from-emerald-400 to-teal-300 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
+                        : sub.status === 'in_progress'
                           ? 'bg-gradient-to-r from-amber-400 to-orange-400 shadow-[0_0_12px_rgba(251,191,36,0.8)]'
                           : 'bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_12px_rgba(56,189,248,0.8)]'
-                      }`}
+                        }`}
                     ></div>
 
                     <div className="p-6 flex flex-col flex-1">
                       {/* Icon & Status Pill */}
                       <div className="flex justify-between items-start mb-4">
                         <div
-                          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl backdrop-blur-md border shadow-inner ${
-                            sub.status === 'submitted'
-                              ? 'bg-emerald-400/20 text-emerald-300 border-emerald-300/40'
-                              : sub.status === 'in_progress'
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl backdrop-blur-md border shadow-inner ${sub.status === 'submitted'
+                            ? 'bg-emerald-400/20 text-emerald-300 border-emerald-300/40'
+                            : sub.status === 'in_progress'
                               ? 'bg-amber-400/20 text-amber-300 border-amber-300/40'
                               : 'bg-cyan-400/20 text-cyan-300 border-cyan-300/40'
-                          }`}
+                            }`}
                         >
                           <BookOutlined />
                         </div>
@@ -554,18 +545,17 @@ export default function CandidateDashboard({ currentUser, onLogout, onStartExam 
                           <button
                             onClick={() => handleStart(sub.subject)}
                             disabled={startingSubject === sub.subject}
-                            className={`w-full py-3 text-slate-950 font-black rounded-xl text-xs sm:text-sm cursor-pointer border-none flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-                              sub.status === 'in_progress'
-                                ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 shadow-[0_10px_20px_rgba(245,158,11,0.4)]'
-                                : 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 shadow-[0_10px_20px_rgba(56,189,248,0.4)]'
-                            }`}
+                            className={`w-full py-3 text-slate-950 font-black rounded-xl text-xs sm:text-sm cursor-pointer border-none flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${sub.status === 'in_progress'
+                              ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 shadow-[0_10px_20px_rgba(245,158,11,0.4)]'
+                              : 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 shadow-[0_10px_20px_rgba(56,189,248,0.4)]'
+                              }`}
                           >
                             <PlayCircleOutlined />
                             {startingSubject === sub.subject
                               ? 'ĐANG TẢI...'
                               : sub.status === 'in_progress'
-                              ? 'TIẾP TỤC THI'
-                              : 'VÀO THI'}
+                                ? 'TIẾP TỤC THI'
+                                : 'VÀO THI'}
                           </button>
                         )}
                       </div>
