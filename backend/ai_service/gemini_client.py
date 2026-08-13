@@ -14,7 +14,7 @@ def get_gemini_client(api_key: str) -> genai.Client:
     """Get a configured Gemini client for a specific API key."""
     return genai.Client(api_key=api_key)
 
-
+# Chọn thứ tự API key để thử
 def _ordered_api_keys(preferred_key_index: int | None = None) -> list[str]:
     """
     Danh sách key để thử.
@@ -48,7 +48,7 @@ def _ordered_api_keys(preferred_key_index: int | None = None) -> list[str]:
     other_primaries = [k for k in gemini_config.PRIMARY_KEYS if k != primary]
     return [primary, *spares, *other_primaries]
 
-
+# Cơ chế thử lại và xoay vòng khóa API
 async def generate_content_with_retry(
     prompt: str,
     system_instruction: str,
@@ -61,18 +61,15 @@ async def generate_content_with_retry(
     Tries gemini-flash-latest first, falls back to gemini-flash-lite-latest.
     If a key runs out of quota (429/quota), moves on to the next configured key.
     """
-    # Các model ghi version cố định (gemini-2.5-flash, gemini-2.0-flash-lite, ...) đã bị Google
-    # ngừng cấp cho project/API key mới ("no longer available to new users", lỗi 404) — chỉ còn
-    # dùng được qua alias "-latest". Đã xác nhận thực tế 2 model dưới đây chạy được với key hiện tại.
     candidate_models = ["gemini-flash-latest", "gemini-flash-lite-latest"]
     last_error = None
 
-    for key_index, api_key in enumerate(_ordered_api_keys(preferred_key_index)):
+    for key_index, api_key in enumerate(_ordered_api_keys(preferred_key_index)): # xoay key
         client = get_gemini_client(api_key)
         key_exhausted = False
 
-        for model_name in candidate_models:
-            attempts_left = 3
+        for model_name in candidate_models: # xoay model
+            attempts_left = 3 # Số lần thử lại
             while attempts_left > 0:
                 try:
                     print(f"[AI Service] Gửi yêu cầu đến mô hình: {model_name} "
@@ -84,7 +81,7 @@ async def generate_content_with_retry(
                         response_mime_type="application/json",
                     )
 
-                    # Run sync client in thread pool for async compatibility
+                    # Chạy 3 phiên song song, mỗi phiên chịu trách nhiệm 1 loại câu hỏi
                     response = await asyncio.to_thread(
                         client.models.generate_content,
                         model=model_name,
