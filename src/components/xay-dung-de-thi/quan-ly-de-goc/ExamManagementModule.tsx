@@ -45,6 +45,7 @@ import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
+import { formatDateTime } from '../../../utils/formatDate';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -1118,7 +1119,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                 color: idx === 0 ? 'green' : 'gray',
                 children: (
                   <div className="space-y-1">
-                    <div className="text-[14px] text-slate-400 font-bold">{log.timestamp}</div>
+                    <div className="text-[14px] text-slate-400 font-bold">{formatDateTime(log.timestamp)}</div>
                     <div className="text-slate-800">
                       {log.questionCode ? `Câu ${log.questionCode}: ` : ''}{log.action}
                       {log.note ? ` — ${log.note}` : ''}
