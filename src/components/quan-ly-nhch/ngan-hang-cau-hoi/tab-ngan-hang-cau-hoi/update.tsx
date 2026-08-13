@@ -13,7 +13,7 @@ import { questionApi, bankQuestionApi, subjectCategoryApi, gradeLevelApi, compet
 import RichTextEditor from '../../../RichTextEditor';
 import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '../../../RichTextEditorGroup';
 import { buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
-import { stripHtmlToText } from '../../../../utils/htmlContent';
+import { stripHtmlToText, hasContent } from '../../../../utils/htmlContent';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -403,7 +403,7 @@ export default function UpdateQuestionModal({
   const validateStatements = (): boolean => {
     for (let i = 0; i < statements.length; i++) {
       const st = statements[i];
-      if (!st.content || !st.content.trim()) {
+      if (!hasContent(st.content)) {
         toast.error(`Vui lòng nhập nội dung trả lời cho ý thứ ${i + 1}!`);
         return false;
       }
@@ -422,7 +422,7 @@ export default function UpdateQuestionModal({
   const validateSingleAnswer = (): boolean => {
     for (let i = 0; i < answers.length; i++) {
       const a = answers[i];
-      if (!a.content || !stripHtmlToText(a.content).trim()) {
+      if (!hasContent(a.content)) {
         toast.error(`Vui lòng nhập nội dung cho đáp án ${String.fromCharCode(65 + i)}!`);
         return false;
       }
