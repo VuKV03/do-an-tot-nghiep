@@ -410,7 +410,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div><span className="text-slate-500 mr-2 font-normal">Môn thi:</span> {sessionInfo.exam?.subject || 'Toán học'}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Số lượng câu hỏi:</span> {totalQuestions}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Thời gian làm bài (phút):</span> {sessionInfo.exam?.duration || 45}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> 10</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> {sessionInfo.exam?.maxScore ?? 10}</div>
             </div>
           </div>
         </div>
