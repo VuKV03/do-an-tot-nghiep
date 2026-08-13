@@ -1,6 +1,8 @@
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status
 # pyrefly: ignore [missing-import]
+from fastapi.encoders import jsonable_encoder
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select
@@ -225,6 +227,26 @@ async def confirm_start(result_id: str, db: AsyncSession = Depends(get_db)):
         "started_at": exam_result.started_at.isoformat() + "Z"
     }
 
+async def _get_max_score_for_subject_name(db: AsyncSession, subject_name: str) -> float:
+    """Điểm tối đa THẬT của môn thi — lấy đúng thang điểm (scale) trong Cấu hình môn học của môn đó,
+    cùng nguồn dữ liệu mà submit_final() cũng dùng để chấm điểm (xem bên dưới) và exams.py::
+    _get_matrix_name_and_score dùng cho tab Quản lý đề gốc — nhất quán 1 nguồn "điểm tối đa" toàn hệ
+    thống. Mặc định 10.0 nếu môn chưa có Cấu hình môn học/chưa set scale.
+    `.limit(1)` + `.scalars().first()` thay vì `scalar_one_or_none()` — subject_categories.name và
+    subject_configs.subject_id đều KHÔNG có ràng buộc unique, khớp lỗi đã sửa ở exams.py."""
+    subject_cat_result = await db.execute(
+        select(exam_models.SubjectCategory).where(exam_models.SubjectCategory.name == subject_name).limit(1)
+    )
+    subject_cat = subject_cat_result.scalars().first()
+    if not subject_cat:
+        return 10.0
+    config_result = await db.execute(
+        select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id).limit(1)
+    )
+    config = config_result.scalars().first()
+    return float(config.scale) if (config and config.scale is not None) else 10.0
+
+
 @router.get("/me/exam-info")
 async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
     """Lấy thông tin bài thi hiện tại và chi tiết đề thi theo môn."""
@@ -285,9 +307,16 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
             "correct_answer": q.correct_answer,
             "line_number": q.line_number
         })
-            
+
+    # Nhúng thêm "maxScore" (điểm tối đa thật của đề) vào object exam trả về — Exam model không có sẵn
+    # cột này (điểm tối đa vốn không lưu trực tiếp trên exams, chỉ suy ra được qua Cấu hình môn học/ma
+    # trận — xem exams.py), nên phải tự tính rồi gắn thêm trước khi trả JSON, thay vì để FE tự hardcode
+    # "10" như trước (ExamPortal.tsx: màn "Chờ vào thi" > "Điểm tối đa").
+    exam_dict = jsonable_encoder(exam)
+    exam_dict["maxScore"] = await _get_max_score_for_subject_name(db, exam.subject)
+
     return {
-        "exam": exam,
+        "exam": exam_dict,
         "questions": questions_list,
         "result_info": {
             "id": exam_result.id,
@@ -345,10 +374,13 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         
         config = None
         if subject_cat:
+            # .limit(1) + .scalars().first() — subject_configs.subject_id KHÔNG có ràng buộc unique,
+            # scalar_one_or_none() có thể raise MultipleResultsFound nếu khớp hơn 1 dòng (cùng lớp lỗi
+            # đã sửa ở exams.py::_get_matrix_name_and_score).
             config_result = await db.execute(
-                select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id)
+                select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id).limit(1)
             )
-            config = config_result.scalar_one_or_none()
+            config = config_result.scalars().first()
             
         q_result = await db.execute(
             select(exam_models.Question, exam_models.QuestionType)
