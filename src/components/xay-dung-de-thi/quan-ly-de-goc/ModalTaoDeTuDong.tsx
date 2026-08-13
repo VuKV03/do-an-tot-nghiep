@@ -24,16 +24,12 @@ interface ModalTaoDeTuDongProps {
 
 type SourceMode = 'matrix' | 'ai_config';
 
-// 3 loại câu hỏi AI service hỗ trợ sinh, ánh xạ đúng 1-1 với Phần I/II/III của đề thi tốt nghiệp
-// THPT (Thông tư 22/2024) — dùng để chạy 3 phiên sinh câu ĐỘC LẬP song song (mỗi phiên tương ứng 1
-// key API riêng ở backend, xem _KEY_INDEX_BY_TYPE trong ai_service/routes/generate.py), thay vì gọi
-// tuần tự từng cell dồn hết vào 1 key — giảm hẳn tần suất lỗi 429 khi ma trận có nhiều tiểu mục.
 type AiBucketType = 'single' | 'true_false' | 'short';
 
 const bucketLabel = (t: AiBucketType): string =>
   (t === 'single' ? 'Phần I' : t === 'true_false' ? 'Phần II' : 'Phần III');
 
-// 1 "việc cần làm": sinh `soCau` câu cho đúng 1 cell của ma trận (tiểu mục × mức độ × loại câu hỏi).
+
 interface CellWork {
   donViId: string;
   donViKienThuc: string;
@@ -49,8 +45,6 @@ interface CellWork {
 const cellResultKey = (r: RandomSelectResultAPI): string =>
   `${r.don_vi_id}|${r.muc_do_id}|${r.loai_cau_hoi_id}|${r.nang_luc_id}`;
 
-// Gộp kết quả sinh tiếp (resume) vào kết quả đã có — cộng dồn `found`/`questionIds` cho đúng cell
-// thay vì thêm 1 dòng kết quả mới trùng lặp (tránh đếm 2 lần requested/found ở tổng hợp).
 const mergeGenResults = (
   prev: RandomSelectResultAPI[],
   additions: RandomSelectResultAPI[],
@@ -75,14 +69,10 @@ const levelToApiString = (level: CognitiveLevel | null): 'easy' | 'medium' | 'ha
   return 'hard'; // van_dung / van_dung_cao / không xác định (null) — mặc định mức khó nhất, an toàn hơn dễ.
 };
 
-// Tổng số câu tối đa gộp trong 1 lần gọi AI (nhiều cell khác tiểu mục/mức độ cùng lúc) — giới hạn
-// thấp để AI không đếm sai/gán nhầm nhóm khi phải chia quá nhiều nhóm trong 1 phản hồi JSON.
+// Hằng số giới hạn 10 câu/lần gọi
 const BATCH_CALL_CAP = 10;
 
-// Chia nhỏ cell nào cần nhiều hơn cap thành nhiều "đơn vị" ≤ cap (giữ nguyên ngữ cảnh tiểu mục/mức
-// độ), rồi gộp các đơn vị (có thể từ nhiều cell khác nhau) vào từng lần gọi sao cho tổng số câu mỗi
-// lần gọi không vượt cap — giảm hẳn số lần gọi so với "1 API/cell" trước đây (vd 20 cell nhỏ có thể
-// chỉ còn vài lần gọi thay vì 20).
+// Hàm chia nhỏ + gộp nhóm thành các lệnh gọi
 const buildCallGroups = (items: CellWork[]): CellWork[][] => {
   const atoms: CellWork[] = [];
   for (const item of items) {
@@ -110,13 +100,8 @@ const buildCallGroups = (items: CellWork[]): CellWork[][] => {
   return groups;
 };
 
-// Đề tốt nghiệp THPT sinh theo ma trận trải câu hỏi trên cả 3 khối 10/11/12 (mỗi tiểu mục của ma
-// trận tự mang đúng khối của nó — xem topicGradeName), nên bản thân ĐỀ không gắn với 1 khối cụ thể
-// nào để người dùng chọn nữa — dùng nhãn cố định này cho cột "grade" (bắt buộc, not null) của exams.
 const EXAM_GRADE_LABEL = 'THPT';
 
-// Mức độ tư duy cụ thể gửi cho AI service (khớp backend/ai_service/schemas.py::GenerateQuestionsRequest.level),
-// để câu AI sinh khớp đúng ô mức-độ mà ma trận yêu cầu — giống cách "Ngân hàng câu hỏi" > Sinh bằng AI làm.
 const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_hard'> = {
   nhan_biet: 'easy',
   thong_hieu: 'medium',
@@ -124,7 +109,6 @@ const LEVEL_TO_API: Record<CognitiveLevel, 'easy' | 'medium' | 'hard' | 'very_ha
   van_dung_cao: 'very_hard',
 };
 
-/** Map 1 bản ghi question_types về loại mà AI service hỗ trợ sinh (khớp backend/ai_service/routes/generate.py) */
 function resolveAiSupportedType(qt: QuestionTypeAPI | undefined): 'single' | 'true_false' | 'short' | null {
   if (!qt) return null;
   const code = (qt.code || '').toUpperCase().trim();
@@ -139,8 +123,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const [step, setStep] = useState(0);
   const [sourceMode, setSourceMode] = useState<SourceMode>('matrix');
 
-  // Bước 1 (dùng chung cho cả 2 nguồn): chỉ cần Môn học + Ma trận — ma trận đã tự mang đủ chủ đề/
-  // tiểu mục/mức độ/loại câu hỏi/khối lớp (qua từng don_vi_id), không cần người dùng chọn lại.
   const [subjects, setSubjects] = useState<SubjectCategoryAPI[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
@@ -150,13 +132,10 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const [matrixRows, setMatrixRows] = useState<MaTranData[]>([]);
   const [loadingMatrixDetail, setLoadingMatrixDetail] = useState(false);
 
-  // Chủ đề/tiểu mục của môn đã chọn — KHÔNG hiển thị cho người dùng tick, chỉ dùng ngầm để tra đúng
-  // khối lớp thật của từng tiểu mục (topic.grade_name) khi nguồn "Theo AI" cần biết sinh theo khối nào.
   const [topicsOfSubject, setTopicsOfSubject] = useState<TopicAPI[]>([]);
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
   const [cognitiveLevels, setCognitiveLevels] = useState<CognitiveLevelAPI[]>([]);
 
-  // Bước cuối: Sinh đề tự động (dùng chung cho cả 2 nguồn)
   const [generating, setGenerating] = useState(false);
   const [genResults, setGenResults] = useState<RandomSelectResultAPI[]>([]);
   const [genQuestions, setGenQuestions] = useState<Question[]>([]);
@@ -164,16 +143,11 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const [examCode, setExamCode] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Nguồn "Theo AI": các cell chưa sinh đủ số câu của từng phần (Phần I/II/III) sau khi phiên riêng
-  // của phần đó bị lỗi giữa chừng (hết quota mọi key) — cho phép bấm "Sinh tiếp" riêng phần đó, 2
-  // phần còn lại không bị ảnh hưởng vì mỗi phần chạy độc lập trên 1 key riêng.
   const [pendingByType, setPendingByType] = useState<Record<AiBucketType, CellWork[]>>({
     single: [], true_false: [], short: [],
   });
   const [resumingType, setResumingType] = useState<AiBucketType | null>(null);
 
-  // Sửa/sinh lại từng câu hỏi đơn lẻ trong bảng xem trước (dùng chung cho cả 2 nguồn sinh đề) —
-  // không giới hạn số lượt sinh lại.
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<Question | null>(null);
@@ -199,8 +173,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     cognitiveLevelApi.list().then(res => setCognitiveLevels(res.data || [])).catch(() => setCognitiveLevels([]));
   }, [open]);
 
-  // Đổi nguồn sinh đề: chỉ dọn dữ liệu ĐÃ sinh (2 nguồn giờ dùng chung đúng 1 Môn học + Ma trận đã
-  // chọn ở Bước 1, không cần chọn lại) — bước cuối sẽ tự sinh lại theo nguồn mới (xem effect bên dưới).
   const handleChangeSourceMode = (mode: SourceMode) => {
     setSourceMode(mode);
     setGenResults([]); setGenQuestions([]);
@@ -216,10 +188,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
       return;
     }
     setLoadingMatrices(true);
-    // Chỉ lấy ma trận đã "Đã thẩm định" (status=approved) — ma trận "Tạo mới"/"Chờ thẩm định"/"Từ
-    // chối" chưa được Hội đồng Chuyên môn chốt nội dung, không được phép dùng để sinh đề (dù sinh
-    // theo Ngân hàng câu hỏi hay theo AI). Lọc ngay ở query BE thay vì lọc client-side để không lộ
-    // ma trận chưa duyệt ra danh sách chọn dù chỉ trong giây lát.
+
     fetch(`${API_ORIGIN}/api/matrix-configs?page=1&pageSize=200&status=approved`)
       .then(r => r.json())
       .then(json => {
@@ -255,9 +224,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // Khối lớp THẬT của 1 tiểu mục (topic.grade_name, resolve sẵn từ backend) — dùng làm ngữ cảnh
-  // "grade" khi gọi AI sinh câu cho tiểu mục đó, để nội dung sinh ra đúng chương trình của khối đó
-  // thay vì trộn lẫn (1 ma trận có thể có tiểu mục thuộc cả khối 10/11/12).
+
   const topicGradeName = (topicId: string): string =>
     topicsOfSubject.find(t => t.id === topicId)?.grade_name || EXAM_GRADE_LABEL;
 
@@ -305,9 +272,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         setGenResults([]); setGenQuestions([]);
         return;
       }
-      // Không lọc theo khối lớp — mỗi ô đã tự xác định đúng tiểu mục (và do đó đúng khối) qua
-      // don_vi_id, lọc thêm 1 khối duy nhất sẽ loại nhầm câu hỏi hợp lệ của tiểu mục thuộc khối khác
-      // trong cùng ma trận (đề tốt nghiệp THPT trải cả 3 khối 10/11/12).
+
       const res = await bankQuestionApi.randomSelect(cells);
       if (!res.success) { toast.error('Lỗi khi sinh câu hỏi tự động.'); return; }
       setGenResults(res.data);
@@ -324,8 +289,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // AI trả level dạng 'easy'/'medium'/'hard' (tiếng Anh, theo prompt cố định ở ai_service/generate.py)
-  // — quy về đúng 3 mức độ tư duy thật đang có trong danh mục cognitive_levels (chưa có "Vận dụng cao").
   const mapAiLevelToCognitive = (level: string): CognitiveLevel => {
     const l = (level || '').toLowerCase();
     if (l.includes('easy')) return 'nhan_biet';
@@ -333,7 +296,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     return 'thong_hieu';
   };
 
-  // Dựng 1 Question từ 1 phần tử AI trả về, dùng chung cho mọi cell/nhóm gộp trong 1 lần gọi batch.
+  // Format lại data để hiển thị và lưu trữ
   const buildQuestionFromAi = (aiQ: any, ctx: {
     aiType: AiBucketType; level: CognitiveLevel; grade: string; donViId: string; donViKienThuc: string;
     nangLucId?: string | null; idx: number;
@@ -367,11 +330,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   };
 
   // Sinh câu hỏi cho 1 danh sách CellWork CÙNG loại (single/true_false/short) — dùng cho cả lần sinh
-  // đầu tiên (1 trong 3 phiên chạy song song) lẫn "Sinh tiếp" (chỉ resume các cell còn thiếu của
-  // riêng phần đó). GỘP nhiều cell (khác tiểu mục/mức độ) vào 1 lần gọi /generate-questions-batch,
-  // giới hạn tổng BATCH_CALL_CAP câu/lần — giảm hẳn số lần gọi so với "1 API/cell" trước đây (vd ma
-  // trận rải 20 cell nhỏ giờ chỉ còn vài lần gọi). Dừng NGAY khi 1 lần gọi (1 nhóm) thất bại nhưng
-  // CHỈ dừng các nhóm CHƯA gọi — nhóm đã gọi thành công trước đó vẫn giữ nguyên kết quả.
   const runBucketAI = async (
     items: CellWork[],
   ): Promise<{ results: RandomSelectResultAPI[]; generated: Question[]; remaining: CellWork[] }> => {
@@ -398,8 +356,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
               grade: atom.grade,
               level: levelToApiString(atom.levelSlug),
               count: atom.soCau,
-              // Chỉ dùng khi AI Service quá 10s không phản hồi — bốc bù ĐÚNG chủ đề/mức độ/loại câu
-              // hỏi/năng lực từ Ngân hàng câu hỏi thay vì chờ vô thời hạn (xem generate.py::_fallback_from_bank).
               topicId: atom.donViId,
               cognitiveLevelId: atom.mucDoId,
               questionTypeId: atom.loaiCauHoiId,
@@ -413,10 +369,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           aborted = true;
           break;
         }
-        // AI Service quá _AI_TIMEOUT_SECONDS (10s) không phản hồi thì tự bốc bù từ Ngân hàng câu hỏi
-        // (xem generate.py::_fallback_from_bank) — nhóm này không phải AI vừa sinh, phải hiện ĐÚNG
-        // như màn "Theo ngân hàng câu hỏi" (id/code/trạng thái/người tạo thật), không gán id/code giả
-        // kiểu 'AI-N' như buildQuestionFromAi bên dưới.
+
         if (data.source === 'bank_fallback') {
           (data.questions as any[]).forEach((bankQ) => {
             const atom = group[bankQ.groupIndex];
@@ -438,12 +391,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
 
         (data.questions as any[]).forEach((rawAiQ) => {
           const atom = group[rawAiQ.groupIndex];
-          if (!atom) return; // groupIndex lạ (AI trả sai) — bỏ qua thay vì gán nhầm cell.
-          // AI đôi khi vẫn viết số mũ/chỉ số kiểu văn bản thuần "x^2" dù đã yêu cầu không dùng LaTeX
-          // — chuyển thành công thức KaTeX thật ngay khi nhận, để không phải hiện "x^2" thô không
-          // đọc được (xem convertAiQuestionMath).
+          if (!atom) return;
+
+          // Chuẩn hóa công thức hoặc ký hiệu toán học
           const aiQ = convertAiQuestionMath(rawAiQ);
           const level = atom.levelSlug ?? mapAiLevelToCognitive(aiQ.level);
+
+          // Format lại data để hiển thị và lưu trữ
           const q = buildQuestionFromAi(aiQ, {
             aiType: atom.aiType, level, grade: atom.grade,
             donViId: atom.donViId, donViKienThuc: atom.donViKienThuc, nangLucId: atom.nangLucId, idx: generated.length,
@@ -474,15 +428,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     return { results, generated, remaining: remainingItems };
   };
 
-  // Nguồn "Theo AI": gọi AI (Gemini, qua /api/generate-questions) sinh câu hỏi HOÀN TOÀN MỚI theo
-  // ĐÚNG cấu trúc ma trận đã chọn (mỗi ô: tiểu mục × mức độ × loại câu hỏi × số câu), thay cho "Cấu
-  // hình môn học" (Phần I/II/III) trước đây — ma trận mới là nguồn cấu hình sinh đề duy nhất.
-  // Tối ưu số lần gọi AI (đỡ tốn token/quota):
-  // - Ép đúng 1 mức độ tư duy của ô đó qua field 'level' thay vì để AI tự trộn.
-  // - Chia batch tối đa 15 câu/lần gọi (giới hạn cứng của ai_service/routes/generate.py).
-  // - Chạy 3 phiên ĐỘC LẬP song song theo loại câu hỏi (Phần I/II/III), mỗi phiên khoá 1 key API
-  //   riêng ở backend — 1 phiên hết quota không còn kéo sập cả 3 như trước, và tổng request/phút
-  //   dồn vào 1 key giảm hẳn so với gọi tuần tự từng cell.
   const handleGenerateFromMatrixAI = async () => {
     if (!selectedSubject || matrixRows.length === 0) return;
     setGenerating(true);
@@ -517,6 +462,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         }
       }
 
+      // Chạy 3 phiên song song, mỗi phiên chịu trách nhiệm 1 loại câu hỏi
       const [singleRes, tfRes, shortRes] = await Promise.all([
         runBucketAI(buckets.single),
         runBucketAI(buckets.true_false),
@@ -547,8 +493,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // "Sinh tiếp Phần X còn thiếu": chỉ resume các cell còn thiếu của riêng phần đó (dùng lại đúng key
-  // API của phần đó), gộp kết quả mới vào genQuestions/genResults hiện có — không đụng tới 2 phần kia.
+  // Sinh tiếp
   const handleResumeBucket = async (type: AiBucketType) => {
     const items = pendingByType[type];
     if (!items || items.length === 0) return;
@@ -696,10 +641,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
   const handleSaveMatrixExam = async () => {
     if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được sinh để lưu.'); return; }
-    // Chặn lưu khi Ngân hàng câu hỏi không đủ câu cho ma trận (found < requested ở ≥1 ô) — trước đây
-    // chỉ tô vàng cảnh báo mềm (Tag "⚠ N ô chưa đủ số câu yêu cầu") nhưng vẫn cho lưu đề thiếu câu so
-    // với ma trận. Giờ chặn cứng ngay ở FE, và BE (create_exam) cũng tự đối chiếu lại tổng số câu với
-    // matrix_id làm lớp chặn thứ 2 (phòng trường hợp NHCH thay đổi giữa lúc sinh và lúc bấm Lưu).
+
     if (isUnderfilled) {
       toast.error(
         `Ngân hàng câu hỏi không đủ câu cho ${underfilledCount} ô của ma trận (mới có ${totalFound}/${totalRequested} câu) — vui lòng bổ sung thêm câu hỏi vào Ngân hàng câu hỏi rồi bấm "Sinh lại".`
@@ -727,8 +669,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         toast.success('Đã tạo đề thi tự động thành công!');
         onSuccess();
       } else {
-        // Lỗi 400 từ FastAPI HTTPException (vd _validate_matrix_question_count) trả về {"detail": "..."},
-        // không có success/error/message — phải đọc cả detail thì mới hiện đúng lý do BE từ chối lưu.
         toast.error(json.detail || json.error || json.message || 'Lỗi khi lưu đề thi.');
       }
     } catch {
@@ -738,9 +678,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
     }
   };
 
-  // Nguồn "Theo AI": câu hỏi do AI sinh CHƯA tồn tại trong Ngân hàng câu hỏi, nên phải tạo đề trống
-  // trước rồi tạo từng câu hỏi mới gắn thẳng vào đề (examId) qua POST /questions/ — endpoint này
-  // fuzzy-match môn/khối/mức độ/loại theo TÊN nên không cần tự resolve id ở FE.
+
   const handleSaveAiConfigExam = async () => {
     if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được AI sinh để lưu.'); return; }
@@ -757,10 +695,6 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
           grade: EXAM_GRADE_LABEL,
           duration: selectedMatrix?.duration || 90,
           source: 'ai',
-          // Trước đây KHÔNG gửi matrix_id ở nguồn "Theo AI" — đề sinh bằng AI vẫn dựa theo cấu trúc
-          // ma trận (Bước 1 dùng chung cho cả 2 nguồn) nhưng không ghi lại liên kết, khiến BE không
-          // chặn được việc dùng ma trận CHƯA thẩm định để sinh đề qua đường này (xem _get_approved_matrix_or_400
-          // ở exams.py — chỉ áp dụng khi có matrix_id).
           matrix_id: selectedMatrixId,
         }),
       });
@@ -770,12 +704,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess }: ModalTao
         return;
       }
       const newExamId = examJson.data.id;
-      // Phải forward đủ topicId/topicName/competencyComponentId/creator — Question dựng từ AI
-      // (buildQuestionFromAi) đã có sẵn các field này, nhưng trước đây bị bỏ sót khi gọi lưu, khiến
-      // Chủ đề/Thành phần năng lực/Người tạo luôn trống dù đã chọn đúng ở ma trận.
-      // lineNumber = vị trí (1-based) TRONG PHẠM VI PHẦN của câu hỏi — đánh số lại từ 1 ở MỖI Phần,
-      // giống hệt cách ModalSinhDeHoanVi.tsx tính cho đề hoán vị (backend mặc định line_number=0 khi
-      // không truyền, vi phạm bất biến "câu đã thuộc 1 đề phải >= 1" nếu bỏ trống ở đây).
+
       const partCounters = new Map<string, number>();
       const lineNumbers = genQuestions.map((q) => {
         const key = q.type || 'other';

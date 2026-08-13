@@ -97,17 +97,17 @@ async def _validate_and_get_subject_config(
             continue
         allowed = p_to - p_from + 1
         actual = so_cau_theo_loai.get(type_id, 0)
-        if actual != allowed:
-            errors.append(f"{label}: đã nhập {actual} câu, cấu hình môn học yêu cầu đúng {allowed} câu.")
+        if actual > allowed:
+            errors.append(f"{label}: đã nhập {actual} câu, vượt quá số câu tối đa cấu hình môn học cho phép ({allowed} câu).")
 
-    if cfg.questions_number is not None and total_questions != cfg.questions_number:
+    if cfg.questions_number is not None and total_questions > cfg.questions_number:
         errors.append(
-            f"Tổng số câu ({total_questions}) không khớp Cấu hình môn học (yêu cầu {cfg.questions_number} câu)."
+            f"Tổng số câu ({total_questions}) vượt quá số câu tối đa Cấu hình môn học cho phép ({cfg.questions_number} câu)."
         )
 
-    if cfg.scale is not None and round(total_score, 2) != round(float(cfg.scale), 2):
+    if cfg.scale is not None and round(total_score, 2) > round(float(cfg.scale), 2):
         errors.append(
-            f"Tổng điểm/tỷ lệ ({total_score:g}) không khớp thang điểm Cấu hình môn học ({cfg.scale})."
+            f"Tổng điểm/tỷ lệ ({total_score:g}) vượt quá thang điểm tối đa Cấu hình môn học ({cfg.scale})."
         )
 
     if errors:
