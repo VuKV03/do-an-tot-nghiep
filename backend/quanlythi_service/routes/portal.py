@@ -45,6 +45,11 @@ async def login_candidate(credentials: schemas.LoginRequest, db: AsyncSession = 
     }
 
 from backend.exam_service import models as exam_models
+# Dùng lại NGUYÊN hàm tính "điểm tối đa" thật của 1 đề (ưu tiên matrix.totalScore, rồi tới Σ điểm từng
+# câu theo Cấu hình môn học, cuối cùng mới tới scale/mặc định 10) — PHẢI khớp đúng con số đang hiển thị
+# ở tab "Quản lý đề gốc" (exams.py::_build_exam_response), tránh viết lại 1 công thức khác dễ lệch nhau
+# như bản cũ ở đây (chỉ lấy scale, bỏ qua matrix/câu hỏi thật — sai với đề không đúng bằng scale chung).
+from backend.exam_service.routes.exams import _get_matrix_name_and_score
 import random
 import uuid
 
@@ -227,26 +232,6 @@ async def confirm_start(result_id: str, db: AsyncSession = Depends(get_db)):
         "started_at": exam_result.started_at.isoformat() + "Z"
     }
 
-async def _get_max_score_for_subject_name(db: AsyncSession, subject_name: str) -> float:
-    """Điểm tối đa THẬT của môn thi — lấy đúng thang điểm (scale) trong Cấu hình môn học của môn đó,
-    cùng nguồn dữ liệu mà submit_final() cũng dùng để chấm điểm (xem bên dưới) và exams.py::
-    _get_matrix_name_and_score dùng cho tab Quản lý đề gốc — nhất quán 1 nguồn "điểm tối đa" toàn hệ
-    thống. Mặc định 10.0 nếu môn chưa có Cấu hình môn học/chưa set scale.
-    `.limit(1)` + `.scalars().first()` thay vì `scalar_one_or_none()` — subject_categories.name và
-    subject_configs.subject_id đều KHÔNG có ràng buộc unique, khớp lỗi đã sửa ở exams.py."""
-    subject_cat_result = await db.execute(
-        select(exam_models.SubjectCategory).where(exam_models.SubjectCategory.name == subject_name).limit(1)
-    )
-    subject_cat = subject_cat_result.scalars().first()
-    if not subject_cat:
-        return 10.0
-    config_result = await db.execute(
-        select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id).limit(1)
-    )
-    config = config_result.scalars().first()
-    return float(config.scale) if (config and config.scale is not None) else 10.0
-
-
 @router.get("/me/exam-info")
 async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
     """Lấy thông tin bài thi hiện tại và chi tiết đề thi theo môn."""
@@ -312,8 +297,9 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
     # cột này (điểm tối đa vốn không lưu trực tiếp trên exams, chỉ suy ra được qua Cấu hình môn học/ma
     # trận — xem exams.py), nên phải tự tính rồi gắn thêm trước khi trả JSON, thay vì để FE tự hardcode
     # "10" như trước (ExamPortal.tsx: màn "Chờ vào thi" > "Điểm tối đa").
+    _, max_score = await _get_matrix_name_and_score(db, exam, [row.Question for row in questions_rows])
     exam_dict = jsonable_encoder(exam)
-    exam_dict["maxScore"] = await _get_max_score_for_subject_name(db, exam.subject)
+    exam_dict["maxScore"] = max_score
 
     return {
         "exam": exam_dict,
@@ -361,8 +347,6 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     total_correct = 0
     total_questions = 0
     detailed_results = []
-    # Điểm tối đa THẬT của đề — mặc định 10 (khớp công thức tính score khi chưa có Cấu hình môn học),
-    # được ghi đè bằng đúng thang điểm (scale) trong Cấu hình môn học nếu tìm được bên dưới.
     max_score = 10.0
 
     if exam_result.exam_id:
@@ -543,13 +527,17 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
 
         if config:
             exam_result.score = round(total_score, 2)
-            # Lấy đúng thang điểm (scale) trong Cấu hình môn học — khớp cách ma trận đề/đề thủ công
-            # cũng dùng cùng nguồn này (xem exams.py::_get_matrix_name_and_score). Chưa cấu hình scale
-            # thì giữ nguyên mặc định 10.0 đã gán ở trên.
-            if config.scale is not None:
-                max_score = float(config.scale)
         else:
             exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+
+        # Điểm tối đa THẬT của đề (ưu tiên matrix.totalScore, rồi Σ điểm từng câu theo Cấu hình môn
+        # học, cuối cùng mới scale/mặc định 10) — dùng lại ĐÚNG hàm exams.py đang dùng cho tab "Quản lý
+        # đề gốc", để "X / max_score" hiển thị cho thí sinh khớp 100% với điểm tối đa đã thấy ở đó
+        # (trước đây tự tính riêng chỉ theo `scale` chung của môn, sai với đề có điểm tối đa khác scale).
+        exam_row_result = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == exam_result.exam_id))
+        exam_row = exam_row_result.scalar_one_or_none()
+        if exam_row:
+            _, max_score = await _get_matrix_name_and_score(db, exam_row, [row.Question for row in questions_rows])
             
     exam_result.total_correct = total_correct
     exam_result.total_questions = total_questions
