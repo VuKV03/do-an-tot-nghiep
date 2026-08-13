@@ -976,8 +976,8 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="text-slate-600 font-medium">Điểm số:</span>
 
-                  <strong className="text-[#1677ff] font-bold text-[20px]">{examResultData.score} / {examResultData.max_score ?? 10}</strong>
-                </div >
+                  <strong className="text-[#1677ff] font-bold text-base sm:text-[20px]">{examResultData.score} / {examResultData.max_score ?? 10}</strong>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 font-medium">Số câu đúng:</span>
                   <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
