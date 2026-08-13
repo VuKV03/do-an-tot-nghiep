@@ -225,7 +225,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   const doSubmit = async (isAuto: boolean) => {
     if (mode === 'preview') {
       setIsTimeOutSubmit(isAuto);
-      setExamResultData({ score: 10 });
+      // Chế độ xem trước (preview) không thực sự chấm bài (không có result_id/candidate thật để gọi
+      // /submit-final) nên KHÔNG bịa điểm số đã làm được — chỉ hiện đúng thang điểm tối đa (max_score)
+      // của đề đang xem trước, nếu có, thay vì đặt cứng cả điểm số lẫn điểm tối đa thành 10.
+      setExamResultData({ score: 0, max_score: previewExamData?.totalScore ?? 10 });
       setResultModalVisible(true);
       setViewMode('taking');
       return;
@@ -840,11 +843,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                         setCurrentQuestionIdx(getQuestionGlobalIndex(firstQ.id));
                       }
                     }}
-                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap ${
-                      isCurrentPart
-                        ? 'bg-[#1a365d] text-white shadow-sm scale-105'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap ${isCurrentPart
+                      ? 'bg-[#1a365d] text-white shadow-sm scale-105'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
                   >
                     Phần {getTypeDisplayName(partKey)} ({parts[partKey].length})
                   </button>
@@ -973,25 +975,29 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <>
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="text-slate-600 font-medium">Điểm số:</span>
-                  <strong className="text-[#1677ff] font-bold text-base sm:text-[20px]">{examResultData.score} / 10</strong>
-                </div>
+
+                  <strong className="text-[#1677ff] font-bold text-[20px]">{examResultData.score} / {examResultData.max_score ?? 10}</strong>
+                </div >
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 font-medium">Số câu đúng:</span>
                   <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
                 </div>
-                {examResultData.is_show_result === false && (
-                  <div className="text-center text-slate-500 italic text-xs sm:text-sm mt-3 pt-3 border-t border-slate-200">
-                    Chi tiết bài làm đang được ẩn theo cấu hình của gói đề thi.
-                  </div>
-                )}
+                {
+                  examResultData.is_show_result === false && (
+                    <div className="text-center text-slate-500 italic text-xs sm:text-sm mt-3 pt-3 border-t border-slate-200">
+                      Chi tiết bài làm đang được ẩn theo cấu hình của gói đề thi.
+                    </div>
+                  )
+                }
               </>
             ) : (
               <div className="flex justify-between items-center">
                 <span className="text-slate-600 font-medium">Số câu đã trả lời:</span>
                 <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{answeredCount}/{totalQuestions}</strong>
               </div>
-            )}
-          </div>
+            )
+            }
+          </div >
 
           {examResultData && examResultData.detailed_results && (
             <div className="w-full mt-2 sm:mt-4">
@@ -1122,9 +1128,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               </div>
             </div>
           )}
-        </div>
-      </Modal>
-    </Layout>
+        </div >
+      </Modal >
+    </Layout >
   );
 }
 

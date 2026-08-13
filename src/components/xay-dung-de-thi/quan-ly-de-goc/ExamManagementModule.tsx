@@ -45,7 +45,7 @@ import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
-import { formatDateTime } from '../../../utils/formatDate';
+import { formatDateTime, formatDateDMY } from '../../../utils/formatDate';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
 import ModalSinhDeHoanVi from './ModalSinhDeHoanVi';
@@ -454,7 +454,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     { header: 'Tổng điểm', accessor: row => (row.totalScore ?? 10).toFixed(2), width: 10, align: 'center' },
     { header: 'Số câu hỏi', accessor: row => row.totalQuestions || 0, width: 10, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => row.duration || 90, width: 14, align: 'center' },
-    { header: 'Ngày tạo', accessor: row => (row.createdAt ? row.createdAt.slice(0, 10) : ''), width: 12 },
+    { header: 'Ngày tạo', accessor: row => formatDateDMY(row.createdAt), width: 12 },
     { header: 'Trạng thái', accessor: row => getStatusLabel(row.status), width: 16 },
   ];
 
@@ -777,7 +777,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
               </div>
               <div>
                 <label className="block text-[14px] font-medium text-slate-700 mb-1">Ngày tạo</label>
-                <RangePicker size="small" className="w-full" placeholder={['Bắt đầu', 'Kết thúc']} />
+                <RangePicker size="small" className="w-full" placeholder={['Bắt đầu', 'Kết thúc']} format="DD-MM-YYYY" />
               </div>
               <div>
                 <label className="block text-[14px] font-medium text-slate-700 mb-1">Trạng thái</label>
@@ -1009,7 +1009,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={(row.totalScore ?? 10).toFixed(2)} className="text-[14px] text-black" /></td>
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={row.totalQuestions || 0} className="text-black text-[14px]" /></td>
                     <td className="py-2.5 px-3 text-center"><TruncatedText text={row.duration || 90} className="text-[14px] text-black" /></td>
-                    <td className="py-2.5 px-3 text-center"><TruncatedText text={row.createdAt ? row.createdAt.slice(0, 10) : ''} className="text-[14px] text-black" /></td>
+                    <td className="py-2.5 px-3 text-center"><TruncatedText text={formatDateDMY(row.createdAt)} className="text-[14px] text-black" /></td>
                     <td className="py-2.5 px-3 text-center">{getStatusTag(row.status)}</td>
                     <td className="py-2.5 px-3 text-center">
                       <Space size={2}>
