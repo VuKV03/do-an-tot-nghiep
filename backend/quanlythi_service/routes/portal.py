@@ -25,9 +25,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
 import json
+import random
+import uuid
 
 from backend.shared.database import get_db
 from backend.quanlythi_service import models, schemas
+from backend.de_thi_service import models as exam_models
 # Note: Trong hệ thống thực tế, bạn sẽ xác thực JWT token từ auth_service thông qua Dependency
 # from backend.auth_service.dependencies import get_current_user
 
@@ -58,44 +61,31 @@ async def login_candidate(credentials: schemas.LoginRequest, db: AsyncSession = 
     candidate = result.unique().scalar_one_or_none()
     
     if not candidate or candidate.password_hash != credentials.password:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tài khoản hoặc mật khẩu không chính xác"
+        )
         
     return {
-        "access_token": "fake-jwt-token-for-candidate",
+        "access_token": f"fake-token-candidate-{candidate.id}",
         "token_type": "bearer",
         "candidate": {
             "id": candidate.id,
             "username": candidate.username,
-            "fullName": candidate.full_name,
-            "dob": candidate.dob,
-            "gender": candidate.gender,
-            "registered_subjects": [s.subject_name for s in candidate.subjects] if candidate.subjects else []
+            "full_name": candidate.full_name,
+            "student_code": candidate.student_code
         }
     }
 
-from backend.exam_service import models as exam_models
-import random
-import uuid
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PHÂN HỆ 2: TRA CỨU MÔN THI KHẢ DỤNG (AVAILABLE SUBJECTS)
+# PHÂN HỆ 2: TRUY VẤN MÔN THI KHẢ DỤNG (AVAILABLE SUBJECTS & STATUS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/me/available-subjects")
 async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(get_db)):
     """
     API: Lấy danh sách các môn thi mà thí sinh đăng ký VÀ đang có gói đề thi active được phát.
-    
-    Luồng xử lý:
-    1. Kiểm tra hồ sơ thí sinh và danh sách môn học đã đăng ký.
-    2. Tìm các Gói đề thi (`Package`) đang ở trạng thái "active" của các môn học đó.
-    3. Gom nhóm gói đề theo từng môn thi.
-    4. Kiểm tra lịch sử bài làm của thí sinh (`ExamResult`):
-       - Trạng thái `submitted`: Thí sinh đã nộp bài (kèm điểm số).
-       - Trạng thái `in_progress`: Thí sinh đang trong tiến trình làm bài.
-       - Trạng thái `available`: Thí sinh có thể bắt đầu thi.
-    5. Đọc thời lượng làm bài (`duration`) từ đề thi mẫu trong gói đề và trả về danh sách cho Client.
     """
     # pyrefly: ignore [missing-import]
     from sqlalchemy.orm import joinedload
@@ -133,135 +123,120 @@ async def get_available_subjects(candidate_id: str, db: AsyncSession = Depends(g
         select(models.ExamResult)
         .where(models.ExamResult.candidate_id == candidate_id)
     )
-    all_results = res_result.scalars().all()
-    submitted_subjects = {r.subject: r for r in all_results if r.submitted_at is not None}
-    in_progress_subjects = {r.subject: r for r in all_results if r.submitted_at is None}
-    
-    available_subjects = []
-    for subj_name, pkgs in packages_by_subject.items():
-        status = "available"
-        score = None
-        started_at = None
-        duration = None
+    user_results = res_result.scalars().all()
+    results_map = {r.subject: r for r in user_results}
+
+    response_data = []
+
+    for subject_name in registered_subjects:
+        pkgs = packages_by_subject.get(subject_name, [])
+        if not pkgs:
+            continue
+            
+        result_obj = results_map.get(subject_name)
         
-        # Lấy gói đề đầu tiên làm mặc định để đọc thời lượng thi
-        p = pkgs[0]
-        first_link_res = await db.execute(
-            select(exam_models.PackageExam.exam_id)
-            .where(exam_models.PackageExam.package_id == p.id)
-            .order_by(exam_models.PackageExam.position)
+        # Mặc định lấy thời lượng làm bài từ gói đề thi đầu tiên
+        duration = 60
+        first_pkg = pkgs[0]
+        ex_result = await db.execute(
+            select(exam_models.Exam)
+            .where(exam_models.Exam.package_id == first_pkg.id)
             .limit(1)
         )
-        first_exam_id = first_link_res.scalar_one_or_none()
-        if first_exam_id:
-            exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == first_exam_id))
-            first_exam = exam_res.scalar_one_or_none()
-            if first_exam:
-                duration = first_exam.duration
-        
-        # Đánh giá trạng thái làm bài của thí sinh đối với môn thi này
-        if subj_name in submitted_subjects:
-            status = "submitted"
-            score = submitted_subjects[subj_name].score
-        elif subj_name in in_progress_subjects:
-            res = in_progress_subjects[subj_name]
-            if res.started_at:
-                status = "in_progress"
+        sample_exam = ex_result.scalars().first()
+        if sample_exam and sample_exam.duration_minutes:
+            duration = sample_exam.duration_minutes
+
+        max_score = await _get_max_score_for_subject_name(db, subject_name)
+
+        if result_obj:
+            if result_obj.status == "submitted":
+                response_data.append({
+                    "subject": subject_name,
+                    "status": "submitted",
+                    "score": result_obj.score,
+                    "max_score": max_score,
+                    "duration": duration,
+                    "submitted_at": result_obj.submitted_at.isoformat() if result_obj.submitted_at else None
+                })
             else:
-                status = "available"
-            started_at = res.started_at.isoformat() + "Z" if res.started_at else None
-            
-            if res.exam_id:
-                exam_res = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == res.exam_id))
-                exam = exam_res.scalar_one_or_none()
-                if exam:
-                    duration = exam.duration
-            
-        available_subjects.append({
-            "subject": subj_name,
-            "status": status,
-            "score": score,
-            "started_at": started_at,
-            "duration": duration
-        })
-        
-    return {"available_subjects": available_subjects}
+                response_data.append({
+                    "subject": subject_name,
+                    "status": "in_progress",
+                    "result_id": result_obj.id,
+                    "exam_id": result_obj.exam_id,
+                    "duration": duration,
+                    "started_at": result_obj.started_at.isoformat() if result_obj.started_at else None
+                })
+        else:
+            response_data.append({
+                "subject": subject_name,
+                "status": "available",
+                "duration": duration
+            })
+
+    return {"available_subjects": response_data}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PHÂN HỆ 3: BẮT ĐẦU VÀ XÁC NHẬN PHIÊN THI (START EXAM & RANDOMIZATION)
+# PHÂN HỆ 3: KHỞI TẠO PHIÊN THI (START EXAM SESSION & RANDOM EXAM ALLOCATION)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/me/start-exam")
-async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
+async def start_exam(payload: schemas.StartExamRequest, db: AsyncSession = Depends(get_db)):
     """
-    API: Bắt đầu thi (Phân bổ đề thi ngẫu nhiên).
-    
-    Thuật toán phân bổ:
-    1. Kiểm tra thí sinh và các bài thi đã làm (nếu đã nộp -> chặn; nếu đang làm -> trả về session cũ).
-    2. Lấy tất cả gói đề đang phát (`status == 'active'`) của môn thi.
-    3. Bốc ngẫu nhiên 1 Gói đề thi (`chosen_package`).
-    4. Bốc ngẫu nhiên 1 Mã đề thi hoán vị (`chosen_exam_id`) nằm trong gói đề vừa chọn.
-    5. Khởi tạo bản ghi `ExamResult` mới và cập nhật trạng thái thí sinh thành `in_progress`.
+    API: Thí sinh bắt đầu môn thi (Khởi tạo bản ghi `ExamResult` và bốc ngẫu nhiên đề thi).
     """
-    # Kiểm tra tồn tại thí sinh
-    result = await db.execute(select(models.ExamCandidate).where(models.ExamCandidate.id == candidate_id))
-    candidate = result.scalar_one_or_none()
-    if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-        
-    # Kiểm tra xem bài thi môn này đã được bắt đầu hoặc nộp hay chưa
-    existing_res_all = await db.execute(
+    res_result = await db.execute(
         select(models.ExamResult)
-        .where(models.ExamResult.candidate_id == candidate_id, models.ExamResult.subject == subject)
+        .where(models.ExamResult.candidate_id == payload.candidate_id, models.ExamResult.subject == payload.subject)
     )
-    results = existing_res_all.scalars().all()
-    for res in results:
-        if res.submitted_at is not None:
-            raise HTTPException(status_code=400, detail="Bạn đã hoàn thành bài thi môn này.")
-        else:
-            return {"message": "Already started", "exam_id": res.exam_id, "result_id": res.id}
+    existing_result = res_result.scalars().first()
+    
+    if existing_result:
+        if existing_result.status == "submitted":
+            raise HTTPException(status_code=400, detail="Bạn đã nộp bài thi môn này rồi.")
+        return {
+            "success": True,
+            "message": "Tiếp tục phiên thi hiện tại",
+            "exam_id": existing_result.exam_id,
+            "result_id": existing_result.id
+        }
 
-    # Tìm tất cả các gói đề đang active của môn thi
+    # Bốc ngẫu nhiên Gói đề active
     pkg_result = await db.execute(
         select(exam_models.Package)
-        .where(exam_models.Package.status == "active", exam_models.Package.subject == subject)
+        .where(exam_models.Package.subject == payload.subject, exam_models.Package.status == "active")
     )
-    active_packages = pkg_result.scalars().all()
-    if not active_packages:
-        raise HTTPException(status_code=404, detail=f"Không có gói đề nào đang phát cho môn {subject}")
+    active_pkgs = pkg_result.scalars().all()
+    if not active_pkgs:
+        raise HTTPException(status_code=404, detail="Không tìm thấy gói đề thi active nào cho môn học này")
+    
+    chosen_pkg = random.choice(active_pkgs)
 
-    # 1. Bốc ngẫu nhiên 1 gói đề trong các gói đề đang phát của môn thi này
-    chosen_package = random.choice(active_packages)
-
-    # 2. Đọc danh sách đề từ bảng trung gian package_exams của gói đề đã chọn
-    exam_ids_res = await db.execute(
-        select(exam_models.PackageExam.exam_id)
-        .where(exam_models.PackageExam.package_id == chosen_package.id)
-        .order_by(exam_models.PackageExam.position)
+    # Bốc ngẫu nhiên Mã đề thi trong gói đề
+    exam_result = await db.execute(
+        select(exam_models.Exam).where(exam_models.Exam.package_id == chosen_pkg.id)
     )
-    exam_ids = list(exam_ids_res.scalars().all())
+    exams_in_pkg = exam_result.scalars().all()
+    if not exams_in_pkg:
+        raise HTTPException(status_code=404, detail="Gói đề thi này chưa có đề thi nào")
+    
+    chosen_exam = random.choice(exams_in_pkg)
+    chosen_exam_id = chosen_exam.id
 
-    if not exam_ids:
-        raise HTTPException(status_code=400, detail=f"Gói đề '{chosen_package.name}' không chứa đề thi nào.")
-
-    # 3. Bốc ngẫu nhiên 1 mã đề thi hoán vị trong gói đề đã chọn
-    chosen_exam_id = random.choice(exam_ids)
-
-    # Tạo bản ghi kết quả thi mới trong CSDL
+    # Tạo bản ghi kết quả thi mới
     new_result = models.ExamResult(
-        id=f"res-{uuid.uuid4().hex[:8]}",
-        candidate_id=candidate_id,
-        package_id=chosen_package.id,
+        candidate_id=payload.candidate_id,
+        subject=payload.subject,
         exam_id=chosen_exam_id,
-        subject=subject
-        # started_at sẽ được ghi nhận khi thí sinh nhấn nút "Bắt đầu làm bài" ở Frontend
+        status="in_progress",
+        answers_json="{}"
     )
     db.add(new_result)
-    
-    candidate.status = "in_progress"
     await db.commit()
-    
+    await db.refresh(new_result)
+
     return {
         "success": True,
         "message": "Đã tạo phiên thi thành công",
@@ -273,7 +248,6 @@ async def start_exam(candidate_id: str, subject: str, db: AsyncSession = Depends
 async def confirm_start(result_id: str, db: AsyncSession = Depends(get_db)):
     """
     API: Xác nhận chính thức bắt đầu làm bài.
-    Cập nhật mốc thời gian `started_at` (UTC) vào bản ghi bài thi để bắt đầu đếm ngược thời gian làm bài.
     """
     result = await db.execute(select(models.ExamResult).where(models.ExamResult.id == result_id))
     exam_result = result.scalar_one_or_none()
@@ -291,7 +265,6 @@ async def confirm_start(result_id: str, db: AsyncSession = Depends(get_db)):
         "started_at": exam_result.started_at.isoformat() + "Z"
     }
 
-<<<<<<< HEAD
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHÂN HỆ 4: TẢI ĐỀ THI VÀ NỘP BÀI TẠM THỜI (EXAM DETAILS & AUTO-SAVE DRAFT)
@@ -316,7 +289,6 @@ async def _get_max_score_for_subject_name(db: AsyncSession, subject_name: str) -
     config = config_result.scalars().first()
     return float(config.scale) if (config and config.scale is not None) else 10.0
 
->>>>>>> 6cdc4391c49a366c8761a0366b7ada574713bfdc
 
 @router.get("/me/exam-info")
 async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depends(get_db)):
@@ -394,8 +366,9 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
     # cột này (điểm tối đa vốn không lưu trực tiếp trên exams, chỉ suy ra được qua Cấu hình môn học/ma
     # trận — xem exams.py), nên phải tự tính rồi gắn thêm trước khi trả JSON, thay vì để FE tự hardcode
     # "10" như trước (ExamPortal.tsx: màn "Chờ vào thi" > "Điểm tối đa").
+    _, max_score = await _get_matrix_name_and_score(db, exam, [row.Question for row in questions_rows])
     exam_dict = jsonable_encoder(exam)
-    exam_dict["maxScore"] = await _get_max_score_for_subject_name(db, exam.subject)
+    exam_dict["maxScore"] = max_score
 
     return {
         "exam": exam_dict,
@@ -466,8 +439,6 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     total_correct = 0
     total_questions = 0
     detailed_results = []
-    # Điểm tối đa THẬT của đề — mặc định 10 (khớp công thức tính score khi chưa có Cấu hình môn học),
-    # được ghi đè bằng đúng thang điểm (scale) trong Cấu hình môn học nếu tìm được bên dưới.
     max_score = 10.0
 
     if exam_result.exam_id:
@@ -659,13 +630,17 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         # Quyết định tổng điểm chính thức
         if config:
             exam_result.score = round(total_score, 2)
-            # Lấy đúng thang điểm (scale) trong Cấu hình môn học — khớp cách ma trận đề/đề thủ công
-            # cũng dùng cùng nguồn này (xem exams.py::_get_matrix_name_and_score). Chưa cấu hình scale
-            # thì giữ nguyên mặc định 10.0 đã gán ở trên.
-            if config.scale is not None:
-                max_score = float(config.scale)
         else:
             exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+
+        # Điểm tối đa THẬT của đề (ưu tiên matrix.totalScore, rồi Σ điểm từng câu theo Cấu hình môn
+        # học, cuối cùng mới scale/mặc định 10) — dùng lại ĐÚNG hàm exams.py đang dùng cho tab "Quản lý
+        # đề gốc", để "X / max_score" hiển thị cho thí sinh khớp 100% với điểm tối đa đã thấy ở đó
+        # (trước đây tự tính riêng chỉ theo `scale` chung của môn, sai với đề có điểm tối đa khác scale).
+        exam_row_result = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == exam_result.exam_id))
+        exam_row = exam_row_result.scalar_one_or_none()
+        if exam_row:
+            _, max_score = await _get_matrix_name_and_score(db, exam_row, [row.Question for row in questions_rows])
             
     exam_result.total_correct = total_correct
     exam_result.total_questions = total_questions
