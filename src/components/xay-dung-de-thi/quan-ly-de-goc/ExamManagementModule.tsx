@@ -444,8 +444,14 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   // Bấm "Tải đề thi (.docx)" mở modal hỏi Có/Không đáp án trước — xem exportExamTarget bên dưới.
   const doExportWord = async (exam: any, includeAnswers: boolean) => {
     toast.loading({ content: `Đang biên dịch & xuất tài liệu cho đề ${exam.code}...`, key: 'word' });
-    const questions = await fetchExamQuestions(exam.id);
-    const blob = await buildExamDocxBlob('ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions, exam.duration || 90, includeAnswers);
+    const [questions, partConfig] = await Promise.all([
+      fetchExamQuestions(exam.id),
+      fetchPartScoreConfig(exam.subject),
+    ]);
+    const blob = await buildExamDocxBlob(
+      'ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions, exam.duration || 90, includeAnswers,
+      toPartPointsMap(partConfig),
+    );
     triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');
     toast.success({ content: `Xuất thành công file Word đề thi ${exam.code}!`, key: 'word', duration: 3 });
   };

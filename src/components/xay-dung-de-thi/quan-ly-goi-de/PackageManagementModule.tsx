@@ -347,7 +347,12 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     }
     toast.loading({ content: `Đang chuẩn bị tải gói đề ${pkg.code}...`, key: 'pkg-dl' });
     try {
-      const res = await bankQuestionApi.list();
+      const firstExam = examsById.get(examIds[0]);
+      const [res, partConfig] = await Promise.all([
+        bankQuestionApi.list(),
+        firstExam ? fetchPartScoreConfig(firstExam.subject) : Promise.resolve(null),
+      ]);
+      const partPoints = toPartPointsMap(partConfig);
       const allQuestions = res.data || [];
       const zip = new JSZip();
       await Promise.all(examIds.map(async (examId) => {
@@ -363,7 +368,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
             lineNumber: q.lineNumber,
           }))
           .sort(compareByPartAndLineNumber);
-        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
+        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, partPoints);
         zip.file(`${exam.code}.docx`, blob);
       }));
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -422,7 +427,9 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
   };
 
   const doDownloadSingleExam = async (exam: any, qs: Question[], includeAnswers: boolean) => {
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
+    // viewPartConfig đã tải sẵn khi mở modal chi tiết gói (handleOpenView) — đề này chắc chắn cùng
+    // môn với gói đang xem nên dùng lại luôn, không cần gọi API lần nữa.
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, toPartPointsMap(viewPartConfig));
     triggerBlobDownload(blob, exam.code, 'docx');
   };
   const handleDownloadSingleExam = (exam: any, qs: Question[]) =>

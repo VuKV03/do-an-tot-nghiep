@@ -16,6 +16,23 @@ import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, Table, TextRu
 import type { Question, TrueFalseStatement } from '../types';
 import { htmlToDocxParagraphs } from './htmlToDocx';
 import { PART_META } from './examParts';
+import type { PartPointsInfo } from './examPartScores';
+
+/** Dựng tiêu đề "Phần I: ... (0,25 đ/câu)" / "Phần II: ... (0,1đ/1ý, 0,25đ/2ý, 0,5đ/3ý, 1đ/4ý)" —
+ * khớp ĐÚNG cách ExamContentDisplay.tsx hiện điểm cạnh tiêu đề Phần ở màn xem trước, để file Word
+ * xuất ra không lệch với những gì người dùng đã xem trước khi tải. */
+function buildPartHeader(baseHeader: string, info: PartPointsInfo | undefined): string {
+  if (!info) return baseHeader;
+  if (info.perIdea) {
+    const { y1, y2, y3, y4 } = info.perIdea;
+    const fmt = (v: number) => v.toLocaleString('vi-VN');
+    return `${baseHeader} (${fmt(y1)}đ/1 ý, ${fmt(y2)}đ/2 ý, ${fmt(y3)}đ/3 ý, ${fmt(y4)}đ/4 ý)`;
+  }
+  if (info.perQuestion != null) {
+    return `${baseHeader} (${info.perQuestion.toLocaleString('vi-VN')} đ/câu)`;
+  }
+  return baseHeader;
+}
 
 function formatAnswer(correctAnswer: string | string[] | undefined): string {
   return Array.isArray(correctAnswer) ? correctAnswer.join(', ') : (correctAnswer ?? '');
@@ -39,6 +56,9 @@ export function buildExamDocxDocument(
   /** true (mặc định) — có kèm đáp án dưới mỗi câu, dùng cho bản giáo viên đối chiếu. false — bỏ hẳn
    * dòng "Đáp án"/tô đúng-sai (chỉ còn câu hỏi + phương án), dùng để phát đề thi thật cho thí sinh. */
   includeAnswers: boolean = true,
+  /** Điểm/phần theo Cấu hình môn học (xem examPartScores.ts::fetchPartScoreConfig +
+   * toPartPointsMap) — có thì hiện thêm ngay cạnh tiêu đề Phần, không truyền thì tiêu đề như cũ. */
+  partPoints?: Partial<Record<string, PartPointsInfo>>,
 ): Document {
   const dashLine = '.'.repeat(60);
   const children: (Paragraph | Table)[] = [
@@ -68,7 +88,11 @@ export function buildExamDocxDocument(
   const groups = [
     ...PART_META.map(part => {
       const items = questions.filter(q => q.type === part.type);
-      return { header: part.header, instruction: part.instruction.replace('N', String(items.length)), items };
+      return {
+        header: buildPartHeader(part.header, partPoints?.[part.type]),
+        instruction: part.instruction.replace('N', String(items.length)),
+        items,
+      };
     }).filter(g => g.items.length > 0),
     ...(questions.some(q => !knownTypes.has(q.type))
       ? [{ header: 'Câu hỏi khác', instruction: '', items: questions.filter(q => !knownTypes.has(q.type)) }]
@@ -132,8 +156,9 @@ export async function buildExamDocxBlob(
   questions: Question[],
   duration: number = 90,
   includeAnswers: boolean = true,
+  partPoints?: Partial<Record<string, PartPointsInfo>>,
 ): Promise<Blob> {
-  return Packer.toBlob(buildExamDocxDocument(title, subject, grade, questions, duration, includeAnswers));
+  return Packer.toBlob(buildExamDocxDocument(title, subject, grade, questions, duration, includeAnswers, partPoints));
 }
 
 export function triggerBlobDownload(blob: Blob, fileNameNoExt: string, ext: string): void {

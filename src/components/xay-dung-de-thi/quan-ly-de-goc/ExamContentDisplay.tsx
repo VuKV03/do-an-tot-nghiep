@@ -213,7 +213,7 @@ function ExamContentDisplay({
     if (info?.perIdea) {
       const { y1, y2, y3, y4 } = info.perIdea;
       const fmt = (v: number) => v.toLocaleString('vi-VN');
-      header = `${part.header} (${fmt(y1)}đ/1ý, ${fmt(y2)}đ/2ý, ${fmt(y3)}đ/3ý, ${fmt(y4)}đ/4ý)`;
+      header = `${part.header} (${fmt(y1)}đ/ 1ý, ${fmt(y2)}đ/ 2ý, ${fmt(y3)}đ/ 3ý, ${fmt(y4)}đ/ 4ý)`;
     } else if (info?.perQuestion != null) {
       header = `${part.header} (${info.perQuestion.toLocaleString('vi-VN')} đ/câu)`;
     }

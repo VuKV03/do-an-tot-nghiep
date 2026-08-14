@@ -10,6 +10,7 @@ import {
 } from '../../../services/danhMucApi';
 import { apiGetMatrixConfigDetail } from '../quan-ly-ma-tran-de/matrixApi';
 import { buildExamDocxBlob, triggerBlobDownload } from '../../../utils/examWordExport';
+import { fetchPartScoreConfig, toPartPointsMap, type PartScoreConfig } from '../../../utils/examPartScores';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
 import ExamContentDisplay from './ExamContentDisplay';
 import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
@@ -146,6 +147,9 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   const [sourceQuestions, setSourceQuestions] = useState<Question[]>([]);
   const [loadingSource, setLoadingSource] = useState(false);
+  // Điểm/phần theo Cấu hình môn học của đề gốc — tải 1 lần khi mở modal, dùng lại cho MỌI lượt xuất
+  // Word (đề gốc lẫn các đề hoán vị) bên dưới, vì tất cả cùng 1 môn.
+  const [partConfig, setPartConfig] = useState<PartScoreConfig[] | null>(null);
   const [generating, setGenerating] = useState(false);
   const [variants, setVariants] = useState<Question[][]>([]);
   const [saving, setSaving] = useState(false);
@@ -174,6 +178,8 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     setSourceMatrixInfo(null);
     setEditingTarget(null);
     setEditingOriginal(null);
+    setPartConfig(null);
+    fetchPartScoreConfig(exam.subject).then(setPartConfig);
 
     setLoadingSource(true);
     bankQuestionApi.list()
@@ -340,7 +346,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   const doDownloadSource = async (includeAnswers: boolean) => {
     if (!exam) return;
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers);
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
     triggerBlobDownload(blob, `${exam.code}_DeGoc`, 'docx');
   };
   const handleDownloadSource = () => setPendingExport({ label: 'đề gốc', run: doDownloadSource });
@@ -348,7 +354,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
   const doDownloadVariant = async (index: number, includeAnswers: boolean) => {
     if (!exam) return;
     const code = String((startCode || 1) + index);
-    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index], exam.duration || 90, includeAnswers);
+    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index], exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
     triggerBlobDownload(blob, `${exam.code}-${code}_DeHoanVi${index + 1}`, 'docx');
   };
   const handleDownloadVariant = (index: number) =>
@@ -356,11 +362,12 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   const doDownloadAll = async (includeAnswers: boolean) => {
     if (!exam || variants.length === 0) return;
+    const partPoints = toPartPointsMap(partConfig);
     const zip = new JSZip();
-    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers));
+    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers, partPoints));
     await Promise.all(variants.map(async (qs, idx) => {
       const code = String((startCode || 1) + idx);
-      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
+      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, partPoints);
       zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.docx`, variantBlob);
     }));
     const blob = await zip.generateAsync({ type: 'blob' });
