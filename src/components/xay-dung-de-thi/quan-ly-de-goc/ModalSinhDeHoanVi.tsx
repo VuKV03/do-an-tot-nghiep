@@ -655,7 +655,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
             {loadingSource ? (
               <div className="py-8 text-center"><Spin /></div>
             ) : (
-              <ExamContentDisplay questions={sourceQuestions} allowEdit={false} />
+              <ExamContentDisplay questions={sourceQuestions} allowEdit={false} partPoints={toPartPointsMap(partConfig)} />
             )}
           </div>
 
@@ -679,6 +679,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
                           questions={qs}
                           allowEdit
                           onEditQuestion={(questionIndex, question) => handleEditQuestion(idx, questionIndex, question)}
+                          partPoints={toPartPointsMap(partConfig)}
                         />
                       </div>
                     </div>
