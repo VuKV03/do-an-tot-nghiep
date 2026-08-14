@@ -449,7 +449,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
       fetchPartScoreConfig(exam.subject),
     ]);
     const blob = await buildExamDocxBlob(
-      'ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.grade, questions, exam.duration || 90, includeAnswers,
+      'ĐỀ THI TRẮC NGHIỆM', exam.subject, exam.code, questions, exam.duration || 90, includeAnswers,
       toPartPointsMap(partConfig),
     );
     triggerBlobDownload(blob, `${exam.code}_DeThi_${exam.subject.replace(/\s+/g, '')}`, 'docx');

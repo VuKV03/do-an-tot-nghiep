@@ -346,7 +346,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
 
   const doDownloadSource = async (includeAnswers: boolean) => {
     if (!exam) return;
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.code, sourceQuestions, exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
     triggerBlobDownload(blob, `${exam.code}_DeGoc`, 'docx');
   };
   const handleDownloadSource = () => setPendingExport({ label: 'đề gốc', run: doDownloadSource });
@@ -354,7 +354,7 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
   const doDownloadVariant = async (index: number, includeAnswers: boolean) => {
     if (!exam) return;
     const code = String((startCode || 1) + index);
-    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, variants[index], exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
+    const blob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, `${exam.code}-${code}`, variants[index], exam.duration || 90, includeAnswers, toPartPointsMap(partConfig));
     triggerBlobDownload(blob, `${exam.code}-${code}_DeHoanVi${index + 1}`, 'docx');
   };
   const handleDownloadVariant = (index: number) =>
@@ -364,10 +364,10 @@ export default function ModalSinhDeHoanVi({ open, exam, onCancel, onSuccess }: M
     if (!exam || variants.length === 0) return;
     const partPoints = toPartPointsMap(partConfig);
     const zip = new JSZip();
-    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.grade, sourceQuestions, exam.duration || 90, includeAnswers, partPoints));
+    zip.file(`${exam.code}_DeGoc.docx`, await buildExamDocxBlob(exam.name, exam.subject, exam.code, sourceQuestions, exam.duration || 90, includeAnswers, partPoints));
     await Promise.all(variants.map(async (qs, idx) => {
       const code = String((startCode || 1) + idx);
-      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, partPoints);
+      const variantBlob = await buildExamDocxBlob(`${packageName || exam.name} - Mã đề ${code}`, exam.subject, `${exam.code}-${code}`, qs, exam.duration || 90, includeAnswers, partPoints);
       zip.file(`${exam.code}-${code}_DeHoanVi${idx + 1}.docx`, variantBlob);
     }));
     const blob = await zip.generateAsync({ type: 'blob' });

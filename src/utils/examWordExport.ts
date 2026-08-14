@@ -50,7 +50,9 @@ function resolveStatements(q: Question): Pick<TrueFalseStatement, 'content' | 'i
 export function buildExamDocxDocument(
   title: string,
   subject: string,
-  grade: string,
+  /** Mã đề — hiện ngay dưới tiêu đề, cạnh Môn học (thay cho Khối lớp trước đây, vốn không cần thiết
+   * với thí sinh làm bài — điều quan trọng với các em là biết đúng mã đề của mình). */
+  examCode: string,
   questions: Question[],
   duration: number = 90,
   /** true (mặc định) — có kèm đáp án dưới mỗi câu, dùng cho bản giáo viên đối chiếu. false — bỏ hẳn
@@ -69,7 +71,7 @@ export function buildExamDocxDocument(
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `Môn: ${subject} — Khối: ${grade}`, bold: true })],
+      children: [new TextRun({ text: `Môn: ${subject} — Mã đề: ${examCode}`, bold: true })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -152,13 +154,13 @@ export function buildExamDocxDocument(
 export async function buildExamDocxBlob(
   title: string,
   subject: string,
-  grade: string,
+  examCode: string,
   questions: Question[],
   duration: number = 90,
   includeAnswers: boolean = true,
   partPoints?: Partial<Record<string, PartPointsInfo>>,
 ): Promise<Blob> {
-  return Packer.toBlob(buildExamDocxDocument(title, subject, grade, questions, duration, includeAnswers, partPoints));
+  return Packer.toBlob(buildExamDocxDocument(title, subject, examCode, questions, duration, includeAnswers, partPoints));
 }
 
 export function triggerBlobDownload(blob: Blob, fileNameNoExt: string, ext: string): void {

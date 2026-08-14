@@ -32,7 +32,7 @@ export interface ToastOptions {
   content: React.ReactNode;
   /** Toast cùng key sẽ thay thế toast trước đó thay vì chồng thêm — dùng cho pattern loading → success/error. */
   key?: string;
-  /** Đơn vị giây. 0 = không tự đóng. Mặc định: loading = 0, còn lại = 4. */
+  /** Đơn vị giây. 0 = không tự đóng. Mặc định: loading = 0, còn lại = 6. */
   duration?: number;
 }
 
@@ -47,10 +47,10 @@ interface ToastItemData {
 }
 
 const DEFAULT_DURATION: Record<ToastType, number> = {
-  success: 4,
-  error: 4,
-  warning: 4,
-  info: 4,
+  success: 6,
+  error: 6,
+  warning: 6,
+  info: 6,
   loading: 0,
 };
 

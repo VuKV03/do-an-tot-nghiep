@@ -368,7 +368,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
             lineNumber: q.lineNumber,
           }))
           .sort(compareByPartAndLineNumber);
-        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, partPoints);
+        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.code, qs, exam.duration || 90, includeAnswers, partPoints);
         zip.file(`${exam.code}.docx`, blob);
       }));
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -429,7 +429,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
   const doDownloadSingleExam = async (exam: any, qs: Question[], includeAnswers: boolean) => {
     // viewPartConfig đã tải sẵn khi mở modal chi tiết gói (handleOpenView) — đề này chắc chắn cùng
     // môn với gói đang xem nên dùng lại luôn, không cần gọi API lần nữa.
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers, toPartPointsMap(viewPartConfig));
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.code, qs, exam.duration || 90, includeAnswers, toPartPointsMap(viewPartConfig));
     triggerBlobDownload(blob, exam.code, 'docx');
   };
   const handleDownloadSingleExam = (exam: any, qs: Question[]) =>
