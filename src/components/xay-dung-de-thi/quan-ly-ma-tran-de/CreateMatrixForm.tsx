@@ -555,6 +555,28 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
     if (maMatran.length > MA_MAX_LENGTH) { return; }
     if (!tenMatran.trim()) { return; }
     if (tenMatran.length > TEN_MAX_LENGTH) { return; }
+
+    // Bổ sung: ma trận phải khớp ĐÚNG (không thiếu, không thừa) với Cấu hình môn học (Số câu hỏi +
+    // số câu từng phần theo loại câu hỏi) — trước đây chỉ cảnh báo khi VƯỢT (isOverPhan), vẫn cho lưu
+    // khi thiếu câu. Vd cấu hình môn Toán 22 câu thì ma trận môn Toán bắt buộc phải đúng 22 câu.
+    if (subjectConfig?.questions_number != null && totalQuestions !== subjectConfig.questions_number) {
+      toast.error(
+        `Tổng số câu của ma trận (${totalQuestions}) phải đúng bằng Số câu hỏi theo Cấu hình môn học (${subjectConfig.questions_number} câu). Vui lòng điều chỉnh lại số câu cho khớp.`
+      );
+      return;
+    }
+    if (caiDat) {
+      for (const lch of caiDat.ds_loai_cau_hoi) {
+        const soCauNhap = soCauByLoaiCauHoi[lch.loai_cau_hoi_id] || 0;
+        if (soCauNhap !== lch.so_luong_cau) {
+          toast.error(
+            `"${lch.noi_dung_phan}" đang có ${soCauNhap} câu, phải đúng bằng ${lch.so_luong_cau} câu theo Cấu hình môn học.`
+          );
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     // Người soạn thật — dùng để ghi log lịch sử ("Thêm mới"/"Sửa" ở matrix_histories), khớp quy ước
     // creator/actor ở manual-create.tsx (Ngân hàng câu hỏi).

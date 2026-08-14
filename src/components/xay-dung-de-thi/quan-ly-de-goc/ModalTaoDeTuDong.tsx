@@ -6,8 +6,9 @@ import { ThunderboltOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/i
 import { Question, CognitiveLevel } from '../../../types';
 import {
   subjectCategoryApi, topicsApi, bankQuestionApi, questionTypeApi, questionApi, cognitiveLevelApi,
+  subjectConfigApi,
   type SubjectCategoryAPI, type TopicAPI, type RandomSelectCellAPI, type RandomSelectResultAPI,
-  type QuestionTypeAPI, type CognitiveLevelAPI,
+  type QuestionTypeAPI, type CognitiveLevelAPI, type SubjectConfigAPI,
 } from '../../../services/danhMucApi';
 import { mapCognitiveLevelRecord } from '../../../utils/cognitiveLevel';
 import { apiGetMatrixConfigDetail, type MaTranData } from '../quan-ly-ma-tran-de/matrixApi';
@@ -138,6 +139,11 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
   const [questionTypes, setQuestionTypes] = useState<QuestionTypeAPI[]>([]);
   const [cognitiveLevels, setCognitiveLevels] = useState<CognitiveLevelAPI[]>([]);
 
+  // Cấu hình môn học (số câu hỏi bắt buộc) của môn đang chọn — dùng để bắt buộc đề sinh tự động
+  // (theo ma trận, dù nhặt từ ngân hàng hay sinh bằng AI) phải khớp ĐÚNG số câu cấu hình, khớp ràng
+  // buộc ở CreateMatrixForm.tsx (ma trận) và ModalDeRiengLe.tsx (đề riêng lẻ).
+  const [subjectConfig, setSubjectConfig] = useState<SubjectConfigAPI | null>(null);
+
   const [generating, setGenerating] = useState(false);
   const [genResults, setGenResults] = useState<RandomSelectResultAPI[]>([]);
   const [genQuestions, setGenQuestions] = useState<Question[]>([]);
@@ -219,6 +225,24 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
       .catch(() => setTopicsOfSubject([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, selectedSubjectId]);
+
+  // Tra Cấu hình môn học của môn đang chọn — môn chưa từng cấu hình (404) coi như không có ràng buộc.
+  useEffect(() => {
+    if (!open || !selectedSubjectId) { setSubjectConfig(null); return; }
+    subjectConfigApi.getBySubjectId(selectedSubjectId)
+      .then(res => setSubjectConfig(res.data ?? null))
+      .catch(() => setSubjectConfig(null));
+  }, [open, selectedSubjectId]);
+
+  // Tổng số câu ma trận đang chọn yêu cầu — dùng để cảnh báo sớm nếu ma trận (đã thẩm định từ trước)
+  // không còn khớp với Cấu hình môn học hiện tại (vd cấu hình môn học đã bị sửa sau khi ma trận được
+  // tạo/duyệt).
+  const matrixTotalQuestions = matrixRows.reduce(
+    (s, r) => s + r.ds_loai_cau_hoi.reduce((ss, c) => ss + (c.so_cau || 0), 0), 0,
+  );
+  const matrixMatchesConfig = subjectConfig?.questions_number == null
+    || matrixRows.length === 0
+    || matrixTotalQuestions === subjectConfig.questions_number;
 
   const handleSelectMatrix = async (id: string) => {
     setSelectedMatrixId(id);
@@ -660,6 +684,14 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
       );
       return;
     }
+    // Bổ sung: đề sinh theo ma trận vẫn phải khớp ĐÚNG số câu của Cấu hình môn học, phòng trường hợp
+    // ma trận đã duyệt từ trước không còn khớp cấu hình môn học hiện tại (xem cảnh báo ở Bước 1).
+    if (subjectConfig?.questions_number != null && genQuestions.length !== subjectConfig.questions_number) {
+      toast.error(
+        `Đề đang có ${genQuestions.length} câu, phải đúng bằng Cấu hình môn học "${selectedSubject?.name}" (${subjectConfig.questions_number} câu). Vui lòng chọn ma trận khác hoặc điều chỉnh lại ma trận cho khớp.`
+      );
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${API_ORIGIN}/api/exams`, {
@@ -695,6 +727,13 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
     if (!examName.trim()) { toast.error('Vui lòng nhập tên đề thi!'); return; }
     if (genQuestions.length === 0) { toast.error('Chưa có câu hỏi nào được AI sinh để lưu.'); return; }
     if (!selectedSubject) return;
+    // Bổ sung: đề sinh bằng AI theo ma trận cũng phải khớp ĐÚNG số câu của Cấu hình môn học.
+    if (subjectConfig?.questions_number != null && genQuestions.length !== subjectConfig.questions_number) {
+      toast.error(
+        `Đề đang có ${genQuestions.length} câu, phải đúng bằng Cấu hình môn học "${selectedSubject.name}" (${subjectConfig.questions_number} câu). Vui lòng chọn ma trận khác, "Sinh tiếp" cho đủ, hoặc điều chỉnh lại ma trận cho khớp.`
+      );
+      return;
+    }
     setSaving(true);
     try {
       const examRes = await fetch(`${API_ORIGIN}/api/exams`, {
@@ -758,7 +797,7 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
 
   const handleSaveExam = () => (sourceMode === 'matrix' ? handleSaveMatrixExam() : handleSaveAiConfigExam());
 
-  const canNextStep0 = !!selectedSubjectId && !!selectedMatrixId && matrixRows.length > 0;
+  const canNextStep0 = !!selectedSubjectId && !!selectedMatrixId && matrixRows.length > 0 && matrixMatchesConfig;
 
   const footer = (() => {
     if (step === 0) {
@@ -869,6 +908,11 @@ export default function ModalTaoDeTuDong({ open, onCancel, onSuccess, currentUse
                     {selectedMatrixId && !loadingMatrixDetail && matrixRows.length === 0 && (
                       <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
                         Ma trận này chưa có cấu trúc câu hỏi nào — vui lòng chọn ma trận khác hoặc bổ sung cấu trúc ở "Quản lý ma trận đề".
+                      </div>
+                    )}
+                    {selectedMatrixId && !loadingMatrixDetail && matrixRows.length > 0 && !matrixMatchesConfig && (
+                      <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
+                        Ma trận này có {matrixTotalQuestions} câu, không khớp với Cấu hình môn học "{selectedSubject?.name}" (bắt buộc đúng {subjectConfig?.questions_number} câu) — vui lòng chọn ma trận khác hoặc sửa lại ma trận ở "Quản lý ma trận đề" cho khớp.
                       </div>
                     )}
                   </>
