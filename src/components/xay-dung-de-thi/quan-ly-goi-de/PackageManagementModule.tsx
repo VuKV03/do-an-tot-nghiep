@@ -39,6 +39,7 @@ import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { hasActionPermission } from '../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
+import { fetchPartScoreConfig, toPartPointsMap, type PartScoreConfig } from '../../../utils/examPartScores';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
 import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
 import { formatDateDMY } from '../../../utils/formatDate';
@@ -91,6 +92,10 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
   const [viewPkg, setViewPkg] = useState<any | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewQuestionsByExamId, setViewQuestionsByExamId] = useState<Record<string, Question[]>>({});
+  // Cấu hình điểm/phần (Phần I/II/III) của môn học ứng với gói đang xem — tải 1 LẦN duy nhất cho cả
+  // gói (mọi đề trong 1 gói hoán vị luôn cùng môn), rồi áp lại cho từng tab/mã đề riêng (applyPartScores)
+  // khi render — null = môn chưa có Cấu hình môn học, ẩn hẳn khối điểm/phần thay vì hiện rỗng.
+  const [viewPartConfig, setViewPartConfig] = useState<PartScoreConfig[] | null>(null);
 
   // Đang chờ chọn "Có đáp án"/"Không đáp án" trước khi thực sự xuất file — dùng chung cho cả nút
   // "Tải xuống" cả gói (zip) lẫn "Tải xuống" từng đề riêng trong modal xem chi tiết gói.
@@ -379,8 +384,13 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     setViewPkg(pkg);
     setIsViewOpen(true);
     setViewLoading(true);
+    setViewPartConfig(null);
     try {
-      const res = await bankQuestionApi.list();
+      const firstExam = examsById.get((pkg.examIds || [])[0]);
+      const [res, partConfig] = await Promise.all([
+        bankQuestionApi.list(),
+        firstExam ? fetchPartScoreConfig(firstExam.subject) : Promise.resolve(null),
+      ]);
       const allQuestions = res.data || [];
       const map: Record<string, Question[]> = {};
       (pkg.examIds || []).forEach((examId: string) => {
@@ -396,6 +406,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
           .sort(compareByPartAndLineNumber);
       });
       setViewQuestionsByExamId(map);
+      setViewPartConfig(partConfig);
     } catch {
       toast.error('Không tải được nội dung các đề trong gói.');
     } finally {
@@ -407,6 +418,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     setIsViewOpen(false);
     setViewPkg(null);
     setViewQuestionsByExamId({});
+    setViewPartConfig(null);
   };
 
   const doDownloadSingleExam = async (exam: any, qs: Question[], includeAnswers: boolean) => {
@@ -729,7 +741,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                           )}
                         </div>
                         <div className="border border-slate-200 rounded p-2">
-                          <ExamContentDisplay questions={qs} allowEdit={false} />
+                          <ExamContentDisplay questions={qs} allowEdit={false} partPoints={toPartPointsMap(viewPartConfig)} />
                         </div>
                       </div>
                     ),

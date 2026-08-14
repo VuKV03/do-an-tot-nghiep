@@ -45,6 +45,7 @@ import { toast } from '../../../utils/toast';
 import { useResizableColumns, ColResizeHandle, ResizableTableStyles, RESIZABLE_TABLE_CLASS, TruncatedText } from '../../../utils/resizableTable';
 import { hasActionPermission, hasAnyPermission, checkUserPermission } from '../../../utils/permissionUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
+import { fetchPartScoreConfig, toPartPointsMap, type PartScoreConfig } from '../../../utils/examPartScores';
 import { formatDateTime, formatDateDMY } from '../../../utils/formatDate';
 import ModalDeRiengLe from './ModalDeRiengLe';
 import ModalTaoDeTuDong from './ModalTaoDeTuDong';
@@ -122,6 +123,9 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewQuestions, setViewQuestions] = useState<Question[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
+  // Điểm/câu theo từng Phần (I/II/III) của đề đang xem, suy theo Cấu hình môn học (subject_configs)
+  // — truyền cho ExamContentDisplay để hiện ngay cạnh tiêu đề Phần, vd "Phần I: ... (0,25 đ/câu)".
+  const [viewPartConfig, setViewPartConfig] = useState<PartScoreConfig[] | null>(null);
 
   // Form states for secondary modals
   const [historyLogs, setHistoryLogs] = useState<(BankQuestionHistoryAPI & { questionCode?: string })[]>([]);
@@ -424,7 +428,13 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
     setSelectedExam(exam);
     setIsViewOpen(true);
     setViewLoading(true);
-    setViewQuestions(await fetchExamQuestions(exam.id));
+    setViewPartConfig(null);
+    const [questions, partConfig] = await Promise.all([
+      fetchExamQuestions(exam.id),
+      fetchPartScoreConfig(exam.subject),
+    ]);
+    setViewQuestions(questions);
+    setViewPartConfig(partConfig);
     setViewLoading(false);
   };
 
@@ -1067,9 +1077,9 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
           </div>
         }
         open={isViewOpen}
-        onCancel={() => { setIsViewOpen(false); setViewQuestions([]); }}
+        onCancel={() => { setIsViewOpen(false); setViewQuestions([]); setViewPartConfig(null); }}
         footer={[
-          <Button key="close" onClick={() => { setIsViewOpen(false); setViewQuestions([]); }} className="rounded font-semibold text-[14px]">Đóng</Button>
+          <Button key="close" onClick={() => { setIsViewOpen(false); setViewQuestions([]); setViewPartConfig(null); }} className="rounded font-semibold text-[14px]">Đóng</Button>
         ]}
         centered
         width={720}
@@ -1086,7 +1096,7 @@ export default function ExamManagementModule({ onNavigateTab, currentUser }: Exa
         {viewLoading ? (
           <div className="py-12 text-center"><Spin /></div>
         ) : (
-          <ExamContentDisplay questions={viewQuestions} allowEdit={false} />
+          <ExamContentDisplay questions={viewQuestions} allowEdit={false} partPoints={toPartPointsMap(viewPartConfig)} />
         )}
       </Modal>
 
