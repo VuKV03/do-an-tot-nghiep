@@ -264,12 +264,17 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             body: JSON.stringify({ ids: selectedRowIds }),
           });
           const json = await res.json();
+          // Backend có thể chặn từng phần (bỏ qua ma trận đang được dùng để tạo đề thi) — vẫn trả
+          // success:true khi xóa được ÍT NHẤT 1 ma trận, kèm message giải thích rõ ma trận nào bị bỏ
+          // qua (xem batch_delete_matrix_configs). Không thành công thì lấy `json.detail` (định dạng
+          // lỗi mặc định của FastAPI HTTPException) làm nội dung toast, khớp quy ước matrixApi.ts.
           if (json.success) {
             toast.success(json.message);
             setSelectedRowIds([]);
             fetchMatrixList(1, pageSize);
           } else {
-            toast.error(json.error);
+            toast.error(json.message || json.detail || json.error || 'Lỗi khi xóa ma trận.');
+            fetchMatrixList(1, pageSize);
           }
         } catch {
           toast.error('Lỗi kết nối API khi xóa.');
@@ -284,11 +289,14 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
     try {
       const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) {
+      // !res.ok (vd 400 do ma trận đang được dùng để tạo đề thi) trả về {"detail": "..."} theo định
+      // dạng mặc định của FastAPI HTTPException, không có `success`/`error` — đọc `json.detail` để
+      // hiện đúng lý do chặn thay vì toast trống (khớp quy ước matrixApi.ts::apiSaveMaTran).
+      if (res.ok && json.success) {
         toast.success(json.message);
         fetchMatrixList(currentPage, pageSize);
       } else {
-        toast.error(json.error);
+        toast.error(json.detail || json.error || 'Lỗi khi xóa ma trận.');
       }
     } catch {
       toast.error('Lỗi kết nối API khi xóa.');

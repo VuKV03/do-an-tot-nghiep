@@ -13,6 +13,15 @@ const cleanOptionText = (text: string) => {
   // Removes "A. ", "B. ", etc. at the start (ignoring HTML tags if any)
   return text.replace(/^(<[^>]+>)?\s*[A-Z][\.\)]\s*/, '$1');
 };
+
+// Điểm theo từng Phần I/II/III của kết quả thi — khớp `part_scores`/`part_max_scores` trả về từ
+// backend (backend/quanlythi_service/routes/portal.py::submit_final).
+const PART_SCORE_KEYS = ['p1', 'p2', 'p3'] as const;
+const PART_SCORE_LABELS: Record<(typeof PART_SCORE_KEYS)[number], string> = {
+  p1: 'Phần I', p2: 'Phần II', p3: 'Phần III',
+};
+const formatPartScore = (value: number | undefined | null): string =>
+  Number((value ?? 0).toFixed(2)).toString();
 interface ExamPortalProps {
   currentUser: SystemUser;
   subject: string;
@@ -981,6 +990,23 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
 
                   <strong className="text-[#1677ff] font-bold text-base sm:text-[20px]">{examResultData.score} / {examResultData.max_score ?? 10}</strong>
                 </div>
+                {/* Điểm theo từng Phần I/II/III — đồng bộ với cách các tab quản trị (Cấu hình môn học,
+                    Ma trận đề, Xem trước đề) đều hiện thông tin theo từng Phần, thay vì chỉ có tổng
+                    điểm chung chung như trước. Chỉ hiện Phần nào thực sự có điểm tối đa > 0 (đề có gắn
+                    Cấu hình môn học khớp loại câu hỏi của Phần đó) — đề không có cấu hình thì ẩn hẳn
+                    khối này, không hiện "0/0" vô nghĩa. */}
+                {examResultData.part_max_scores && PART_SCORE_KEYS.some(k => (examResultData.part_max_scores[k] || 0) > 0) && (
+                  <div className="space-y-1 border-b border-slate-200 pb-2">
+                    {PART_SCORE_KEYS.filter(k => (examResultData.part_max_scores[k] || 0) > 0).map(k => (
+                      <div key={k} className="flex justify-between items-center text-[11px] sm:text-xs">
+                        <span className="text-slate-500">Điểm {PART_SCORE_LABELS[k]}:</span>
+                        <span className="text-slate-700 font-semibold">
+                          {formatPartScore(examResultData.part_scores?.[k])} / {formatPartScore(examResultData.part_max_scores[k])}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 font-medium">Số câu đúng:</span>
                   <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>

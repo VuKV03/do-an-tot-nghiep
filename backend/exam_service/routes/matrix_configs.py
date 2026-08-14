@@ -18,7 +18,7 @@ from sqlalchemy import select, delete, or_, and_, func
 from pydantic import BaseModel
 
 from backend.shared.database import get_db
-from backend.exam_service.models import MatrixConfig, SubjectCategory, SubjectConfig, MatrixHistory
+from backend.exam_service.models import MatrixConfig, SubjectCategory, SubjectConfig, MatrixHistory, Exam
 from backend.exam_service.schemas import MatrixHistoryResponse, MatrixHistoryListResponse
 
 router = APIRouter(prefix="/matrix-configs", tags=["Matrix Configs"])
@@ -275,11 +275,27 @@ async def create_matrix_config(body: MatrixConfigCreate, db: AsyncSession = Depe
 
 @router.delete("/{config_id}")
 async def delete_matrix_config(config_id: str, db: AsyncSession = Depends(get_db)):
-    """Xóa một ma trận đề thi."""
+    """Xóa một ma trận đề thi — chặn nếu ma trận đang được dùng để tạo đề thi (Exam.matrix_id), tránh
+    xóa "mồ côi" khiến đề thi mất gốc ma trận đã sinh ra nó. Phải xóa (các) đề thi liên quan trước."""
     result = await db.execute(select(MatrixConfig).where(MatrixConfig.id == config_id))
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(status_code=404, detail="Không tìm thấy ma trận cần xóa.")
+
+    exam_result = await db.execute(
+        select(Exam.code).where(Exam.matrix_id == config_id).order_by(Exam.createdAt.desc())
+    )
+    exam_codes = [row[0] for row in exam_result.all()]
+    if exam_codes:
+        shown = ", ".join(exam_codes[:5])
+        more = f" và {len(exam_codes) - 5} đề khác" if len(exam_codes) > 5 else ""
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Không thể xóa ma trận này vì đang được dùng để tạo {len(exam_codes)} đề thi "
+                f"({shown}{more}). Vui lòng xóa (các) đề thi này trước."
+            ),
+        )
 
     await db.delete(config)
     await db.commit()
@@ -292,16 +308,38 @@ async def delete_matrix_config(config_id: str, db: AsyncSession = Depends(get_db
 
 @router.delete("/")
 async def batch_delete_matrix_configs(body: BatchDeleteRequest, db: AsyncSession = Depends(get_db)):
-    """Xóa hàng loạt ma trận đề thi."""
+    """Xóa hàng loạt ma trận đề thi — bỏ qua (không xóa) những ma trận đang được dùng để tạo đề thi,
+    chỉ xóa các ma trận còn lại, khớp ràng buộc ở delete_matrix_config (xóa đơn lẻ)."""
     if not body.ids:
         return {"success": True, "message": "Không có ma trận nào được chọn để xóa."}
 
-    await db.execute(delete(MatrixConfig).where(MatrixConfig.id.in_(body.ids)))
-    await db.commit()
+    used_result = await db.execute(
+        select(Exam.matrix_id, func.count(Exam.id)).where(Exam.matrix_id.in_(body.ids)).group_by(Exam.matrix_id)
+    )
+    used_counts = dict(used_result.all())
+    blocked_ids = [i for i in body.ids if i in used_counts]
+    deletable_ids = [i for i in body.ids if i not in used_counts]
+
+    if deletable_ids:
+        await db.execute(delete(MatrixConfig).where(MatrixConfig.id.in_(deletable_ids)))
+        await db.commit()
+
+    if blocked_ids:
+        # Tra id -> code bằng dict thay vì zip trực tiếp với kết quả SELECT — thứ tự trả về của
+        # `WHERE id IN (...)` không đảm bảo khớp đúng thứ tự `blocked_ids`.
+        blocked_result = await db.execute(select(MatrixConfig.id, MatrixConfig.code).where(MatrixConfig.id.in_(blocked_ids)))
+        code_by_id = dict(blocked_result.all())
+        blocked_codes = [f"{code_by_id.get(mid, mid)} ({used_counts[mid]} đề)" for mid in blocked_ids]
+        message = (
+            (f"Đã xóa {len(deletable_ids)} ma trận đề thi. " if deletable_ids else "Không xóa được ma trận nào. ")
+            + f"Bỏ qua {len(blocked_ids)} ma trận đang được dùng để tạo đề thi: {', '.join(blocked_codes)}. "
+            "Vui lòng xóa (các) đề thi liên quan trước."
+        )
+        return {"success": len(deletable_ids) > 0, "message": message, "blocked_ids": blocked_ids}
 
     return {
         "success": True,
-        "message": f"Đã xóa thành công {len(body.ids)} ma trận đề thi."
+        "message": f"Đã xóa thành công {len(deletable_ids)} ma trận đề thi."
     }
 
 
