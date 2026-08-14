@@ -151,9 +151,14 @@ function ExamContentDisplay({
                       })}
                     </div>
                   )}
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex gap-1">
-                    <span className="shrink-0">Đáp án đúng:</span>
-                    <RichTextView html={String(subQ.correctAnswer ?? '')} className="text-emerald-600 font-bold inline" />
+                  {/* uppercase chỉ đặt trên nhãn "Đáp án đúng:" — đặt trên cả div (như trước) khiến
+                      NỘI DUNG đáp án thật (RichTextView, con của div) bị "ăn theo" text-transform:
+                      uppercase do kế thừa CSS, dù dữ liệu lưu trong DB vẫn đúng chữ hoa/thường gốc
+                      (vd "tam giác" hiển thị thành "TAM GIÁC"). normal-case chặn hẳn khả năng kế thừa
+                      từ bất kỳ ancestor nào khác trong tương lai. */}
+                  <div className="text-[10px] text-slate-400 font-bold tracking-wider flex gap-1">
+                    <span className="shrink-0 uppercase">Đáp án đúng:</span>
+                    <RichTextView html={String(subQ.correctAnswer ?? '')} className="text-emerald-600 font-bold inline normal-case" />
                   </div>
                 </div>
               ))}
@@ -185,11 +190,14 @@ function ExamContentDisplay({
 
           {/* Footer details */}
           {!isGroup && (
-            <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            // uppercase chỉ đặt trên nhãn "Đáp án chính xác:" — trước đây đặt trên div bao ngoài,
+            // khiến nội dung đáp án thật (RichTextView bên trong Tag) bị kế thừa text-transform:
+            // uppercase (vd "tam giác" hiển thị thành "TAM GIÁC" dù dữ liệu lưu đúng nguyên văn).
+            <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 tracking-wider">
               {/* <span>Hình thức: Trắc nghiệm khách quan</span> */}
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 uppercase">
                 Đáp án chính xác:
-                <Tag color="emerald" className="font-bold border-transparent m-0 py-0.5 px-1.5 rounded text-[10px]">
+                <Tag color="emerald" className="font-bold border-transparent m-0 py-0.5 px-1.5 rounded text-[10px] normal-case">
                   <RichTextView html={String(q.correctAnswer ?? '')} className="inline" />
                 </Tag>
               </span>
