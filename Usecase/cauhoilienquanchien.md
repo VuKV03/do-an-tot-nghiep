@@ -525,3 +525,108 @@ ADD CONSTRAINT fk_exam_results_candidate
 - **Giải thích:**
   - `ON DELETE CASCADE`: Khi xóa thí sinh `id = 5`, tất cả các dòng đăng ký môn trong `student_subjects` có `candidate_id = 5` sẽ tự động bị xóa theo.
   - `ON DELETE RESTRICT`: Nếu thí sinh `id = 5` đã có ít nhất 1 bài thi trong `exam_results`, câu lệnh `DELETE FROM exam_candidates WHERE id = 5` sẽ bị Database từ chối và báo lỗi vi phạm ràng buộc khóa ngoại (Foreign Key Constraint Violation), đảm bảo không bao giờ bị mất dữ liệu lịch sử điểm thi.
+
+---
+
+## 🏗️ PHẦN IV: BỘ CÂU HỎI VỀ KIẾN TRÚC HỆ THỐNG TỔNG THỂ (MICROSERVICES ARCHITECTURE)
+
+---
+
+### 1️⃣ Câu 1 (Về Centralized Database trong Kiến trúc Microservices):
+
+> **Giáo viên hỏi:** *"Em vẽ sơ đồ hệ thống là Microservices nhưng tại sao tất cả các Service (Auth, QuanLyThi, Analytics, Exam) lại cùng kết nối chung tới một MySQL Database (Central Store)? Việc này có vi phạm nguyên tắc thiết kế Microservices không?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Nguyên lý thiết kế:** Về mặt lý thuyết chuẩn thiết kế Microservices (*Database-per-Service pattern*), mỗi microservice nên sở hữu cơ sở dữ liệu riêng để bảo đảm tính độc lập, loose coupling và khả năng mở rộng (scale). Việc dùng chung một DB tạo ra mô hình gọi là *Distributed Monolith*.
+- **Giải trình quyết định kiến trúc trong đồ án:**
+  1. **Tối ưu nguồn lực & Giản lược hạ tầng:** Trong phạm vi đồ án tốt nghiệp, việc sử dụng **Shared Database (Central Store)** giúp giảm độ phức tạp trong quản lý giao dịch liên dịch vụ (tránh phải triển khai Distributed Transactions / Saga Pattern phức tạp) và đơn giản hóa môi trường triển khai.
+  2. **Đảm bảo tính nhất quán dữ liệu (ACID):** Dữ liệu ca thi, thí sinh và đề thi có quan hệ ràng buộc chặt chẽ với nhau. Dùng chung MySQL DB giúp tận dụng cơ chế giao dịch ACID của RDBMS.
+  3. **Khả năng mở rộng tương lai:** Mặc dù dùng chung CSDL vật lý, nhưng lớp truy vấn dữ liệu trong code Backend (FastAPI + SQLAlchemy Async) đã được bóc tách theo từng Bounded Context rõ ràng. Khi hệ thống cần mở rộng thực tế, việc tách DB vật lý cho từng Service (đặc biệt là Auth Service và Analytics Service) hoàn toàn dễ dàng thực hiện.
+
+---
+
+### 2️⃣ Câu 2 (Về Giao tiếp Synchronous HTTP REST vs Asynchronous Message Broker):
+
+> **Giáo viên hỏi:** *"Anh/Chị thấy Analytics Service gọi trực tiếp sang QuanLyThi Service và Exam Service qua HTTP REST (HTTPX). Tại sao không dùng Message Broker (như RabbitMQ / Kafka) để truyền dữ liệu bất đồng bộ mà lại dùng HTTP REST trực tiếp?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **So sánh 2 mô hình:**
+  - **HTTP REST (Synchronous):** Giao tiếp đồng bộ/bất đồng bộ trực tiếp qua HTTP. Dễ triển khai, truy vấn lấy dữ liệu thời gian thực (Real-time aggregation) ngay lập tức. Nhược điểm: Phụ thuộc tính sẵn sàng của service đích, nguy cơ tăng latency tích tụ nếu chuỗi gọi API dài.
+  - **Message Broker (Asynchronous Event-Driven):** Giao tiếp qua Hàng chờ tin nhắn. Giảm gánh nặng kết nối trực tiếp, độ chịu lỗi cao. Nhược điểm: Phức tạp trong hạ tầng, dữ liệu mang tính *Eventual Consistency* (nhất quán sau một khoảng thời gian).
+- **Lý do lựa chọn trong đồ án:**
+  - `Analytics Service` cần tổng hợp số liệu báo cáo thời gian thực khi Admin mở trang Dashboard. Việc dùng thư viện bất đồng bộ `httpx` (Async HTTP) cho phép gửi các request truy vấn song song (Parallel Requests) cực nhanh mà không làm nghẽn Event Loop.
+  - Với tải trọng hiện tại của hệ thống, HTTP REST qua `httpx` hoàn toàn đáp ứng được hiệu năng mà không tốn chi phí vận hành thêm một hạ tầng Message Broker phức tạp như RabbitMQ hay Kafka. Trong định hướng nâng cấp khi scale hệ thống lớn hơn, phần Analytics sẽ được chuyển sang mô hình Event-Driven.
+
+---
+
+### 3️⃣ Câu 3 (Về Vai trò của API Gateway Layer):
+
+> **Giáo viên hỏi:** *"FastAPI API Gateway (Port 8000) đóng vai trò gì ngoài việc định tuyến (Routing) sang các port 8001 - 8005? Em có triển khai xác thực (Authentication) hay Rate Limiting tại Gateway không?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Các chức năng cốt lõi của API Gateway Layer trong hệ thống:**
+  1. **Định tuyến tập trung (Centralized Routing):** Nhận tất cả request từ Client (ReactJS) tại Port 8000 và điều hướng chính xác đến từng Microservice phía sau (`/auth/*` -> Auth Service 8004, `/exams/*` -> Exam Service 8001, `/ai/*` -> AI Service 8002...).
+  2. **Xác thực và Giải mã Token (Authentication Gateway):** API Gateway đóng vai trò lớp bảo vệ vòng ngoài. Khi request gửi lên kèm Bearer Token, Gateway thực hiện kiểm tra tính hợp lệ (Verify Signature) của JWT. Nếu token hợp lệ, Gateway giải mã thông tin User (`user_id`, `role`) và forward header xuống các service nội bộ.
+  3. **Cấu hình CORS & Security Headers tập trung:** Quản lý chia sẻ tài nguyên cross-origin (CORS) tại một nơi duy nhất thay vì phải cấu hình rải rác trên từng microservice.
+  4. **Tách biệt hạ tầng nội bộ:** Giúp giấu toàn bộ danh sách port nội bộ (8001-8005) của các microservice phía sau Firewall, Client chỉ giao tiếp qua cổng 8000.
+
+---
+
+### 4️⃣ Câu 4 (Về Tích hợp AI Service & Xử lý Chịu lỗi với Gemini API):
+
+> **Giáo viên hỏi:** *"AI Service gọi sang Google Gemini API thông qua google-genai SDK. Nếu Gemini API bị chậm (latency cao), nghẽn mạng hoặc vượt hạn ngạch (Rate Limit 429), hệ thống của em sẽ xử lý thế nào để không làm treo Exam Service?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Cơ chế Fault Tolerance & Resilience khi tích hợp AI bên thứ 3:**
+  1. **Giao tiếp Non-blocking Async:** Trong `AI Service`, các lời gọi API tới Gemini được bọc trong hàm bất đồng bộ (Async I/O), đảm bảo không làm khóa thread xử lý của FastAPI.
+  2. **Cấu hình Timeout chặt chẽ:** Thiết lập thời gian chờ tối đa (ví dụ 15-30 giây) cho các request sinh đề/câu hỏi bằng AI. Nếu quá thời gian này, hệ thống sẽ ngắt kết nối (Timeout Exception) thay vì treo vô thời hạn.
+  3. **Xử lý Exception & Retry Mechanism:**
+     - Nếu gặp lỗi Rate Limit (HTTP 429) hoặc lỗi tạm thời từ Google Server (HTTP 503), hệ thống áp dụng chiến lược **Exponential Backoff Retry** (thử lại sau 2s, 4s, 8s).
+     - Nếu retry quá số lần cho phép, AI Service trả về Error Code rõ ràng cho Exam Service để hiển thị thông báo thân thiện cho giáo viên: *"Hệ thống AI hiện đang bận, vui lòng thử lại sau ít phút"*.
+  4. **Caching kết quả AI:** Các đề thi/câu hỏi đã được AI sinh thành công sẽ được lưu vết ngay vào DB/Cache, tránh việc gọi lại Gemini API cho các nội dung trùng lặp.
+
+---
+
+### 5️⃣ Câu 5 (Về Phân chia Bounded Context giữa QuanLyThi Service và Exam Service):
+
+> **Giáo viên hỏi:** *"Ranh giới nghiệp vụ (Bounded Context) giữa QuanLyThi Service (Port 8005) và Exam Service (Port 8001) khác nhau như thế nào mà em lại tách thành 2 service riêng biệt?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Phân định Ranh giới Nghiệp vụ (Domain Driven Design - DDD):**
+  - **`QuanLyThi Service` (Management Context):** Phụ trách các tác vụ **quản trị hành chính ca thi**. Bao gồm: Tạo/chỉnh sửa ca thi, phân công giám thị, danh sách thí sinh dự thi, phòng thi, thời gian bắt đầu/kết thúc ca thi, trạng thái ca thi (Chờ thi, Đang thi, Đã kết thúc).
+  - **`Exam Service` (Core Exam Context):** Phụ trách các tác vụ **lõi của đề thi và quá trình thi**. Bao gồm: Quản lý ngân hàng câu hỏi, sinh đề thi hoán vị, nhận bài làm của thí sinh, đếm ngược thời gian thi, tính điểm tự động (Auto-grading) và lưu trữ lịch sử chọn đáp án của từng câu hỏi.
+- **Lý do tách biệt:** Đảm bảo nguyên tắc Single Responsibility. Quá trình tổ chức ca thi (hành chính) không làm ảnh hưởng đến hiệu năng của Server làm bài thi (lõi). Khi diễn ra ca thi lớn, ta có thể scale riêng `Exam Service` lên nhiều instance mà không cần scale `QuanLyThi Service`.
+
+---
+
+### 6️⃣ Câu 6 (Về Hiệu năng Async I/O với FastAPI và aiomysql):
+
+> **Giáo viên hỏi:** *"Tại sao em chọn FastAPI và thư viện SQLAlchemy (aiomysql) cho tất cả các Microservice Backend? Việc dùng Async I/O mang lại lợi ích gì vượt trội?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Lợi ích của Async I/O (FastAPI + aiomysql):**
+  1. **Non-blocking I/O Architecture:** Các ứng dụng Web quản lý thi có tỷ lệ tác vụ I/O-bound rất cao (đọc/ghi DB, nhận request mạng). Khi một request đang chờ MySQL trả về kết quả hoặc chờ Gemini API phản hồi, Event Loop của FastAPI lập tức chuyển sang xử lý các request khác thay vì đứng chờ (Blocking).
+  2. **Tối ưu tài nguyên RAM/CPU:** So với mô hình Thread-per-request truyền thống (như Django/Flask hoặc Tomcat), kiến trúc Async cho phép một single process phục vụ hàng ngàn kết nối đồng thời (Concurrency) với lượng tiêu thụ RAM cực thấp.
+  3. **aiomysql Driver:** Kết nối với MySQL theo cơ chế bất đồng bộ thuần túy, tích hợp Connection Pooling giúp quản lý hiệu quả các kết nối CSDL chung giữa các Microservices.
+
+---
+
+### 7️⃣ Câu 7 (Về Bảo mật API Key và Quản lý Biến môi trường):
+
+> **Giáo viên hỏi:** *"API Key của Google Gemini và các chuỗi kết nối Database được quản lý và bảo mật như thế nào trong các Microservices?"*
+
+#### 💡 Câu trả lời chi tiết:
+
+- **Cơ chế quản lý bí mật (Secrets Management):**
+  1. **Tuyệt đối không Hardcode trong Code:** Không bao giờ lưu API Key hay DB Password trực tiếp trong file mã nguồn Python hay Git repository.
+  2. **Sử dụng Environment Variables (`.env`):** Mỗi Microservice quản lý cấu hình qua file `.env` riêng biệt (được khai báo trong `.gitignore`).
+  3. **Pydantic BaseSettings / SecretStr:** Sử dụng thư viện `pydantic-settings` của FastAPI để parse và validate các biến môi trường khi ứng dụng khởi chạy. Các thông tin nhạy cảm như `GEMINI_API_KEY`, `JWT_SECRET_KEY`, `DATABASE_URL` được định nghĩa dưới dạng `SecretStr` để tránh bị in ngẫu nhiên ra log hệ thống.
+  4. **Triển khai Production:** Trên môi trường Docker/K8s hoặc VPS, các biến này được inject trực tiếp thông qua Docker Environment Variables hoặc Secret Management Tool (như HashiCorp Vault / AWS Secrets Manager).
+
+---
