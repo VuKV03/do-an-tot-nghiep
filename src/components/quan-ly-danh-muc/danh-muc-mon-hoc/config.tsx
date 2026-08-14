@@ -548,7 +548,7 @@ export default function CauHinhMonHocModal({
               <section>
                 <div className='flex items-center justify-between mb-3'>
                   <h3 className='text-sm font-semibold text-gray-800 uppercase tracking-wide'>
-                    Cấu trúc môn học và cách tính điểm{' '}
+                    Cấu trúc đề thi và cách tính điểm{' '}
                     <span className='text-red-500'>*</span>
                   </h3>
                   <div className='flex items-center gap-2'>
