@@ -262,7 +262,7 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
 @router.post("/generate")
 async def generate_questions(body: GenerateQuestionsRequest):
     """Tạo sinh gói câu hỏi bằng AI (trắc nghiệm / đúng-sai / trả lời ngắn)."""
-    q_count = max(1, min(body.count or 5, 15))
+    q_count = max(1, min(body.count or 5, 50))
     question_type = (body.type or "single").strip()
     try:
         system_instruction, prompt = _build_generation_prompt(body, q_count)
