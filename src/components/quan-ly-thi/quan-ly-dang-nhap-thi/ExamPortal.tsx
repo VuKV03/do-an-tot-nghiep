@@ -387,12 +387,15 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   if (viewMode === 'waiting') {
     return (
       <div className="flex flex-col min-h-screen w-full bg-[#f4f6f9] items-center justify-center py-6 sm:py-12 px-4 font-sans">
-        <h1 className="text-xl sm:text-[28px] text-slate-800 uppercase mb-2 sm:mb-3 font-bold tracking-wide text-center">
+
+        {/* <h1 className="text-xl sm:text-[28px] text-slate-800 uppercase mb-2 sm:mb-3 font-bold tracking-wide text-center">
           {sessionInfo.exam?.name ? sessionInfo.exam.name.toUpperCase() : `KỲ THI MÔN ${sessionInfo.exam?.subject || 'TRỰC TUYẾN'}`}
-        </h1>
-        <p className="text-slate-600 mb-6 sm:mb-12 text-xs sm:text-[15px] text-center">
+        </h1> */}
+        {/* Cỡ chữ do đúng 2 class text-base/sm:text-xl quyết định — thẻ <h1> không tự mang cỡ chữ nào
+            (Tailwind Preflight reset heading về font-size: inherit), đổi tag không ảnh hưởng gì. */}
+        <h1 className="text-slate-600 font-semibold mb-6 sm:mb-12 text-base sm:text-xl text-center">
           Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
-        </p>
+        </h1>
 
         <div className="flex flex-col md:flex-row gap-4 sm:gap-6 max-w-[960px] w-full mb-6 sm:mb-10">
           <div className="flex-1 bg-white p-5 sm:p-8 rounded-xl sm:rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
