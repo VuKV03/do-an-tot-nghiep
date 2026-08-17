@@ -1,6 +1,8 @@
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status
 # pyrefly: ignore [missing-import]
+from fastapi.encoders import jsonable_encoder
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import]
 from sqlalchemy import select
@@ -43,6 +45,11 @@ async def login_candidate(credentials: schemas.LoginRequest, db: AsyncSession = 
     }
 
 from backend.exam_service import models as exam_models
+# Dùng lại NGUYÊN hàm tính "điểm tối đa" thật của 1 đề (ưu tiên matrix.totalScore, rồi tới Σ điểm từng
+# câu theo Cấu hình môn học, cuối cùng mới tới scale/mặc định 10) — PHẢI khớp đúng con số đang hiển thị
+# ở tab "Quản lý đề gốc" (exams.py::_build_exam_response), tránh viết lại 1 công thức khác dễ lệch nhau
+# như bản cũ ở đây (chỉ lấy scale, bỏ qua matrix/câu hỏi thật — sai với đề không đúng bằng scale chung).
+from backend.exam_service.routes.exams import _get_matrix_name_and_score
 import random
 import uuid
 
@@ -285,9 +292,17 @@ async def get_exam_info(candidate_id: str, subject: str, db: AsyncSession = Depe
             "correct_answer": q.correct_answer,
             "line_number": q.line_number
         })
-            
+
+    # Nhúng thêm "maxScore" (điểm tối đa thật của đề) vào object exam trả về — Exam model không có sẵn
+    # cột này (điểm tối đa vốn không lưu trực tiếp trên exams, chỉ suy ra được qua Cấu hình môn học/ma
+    # trận — xem exams.py), nên phải tự tính rồi gắn thêm trước khi trả JSON, thay vì để FE tự hardcode
+    # "10" như trước (ExamPortal.tsx: màn "Chờ vào thi" > "Điểm tối đa").
+    _, max_score = await _get_matrix_name_and_score(db, exam, [row.Question for row in questions_rows])
+    exam_dict = jsonable_encoder(exam)
+    exam_dict["maxScore"] = max_score
+
     return {
-        "exam": exam,
+        "exam": exam_dict,
         "questions": questions_list,
         "result_info": {
             "id": exam_result.id,
@@ -332,7 +347,12 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
     total_correct = 0
     total_questions = 0
     detailed_results = []
-    
+    max_score = 10.0
+    # Điểm đạt được / điểm tối đa của TỪNG Phần I/II/III — khởi tạo rỗng ở đây (thay vì chỉ trong
+    # nhánh có exam_id bên dưới) để luôn có giá trị hợp lệ đưa vào res_data dù đề không gắn exam_id.
+    part_score: dict[str, float] = {"p1": 0.0, "p2": 0.0, "p3": 0.0}
+    part_max: dict[str, float] = {"p1": 0.0, "p2": 0.0, "p3": 0.0}
+
     if exam_result.exam_id:
         # Find subject config
         subject_cat_result = await db.execute(
@@ -342,10 +362,13 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         
         config = None
         if subject_cat:
+            # .limit(1) + .scalars().first() — subject_configs.subject_id KHÔNG có ràng buộc unique,
+            # scalar_one_or_none() có thể raise MultipleResultsFound nếu khớp hơn 1 dòng (cùng lớp lỗi
+            # đã sửa ở exams.py::_get_matrix_name_and_score).
             config_result = await db.execute(
-                select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id)
+                select(exam_models.SubjectConfig).where(exam_models.SubjectConfig.subject_id == subject_cat.id).limit(1)
             )
-            config = config_result.scalar_one_or_none()
+            config = config_result.scalars().first()
             
         q_result = await db.execute(
             select(exam_models.Question, exam_models.QuestionType)
@@ -384,13 +407,46 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     res[m.group(1)] = m.group(2).lower()
             return res
 
+        # Điểm đạt được / điểm tối đa của TỪNG Phần I/II/III — để màn "Kết quả thi" hiện điểm theo
+        # từng Phần, đồng bộ với cách ExamContentDisplay.tsx/CreateMatrixForm.tsx/config.tsx đã hiện
+        # thông tin theo từng Phần ở các tab quản trị (trước đây chỉ có tổng điểm chung chung).
         for row in questions_rows:
             q = row.Question
             q_type = row.QuestionType
-            
+
             user_ans = answers_dict.get(str(q.id))
             type_code = q_type.code.upper() if q_type and q_type.code else ""
-            
+
+            part = None
+            if config:
+                if q.type_id == config.type_id_p1:
+                    part = "p1"
+                elif q.type_id == config.type_id_p2:
+                    part = "p2"
+                elif q.type_id == config.type_id_p3:
+                    part = "p3"
+
+            is_ds = type_code in ["DS", "TRUE_FALSE"]
+            is_short_answer = type_code in ["TLN", "SHORT_ANSWER"] or (q_type and "ngắn" in q_type.name.lower())
+
+            # Cộng dồn điểm TỐI ĐA của câu này vào đúng Phần — bất kể thí sinh có trả lời/trả lời đúng
+            # hay không, để mẫu số "X/Y điểm" của từng Phần phản ánh đúng tổng điểm có thể đạt của Phần
+            # đó (khớp cách config.tsx::computeMaxTotalScore tính điểm tối đa theo Cấu hình môn học).
+            if part and config:
+                if is_ds:
+                    max_val = {
+                        "p1": config.points_for_4_correct_idea_p1,
+                        "p2": config.points_for_4_correct_idea_p2,
+                        "p3": config.points_for_4_correct_idea_p3,
+                    }[part]
+                else:
+                    max_val = {
+                        "p1": config.points_for_a_correct_answers_p1,
+                        "p2": config.points_for_a_correct_answers_p2,
+                        "p3": config.points_for_a_correct_answers_p3,
+                    }[part]
+                part_max[part] += float(max_val) if max_val is not None else 0.0
+
             if not user_ans or not q.correct_answer:
                 detailed_results.append({
                     "question_id": q.id,
@@ -400,19 +456,7 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     "type_code": type_code
                 })
                 continue
-                
-            part = None
-            if config:
-                if q.type_id == config.type_id_p1:
-                    part = "p1"
-                elif q.type_id == config.type_id_p2:
-                    part = "p2"
-                elif q.type_id == config.type_id_p3:
-                    part = "p3"
-            
-            is_ds = type_code in ["DS", "TRUE_FALSE"]
-            is_short_answer = type_code in ["TLN", "SHORT_ANSWER"] or (q_type and "ngắn" in q_type.name.lower())
-            
+
             q_detailed_result = {
                 "question_id": q.id,
                 "user_answer": str(user_ans),
@@ -456,7 +500,9 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     points = match_count * 0.25 
                 
                 total_score += points
-                
+                if part:
+                    part_score[part] += points
+
             elif is_short_answer:
                 u_ans = clean_html(user_ans).lower()
                 c_ans = clean_html(q.correct_answer).lower()
@@ -464,11 +510,15 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     total_correct += 1
                     q_detailed_result["is_correct"] = True
                     if config:
-                        if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
-                        elif part == "p2": total_score += float(config.points_for_a_correct_answers_p2 or 0)
-                        elif part == "p3": total_score += float(config.points_for_a_correct_answers_p3 or 0)
+                        earned = 0.0
+                        if part == "p1": earned = float(config.points_for_a_correct_answers_p1 or 0)
+                        elif part == "p2": earned = float(config.points_for_a_correct_answers_p2 or 0)
+                        elif part == "p3": earned = float(config.points_for_a_correct_answers_p3 or 0)
+                        total_score += earned
+                        if part:
+                            part_score[part] += earned
                     else:
-                        total_score += 1.0 
+                        total_score += 1.0
             else:
                 correct_letter = None
                 if q.options and q.correct_answer:
@@ -498,11 +548,15 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
                     q_detailed_result["is_correct"] = True
                     total_correct += 1
                     if config:
-                        if part == "p1": total_score += float(config.points_for_a_correct_answers_p1 or 0)
-                        elif part == "p2": total_score += float(config.points_for_a_correct_answers_p2 or 0)
-                        elif part == "p3": total_score += float(config.points_for_a_correct_answers_p3 or 0)
+                        earned = 0.0
+                        if part == "p1": earned = float(config.points_for_a_correct_answers_p1 or 0)
+                        elif part == "p2": earned = float(config.points_for_a_correct_answers_p2 or 0)
+                        elif part == "p3": earned = float(config.points_for_a_correct_answers_p3 or 0)
+                        total_score += earned
+                        if part:
+                            part_score[part] += earned
                     else:
-                        total_score += 1.0 
+                        total_score += 1.0
 
             detailed_results.append(q_detailed_result)
 
@@ -510,6 +564,15 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
             exam_result.score = round(total_score, 2)
         else:
             exam_result.score = round((total_correct / total_questions) * 10, 2) if total_questions > 0 else 0
+
+        # Điểm tối đa THẬT của đề (ưu tiên matrix.totalScore, rồi Σ điểm từng câu theo Cấu hình môn
+        # học, cuối cùng mới scale/mặc định 10) — dùng lại ĐÚNG hàm exams.py đang dùng cho tab "Quản lý
+        # đề gốc", để "X / max_score" hiển thị cho thí sinh khớp 100% với điểm tối đa đã thấy ở đó
+        # (trước đây tự tính riêng chỉ theo `scale` chung của môn, sai với đề có điểm tối đa khác scale).
+        exam_row_result = await db.execute(select(exam_models.Exam).where(exam_models.Exam.id == exam_result.exam_id))
+        exam_row = exam_row_result.scalar_one_or_none()
+        if exam_row:
+            _, max_score = await _get_matrix_name_and_score(db, exam_row, [row.Question for row in questions_rows])
             
     exam_result.total_correct = total_correct
     exam_result.total_questions = total_questions
@@ -536,8 +599,14 @@ async def submit_final(result_id: str, payload: schemas.SubmitFinalRequest, db: 
         "submitted_at": exam_result.submitted_at,
         "is_show_result": is_show_result,
         "score": exam_result.score,
+        "max_score": max_score,
         "total_correct": exam_result.total_correct,
-        "total_questions": exam_result.total_questions
+        "total_questions": exam_result.total_questions,
+        # Điểm theo từng Phần I/II/III — chỉ có giá trị > 0 khi đề có exam_id + Cấu hình môn học khớp
+        # loại câu hỏi từng Phần (xem vòng lặp ở trên); luôn trả về (không gate theo is_show_result,
+        # giống "score" tổng) để FE tự quyết định ẩn/hiện khi tổng điểm tối đa các Phần bằng 0.
+        "part_scores": part_score,
+        "part_max_scores": part_max,
     }
     
     if is_show_result:

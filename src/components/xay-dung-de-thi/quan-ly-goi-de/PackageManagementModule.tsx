@@ -14,6 +14,7 @@ import {
   Popconfirm,
   Pagination,
   Tabs,
+  Radio,
 } from 'antd';
 import { toast } from '../../../utils/toast';
 import {
@@ -27,8 +28,6 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   EyeInvisibleOutlined,
-  LockOutlined,
-  UnlockOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import JSZip from 'jszip';
@@ -40,8 +39,10 @@ import { exportToExcel, type ExcelColumn } from '../../../utils/excelExport';
 import { hasActionPermission } from '../../../utils/permissionUtils';
 import { getUserSubjectFilter } from '../../../utils/subjectUtils';
 import { compareByPartAndLineNumber } from '../../../utils/examParts';
+import { fetchPartScoreConfig, toPartPointsMap, type PartScoreConfig } from '../../../utils/examPartScores';
 import ExamContentDisplay from '../quan-ly-de-goc/ExamContentDisplay';
 import ExportAnswerChoiceModal from '../../ExportAnswerChoiceModal';
+import { formatDateDMY } from '../../../utils/formatDate';
 
 const { RangePicker } = DatePicker;
 
@@ -79,12 +80,22 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
 
   // Trạng thái đang thao tác 1 gói đề cụ thể (per-row) — tránh 1 boolean chung khiến spinner
   // hiện sai hàng khi nhiều dòng bị thao tác liên tiếp (cho thi/tắt phát/xóa).
-  const [actioning, setActioning] = useState<{ id: string; kind: 'publish' | 'unpublish' | 'delete' | 'toggle_result' } | null>(null);
+  const [actioning, setActioning] = useState<{ id: string; kind: 'publish' | 'unpublish' | 'delete' } | null>(null);
+
+  // Gói đề đang chờ xác nhận "Cho thi" — popup yêu cầu chọn có cho xem đáp án sau khi nộp bài hay
+  // không NGAY LÚC phát thi (thay cho icon khoá/mở khoá riêng trước đây, gộp 2 thao tác cho thi +
+  // cấu hình hiển thị kết quả thành 1 bước duy nhất).
+  const [publishingPkg, setPublishingPkg] = useState<any | null>(null);
+  const [publishShowResult, setPublishShowResult] = useState(true);
 
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [viewPkg, setViewPkg] = useState<any | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewQuestionsByExamId, setViewQuestionsByExamId] = useState<Record<string, Question[]>>({});
+  // Cấu hình điểm/phần (Phần I/II/III) của môn học ứng với gói đang xem — tải 1 LẦN duy nhất cho cả
+  // gói (mọi đề trong 1 gói hoán vị luôn cùng môn), rồi áp lại cho từng tab/mã đề riêng (applyPartScores)
+  // khi render — null = môn chưa có Cấu hình môn học, ẩn hẳn khối điểm/phần thay vì hiện rỗng.
+  const [viewPartConfig, setViewPartConfig] = useState<PartScoreConfig[] | null>(null);
 
   // Đang chờ chọn "Có đáp án"/"Không đáp án" trước khi thực sự xuất file — dùng chung cho cả nút
   // "Tải xuống" cả gói (zip) lẫn "Tải xuống" từng đề riêng trong modal xem chi tiết gói.
@@ -210,15 +221,18 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     return currentRows.slice(start, start + pageSize);
   }, [currentRows, currentPage, pageSize]);
 
-  const handlePublishPackage = async (pkg: any) => {
+  const handlePublishPackage = async (pkg: any, showResult: boolean) => {
     setActioning({ id: pkg.id, kind: 'publish' });
     try {
       const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}/publish`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_show_result: showResult }),
       });
       const json = await res.json();
       if (json.success) {
         toast.success(json.message || `Đã cho thi gói đề "${pkg.name}".`);
+        setPublishingPkg(null);
         fetchData();
       } else {
         toast.error(json.detail || json.error || 'Lỗi khi cho thi gói đề.');
@@ -245,28 +259,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
       }
     } catch {
       toast.error('Lỗi kết nối khi tắt cho thi gói đề.');
-    } finally {
-      setActioning(null);
-    }
-  };
-
-  const handleToggleShowResult = async (pkg: any) => {
-    setActioning({ id: pkg.id, kind: 'toggle_result' });
-    try {
-      const res = await fetch(`${API_ORIGIN}/api/exams/packages/${pkg.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_show_result: !pkg.is_show_result }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(`Đã ${!pkg.is_show_result ? 'bật' : 'tắt'} hiển thị kết quả cho gói đề "${pkg.name}".`);
-        fetchData();
-      } else {
-        toast.error(json.error || 'Lỗi khi cập nhật trạng thái hiển thị kết quả.');
-      }
-    } catch {
-      toast.error('Lỗi kết nối khi cập nhật trạng thái hiển thị kết quả.');
     } finally {
       setActioning(null);
     }
@@ -355,7 +347,12 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     }
     toast.loading({ content: `Đang chuẩn bị tải gói đề ${pkg.code}...`, key: 'pkg-dl' });
     try {
-      const res = await bankQuestionApi.list();
+      const firstExam = examsById.get(examIds[0]);
+      const [res, partConfig] = await Promise.all([
+        bankQuestionApi.list(),
+        firstExam ? fetchPartScoreConfig(firstExam.subject) : Promise.resolve(null),
+      ]);
+      const partPoints = toPartPointsMap(partConfig);
       const allQuestions = res.data || [];
       const zip = new JSZip();
       await Promise.all(examIds.map(async (examId) => {
@@ -371,7 +368,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
             lineNumber: q.lineNumber,
           }))
           .sort(compareByPartAndLineNumber);
-        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
+        const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.code, qs, exam.duration || 90, includeAnswers, partPoints);
         zip.file(`${exam.code}.docx`, blob);
       }));
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -392,8 +389,13 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     setViewPkg(pkg);
     setIsViewOpen(true);
     setViewLoading(true);
+    setViewPartConfig(null);
     try {
-      const res = await bankQuestionApi.list();
+      const firstExam = examsById.get((pkg.examIds || [])[0]);
+      const [res, partConfig] = await Promise.all([
+        bankQuestionApi.list(),
+        firstExam ? fetchPartScoreConfig(firstExam.subject) : Promise.resolve(null),
+      ]);
       const allQuestions = res.data || [];
       const map: Record<string, Question[]> = {};
       (pkg.examIds || []).forEach((examId: string) => {
@@ -409,6 +411,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
           .sort(compareByPartAndLineNumber);
       });
       setViewQuestionsByExamId(map);
+      setViewPartConfig(partConfig);
     } catch {
       toast.error('Không tải được nội dung các đề trong gói.');
     } finally {
@@ -420,10 +423,13 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     setIsViewOpen(false);
     setViewPkg(null);
     setViewQuestionsByExamId({});
+    setViewPartConfig(null);
   };
 
   const doDownloadSingleExam = async (exam: any, qs: Question[], includeAnswers: boolean) => {
-    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.grade, qs, exam.duration || 90, includeAnswers);
+    // viewPartConfig đã tải sẵn khi mở modal chi tiết gói (handleOpenView) — đề này chắc chắn cùng
+    // môn với gói đang xem nên dùng lại luôn, không cần gọi API lần nữa.
+    const blob = await buildExamDocxBlob(exam.name, exam.subject, exam.code, qs, exam.duration || 90, includeAnswers, toPartPointsMap(viewPartConfig));
     triggerBlobDownload(blob, exam.code, 'docx');
   };
   const handleDownloadSingleExam = (exam: any, qs: Question[]) =>
@@ -437,7 +443,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
     { header: 'Tổng số đề', accessor: row => row.examsCount || 0, width: 12, align: 'center' },
     { header: 'Số câu hỏi trong đề', accessor: row => getPackageStats(row).totalQuestions, width: 16, align: 'center' },
     { header: 'Thời gian làm bài (phút)', accessor: row => getPackageStats(row).duration, width: 18, align: 'center' },
-    { header: 'Ngày tạo', accessor: row => row.createdAt ? row.createdAt.slice(0, 10) : '', width: 14, align: 'center' },
+    { header: 'Ngày tạo', accessor: row => formatDateDMY(row.createdAt), width: 14, align: 'center' },
     { header: 'Trạng thái', accessor: row => getPackageStatusLabel(row.status), width: 16, align: 'center' },
   ];
 
@@ -505,6 +511,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                   size="small"
                   className="w-full"
                   placeholder={['Bắt đầu', 'Kết thúc']}
+                  format="DD-MM-YYYY"
                   value={dateRange}
                   onChange={v => setDateRange(v as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
                 />
@@ -615,24 +622,22 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                       <td className="py-2.5 px-3 text-center font-bold text-[11px]">{row.examsCount || 0}</td>
                       <td className="py-2.5 px-3 text-center text-[11px]">{stats.totalQuestions}</td>
                       <td className="py-2.5 px-3 text-center font-semibold text-[11px]">{stats.duration}</td>
-                      <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{row.createdAt ? row.createdAt.slice(0, 10) : ''}</td>
+                      <td className="py-2.5 px-3 text-center text-[10px] text-slate-500">{formatDateDMY(row.createdAt)}</td>
                       <td className="py-2.5 px-3 text-center">{getPackageStatusTag(row.status)}</td>
                       <td className="py-2.5 px-3 text-center">
                         <Space size={2}>
                           {row.status !== 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
-                            <Popconfirm
-                              title={`Cho thi gói đề "${row.name}"?`}
-                              okText="Cho thi" cancelText="Hủy"
-                              onConfirm={() => handlePublishPackage(row)}
-                            >
-                              <Tooltip title="Cho thi">
-                                <Button
-                                  size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer"
-                                  loading={actioning?.id === row.id && actioning.kind === 'publish'}
-                                  disabled={actioning !== null && actioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
+                            <Tooltip title="Cho thi">
+                              <Button
+                                size="small" type="text" icon={<PlayCircleOutlined className="text-green-600" />} className="cursor-pointer"
+                                loading={actioning?.id === row.id && actioning.kind === 'publish'}
+                                disabled={actioning !== null && actioning.id !== row.id}
+                                onClick={() => {
+                                  setPublishShowResult(row.is_show_result ?? true);
+                                  setPublishingPkg(row);
+                                }}
+                              />
+                            </Tooltip>
                           )}
                           {row.status === 'active' && hasActionPermission(currentUser, 'exams.test_run') && (
                             <Popconfirm
@@ -653,24 +658,6 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                             <Button size="small" type="text" icon={<EyeOutlined className="text-[#2c3e9e]" />}
                               onClick={() => handleOpenView(row)} className="cursor-pointer" />
                           </Tooltip>
-                          {hasActionPermission(currentUser, 'exams.manage') && (
-                            <Popconfirm
-                              title={`Bạn muốn ${row.is_show_result ? 'ẩn' : 'hiển thị'} kết quả cho học sinh?`}
-                              okText="Đồng ý" cancelText="Hủy"
-                              onConfirm={() => handleToggleShowResult(row)}
-                            >
-                              <Tooltip title={row.is_show_result ? "Đang cho xem kết quả bài làm (Nhấn để ẩn)" : "Đang ẩn kết quả bài làm (Nhấn để cho xem)"}>
-                                <Button
-                                  size="small"
-                                  type="text"
-                                  icon={row.is_show_result ? <UnlockOutlined className="text-green-600" /> : <LockOutlined className="text-red-500" />}
-                                  className="cursor-pointer"
-                                  loading={actioning?.id === row.id && actioning.kind === 'toggle_result'}
-                                  disabled={actioning !== null && actioning.id !== row.id}
-                                />
-                              </Tooltip>
-                            </Popconfirm>
-                          )}
                           {hasActionPermission(currentUser, 'exams.export') && (
                             <Tooltip title="Tải gói đề thi">
                               <Button size="small" type="text" icon={<DownloadOutlined className="text-[#2c3e9e]" />}
@@ -761,7 +748,7 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
                           )}
                         </div>
                         <div className="border border-slate-200 rounded p-2">
-                          <ExamContentDisplay questions={qs} allowEdit={false} />
+                          <ExamContentDisplay questions={qs} allowEdit={false} partPoints={toPartPointsMap(viewPartConfig)} />
                         </div>
                       </div>
                     ),
@@ -783,6 +770,47 @@ export default function PackageManagementModule({ currentUser }: PackageManageme
         }}
         targetLabel={pendingExport?.label}
       />
+
+      {/* Popup xác nhận "Cho thi" — gộp luôn lựa chọn có cho xem đáp án sau khi nộp bài hay không,
+          thay cho icon khoá/mở khoá riêng trước đây (PackageUpdate PUT is_show_result đổi lúc nào
+          cũng được, nay chỉ còn hỏi đúng lúc phát thi cho gọn thao tác). */}
+      <Modal
+        title={<span className="font-extrabold uppercase text-[12px] text-slate-800">Cho thi gói đề</span>}
+        open={publishingPkg !== null}
+        onCancel={() => setPublishingPkg(null)}
+        centered
+        footer={[
+          <Button key="cancel" onClick={() => setPublishingPkg(null)} className="rounded font-semibold text-xs">
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            loading={actioning?.id === publishingPkg?.id && actioning?.kind === 'publish'}
+            onClick={() => publishingPkg && handlePublishPackage(publishingPkg, publishShowResult)}
+            className="bg-[#2c3e9e] border-transparent rounded font-semibold text-xs"
+          >
+            Cho thi
+          </Button>,
+        ]}
+      >
+        {publishingPkg && (
+          <div className="pt-1 text-xs">
+            <div className="text-slate-600 mb-3">
+              Bạn muốn cho thi gói đề <strong>{publishingPkg.name}</strong> ({publishingPkg.code})?
+            </div>
+            <div className="text-xs font-semibold text-slate-700 mb-2">Cho xem đáp án sau khi nộp bài</div>
+            <Radio.Group
+              value={publishShowResult}
+              onChange={(e) => setPublishShowResult(e.target.value)}
+              className="text-xs"
+            >
+              <Radio value={true}>Có</Radio>
+              <Radio value={false}>Không</Radio>
+            </Radio.Group>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

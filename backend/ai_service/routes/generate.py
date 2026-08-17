@@ -16,16 +16,13 @@ from backend.shared.config import service_config
 
 router = APIRouter(tags=["AI Generation"])
 
-# Gán cố định 1 key/loại câu hỏi (~Phần I/II/III của đề THPT) để nhiều phiên "Theo AI" chạy song
-# song theo loại không dồn hết vào cùng 1 key — xem _ordered_api_keys() trong gemini_client.py.
+# Ánh xạ loại câu hỏi
 _KEY_INDEX_BY_TYPE = {"single": 0, "true_false": 1, "short": 2}
 
-# Giới hạn an toàn tổng số câu/lần gọi gộp nhiều nhóm (/generate-batch) — frontend tự chia nhóm ở
-# ngưỡng thấp hơn (10), đây chỉ là chặn lạm dụng phía server.
+# Số câu max mỗi lần gọi
 _MAX_BATCH_TOTAL = 20
 
-# Gemini chậm quá ngưỡng này (giây) thì bỏ chờ, chuyển sang bốc tạm từ Ngân hàng câu hỏi thay vì
-# để người dùng chờ vô thời hạn — xem _fallback_from_bank.
+# Số thời gian tối đa của 1 lần gọi
 _AI_TIMEOUT_SECONDS = 60.0
 
 # Nhãn tiếng Việt cho từng mức độ nhận thức gửi tới Gemini (endpoint /generate — 1 request = đúng 1 mức).
@@ -63,7 +60,7 @@ def _clean_ai_text(value: object) -> object:
     s = re.sub(r"[ \t]+", " ", s).strip()
     return s
 
-
+# Lọc lí tự các thẻ HTML và ký tự lạ
 def _clean_generated_questions(questions: list) -> list:
     """Làm sạch toàn bộ text/options/statements trong danh sách câu hỏi AI sinh ra."""
     cleaned = []
@@ -86,7 +83,7 @@ def _clean_generated_questions(questions: list) -> list:
         cleaned.append(q)
     return cleaned
 
-
+# Lọc câu trả lời ngắn, đảm bảo 1-4 ký tự
 def _is_valid_short_answer(q: dict) -> bool:
     """
     Đáp án Phần III (trả lời ngắn) BẮT BUỘC 1-4 ký tự theo đúng khung trả lời của đề thi tốt nghiệp
@@ -265,7 +262,7 @@ def _build_generation_prompt(body: GenerateQuestionsRequest, q_count: int) -> tu
 @router.post("/generate")
 async def generate_questions(body: GenerateQuestionsRequest):
     """Tạo sinh gói câu hỏi bằng AI (trắc nghiệm / đúng-sai / trả lời ngắn)."""
-    q_count = max(1, min(body.count or 5, 15))
+    q_count = max(1, min(body.count or 5, 50))
     question_type = (body.type or "single").strip()
     try:
         system_instruction, prompt = _build_generation_prompt(body, q_count)
@@ -314,7 +311,7 @@ async def generate_questions(body: GenerateQuestionsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi kết nối AI: {str(e)}")
 
-
+# Dựng prompt gửi Gemini
 def _build_batch_generation_prompt(body: GenerateQuestionsBatchRequest) -> tuple[str, str]:
     """
     Gộp nhiều NHÓM (mỗi nhóm = 1 cell ma trận: tiểu mục × mức độ) vào 1 lần gọi AI duy nhất — thay vì
@@ -394,6 +391,7 @@ def _build_batch_generation_prompt(body: GenerateQuestionsBatchRequest) -> tuple
     return system_instruction, prompt
 
 
+# Lấy câu bù từ ngân hàng câu hỏi
 async def _fallback_batch_from_bank(items: list[TopicGroupItem]) -> list[dict]:
     """Bốc bù cho TỪNG nhóm riêng (mỗi nhóm giữ đúng chủ đề/mức độ/năng lực của nó), rồi gắn lại
     'groupIndex' đúng vị trí trong `items` — khớp quy ước AI trả về ở _build_batch_generation_prompt."""
@@ -411,7 +409,7 @@ async def _fallback_batch_from_bank(items: list[TopicGroupItem]) -> list[dict]:
         fallback_questions.extend(picked)
     return fallback_questions
 
-
+# api ai, xử lý data khi ai trả về server
 @router.post("/generate-batch")
 async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
     """Sinh nhiều nhóm câu hỏi (khác tiểu mục/mức độ) trong 1 lần gọi AI duy nhất — xem
@@ -453,9 +451,10 @@ async def generate_questions_batch(body: GenerateQuestionsBatchRequest):
                 preferred_key_index=preferred_key_index,
             )
 
+        # Xử lý text thô, parse JSON
         data = json.loads(response_text.strip())
-        questions = _clean_generated_questions(data.get("questions", []))
-        questions = [q for q in questions if _is_valid_short_answer(q)]
+        questions = _clean_generated_questions(data.get("questions", [])) # Lọc lí tự các thẻ HTML và ký tự lạ
+        questions = [q for q in questions if _is_valid_short_answer(q)] # Lọc câu trả lời ngắn, đảm bảo 1-4 ký tự
         return {"success": True, "questions": questions}
 
     except HTTPException:

@@ -27,6 +27,15 @@ export function sanitizeHtml(html: string | undefined | null): string {
   return restoreFormulas(sanitized, store);
 }
 
+/** Có nội dung thật sự hay không — dùng để validate trước khi lưu (KHÁC stripHtmlToText().trim():
+ * một đáp án chỉ gồm ảnh (`<img>`, không có ký tự chữ nào) vẫn phải được coi là "đã nhập nội dung",
+ * nếu không hệ thống báo nhầm "chưa nhập nội dung" dù người dùng đã đính kèm ảnh làm đáp án. */
+export function hasContent(value: string | undefined | null): boolean {
+  if (!value) return false;
+  if (isLikelyHtml(value) && /<img\b/i.test(value)) return true;
+  return !!stripHtmlToText(value).trim();
+}
+
 /** Bóc toàn bộ tag HTML, chỉ giữ lại text thuần — dùng cho tìm kiếm theo từ khóa và các đoạn preview cắt ngắn */
 export function stripHtmlToText(value: string | undefined | null): string {
   if (!value) return '';

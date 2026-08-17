@@ -1,11 +1,9 @@
 import katex from 'katex';
 
-/** Class đánh dấu 1 công thức LaTeX đã chèn vào nội dung câu hỏi (RichTextEditor) */
+
 export const FORMULA_CLASS = 'qh-formula';
 
-/** Render LaTeX → HTML (KaTeX). Không throw khi cú pháp sai — hiện nguyên văn thay vì crash cả ô
- * soạn thảo. Màu chữ dùng "inherit" (không tô đỏ mặc định của KaTeX) để khớp màu chữ xung quanh —
- * giữ nguyên trải nghiệm soạn thảo bình thường thay vì gây chú ý như một cảnh báo lỗi. */
+
 export function renderLatexToHtml(latex: string): string {
   try {
     return katex.renderToString(latex, {
@@ -26,16 +24,10 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Zero-width space — "mỏ neo" text vô hình đặt ngay trước/sau khối contenteditable="false" (xem
- * buildFormulaHtml). Không có neo này, trình duyệt tính Range/Selection sát biên 1 khối non-editable
- * rất không ổn định — cụ thể: Backspace xoá ký tự ngay sau công thức LaTeX khiến con trỏ bị "rơi" về
- * cuối cả ô soạn thảo thay vì đứng đúng chỗ, vì trình duyệt không tìm được vị trí Text hợp lệ ngay sát
- * khối non-editable để đặt caret. Vô hình, không ảnh hưởng nội dung hiển thị hay khi xuất Word. */
+
 const ZWSP = String.fromCharCode(0x200b);
 
-/** Dựng thẻ HTML cho 1 công thức để chèn vào editor: khối không-chỉnh-sửa-trực-tiếp (giống 1 "ký tự"
- * đặc biệt), giữ nguyên mã LaTeX gốc trong data-latex để có thể mở lại chỉnh sửa sau này. Bọc thêm
- * ZWSP trước/sau — xem giải thích ở khai báo ZWSP. */
+
 export function buildFormulaHtml(latex: string): string {
   const encoded = encodeURIComponent(latex);
   const rendered = renderLatexToHtml(latex);
@@ -61,14 +53,7 @@ export function getFormulaLatex(el: HTMLElement): string {
   }
 }
 
-/**
- * "Bảo vệ" các công thức KaTeX trước khi lọc HTML (DOMPurify) — cấu trúc HTML nội bộ của KaTeX
- * (nhiều lớp span/svg lồng nhau, thuộc tính class/style dày đặc) sẽ bị bộ lọc HTML thông thường của
- * dự án cắt trụi vì không nằm trong danh sách thẻ/thuộc tính cho phép. Vì nội dung này hoàn toàn do
- * chính hàm renderLatexToHtml() ở trên sinh ra (không phải HTML người dùng gõ/dán trực tiếp), nên có
- * thể tạm thay mỗi công thức bằng 1 thẻ span rỗng đơn giản, cho DOMPurify xử lý phần còn lại của nội
- * dung như bình thường, rồi khôi phục lại HTML gốc của công thức sau khi lọc xong.
- */
+
 export function protectFormulas(html: string): { protectedHtml: string; store: Map<string, string> } {
   const store = new Map<string, string>();
   if (!html || !html.includes(FORMULA_CLASS)) return { protectedHtml: html, store };
@@ -104,11 +89,7 @@ export function restoreFormulas(sanitizedHtml: string, store: Map<string, string
   return doc.body.innerHTML;
 }
 
-/** Nhận diện công thức LaTeX có dấu phân cách rõ ràng trong văn bản dán vào (copy từ ChatGPT, tài
- * liệu LaTeX, web...): `$$...$$` (khối), `\[...\]` (khối), `\(...\)` (nội dòng), `$...$` (nội dòng),
- * hoặc cả 1 môi trường `\begin{...}...\end{...}` (ma trận, hệ phương trình...) dù không có dấu $ bao
- * ngoài. `$$...$$` được thử trước `$...$` trong danh sách để 1 khối `$$...$$` không bị tách nhầm
- * thành 2 công thức rỗng ở từng cặp `$$`. */
+
 const DELIMITED_FORMULA_PATTERN =
   /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\5\})|\$([^$\n]+?)\$/g;
 
@@ -122,8 +103,7 @@ const LATEX_COMMAND_PATTERN = /\\[a-zA-Z]+/;
 /** Cú pháp mũ/chỉ số kiểu mã nguồn: x^2, a_{i},... */
 const LATEX_SUPSUB_PATTERN = /[a-zA-Z0-9)\]}][\^_]\{?[a-zA-Z0-9\\]/;
 
-/** 1 dòng "trông giống" mã LaTeX gốc chưa có dấu phân cách — không dấu tiếng Việt, có lệnh LaTeX
- * hoặc cú pháp mũ/chỉ số. Dùng để tự convert cả khi người dùng dán thẳng công thức không bọc $...$. */
+
 function looksLikeRawLatex(segment: string): boolean {
   const trimmed = segment.trim();
   if (!trimmed) return false;
@@ -131,8 +111,7 @@ function looksLikeRawLatex(segment: string): boolean {
   return LATEX_COMMAND_PATTERN.test(trimmed) || LATEX_SUPSUB_PATTERN.test(trimmed);
 }
 
-/** Xử lý phần văn bản NẰM NGOÀI các khối có dấu phân cách — vẫn dò từng dòng xem có phải mã LaTeX
- * trần (không dấu $/\[.../\]) hay không, còn lại giữ nguyên dạng chữ thường. */
+
 function processPlainSegment(segment: string): string {
   return segment
     .split('\n')
@@ -140,9 +119,7 @@ function processPlainSegment(segment: string): string {
     .join('<br>');
 }
 
-/** Chuyển văn bản thuần dán vào thành HTML: đoạn nhận diện là LaTeX (có dấu phân cách hoặc trông
- * giống mã nguồn LaTeX trần) được render thành công thức toán học ngay, phần còn lại giữ nguyên
- * dạng chữ (đã escape để không lọt HTML lạ, giữ xuống dòng bằng <br>). */
+
 export function buildPastedHtml(text: string): { html: string; hasFormula: boolean } {
 
   const trimmedWhole = text.trim();
@@ -172,18 +149,9 @@ export function buildPastedHtml(text: string): { html: string; hasFormula: boole
   return { html, hasFormula: html.includes(FORMULA_CLASS) };
 }
 
-/** Khớp 1 MẢNH ký hiệu mũ/chỉ số kiểu mã nguồn nằm NGAY TRONG câu (vd: "...biểu thức x^2 - 3x...")
- * — base là 1 chuỗi chữ/số liền nhau hoặc dấu đóng ngoặc/ngoặc nhọn ngay trước, theo sau là ^/_ rồi
- * số mũ/chỉ số (có thể bọc {..} hoặc không, cho phép dấu - phía trước cho số mũ âm). Khác hẳn
- * looksLikeRawLatex/processPlainSegment ở trên (xét NGUYÊN 1 dòng, bỏ qua thẳng nếu dòng có dấu
- * tiếng Việt) — pattern này khớp ĐÚNG PHẦN ký hiệu toán, giữ nguyên chữ tiếng Việt xung quanh, nên
- * dùng được cho câu hỏi AI sinh (luôn là câu tiếng Việt có lẫn ký hiệu toán ngay trong câu, không
- * phải toàn bộ dòng là mã LaTeX như trường hợp dán từ ngoài vào). */
+
 const INLINE_SUPSUB_PATTERN = /([a-zA-Z0-9]+|[)\]}])([\^_])(\{[^{}]*\}|-?[a-zA-Z0-9]+)/g;
 
-/** Áp dụng INLINE_SUPSUB_PATTERN nhưng trả về mã LaTeX thuần (không dựng span công thức riêng) — dùng
- * để chuyển số mũ/chỉ số NẰM BÊN TRONG tử/mẫu của 1 phân số (vd "x^2/2") trước khi gộp cả phân số
- * thành 1 công thức \frac{}{} duy nhất, thay vì tách thành 2 công thức rời rạc không đúng thứ bậc. */
 function toLatexExpr(segment: string): string {
   return segment.replace(INLINE_SUPSUB_PATTERN, (_match, base: string, op: string, exp: string) => {
     const expContent = exp.startsWith('{') ? exp.slice(1, -1) : exp;
@@ -191,31 +159,15 @@ function toLatexExpr(segment: string): string {
   });
 }
 
-/** Khớp 1 phân số kiểu văn bản thuần "a/b" AI viết theo đúng yêu cầu ở _PLAIN_TEXT_RULES (backend
- * ai_service/routes/generate.py: "phân số viết dạng a/b") — cần chuyển thành \frac{}{} thật để hiện
- * dạng tử/mẫu xếp trên-dưới, thay vì để nguyên dấu "/" (dễ đọc nhầm thành phép chia thường). Mỗi vế
- * (tử/mẫu) chỉ khớp 1 trong 2 dạng: bọc ngoặc "(...)" (tín hiệu chắc chắn là biểu thức toán, cho phép
- * nội dung dài tuỳ ý — khớp đúng trường hợp báo lỗi "(e - 1)/2"), hoặc 1 token đơn giản NGẮN (số/biến,
- * tối đa 3 ký tự, có thể có dấu trừ đầu) — giới hạn ngắn để tránh khớp nhầm ngày tháng "07/31/2026"
- * hay các chuỗi số dài khác không phải phân số. */
+
 const FRACTION_SIDE = '\\([^()]+\\)|-?[a-zA-Zπ0-9]{1,3}';
-// 2 lookahead cuối: (?![a-zA-Z0-9]) bắt buộc vế mẫu phải khớp HẾT chuỗi số/chữ liền sau (không cho
-// engine "lùi" lại khớp ngắn hơn để né lookahead kế tiếp — nếu không "31" trong "31/2026" có thể bị
-// khớp thành "3" rồi bỏ sót "1"); (?!\/\d) mới là điều kiện thật sự chặn ngày tháng "dd/mm/yyyy".
+
 const FRACTION_PATTERN = new RegExp(`(?<![\\d/])(${FRACTION_SIDE})/(${FRACTION_SIDE})(?![a-zA-Z0-9])(?!/\\d)`, 'g');
 
 function stripParens(side: string): string {
   return side.startsWith('(') && side.endsWith(')') ? side.slice(1, -1).trim() : side;
 }
 
-/**
- * Chuyển các ký hiệu toán kiểu văn bản thuần còn sót lại trong nội dung do AI sinh (dù backend đã yêu
- * cầu AI không dùng LaTeX — xem _PLAIN_TEXT_RULES, AI vẫn viết mũ/chỉ số dạng "x^2"/"x_1" và phân số
- * dạng "a/b" thay vì công thức thật) thành công thức KaTeX thật. Xử lý phân số TRƯỚC số mũ/chỉ số —
- * numerator/denominator được gộp thành 1 \frac{}{} duy nhất (qua toLatexExpr) thay vì để lẫn 2 bước
- * tách rời làm sai thứ bậc hiển thị. Chỉ chuyển ĐÚNG phần khớp, giữ nguyên toàn bộ văn bản tiếng Việt
- * xung quanh.
- */
 export function convertAiPlainMathNotation(text: string): string {
   if (!text) return text;
   let result = text;
@@ -235,9 +187,7 @@ export function convertAiPlainMathNotation(text: string): string {
   return result;
 }
 
-/** Áp dụng convertAiPlainMathNotation cho toàn bộ các trường nội dung của 1 câu hỏi AI trả về (text,
- * options, correctAnswer, statements[].content) — gọi ngay khi nhận response từ AI, TRƯỚC khi build
- * thành Question, để câu hỏi đã ở dạng công thức thật ngay từ lúc lưu/hiển thị lần đầu. */
+// Chuẩn hóa công thức hoặc ký hiệu toán học (a/b, a^2, x^2, ...)
 export function convertAiQuestionMath<T extends {
   text?: string;
   options?: string[];

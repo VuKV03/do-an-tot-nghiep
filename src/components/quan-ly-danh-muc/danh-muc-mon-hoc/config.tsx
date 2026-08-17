@@ -468,7 +468,7 @@ export default function CauHinhMonHocModal({
         title={
           <div className='flex items-center gap-2'>
             <span className='text-xl font-semibold text-[#1e3a8a]'>
-              Cấu hình môn học
+              Cấu hình đề thi
             </span>
           </div>
         }
@@ -507,9 +507,6 @@ export default function CauHinhMonHocModal({
           <Form form={form} layout='vertical'>
             <div>
               <section className='mb-4'>
-                <h3 className='text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide'>
-                  Thông tin môn học
-                </h3>
                 <div className='grid grid-cols-4 gap-x-3 gap-y-3'>
                   <div className='col-span-4'>
                     <label className='block text-gray-600 text-sm font-medium mb-1'>
@@ -551,14 +548,14 @@ export default function CauHinhMonHocModal({
               <section>
                 <div className='flex items-center justify-between mb-3'>
                   <h3 className='text-sm font-semibold text-gray-800 uppercase tracking-wide'>
-                    Cấu trúc môn học và cách tính điểm{' '}
+                    Cấu trúc đề thi và cách tính điểm{' '}
                     <span className='text-red-500'>*</span>
                   </h3>
                   <div className='flex items-center gap-2'>
                     <span
                       className={`text-xs font-semibold px-2 py-1 rounded-full border ${isQuestionCountMismatch
-                          ? 'bg-red-50 text-red-600 border-red-200'
-                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                        ? 'bg-red-50 text-red-600 border-red-200'
+                        : 'bg-gray-50 text-gray-600 border-gray-200'
                         }`}
                     >
                       Tổng số câu: {totalQuestionCount}
@@ -566,8 +563,8 @@ export default function CauHinhMonHocModal({
                     </span>
                     <span
                       className={`text-xs font-semibold px-2 py-1 rounded-full border ${isOverScale
-                          ? 'bg-red-50 text-red-600 border-red-200'
-                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                        ? 'bg-red-50 text-red-600 border-red-200'
+                        : 'bg-gray-50 text-gray-600 border-gray-200'
                         }`}
                     >
                       Tổng điểm tối đa: {formatScore(maxTotalScore)}

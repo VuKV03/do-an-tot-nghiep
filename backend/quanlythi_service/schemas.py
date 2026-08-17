@@ -68,6 +68,10 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class StartExamRequest(BaseModel):
+    candidate_id: str
+    subject: str
+
 class SubmitDraftRequest(BaseModel):
     answers_json: str
 

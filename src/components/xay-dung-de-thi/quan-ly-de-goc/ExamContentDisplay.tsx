@@ -4,6 +4,7 @@ import { SwapOutlined, SearchOutlined, FileTextOutlined, EditOutlined } from '@a
 import { Question } from '../../../types';
 import { RichTextView } from '../../../utils/htmlContent';
 import { PART_META } from '../../../utils/examParts';
+import type { PartPointsInfo } from '../../../utils/examPartScores';
 
 interface ExamContentDisplayProps {
   questions: any[];
@@ -13,6 +14,12 @@ interface ExamContentDisplayProps {
   allowEdit?: boolean;
   /** Chỉ số câu đang được "Sinh lại" (không giới hạn số lượt) — dùng để hiện loading và khoá tạm các nút khác. */
   regeneratingIndex?: number | null;
+  /** Điểm của từng Phần (theo Cấu hình môn học — subject_configs), khoá bằng đúng `type` của PART_META
+   * ('single'/'true_false'/'short') — có thì hiện thêm ngay cạnh tiêu đề Phần: "(X đ/câu)" cho
+   * single/short, hoặc "(y1đ/1ý, y2đ/2ý, y3đ/3ý, y4đ/4ý)" cho true_false (Đúng/Sai chấm theo từng số
+   * ý đúng, không phải 1 mức cố định/câu). Không truyền hoặc thiếu type nào thì Phần đó chỉ hiện
+   * tiêu đề như cũ (không có gì để hiện). */
+  partPoints?: Partial<Record<string, PartPointsInfo>>;
 }
 
 function ExamContentDisplay({
@@ -22,6 +29,7 @@ function ExamContentDisplay({
   onEditQuestion,
   allowEdit = false,
   regeneratingIndex = null,
+  partPoints,
 }: ExamContentDisplayProps) {
   const getLevelTag = (level: string) => {
     switch (level) {
@@ -143,9 +151,14 @@ function ExamContentDisplay({
                       })}
                     </div>
                   )}
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex gap-1">
-                    <span className="shrink-0">Đáp án đúng:</span>
-                    <RichTextView html={String(subQ.correctAnswer ?? '')} className="text-emerald-600 font-bold inline" />
+                  {/* uppercase chỉ đặt trên nhãn "Đáp án đúng:" — đặt trên cả div (như trước) khiến
+                      NỘI DUNG đáp án thật (RichTextView, con của div) bị "ăn theo" text-transform:
+                      uppercase do kế thừa CSS, dù dữ liệu lưu trong DB vẫn đúng chữ hoa/thường gốc
+                      (vd "tam giác" hiển thị thành "TAM GIÁC"). normal-case chặn hẳn khả năng kế thừa
+                      từ bất kỳ ancestor nào khác trong tương lai. */}
+                  <div className="text-[10px] text-slate-400 font-bold tracking-wider flex gap-1">
+                    <span className="shrink-0 uppercase">Đáp án đúng:</span>
+                    <RichTextView html={String(subQ.correctAnswer ?? '')} className="text-emerald-600 font-bold inline normal-case" />
                   </div>
                 </div>
               ))}
@@ -177,11 +190,14 @@ function ExamContentDisplay({
 
           {/* Footer details */}
           {!isGroup && (
-            <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            // uppercase chỉ đặt trên nhãn "Đáp án chính xác:" — trước đây đặt trên div bao ngoài,
+            // khiến nội dung đáp án thật (RichTextView bên trong Tag) bị kế thừa text-transform:
+            // uppercase (vd "tam giác" hiển thị thành "TAM GIÁC" dù dữ liệu lưu đúng nguyên văn).
+            <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 tracking-wider">
               {/* <span>Hình thức: Trắc nghiệm khách quan</span> */}
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 uppercase">
                 Đáp án chính xác:
-                <Tag color="emerald" className="font-bold border-transparent m-0 py-0.5 px-1.5 rounded text-[10px]">
+                <Tag color="emerald" className="font-bold border-transparent m-0 py-0.5 px-1.5 rounded text-[10px] normal-case">
                   <RichTextView html={String(q.correctAnswer ?? '')} className="inline" />
                 </Tag>
               </span>
@@ -196,12 +212,26 @@ function ExamContentDisplay({
   // Gom theo idx GỐC (giữ nguyên để callback trỏ đúng phần tử), nhóm theo Phần I/II/III; loại nào
   // không khớp 3 loại AI hỗ trợ (vd 'multiple' — câu hỏi nhóm) dồn vào 1 mục phụ ở cuối, không mất.
   const withIndex = questions.map((q, idx) => ({ q, idx }));
-  const groups = PART_META.map(part => ({
-    header: part.header,
-    // "N" trong hướng dẫn gốc là placeholder — thay bằng đúng số câu THẬT của Phần này.
-    instruction: part.instruction.replace('N', String(withIndex.filter(({ q }) => q.type === part.type).length)),
-    items: withIndex.filter(({ q }) => q.type === part.type),
-  })).filter(g => g.items.length > 0);
+  const groups = PART_META.map(part => {
+    // Điểm của Phần này (nếu có truyền partPoints) — hiện ngay cạnh tiêu đề, thay vì phải tra ở 1
+    // bảng riêng. single/short: "(0,25 đ/câu)". true_false (Đúng/Sai): chấm theo từng SỐ Ý ĐÚNG, nên
+    // hiện đủ 4 mức "(0,1đ/1ý, 0,25đ/2ý, 0,5đ/3ý, 1đ/4ý)" thay vì gộp về 1 con số sai với cách chấm thật.
+    const info = partPoints?.[part.type];
+    let header = part.header;
+    if (info?.perIdea) {
+      const { y1, y2, y3, y4 } = info.perIdea;
+      const fmt = (v: number) => v.toLocaleString('vi-VN');
+      header = `${part.header} (${fmt(y1)}đ/ 1ý, ${fmt(y2)}đ/ 2ý, ${fmt(y3)}đ/ 3ý, ${fmt(y4)}đ/ 4ý)`;
+    } else if (info?.perQuestion != null) {
+      header = `${part.header} (${info.perQuestion.toLocaleString('vi-VN')} đ/câu)`;
+    }
+    return {
+      header,
+      // "N" trong hướng dẫn gốc là placeholder — thay bằng đúng số câu THẬT của Phần này.
+      instruction: part.instruction.replace('N', String(withIndex.filter(({ q }) => q.type === part.type).length)),
+      items: withIndex.filter(({ q }) => q.type === part.type),
+    };
+  }).filter(g => g.items.length > 0);
   const knownTypes = new Set(PART_META.map(p => p.type));
   const otherItems = withIndex.filter(({ q }) => !knownTypes.has(q.type));
   if (otherItems.length > 0) groups.push({ header: 'Câu hỏi khác', instruction: '', items: otherItems });

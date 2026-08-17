@@ -36,9 +36,6 @@ interface QuestionCountMaps {
 
 const EMPTY_COUNT_MAPS: QuestionCountMaps = { exact: new Map(), noCompetency: new Map() };
 
-// Câu hỏi chưa gắn "Thành phần năng lực" (competency_component_id = null trong ngân hàng câu hỏi
-// — hiện luồng thêm câu hỏi chưa hỗ trợ chọn năng lực) được cộng vào MỌI cột năng lực cùng
-// chủ đề/mức độ/loại câu hỏi thay vì bị loại vì không khớp cột nào.
 const sumQuestionCount = (
   maps: QuestionCountMaps,
   topicId: string, levelId: string | null, typeId: string | null, competencyId: string | null,
@@ -98,9 +95,6 @@ const buildTopicTree = (flatList: TopicAPI[]): ChuDeNode[] => {
 
 const toNum = (v: unknown): number => (v === null || v === undefined || v === '' ? 0 : Number(v) || 0);
 
-// Xây ds_loai_cau_hoi từ "Cấu hình môn học" (subject_configs: Phần I/II/III cố định), thay cho
-// suy luận cứng theo code TN/DS/TLN trước đây. Trả về ChuDeNode[] (cây chủ đề) đi kèm để dùng chung
-// cho cả changeMonHoc (Thêm mới) và loadDetail (Edit) — tránh lặp code.
 const fetchSubjectMatrixConfig = async (
   selectedSubj: { id: string; code: string },
 ): Promise<{ cd: CaiDatMaTran; chuDe: ChuDeNode[]; subjectConfig: SubjectConfigAPI | null }> => {
@@ -131,9 +125,6 @@ const fetchSubjectMatrixConfig = async (
     return { cd, chuDe, subjectConfig: null };
   }
 
-  // Mỗi phần tự quyết định cách tính điểm dựa trên loại câu hỏi đã chọn: loại có mã
-  // 'DS' (Đúng/Sai) tính theo số ý đúng (dùng mức 4 ý đúng làm điểm đại diện cho cả
-  // phần, giống cách tính cũ vốn chỉ áp dụng cho Phần II), các loại khác tính theo câu.
   const isDsCode = (code?: string) => (code ?? '').trim().toUpperCase() === 'DS';
 
   const buildPart = (
@@ -215,8 +206,6 @@ interface Props {
   onBack: () => void;
   editingId?: string;
   currentUser?: any;
-  /** Chỉ xem, không cho sửa — dùng cho nút "Xem chi tiết" ở MatrixConfigModule.tsx (khác hẳn Edit:
-   * vẫn tải đúng dữ liệu qua editingId nhưng khoá mọi input, ẩn cây chọn chủ đề + nút Lưu). */
   readOnly?: boolean;
 }
 
@@ -354,7 +343,7 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
       const rawList = res.data || [];
       const activeSubjects = rawList.filter((item: any) => item.is_active);
       const { filteredSubjects, defaultSubjectId, isRestricted } = getUserSubjectFilter(activeSubjects, currentUser);
-      
+
       setFullSubjects(rawList);
       // Dùng đúng id thật của môn học (subject_categories.id) làm giá trị dropdown — trước đây
       // dùng "code" ở đây, khiến giá trị gửi lên backend (mon_hoc_id) thực chất là 1 chuỗi code,
@@ -364,13 +353,13 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
         ten: item.name
       }));
       setMonHocList(list);
-      
+
       if (!editingId && isRestricted && list.length > 0) {
         // Gọi applyMonHoc(..., rawList) trực tiếp — KHÔNG dùng changeMonHoc(list[0].id) — vì
         // fullSubjects state (setFullSubjects(rawList) vừa gọi ở trên) chưa kịp cập nhật lúc này.
         applyMonHoc(list[0].id, rawList);
       }
-      
+
       loadDetail(rawList);
     }).catch(() => {
       toast.error('Lỗi khi tải danh sách môn học từ database.');
@@ -561,12 +550,33 @@ export default function CreateMatrixForm({ onBack, editingId, currentUser, readO
   // --- Save ---
   const handleSave = async () => {
     setAttemptedSave(true);
-    if (!monHocId) {  return; }
-    if (!maMatran.trim()) {  return; }
-    if (maMatran.length > MA_MAX_LENGTH) {  return; }
-    if (!tenMatran.trim()) {  return; }
-    if (tenMatran.length > TEN_MAX_LENGTH) {  return; }
-    if (obj.length === 0) {  return; }
+    if (!monHocId) { return; }
+    if (!maMatran.trim()) { return; }
+    if (maMatran.length > MA_MAX_LENGTH) { return; }
+    if (!tenMatran.trim()) { return; }
+    if (tenMatran.length > TEN_MAX_LENGTH) { return; }
+
+    // Bổ sung: ma trận phải khớp ĐÚNG (không thiếu, không thừa) với Cấu hình môn học (Số câu hỏi +
+    // số câu từng phần theo loại câu hỏi) — trước đây chỉ cảnh báo khi VƯỢT (isOverPhan), vẫn cho lưu
+    // khi thiếu câu. Vd cấu hình môn Toán 22 câu thì ma trận môn Toán bắt buộc phải đúng 22 câu.
+    if (subjectConfig?.questions_number != null && totalQuestions !== subjectConfig.questions_number) {
+      toast.error(
+        `Tổng số câu của ma trận (${totalQuestions}) phải đúng bằng Số câu hỏi theo Cấu hình môn học (${subjectConfig.questions_number} câu). Vui lòng điều chỉnh lại số câu cho khớp.`
+      );
+      return;
+    }
+    if (caiDat) {
+      for (const lch of caiDat.ds_loai_cau_hoi) {
+        const soCauNhap = soCauByLoaiCauHoi[lch.loai_cau_hoi_id] || 0;
+        if (soCauNhap !== lch.so_luong_cau) {
+          toast.error(
+            `"${lch.noi_dung_phan}" đang có ${soCauNhap} câu, phải đúng bằng ${lch.so_luong_cau} câu theo Cấu hình môn học.`
+          );
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     // Người soạn thật — dùng để ghi log lịch sử ("Thêm mới"/"Sửa" ở matrix_histories), khớp quy ước
     // creator/actor ở manual-create.tsx (Ngân hàng câu hỏi).

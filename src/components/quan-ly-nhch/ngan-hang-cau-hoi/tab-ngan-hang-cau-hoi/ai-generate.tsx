@@ -17,7 +17,7 @@ import { RichTextGroupProvider, RichTextGroupToolbar, RichTextGroupCell } from '
 import { RichTextView, stripHtmlToText } from '../../../../utils/htmlContent';
 import { convertAiQuestionMath } from '../../../../utils/mathFormula';
 import { resolveInternalQuestionType } from '../../../../utils/questionTypeCategory';
-import { mapCognitiveLevelRecord } from '../../../../utils/cognitiveLevel';
+import { mapCognitiveLevelRecord, buildCognitiveLevelOptions } from '../../../../utils/cognitiveLevel';
 
 export interface AIGenerateQuestionModalProps {
   open: boolean;
@@ -39,7 +39,7 @@ export interface AIGenerateQuestionModalProps {
 const AI_SUPPORTED_TYPES: QuestionType[] = ['single', 'true_false', 'short'];
 
 /** Số lượng câu hỏi tối đa 1 lần sinh — khớp giới hạn clamp ở backend (routes/generate.py::generate_questions) */
-const MAX_GENERATE_COUNT = 15;
+const MAX_GENERATE_COUNT = 50;
 
 const LEVEL_OPTIONS: { value: CognitiveLevel; label: string }[] = [
   { value: 'nhan_biet', label: 'Nhận biết' },
@@ -110,6 +110,11 @@ export default function AIGenerateQuestionModal({
   // gửi kèm request AI, giúp backend bốc bù đúng mức độ từ Ngân hàng câu hỏi khi Gemini quá giờ
   // (xem triggerAIQuestionGeneration và backend/ai_service/routes/generate.py::_fallback_from_bank).
   const [cognitiveLevels, setCognitiveLevels] = useState<CognitiveLevelAPI[]>([]);
+  // Options hiển thị của dropdown "Cấp độ tư duy" — khởi tạo bằng LEVEL_OPTIONS tĩnh làm fallback lúc
+  // modal vừa mở (chưa tải xong danh mục thật), rồi thay bằng buildCognitiveLevelOptions(cognitiveLevels)
+  // ngay khi tải xong — khớp đúng pattern manual-create.tsx/update.tsx đã dùng, tránh dropdown này là
+  // nơi DUY NHẤT còn hard-code trong khi "Loại hình câu hỏi" cùng modal đã lấy dữ liệu thật.
+  const [cognitiveLevelOptions, setCognitiveLevelOptions] = useState<{ value: CognitiveLevel; label: string }[]>(LEVEL_OPTIONS);
 
   const [aiGenerating, setAiGenerating] = useState(false);
   /** Danh sách câu hỏi AI vừa đề xuất — có thể sinh nhiều câu 1 lần (trường "Số lượng câu hỏi tạo") */
@@ -192,11 +197,18 @@ export default function AIGenerateQuestionModal({
     loadQuestionTypes();
   }, [open, form]);
 
-  // Tải danh mục "Cấp độ tư duy" thật mỗi khi mở modal — chỉ để lấy ID gửi kèm request AI (xem
-  // khai báo state cognitiveLevels ở trên), không đổi options hiển thị (vẫn dùng LEVEL_OPTIONS).
+  // Tải danh mục "Cấp độ tư duy" thật mỗi khi mở modal — vừa để lấy ID gửi kèm request AI (xem khai
+  // báo state cognitiveLevels ở trên), vừa để dựng lại options hiển thị của dropdown theo đúng dữ
+  // liệu quản trị thật (quan-ly-danh-muc/cap-do-tu-duy) thay vì LEVEL_OPTIONS tĩnh.
   useEffect(() => {
     if (!open) return;
-    cognitiveLevelApi.list().then((res) => setCognitiveLevels(res.data || [])).catch(() => setCognitiveLevels([]));
+    cognitiveLevelApi.list()
+      .then((res) => {
+        const data = res.data || [];
+        setCognitiveLevels(data);
+        if (data.length > 0) setCognitiveLevelOptions(buildCognitiveLevelOptions(data));
+      })
+      .catch(() => setCognitiveLevels([]));
   }, [open]);
 
   useEffect(() => {
@@ -689,7 +701,7 @@ export default function AIGenerateQuestionModal({
               rules={[{ required: true, message: 'Vui lòng chọn cấp độ tư duy!' }]}
               style={{ marginBottom: 8 }}
             >
-              <Select size="middle" options={LEVEL_OPTIONS} />
+              <Select size="middle" options={cognitiveLevelOptions} />
             </Form.Item>
 
             <Form.Item

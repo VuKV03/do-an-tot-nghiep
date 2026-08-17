@@ -264,12 +264,17 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             body: JSON.stringify({ ids: selectedRowIds }),
           });
           const json = await res.json();
+          // Backend có thể chặn từng phần (bỏ qua ma trận đang được dùng để tạo đề thi) — vẫn trả
+          // success:true khi xóa được ÍT NHẤT 1 ma trận, kèm message giải thích rõ ma trận nào bị bỏ
+          // qua (xem batch_delete_matrix_configs). Không thành công thì lấy `json.detail` (định dạng
+          // lỗi mặc định của FastAPI HTTPException) làm nội dung toast, khớp quy ước matrixApi.ts.
           if (json.success) {
             toast.success(json.message);
             setSelectedRowIds([]);
             fetchMatrixList(1, pageSize);
           } else {
-            toast.error(json.error);
+            toast.error(json.message || json.detail || json.error || 'Lỗi khi xóa ma trận.');
+            fetchMatrixList(1, pageSize);
           }
         } catch {
           toast.error('Lỗi kết nối API khi xóa.');
@@ -284,11 +289,14 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
     try {
       const res = await fetch(`${API_ORIGIN}/api/matrix-configs/${id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) {
+      // !res.ok (vd 400 do ma trận đang được dùng để tạo đề thi) trả về {"detail": "..."} theo định
+      // dạng mặc định của FastAPI HTTPException, không có `success`/`error` — đọc `json.detail` để
+      // hiện đúng lý do chặn thay vì toast trống (khớp quy ước matrixApi.ts::apiSaveMaTran).
+      if (res.ok && json.success) {
         toast.success(json.message);
         fetchMatrixList(currentPage, pageSize);
       } else {
-        toast.error(json.error);
+        toast.error(json.detail || json.error || 'Lỗi khi xóa ma trận.');
       }
     } catch {
       toast.error('Lỗi kết nối API khi xóa.');
@@ -503,12 +511,12 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
     fetchEvalList(1, size);
   };
 
-  if (viewMode === 'create') {
+  if (viewMode === 'create') { // === 'create' dùng chung cho 3 luồng: xem, sửa, tạo mới
     return (
       <CreateMatrixForm
         currentUser={currentUser}
-        editingId={editingMatrixId}
-        readOnly={matrixReadOnly}
+        editingId={editingMatrixId} // undefined = thêm mới | có id = sửa hoặc xem
+        readOnly={matrixReadOnly}// true = xem (khoá input) | false = sửa được (hoặc đang thêm mới)
         onBack={() => {
           setEditingMatrixId(undefined);
           setMatrixReadOnly(false);
@@ -651,6 +659,8 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
                     className="bg-[#2c3e9e] border-transparent text-white font-semibold text-xs rounded hover:bg-[#243590] cursor-pointer"
                     onClick={() => {
                       setEditingMatrixId(undefined);
+                      // state này dùng chung cho 3 luồng: xem, sửa, tạo mới
+                      // Và đều render 1 component CreateMatrixForm
                       setViewMode('create');
                     }}
                   >
@@ -673,141 +683,141 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
             {/* Table — bọc overflow-x-auto để bảng có scroll ngang riêng thay vì tràn ra ngoài
                 đẩy lệch layout khi màn hình nhỏ hơn minWidth của bảng (các cột co giãn được). */}
             <div className="overflow-x-auto">
-            <table style={{ minWidth: matrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
-              {matrixTableColGroup}
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="relative py-3 px-3 text-center">
-                    <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
-                    <ColResizeHandle onMouseDown={startMatrixColResize(0)} />
-                  </th>
-                  <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startMatrixColResize(1)} /></th>
-                  <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startMatrixColResize(2)} /></th>
-                  <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startMatrixColResize(3)} /></th>
-                  <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startMatrixColResize(4)} /></th>
-                  <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startMatrixColResize(5)} /></th>
-                  <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startMatrixColResize(6)} /></th>
-                  <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startMatrixColResize(7)} /></th>
-                  <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startMatrixColResize(8)} /></th>
-                  <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startMatrixColResize(9)} /></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tableLoading ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Spin size="medium" />
-                    </td>
+              <table style={{ minWidth: matrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {matrixTableColGroup}
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
+                    <th className="relative py-3 px-3 text-center">
+                      <input type="checkbox" className="cursor-pointer" checked={isAllSelected} onChange={toggleSelectAll} />
+                      <ColResizeHandle onMouseDown={startMatrixColResize(0)} />
+                    </th>
+                    <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startMatrixColResize(1)} /></th>
+                    <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startMatrixColResize(2)} /></th>
+                    <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startMatrixColResize(3)} /></th>
+                    <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startMatrixColResize(4)} /></th>
+                    <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startMatrixColResize(5)} /></th>
+                    <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startMatrixColResize(6)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startMatrixColResize(7)} /></th>
+                    <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startMatrixColResize(8)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startMatrixColResize(9)} /></th>
                   </tr>
-                ) : tableData.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Empty description="Không tìm thấy ma trận đề nào." />
-                    </td>
-                  </tr>
-                ) : (
-                  tableData.map((row, idx) => {
-                    const isChecked = selectedRowIds.includes(row.id);
-                    return (
-                      <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
-                        <td className="py-3 px-3 text-center">
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer accent-[#2c3e9e]"
-                            checked={isChecked}
-                            onChange={() => toggleSelectRow(row.id)}
-                          />
-                        </td>
-                        <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="py-3 px-3"><TruncatedText text={row.code} /></td>
-                        <td className="py-3 px-3">
-                          <TruncatedText text={row.name} />
-                        </td>
-                        <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
-                        <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
-                        <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
-                        <td className="py-3 px-3 text-center">{row.duration}</td>
-                        <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
-                        <td className="py-3 px-3 text-center">
-                          <Space size={4}>
-                            <Tooltip title="Xem chi tiết">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<EyeOutlined className="text-slate-500" />}
-                                className="cursor-pointer"
-                                onClick={() => {
-                                  setEditingMatrixId(row.id);
-                                  setMatrixReadOnly(true);
-                                  setViewMode('create');
-                                }}
-                              />
-                            </Tooltip>
-                            {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
-                                định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
-                                nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
-                            {(row.status === 'new' || row.status === 'rejected') && hasActionPermission(currentUser, 'matrices.manage') && (
-                              <Tooltip title="Chỉnh sửa">
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {tableLoading ? (
+                    <tr>
+                      <td colSpan={10} className="py-12 text-center">
+                        <Spin size="medium" />
+                      </td>
+                    </tr>
+                  ) : tableData.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="py-12 text-center">
+                        <Empty description="Không tìm thấy ma trận đề nào." />
+                      </td>
+                    </tr>
+                  ) : (
+                    tableData.map((row, idx) => {
+                      const isChecked = selectedRowIds.includes(row.id);
+                      return (
+                        <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
+                          <td className="py-3 px-3 text-center">
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer accent-[#2c3e9e]"
+                              checked={isChecked}
+                              onChange={() => toggleSelectRow(row.id)}
+                            />
+                          </td>
+                          <td className="py-3 px-3 text-center">{(currentPage - 1) * pageSize + idx + 1}</td>
+                          <td className="py-3 px-3"><TruncatedText text={row.code} /></td>
+                          <td className="py-3 px-3">
+                            <TruncatedText text={row.name} />
+                          </td>
+                          <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
+                          <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
+                          <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
+                          <td className="py-3 px-3 text-center">{row.duration}</td>
+                          <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
+                          <td className="py-3 px-3 text-center">
+                            <Space size={4}>
+                              <Tooltip title="Xem chi tiết">
                                 <Button
                                   size="small"
                                   type="text"
-                                  icon={<EditOutlined className="text-[#2c3e9e]" />}
+                                  icon={<EyeOutlined className="text-slate-500" />}
                                   className="cursor-pointer"
                                   onClick={() => {
                                     setEditingMatrixId(row.id);
-                                    setMatrixReadOnly(false);
+                                    setMatrixReadOnly(true);
                                     setViewMode('create');
                                   }}
                                 />
                               </Tooltip>
-                            )}
-                            {hasActionPermission(currentUser, 'matrices.submit') && (
-                              <Tooltip title="Gửi thẩm định">
+                              {/* Chỉ cho sửa khi "Tạo mới"/"Từ chối" (chưa gửi hoặc bị từ chối thẩm
+                                định) — "Chờ thẩm định"/"Đã thẩm định" coi như đã chốt, không cho sửa
+                                nữa (khớp quy ước canEditQuestion/canEditExam ở các module khác). */}
+                              {(row.status === 'new' || row.status === 'rejected') && hasActionPermission(currentUser, 'matrices.manage') && (
+                                <Tooltip title="Chỉnh sửa">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<EditOutlined className="text-[#2c3e9e]" />}
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                      setEditingMatrixId(row.id);
+                                      setMatrixReadOnly(false);
+                                      setViewMode('create');
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
+                              {hasActionPermission(currentUser, 'matrices.submit') && (
+                                <Tooltip title="Gửi thẩm định">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<SendOutlined className="text-amber-500" />}
+                                    className="cursor-pointer"
+                                    onClick={() => handleConfirmSendToEvaluation(row)}
+                                  />
+                                </Tooltip>
+                              )}
+                              {/* Lịch sử — không gắn điều kiện quyền, giống quy ước ở Ngân hàng câu hỏi
+                                (tab-ngan-hang-cau-hoi/index.tsx, tham-dinh-cau-hoi/index.tsx): hễ vào
+                                được tab là xem được lịch sử, không phân biệt vai trò. */}
+                              <Tooltip title="Lịch sử">
                                 <Button
                                   size="small"
                                   type="text"
-                                  icon={<SendOutlined className="text-amber-500" />}
+                                  icon={<HistoryOutlined className="text-slate-500" />}
                                   className="cursor-pointer"
-                                  onClick={() => handleConfirmSendToEvaluation(row)}
+                                  onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
                                 />
                               </Tooltip>
-                            )}
-                            {/* Lịch sử — không gắn điều kiện quyền, giống quy ước ở Ngân hàng câu hỏi
-                                (tab-ngan-hang-cau-hoi/index.tsx, tham-dinh-cau-hoi/index.tsx): hễ vào
-                                được tab là xem được lịch sử, không phân biệt vai trò. */}
-                            <Tooltip title="Lịch sử">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<HistoryOutlined className="text-slate-500" />}
-                                className="cursor-pointer"
-                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
-                              />
-                            </Tooltip>
-                            {hasActionPermission(currentUser, 'matrices.manage') && (
-                              <Popconfirm
-                                title="Xóa ma trận này?"
-                                onConfirm={() => handleDeleteRow(row.id)}
-                                okText="Xóa"
-                                cancelText="Hủy"
-                              >
-                                <Tooltip title="Xóa">
-                                  <Button
-                                    size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
-                                    loading={deletingId === row.id}
-                                    disabled={deletingId !== null && deletingId !== row.id}
-                                  />
-                                </Tooltip>
-                              </Popconfirm>
-                            )}
-                          </Space>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                              {hasActionPermission(currentUser, 'matrices.manage') && (
+                                <Popconfirm
+                                  title="Xóa ma trận này?"
+                                  onConfirm={() => handleDeleteRow(row.id)}
+                                  okText="Xóa"
+                                  cancelText="Hủy"
+                                >
+                                  <Tooltip title="Xóa">
+                                    <Button
+                                      size="small" type="text" danger icon={<DeleteOutlined />} className="cursor-pointer"
+                                      loading={deletingId === row.id}
+                                      disabled={deletingId !== null && deletingId !== row.id}
+                                    />
+                                  </Tooltip>
+                                </Popconfirm>
+                              )}
+                            </Space>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
             {/* Pagination Footer */}
@@ -987,104 +997,104 @@ export default function MatrixConfigModule({ initialTab, currentUser }: { initia
 
             {/* Table — bọc overflow-x-auto (xem ghi chú ở bảng "Ma trận đề" phía trên) */}
             <div className="overflow-x-auto">
-            <table style={{ minWidth: evalMatrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
-              {evalMatrixTableColGroup}
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
-                  <th className="relative py-3 px-3 text-center">
-                    <input type="checkbox" className="cursor-pointer" checked={isAllEvalSelected} onChange={toggleSelectAllEval} />
-                    <ColResizeHandle onMouseDown={startEvalMatrixColResize(0)} />
-                  </th>
-                  <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startEvalMatrixColResize(1)} /></th>
-                  <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(2)} /></th>
-                  <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(3)} /></th>
-                  <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startEvalMatrixColResize(4)} /></th>
-                  <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startEvalMatrixColResize(5)} /></th>
-                  <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startEvalMatrixColResize(6)} /></th>
-                  <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startEvalMatrixColResize(7)} /></th>
-                  <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startEvalMatrixColResize(8)} /></th>
-                  <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startEvalMatrixColResize(9)} /></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {evalTableLoading ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Spin size="medium" />
-                    </td>
+              <table style={{ minWidth: evalMatrixTableTotalWidth }} className={`w-full text-xs font-medium text-slate-700 border-collapse table-fixed ${RESIZABLE_TABLE_CLASS}`}>
+                {evalMatrixTableColGroup}
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600 font-semibold">
+                    <th className="relative py-3 px-3 text-center">
+                      <input type="checkbox" className="cursor-pointer" checked={isAllEvalSelected} onChange={toggleSelectAllEval} />
+                      <ColResizeHandle onMouseDown={startEvalMatrixColResize(0)} />
+                    </th>
+                    <th className="relative py-3 px-3 text-center">STT<ColResizeHandle onMouseDown={startEvalMatrixColResize(1)} /></th>
+                    <th className="relative py-3 px-3 text-left">Mã ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(2)} /></th>
+                    <th className="relative py-3 px-3 text-left">Tên ma trận<ColResizeHandle onMouseDown={startEvalMatrixColResize(3)} /></th>
+                    <th className="relative py-3 px-3 text-left">Môn học<ColResizeHandle onMouseDown={startEvalMatrixColResize(4)} /></th>
+                    <th className="relative py-3 px-3 text-center">Tổng điểm<ColResizeHandle onMouseDown={startEvalMatrixColResize(5)} /></th>
+                    <th className="relative py-3 px-3 text-center">Số câu hỏi<ColResizeHandle onMouseDown={startEvalMatrixColResize(6)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thời gian làm bài (phút)<ColResizeHandle onMouseDown={startEvalMatrixColResize(7)} /></th>
+                    <th className="relative py-3 px-3 text-center">Trạng thái<ColResizeHandle onMouseDown={startEvalMatrixColResize(8)} /></th>
+                    <th className="relative py-3 px-3 text-center">Thao tác<ColResizeHandle onMouseDown={startEvalMatrixColResize(9)} /></th>
                   </tr>
-                ) : sortedEvalData.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center">
-                      <Empty description="Không tìm thấy ma trận đề thi nào cần thẩm định." />
-                    </td>
-                  </tr>
-                ) : (
-                  sortedEvalData.map((row, idx) => {
-                    const isChecked = evalSelectedRowIds.includes(row.id);
-                    return (
-                      <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
-                        <td className="py-3 px-3 text-center">
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer accent-[#2c3e9e]"
-                            checked={isChecked}
-                            onChange={() => toggleSelectRowEval(row.id)}
-                          />
-                        </td>
-                        <td className="py-3 px-3 text-center">{(evalCurrentPage - 1) * evalPageSize + idx + 1}</td>
-                        <td className="py-3 px-3 font-semibold"><TruncatedText text={row.code} /></td>
-                        <td className="py-3 px-3">
-                          <TruncatedText text={row.name} />
-                        </td>
-                        <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
-                        <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
-                        <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
-                        <td className="py-3 px-3 text-center">{row.duration}</td>
-                        <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
-                        <td className="py-3 px-3 text-center">
-                          <Space size={4}>
-                            <Tooltip title="Xem chi tiết">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<EyeOutlined className="text-slate-500" />}
-                                className="cursor-pointer"
-                                onClick={() => {
-                                  setEditingMatrixId(row.id);
-                                  setMatrixReadOnly(true);
-                                  setViewMode('create');
-                                }}
-                              />
-                            </Tooltip>
-                            {hasActionPermission(currentUser, 'matrices.approve') && (
-                              <Tooltip title="Thẩm định">
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {evalTableLoading ? (
+                    <tr>
+                      <td colSpan={10} className="py-12 text-center">
+                        <Spin size="medium" />
+                      </td>
+                    </tr>
+                  ) : sortedEvalData.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="py-12 text-center">
+                        <Empty description="Không tìm thấy ma trận đề thi nào cần thẩm định." />
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedEvalData.map((row, idx) => {
+                      const isChecked = evalSelectedRowIds.includes(row.id);
+                      return (
+                        <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors ${isChecked ? 'bg-blue-50/30' : ''}`}>
+                          <td className="py-3 px-3 text-center">
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer accent-[#2c3e9e]"
+                              checked={isChecked}
+                              onChange={() => toggleSelectRowEval(row.id)}
+                            />
+                          </td>
+                          <td className="py-3 px-3 text-center">{(evalCurrentPage - 1) * evalPageSize + idx + 1}</td>
+                          <td className="py-3 px-3 font-semibold"><TruncatedText text={row.code} /></td>
+                          <td className="py-3 px-3">
+                            <TruncatedText text={row.name} />
+                          </td>
+                          <td className="py-3 px-3"><TruncatedText text={row.subject} /></td>
+                          <td className="py-3 px-3 text-center">{row.totalScore.toFixed(2)}</td>
+                          <td className="py-3 px-3 text-center">{row.totalQuestions}</td>
+                          <td className="py-3 px-3 text-center">{row.duration}</td>
+                          <td className="py-3 px-3 text-center">{renderStatusTag(row.status)}</td>
+                          <td className="py-3 px-3 text-center">
+                            <Space size={4}>
+                              <Tooltip title="Xem chi tiết">
                                 <Button
                                   size="small"
                                   type="text"
-                                  icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                  icon={<EyeOutlined className="text-slate-500" />}
                                   className="cursor-pointer"
-                                  onClick={() => handleSingleReviewClick(row)}
+                                  onClick={() => {
+                                    setEditingMatrixId(row.id);
+                                    setMatrixReadOnly(true);
+                                    setViewMode('create');
+                                  }}
                                 />
                               </Tooltip>
-                            )}
-                            <Tooltip title="Lịch sử">
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<HistoryOutlined className="text-slate-500" />}
-                                className="cursor-pointer"
-                                onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
-                              />
-                            </Tooltip>
-                          </Space>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                              {hasActionPermission(currentUser, 'matrices.approve') && (
+                                <Tooltip title="Thẩm định">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<FileTextOutlined className="text-[#2c3e9e]" />}
+                                    className="cursor-pointer"
+                                    onClick={() => handleSingleReviewClick(row)}
+                                  />
+                                </Tooltip>
+                              )}
+                              <Tooltip title="Lịch sử">
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<HistoryOutlined className="text-slate-500" />}
+                                  className="cursor-pointer"
+                                  onClick={() => setHistoryMatrix({ id: row.id, name: row.name, code: row.code })}
+                                />
+                              </Tooltip>
+                            </Space>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
             {/* Pagination Footer */}

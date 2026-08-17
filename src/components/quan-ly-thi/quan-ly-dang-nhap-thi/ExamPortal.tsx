@@ -13,6 +13,15 @@ const cleanOptionText = (text: string) => {
   // Removes "A. ", "B. ", etc. at the start (ignoring HTML tags if any)
   return text.replace(/^(<[^>]+>)?\s*[A-Z][\.\)]\s*/, '$1');
 };
+
+// Điểm theo từng Phần I/II/III của kết quả thi — khớp `part_scores`/`part_max_scores` trả về từ
+// backend (backend/quanlythi_service/routes/portal.py::submit_final).
+const PART_SCORE_KEYS = ['p1', 'p2', 'p3'] as const;
+const PART_SCORE_LABELS: Record<(typeof PART_SCORE_KEYS)[number], string> = {
+  p1: 'Phần I', p2: 'Phần II', p3: 'Phần III',
+};
+const formatPartScore = (value: number | undefined | null): string =>
+  Number((value ?? 0).toFixed(2)).toString();
 interface ExamPortalProps {
   currentUser: SystemUser;
   subject: string;
@@ -225,7 +234,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   const doSubmit = async (isAuto: boolean) => {
     if (mode === 'preview') {
       setIsTimeOutSubmit(isAuto);
-      setExamResultData({ score: 10 });
+      // Chế độ xem trước (preview) không thực sự chấm bài (không có result_id/candidate thật để gọi
+      // /submit-final) nên KHÔNG bịa điểm số đã làm được — chỉ hiện đúng thang điểm tối đa (max_score)
+      // của đề đang xem trước, nếu có, thay vì đặt cứng cả điểm số lẫn điểm tối đa thành 10.
+      setExamResultData({ score: 0, max_score: previewExamData?.totalScore ?? 10 });
       setResultModalVisible(true);
       setViewMode('taking');
       return;
@@ -384,12 +396,15 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
   if (viewMode === 'waiting') {
     return (
       <div className="flex flex-col min-h-screen w-full bg-[#f4f6f9] items-center justify-center py-6 sm:py-12 px-4 font-sans">
-        <h1 className="text-xl sm:text-[28px] text-slate-800 uppercase mb-2 sm:mb-3 font-bold tracking-wide text-center">
+
+        {/* <h1 className="text-xl sm:text-[28px] text-slate-800 uppercase mb-2 sm:mb-3 font-bold tracking-wide text-center">
           {sessionInfo.exam?.name ? sessionInfo.exam.name.toUpperCase() : `KỲ THI MÔN ${sessionInfo.exam?.subject || 'TRỰC TUYẾN'}`}
-        </h1>
-        <p className="text-slate-600 mb-6 sm:mb-12 text-xs sm:text-[15px] text-center">
+        </h1> */}
+        {/* Cỡ chữ do đúng 2 class text-base/sm:text-xl quyết định — thẻ <h1> không tự mang cỡ chữ nào
+            (Tailwind Preflight reset heading về font-size: inherit), đổi tag không ảnh hưởng gì. */}
+        <h1 className="text-slate-600 font-semibold mb-6 sm:mb-12 text-base sm:text-xl text-center">
           Ngày thi: {new Date().toLocaleDateString('vi-VN')} ({new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
-        </p>
+        </h1>
 
         <div className="flex flex-col md:flex-row gap-4 sm:gap-6 max-w-[960px] w-full mb-6 sm:mb-10">
           <div className="flex-1 bg-white p-5 sm:p-8 rounded-xl sm:rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100">
@@ -407,7 +422,7 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <div><span className="text-slate-500 mr-2 font-normal">Môn thi:</span> {sessionInfo.exam?.subject || 'Toán học'}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Số lượng câu hỏi:</span> {totalQuestions}</div>
               <div><span className="text-slate-500 mr-2 font-normal">Thời gian làm bài (phút):</span> {sessionInfo.exam?.duration || 45}</div>
-              <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> 10</div>
+              <div><span className="text-slate-500 mr-2 font-normal">Điểm tối đa:</span> {sessionInfo.exam?.maxScore ?? 10}</div>
             </div>
           </div>
         </div>
@@ -840,11 +855,10 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
                         setCurrentQuestionIdx(getQuestionGlobalIndex(firstQ.id));
                       }
                     }}
-                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap ${
-                      isCurrentPart
-                        ? 'bg-[#1a365d] text-white shadow-sm scale-105'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap ${isCurrentPart
+                      ? 'bg-[#1a365d] text-white shadow-sm scale-105'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
                   >
                     Phần {getTypeDisplayName(partKey)} ({parts[partKey].length})
                   </button>
@@ -973,25 +987,46 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               <>
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="text-slate-600 font-medium">Điểm số:</span>
-                  <strong className="text-[#1677ff] font-bold text-base sm:text-[20px]">{examResultData.score} / 10</strong>
+
+                  <strong className="text-[#1677ff] font-bold text-base sm:text-[20px]">{examResultData.score} / {examResultData.max_score ?? 10}</strong>
                 </div>
+                {/* Điểm theo từng Phần I/II/III — đồng bộ với cách các tab quản trị (Cấu hình môn học,
+                    Ma trận đề, Xem trước đề) đều hiện thông tin theo từng Phần, thay vì chỉ có tổng
+                    điểm chung chung như trước. Chỉ hiện Phần nào thực sự có điểm tối đa > 0 (đề có gắn
+                    Cấu hình môn học khớp loại câu hỏi của Phần đó) — đề không có cấu hình thì ẩn hẳn
+                    khối này, không hiện "0/0" vô nghĩa. */}
+                {examResultData.part_max_scores && PART_SCORE_KEYS.some(k => (examResultData.part_max_scores[k] || 0) > 0) && (
+                  <div className="space-y-1 border-b border-slate-200 pb-2">
+                    {PART_SCORE_KEYS.filter(k => (examResultData.part_max_scores[k] || 0) > 0).map(k => (
+                      <div key={k} className="flex justify-between items-center text-[11px] sm:text-xs">
+                        <span className="text-slate-500">Điểm {PART_SCORE_LABELS[k]}:</span>
+                        <span className="text-slate-700 font-semibold">
+                          {formatPartScore(examResultData.part_scores?.[k])} / {formatPartScore(examResultData.part_max_scores[k])}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 font-medium">Số câu đúng:</span>
                   <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{examResultData.total_correct}/{examResultData.total_questions}</strong>
                 </div>
-                {examResultData.is_show_result === false && (
-                  <div className="text-center text-slate-500 italic text-xs sm:text-sm mt-3 pt-3 border-t border-slate-200">
-                    Chi tiết bài làm đang được ẩn theo cấu hình của gói đề thi.
-                  </div>
-                )}
+                {
+                  examResultData.is_show_result === false && (
+                    <div className="text-center text-slate-500 italic text-xs sm:text-sm mt-3 pt-3 border-t border-slate-200">
+                      Chi tiết bài làm đang được ẩn theo cấu hình của gói đề thi.
+                    </div>
+                  )
+                }
               </>
             ) : (
               <div className="flex justify-between items-center">
                 <span className="text-slate-600 font-medium">Số câu đã trả lời:</span>
                 <strong className="text-[#22c55e] font-bold text-sm sm:text-[18px]">{answeredCount}/{totalQuestions}</strong>
               </div>
-            )}
-          </div>
+            )
+            }
+          </div >
 
           {examResultData && examResultData.detailed_results && (
             <div className="w-full mt-2 sm:mt-4">
@@ -1122,9 +1157,9 @@ export default function ExamPortal({ currentUser, subject, onLogout, onExamStart
               </div>
             </div>
           )}
-        </div>
-      </Modal>
-    </Layout>
+        </div >
+      </Modal >
+    </Layout >
   );
 }
 

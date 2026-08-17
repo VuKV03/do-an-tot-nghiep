@@ -114,6 +114,8 @@ export default function QuanLyThiSinh() {
 
   // Search filter states
   const [searchText, setSearchText] = useState('');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string | undefined>(undefined);
+  const [selectedGenderFilter, setSelectedGenderFilter] = useState<string | undefined>(undefined);
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   const filteredData = useMemo(() => {
@@ -125,9 +127,19 @@ export default function QuanLyThiSinh() {
         c.sbd.toLowerCase().includes(kwText) ||
         c.cccd.toLowerCase().includes(kwText);
 
-      return textMatch;
+      // Filter by Subject
+      const subjectMatch = !selectedSubjectFilter ||
+        (c.registeredSubjects && c.registeredSubjects.includes(selectedSubjectFilter)) ||
+        c.subject1 === selectedSubjectFilter ||
+        c.subject2 === selectedSubjectFilter ||
+        c.subject3 === selectedSubjectFilter;
+
+      // Filter by Gender
+      const genderMatch = !selectedGenderFilter || c.gender === selectedGenderFilter;
+
+      return textMatch && subjectMatch && genderMatch;
     });
-  }, [data, searchText]);
+  }, [data, searchText, selectedSubjectFilter, selectedGenderFilter]);
 
   React.useEffect(() => {
     fetchCandidates();
@@ -379,9 +391,9 @@ export default function QuanLyThiSinh() {
         className="shadow-sm rounded-xl"
       >
         {isSearchExpanded && (
-          <Row gutter={24} align="bottom" className="animate-in fade-in slide-in-from-top-2 duration-300">
-            <Col span={8}>
-              <div className="mb-1 text-slate-600">Mã/ tên thí sinh</div>
+          <Row gutter={[24, 16]} align="bottom" className="animate-in fade-in slide-in-from-top-2 duration-300">
+            <Col xs={24} sm={8}>
+              <div className="mb-1 text-slate-600 font-medium">Mã/ tên thí sinh</div>
               <Input
                 placeholder="Nhập tên, SBD hoặc CCCD"
                 value={searchText}
@@ -389,7 +401,33 @@ export default function QuanLyThiSinh() {
                 allowClear
               />
             </Col>
-            <Col span={24} className="text-center mt-6">
+            <Col xs={24} sm={8}>
+              <div className="mb-1 text-slate-600 font-medium">Môn thi</div>
+              <Select
+                className="w-full"
+                placeholder="Tất cả môn thi"
+                value={selectedSubjectFilter}
+                onChange={val => setSelectedSubjectFilter(val)}
+                allowClear
+                options={subjectOptions}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <div className="mb-1 text-slate-600 font-medium">Giới tính</div>
+              <Select
+                className="w-full"
+                placeholder="Tất cả giới tính"
+                value={selectedGenderFilter}
+                onChange={val => setSelectedGenderFilter(val)}
+                allowClear
+                options={[
+                  { label: 'Nam', value: 'Nam' },
+                  { label: 'Nữ', value: 'Nữ' },
+                  { label: 'Khác', value: 'Khác' }
+                ]}
+              />
+            </Col>
+            <Col span={24} className="text-center mt-4">
               <Space>
                 <Button type="primary" className="bg-[#1d4ed8] px-8 rounded-lg shadow-sm font-medium hover:bg-blue-700">
                   Tìm kiếm
@@ -398,6 +436,8 @@ export default function QuanLyThiSinh() {
                   className="px-6 rounded-lg font-medium"
                   onClick={() => {
                     setSearchText('');
+                    setSelectedSubjectFilter(undefined);
+                    setSelectedGenderFilter(undefined);
                   }}
                 >
                   Đặt lại
@@ -519,9 +559,10 @@ export default function QuanLyThiSinh() {
                 <Form.Item
                   label="Số CCCD/ Hộ chiếu"
                   name="cccd"
-                  getValueFromEvent={(e) => e.target.value.replace(/[^0-9]/g, '')}
+                  getValueFromEvent={(e) => e.target.value.replace(/[^0-9]/g, '').slice(0, 12)}
                   rules={[
-                    { pattern: /^[0-9]*$/, message: 'Chỉ được nhập số' }
+                    { pattern: /^[0-9]*$/, message: 'Chỉ được nhập số' },
+                    { max: 12, message: 'Số CCCD/ Hộ chiếu không được vượt quá 12 ký tự' }
                   ]}
                 >
                   <Input placeholder="Nhập số CCCD" maxLength={12} />
@@ -601,6 +642,10 @@ export default function QuanLyThiSinh() {
             ? `Bạn có chắc chắn muốn xóa bản ghi có tên thí sinh "${candidateToDelete.fullName}"?`
             : `Bạn có chắc chắn muốn xóa ${selectedRowKeys.length} bản ghi thí sinh?`
           }
+          <br />
+          <span className="text-sm text-red-500 italic">
+            (Lưu ý: Thao tác xóa này có thể xóa cả lịch sử làm bài và toàn bộ kết quả thi của thí sinh)
+          </span>
         </p>
       </Modal>
 
